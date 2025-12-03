@@ -45,8 +45,8 @@ export default function AuthPage() {
           <div className="h-12 w-12 bg-primary rounded-xl mx-auto flex items-center justify-center text-primary-foreground text-2xl font-bold shadow-lg shadow-primary/20">
             P
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Pragati Institute</h1>
-          <p className="text-muted-foreground">Official Typing Test Portal</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Pragati Shorthand and Typing</h1>
+          <p className="text-muted-foreground">Official Testing Portal</p>
         </div>
 
         <Card className="border-muted shadow-xl">
@@ -81,7 +81,7 @@ export default function AuthPage() {
               <div className="mt-6">
                 <TabsContent value="user">
                   <Button className="w-full" size="lg" onClick={() => handleLogin("user")}>
-                    Start Typing Test
+                    Start Test
                   </Button>
                 </TabsContent>
                 <TabsContent value="admin">

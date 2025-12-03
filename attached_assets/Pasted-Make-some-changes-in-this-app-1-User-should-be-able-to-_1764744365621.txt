@@ -1,0 +1,18 @@
+Make some changes in this app:
+ 
+1. User should be able to see only content of today, hide others
+2. There should be an enable button for Admin to enable the previously uploaded content to show it to the user, only one content can be enabled at a time.
+3. Don't show the uploaded date to the user
+4. Add the 30min time also to the list of time for admin
+5. Update the name of the application to "Pragati Shorthand and Typing" instead of Pragati Institute
+6. Create a new functionality for shorthand test where Admin should be able to upload the content and mention the time required to type it, that content should not be available to see to the user, only user should have a text area to type his hard copy. Once the timer ends, compare the content typed by user and the content uploaded by admin and generate the result.
+7. There should be a different section of results for Typing test and for Shorthand test, same goes for admin upload and user typing area.
+8. Allow admin to download and print the result student-wise and list of results should have latest at the top.
+9. There should be a filter option for admin to filter the results for a student and that can also be downloaded as a whole.
+10. Add this logic to check for the mistakes of typing test:
+    1. The result should content: Words (no. of words typed), Time (the time assigned), Mistakes (rename the mismatches), Backspaces (no. of backspaces clicked by the user), Gross Speed and Net Speed.
+    2. Follow this logic to check the no. of mistakes: lets say user types 100 words in 5min (consider total time allocated only for this assignment by Admin), made 10 mistakes with 6 backspaces, then Gross speed = Total words typed / Total time;  If No. of mistakes is more than Total time => Net Speed = (Total words typed - (no. of Mistakes - Total time)* Total time)/Total time If No. of mistakes is less than or equal to Total time => Net Speed = Total words typed / Total time; 
+11. Follow below logic for Shorthand test:
+    1. The result should content: Words (no. of words typed), Time (the time assigned), Mistakes (rename the mismatches), Result = Fail/ Pass
+    2. lets say if user types 100 words for 5min (consider total time allocated only for this assignment by Admin), always follow 5% rule, where 5% mistakes are allowed and consider the user as Passed if it is 5% or below, if it is more than that then user is failed, as in this case 100 words are typed, then upto 5 words mistake user is passed, more than 5 words mistake, it is failed.
+    3. Do a exact match of the content uploaded by the admin and content typed by the user, even a blank space should be counted.

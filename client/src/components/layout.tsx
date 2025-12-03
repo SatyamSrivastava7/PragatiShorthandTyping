@@ -20,7 +20,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold">
               P
             </div>
-            <h1 className="font-bold text-lg hidden sm:block tracking-tight">Pragati Institute</h1>
+            <h1 className="font-bold text-lg hidden sm:block tracking-tight">Pragati Shorthand and Typing</h1>
           </div>
 
           {currentUser && (

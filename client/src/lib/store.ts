@@ -9,12 +9,16 @@ export interface User {
   role: Role;
 }
 
+export type AssignmentType = 'typing' | 'shorthand';
+
 export interface Assignment {
   id: string;
   title: string;
   content: string;
   date: string; // YYYY-MM-DD
   durationMinutes: number;
+  type: AssignmentType;
+  isEnabled: boolean;
   createdAt: number;
 }
 
@@ -24,11 +28,20 @@ export interface TestResult {
   userId: string;
   username: string;
   typedContent: string;
-  accuracy: number;
-  wpm: number;
   dateTaken: number;
-  mismatches: number;
   totalChars: number;
+  
+  // Typing Test Fields
+  accuracy?: number;
+  wpm?: number;
+  mismatches?: number;
+  backspaces?: number;
+  grossSpeed?: number;
+  netSpeed?: number;
+  
+  // Shorthand Test Fields
+  result?: 'Pass' | 'Fail';
+  type: AssignmentType;
 }
 
 interface AppState {
@@ -39,8 +52,9 @@ interface AppState {
   // Actions
   login: (username: string, role: Role) => void;
   logout: () => void;
-  addAssignment: (assignment: Omit<Assignment, 'id' | 'createdAt'>) => void;
+  addAssignment: (assignment: Omit<Assignment, 'id' | 'createdAt' | 'isEnabled'>) => void;
   deleteAssignment: (id: string) => void;
+  toggleAssignmentEnabled: (id: string) => void;
   addResult: (result: Omit<TestResult, 'id'>) => void;
 }
 
@@ -52,9 +66,11 @@ export const useStore = create<AppState>()(
         {
           id: 'demo-1',
           title: 'Typing Basics',
-          content: 'The quick brown fox jumps over the lazy dog. This is a classic pangram that contains every letter of the English alphabet. It is often used to demonstrate typefaces and test typewriters.',
+          content: 'The quick brown fox jumps over the lazy dog. This is a classic pangram that contains every letter of the English alphabet.',
           date: new Date().toISOString().split('T')[0],
           durationMinutes: 2,
+          type: 'typing',
+          isEnabled: true,
           createdAt: Date.now(),
         }
       ],
@@ -69,7 +85,12 @@ export const useStore = create<AppState>()(
       addAssignment: (assignment) => set((state) => ({
         assignments: [
           ...state.assignments,
-          { ...assignment, id: Math.random().toString(36).slice(2), createdAt: Date.now() }
+          { 
+            ...assignment, 
+            id: Math.random().toString(36).slice(2), 
+            createdAt: Date.now(),
+            isEnabled: false // Default disabled
+          }
         ]
       })),
 
@@ -77,10 +98,33 @@ export const useStore = create<AppState>()(
         assignments: state.assignments.filter((a) => a.id !== id)
       })),
 
+      toggleAssignmentEnabled: (id) => set((state) => {
+        // Find the assignment to be toggled
+        const target = state.assignments.find(a => a.id === id);
+        if (!target) return state;
+
+        // If we are enabling it, disable all others
+        if (!target.isEnabled) {
+          return {
+            assignments: state.assignments.map(a => ({
+              ...a,
+              isEnabled: a.id === id
+            }))
+          };
+        }
+
+        // If disabling, just disable it
+        return {
+          assignments: state.assignments.map(a => 
+            a.id === id ? { ...a, isEnabled: false } : a
+          )
+        };
+      }),
+
       addResult: (result) => set((state) => ({
         results: [
-          ...state.results,
-          { ...result, id: Math.random().toString(36).slice(2) }
+          { ...result, id: Math.random().toString(36).slice(2) },
+          ...state.results // Latest at top
         ]
       })),
     }),
