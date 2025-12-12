@@ -95,11 +95,11 @@ const STORAGE_KEYS = {
 };
 
 // Helper to get from storage
-const getStorage = <T>(key: string, defaultVal: T): T => {
+function getStorage<T>(key: string, defaultVal: T): T {
   if (typeof window === 'undefined') return defaultVal;
   const stored = localStorage.getItem(key);
   return stored ? JSON.parse(stored) : defaultVal;
-};
+}
 
 interface StoreContextType {
   users: User[];

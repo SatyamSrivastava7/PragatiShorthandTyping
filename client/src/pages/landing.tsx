@@ -1,10 +1,13 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useMockStore } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Keyboard, FileText, Award, Mail, Phone, MapPin } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 export default function LandingPage() {
+  const { galleryImages } = useMockStore();
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -94,7 +97,7 @@ export default function LandingPage() {
       <section className="w-full py-12 md:py-24 lg:py-32">
         <div className="container px-4 md:px-6 mx-auto">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-8 text-center">Gallery</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="aspect-video relative overflow-hidden rounded-lg bg-muted">
                  <img 
@@ -104,7 +107,28 @@ export default function LandingPage() {
                  />
               </div>
             ))}
-          </div>
+          </div> */}
+          {galleryImages.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {galleryImages.map((url, idx) => (
+                <Dialog key={idx}>
+                  <DialogTrigger asChild>
+                    <div className="relative group aspect-square rounded-lg overflow-hidden border cursor-pointer shadow-sm hover:shadow-md transition-all hover:scale-[1.02]">
+                      <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
+                    <img src={url} alt={`Gallery ${idx}`} className="w-full h-auto max-h-[90vh] object-contain rounded-md" />
+                  </DialogContent>
+                </Dialog>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-muted/30 rounded-lg border-2 border-dashed">
+              <p className="text-muted-foreground">No images uploaded yet.</p>
+            </div>
+          )}
         </div>
       </section>
 
