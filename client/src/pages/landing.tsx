@@ -1,42 +1,40 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Users } from "lucide-react";
-import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png"; // Will be generated
+import { ArrowRight, Keyboard, FileText, Award, Mail, Phone, MapPin } from "lucide-react";
+import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 
 export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-background">
+      <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-background flex justify-center text-center">
         <div className="container px-4 md:px-6">
-          <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
-            <div className="flex flex-col justify-center space-y-4">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                  Master Shorthand & Typing with Pragati
-                </h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                <Link href="/auth">
-                  <Button size="lg" className="px-8">
-                    Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/contact">
-                  <Button variant="outline" size="lg">
-                    Contact Us
-                  </Button>
-                </Link>
-              </div>
+          <div className="flex flex-col items-center space-y-4">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
+                Master Shorthand & Typing with Pragati
+              </h1>
+              <p className="max-w-[600px] mx-auto text-muted-foreground md:text-xl">
+                Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center">
+              <Link href="/auth">
+                <Button size="lg" className="px-8">
+                  Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/contact">
+                <Button variant="outline" size="lg">
+                  Contact Us
+                </Button>
+              </Link>
             </div>
             <img
               src={heroImage}
               alt="Hero"
-              className="mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full lg:order-last"
+              className="mx-auto mt-8 aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full max-w-4xl shadow-2xl"
             />
           </div>
         </div>
@@ -44,11 +42,11 @@ export default function LandingPage() {
 
       {/* About Section */}
       <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
-        <div className="container px-4 md:px-6">
+        <div className="container px-4 md:px-6 mx-auto">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
               <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">About Pragati Institute</h2>
-              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+              <p className="max-w-[900px] mx-auto text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                 Pragati Professional Studies is dedicated to providing top-tier training and assessment in shorthand and typing. 
                 Our platform offers realistic test environments, detailed performance analytics, and comprehensive study materials.
               </p>
@@ -94,7 +92,7 @@ export default function LandingPage() {
 
       {/* Gallery Section */}
       <section className="w-full py-12 md:py-24 lg:py-32">
-        <div className="container px-4 md:px-6">
+        <div className="container px-4 md:px-6 mx-auto">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-8 text-center">Gallery</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -111,8 +109,8 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="w-full py-6 bg-slate-900 text-white">
-        <div className="container px-4 md:px-6">
+      <footer className="w-full py-8 bg-slate-900 text-white">
+        <div className="container px-4 md:px-6 mx-auto">
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
              <div className="space-y-4">
                <h4 className="text-lg font-bold">Pragati Institute</h4>
@@ -120,15 +118,16 @@ export default function LandingPage() {
              </div>
              <div className="space-y-4">
                <h4 className="text-lg font-bold">Contact</h4>
-               <ul className="space-y-2 text-sm text-slate-300">
-                 <li>pragatiprofessionalstudies@gmail.com</li>
-                 <li>+91 9026212705</li>
+               <ul className="space-y-3 text-sm text-slate-300">
+                 <li className="flex items-center gap-2"><Mail size={16} /> pragatiprofessionalstudies@gmail.com</li>
+                 <li className="flex items-center gap-2"><Phone size={16} /> +91 9026212705</li>
                </ul>
              </div>
-             <div className="space-y-4">
+             <div className="space-y-4 col-span-2">
                <h4 className="text-lg font-bold">Address</h4>
-               <p className="text-sm text-slate-300">
-                 Lucknow, Uttar Pradesh, India
+               <p className="text-sm text-slate-300 flex items-start gap-2">
+                 <MapPin size={16} className="mt-1 shrink-0" />
+                 Kalindipuram, Rajrooppur, Prayagraj, Uttar Pradesh, India, 211011
                </p>
              </div>
           </div>

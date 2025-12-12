@@ -3,8 +3,12 @@ import { Mail, Phone, MapPin, Send, Instagram, Facebook, Youtube } from "lucide-
 import { Button } from "@/components/ui/button";
 
 export default function ContactPage() {
+  const openLink = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
-    <div className="container px-4 md:px-6 py-12">
+    <div className="container px-4 md:px-6 py-12 mx-auto">
       <h1 className="text-4xl font-bold text-center mb-12">Contact Us</h1>
       
       <div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
@@ -39,7 +43,9 @@ export default function ContactPage() {
               </div>
               <div>
                 <h3 className="font-semibold">Address</h3>
-                <p className="text-sm text-muted-foreground">Lucknow, Uttar Pradesh, India</p>
+                <p className="text-sm text-muted-foreground">
+                  Kalindipuram, Rajrooppur, Prayagraj, Uttar Pradesh, India, 211011
+                </p>
               </div>
             </div>
           </CardContent>
@@ -53,16 +59,16 @@ export default function ContactPage() {
             <p className="text-muted-foreground">Follow us on social media for updates and study materials.</p>
             
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="w-full justify-start gap-2 h-12">
+              <Button variant="outline" className="w-full justify-start gap-2 h-12" onClick={() => openLink('https://telegram.org')}>
                 <Send className="h-5 w-5 text-blue-500" /> Telegram
               </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 h-12">
+              <Button variant="outline" className="w-full justify-start gap-2 h-12" onClick={() => openLink('https://instagram.com')}>
                 <Instagram className="h-5 w-5 text-pink-600" /> Instagram
               </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 h-12">
+              <Button variant="outline" className="w-full justify-start gap-2 h-12" onClick={() => openLink('https://facebook.com')}>
                 <Facebook className="h-5 w-5 text-blue-700" /> Facebook
               </Button>
-              <Button variant="outline" className="w-full justify-start gap-2 h-12">
+              <Button variant="outline" className="w-full justify-start gap-2 h-12" onClick={() => openLink('https://youtube.com')}>
                 <Youtube className="h-5 w-5 text-red-600" /> YouTube
               </Button>
             </div>

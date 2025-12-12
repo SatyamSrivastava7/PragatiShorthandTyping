@@ -7,11 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AuthPage() {
   const [location, setLocation] = useLocation();
-  const { login, registerStudent, users } = useMockStore();
+  const { login, registerStudent, users, resetPassword, qrCodeUrl } = useMockStore();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,6 +26,12 @@ export default function AuthPage() {
   const [regEmail, setRegEmail] = useState("");
   const [regCity, setRegCity] = useState("");
   const [regState, setRegState] = useState("");
+
+  // Reset Password State
+  const [resetId, setResetId] = useState("");
+  const [resetMobile, setResetMobile] = useState("");
+  const [resetCity, setResetCity] = useState("");
+  const [resetNewPass, setResetNewPass] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,14 +49,15 @@ export default function AuthPage() {
     if (existingUser) {
       // Check payment status for students
       if (existingUser.role === 'student' && !existingUser.isPaymentCompleted) {
-         // Ideally we would redirect to a payment page or show a modal.
-         // For now, let's login but redirect to a payment wall page or show toast.
-         // Wait, the prompt says: "Register only those new students who have done the payment successfully"
-         // But also "Admin should be able to enable any new student to skip payment".
-         // Let's assume login is allowed but access is restricted if not paid.
-         
-         // Actually, let's block login and say "Payment Pending"
-         // Or simpler: Let them login, but redirect to Payment screen if invalid.
+         if (!existingUser.isPaymentCompleted) {
+           toast({
+             variant: "destructive",
+             title: "Access Denied",
+             description: "Your account is pending payment verification. Please pay via QR Code or contact Admin.",
+           });
+           setIsLoading(false);
+           return;
+         }
       }
     }
 
@@ -60,8 +66,6 @@ export default function AuthPage() {
         title: "Welcome back!",
         description: "Successfully logged in.",
       });
-      
-      const user = users.find(u => u.role === 'student' && u.studentId === loginId);
       
       if (loginId === "Administrator") {
         setLocation("/admin");
@@ -93,15 +97,6 @@ export default function AuthPage() {
     await new Promise(r => setTimeout(r, 500));
 
     try {
-      // Register (mock payment gateway trigger comes after or before?)
-      // Prompt: "Register only those new students who have done the payment successfully"
-      // This implies a payment flow during registration.
-      // We'll create the user but mark isPaymentCompleted = false.
-      // Then show a mock payment modal. 
-      // For simplicity in this step, we just register and tell them to contact admin or pay later.
-      
-      // Actually, let's just register them. The payment flow will be enforced on login/dashboard.
-      
       const newUser = registerStudent({
         name: regName,
         mobile: regMobile,
@@ -114,7 +109,7 @@ export default function AuthPage() {
       
       toast({
         title: "Registration Successful",
-        description: "Please login to complete your payment setup.",
+        description: "Please pay using the QR code to activate your account.",
       });
       // Switch to login tab
       setLoginId(regStudentId);
@@ -129,6 +124,30 @@ export default function AuthPage() {
     setIsLoading(false);
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    await new Promise(r => setTimeout(r, 500));
+
+    const success = resetPassword(resetId, resetMobile, resetCity, resetNewPass);
+    
+    if (success) {
+      toast({
+        title: "Password Reset Successful",
+        description: "You can now login with your new password.",
+      });
+      setLoginId(resetId);
+      setLoginMobile(resetMobile);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Reset Failed",
+        description: "Details do not match our records.",
+      });
+    }
+    setIsLoading(false);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-lg border-t-4 border-t-primary">
@@ -138,9 +157,10 @@ export default function AuthPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">New Student</TabsTrigger>
+              <TabsTrigger value="register">Register</TabsTrigger>
+              <TabsTrigger value="reset">Reset</TabsTrigger>
             </TabsList>
             
             <TabsContent value="login">
@@ -221,13 +241,49 @@ export default function AuthPage() {
                   </div>
                 </div>
 
+                {qrCodeUrl && (
+                  <div className="flex flex-col items-center justify-center p-4 border rounded-md bg-muted/20">
+                    <p className="text-sm font-semibold mb-2">Scan to Pay Registration Fee</p>
+                    <img src={qrCodeUrl} alt="Payment QR Code" className="w-32 h-32 object-contain" />
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Creating Profile..." : "Create Profile"}
                 </Button>
               </form>
             </TabsContent>
+
+            <TabsContent value="reset">
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Student ID</Label>
+                  <Input value={resetId} onChange={e => setResetId(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Mobile Number</Label>
+                  <Input value={resetMobile} onChange={e => setResetMobile(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>City</Label>
+                  <Input value={resetCity} onChange={e => setResetCity(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>New Password</Label>
+                  <Input type="password" value={resetNewPass} onChange={e => setResetNewPass(e.target.value)} required />
+                </div>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Processing..." : "Reset Password"}
+                </Button>
+              </form>
+            </TabsContent>
           </Tabs>
         </CardContent>
+        <CardFooter className="flex justify-center border-t p-4 bg-muted/10">
+          <p className="text-xs text-center text-muted-foreground italic">
+            "Empowering students with professional typing and shorthand skills through structured practice and comprehensive assessments."
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );

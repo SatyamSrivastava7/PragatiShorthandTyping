@@ -109,11 +109,13 @@ interface StoreContextType {
   pdfResources: PdfResource[];
   currentUser: User | null;
   registrationFee: number;
+  qrCodeUrl: string;
   
   login: (identifier: string, mobile: string) => boolean;
   logout: () => void;
   registerStudent: (data: Omit<User, 'id' | 'role' | 'isPaymentCompleted'>) => User;
   updateUser: (id: string, updates: Partial<User>) => void;
+  resetPassword: (studentId: string, mobile: string, city: string, newPassword: string) => boolean;
   
   addContent: (data: Omit<Content, 'id' | 'createdAt' | 'isEnabled'>) => void;
   toggleContent: (id: string) => void;
@@ -125,6 +127,7 @@ interface StoreContextType {
   buyPdf: (pdfId: string) => void;
   
   setRegistrationFee: (amount: number) => void;
+  setQrCodeUrl: (url: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -136,7 +139,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [pdfFolders, setPdfFolders] = useState<PdfFolder[]>(() => getStorage(STORAGE_KEYS.PDF_FOLDERS, []));
   const [pdfResources, setPdfResources] = useState<PdfResource[]>(() => getStorage(STORAGE_KEYS.PDF_RESOURCES, []));
   const [currentUser, setCurrentUser] = useState<User | null>(() => getStorage(STORAGE_KEYS.CURRENT_USER, null));
-  const [registrationFee, setRegistrationFeeState] = useState<number>(() => getStorage(STORAGE_KEYS.SETTINGS, 500)); // Default 500
+  const [registrationFee, setRegistrationFeeState] = useState<number>(() => getStorage(STORAGE_KEYS.SETTINGS + '_FEE', 500)); 
+  const [qrCodeUrl, setQrCodeUrlState] = useState<string>(() => getStorage(STORAGE_KEYS.SETTINGS + '_QR', ''));
 
   // Sync to local storage
   useEffect(() => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)), [users]);
@@ -144,7 +148,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(results)), [results]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.PDF_FOLDERS, JSON.stringify(pdfFolders)), [pdfFolders]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.PDF_RESOURCES, JSON.stringify(pdfResources)), [pdfResources]);
-  useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(registrationFee)), [registrationFee]);
+  useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_FEE', JSON.stringify(registrationFee)), [registrationFee]);
+  useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_QR', JSON.stringify(qrCodeUrl)), [qrCodeUrl]);
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
@@ -194,6 +199,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (currentUser?.id === id) {
       setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
     }
+  };
+
+  const resetPassword = (studentId: string, mobile: string, city: string, newPassword: string) => {
+    const userIndex = users.findIndex(u => 
+      u.role === 'student' && 
+      u.studentId === studentId && 
+      u.mobile === mobile && 
+      u.city?.toLowerCase() === city.toLowerCase()
+    );
+
+    if (userIndex === -1) return false;
+
+    const updatedUsers = [...users];
+    updatedUsers[userIndex] = { ...updatedUsers[userIndex], password: newPassword }; // In a real app, hash this
+    setUsers(updatedUsers);
+    return true;
   };
 
   const addContent = (data: Omit<Content, 'id' | 'createdAt' | 'isEnabled'>) => {
@@ -266,6 +287,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setRegistrationFee = (amount: number) => {
     setRegistrationFeeState(amount);
   };
+  
+  const setQrCodeUrl = (url: string) => {
+    setQrCodeUrlState(url);
+  };
 
   const value = {
     users,
@@ -275,17 +300,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     pdfResources,
     currentUser,
     registrationFee,
+    qrCodeUrl,
     login,
     logout,
     registerStudent,
     updateUser,
+    resetPassword,
     addContent,
     toggleContent,
     submitResult,
     addPdfFolder,
     addPdfResource,
     buyPdf,
-    setRegistrationFee
+    setRegistrationFee,
+    setQrCodeUrl
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

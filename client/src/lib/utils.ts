@@ -160,3 +160,106 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
     result: isPassed ? 'Pass' : 'Fail' as 'Pass' | 'Fail'
   };
 }
+
+export const generateResultPDF = (result: Result) => {
+  const doc = new jsPDF();
+  
+  doc.setFontSize(18);
+  doc.text("Pragati Shorthand and Typing", 105, 15, { align: "center" });
+  doc.setFontSize(12);
+  doc.text(`Student Report: ${result.studentName} (${result.studentId})`, 14, 25);
+  doc.text(`Test: ${result.contentTitle} (${result.contentType.toUpperCase()})`, 14, 32);
+  doc.text(`Language: ${result.language?.toUpperCase() || 'ENGLISH'}`, 14, 39);
+  doc.text(`Date: ${format(new Date(result.submittedAt), "PPP p")}`, 14, 46);
+
+  if (result.contentType === 'typing') {
+    const data = [
+      ["Metric", "Value"],
+      ["Words Typed", result.metrics.words.toString()],
+      ["Time Allocated", `${result.metrics.time} min`],
+      ["Mistakes", result.metrics.mistakes.toString()],
+      ["Backspaces", result.metrics.backspaces.toString()],
+      ["Gross Speed", `${result.metrics.grossSpeed} WPM`],
+      ["Net Speed", `${result.metrics.netSpeed} WPM`]
+    ];
+    
+    autoTable(doc, {
+      startY: 52,
+      head: [['Metric', 'Value']],
+      body: data.slice(1),
+    });
+    
+  } else {
+    const data = [
+      ["Metric", "Value"],
+      ["Words Typed", result.metrics.words.toString()],
+      ["Time Allocated", `${result.metrics.time} min`],
+      ["Mistakes", result.metrics.mistakes.toString()],
+      ["Result", result.metrics.result || "N/A"]
+    ];
+     autoTable(doc, {
+      startY: 52,
+      head: [['Metric', 'Value']],
+      body: data.slice(1),
+    });
+  }
+
+  // Add Original Content
+  let finalY = (doc as any).lastAutoTable.finalY || 52;
+  doc.setFontSize(10);
+  doc.text("Original Content:", 14, finalY + 10);
+  const splitOriginal = doc.splitTextToSize(result.originalText || "", 180);
+  doc.text(splitOriginal, 14, finalY + 17);
+  
+  finalY = finalY + 17 + (splitOriginal.length * 4); // Update Y based on original text lines
+
+  // Add Typed Content with basic error marking (since actual color highlighting per word in PDF is complex in client-side JS without heavy libs)
+  // We will simply list the diff analysis below the text.
+  
+  doc.text("Typed Content:", 14, finalY + 10);
+  const splitTyped = doc.splitTextToSize(result.typedText, 180);
+  doc.text(splitTyped, 14, finalY + 17);
+  
+  finalY = finalY + 17 + (splitTyped.length * 4);
+
+  // Detailed Error Analysis
+  doc.setTextColor(220, 38, 38); // Red
+  doc.text("Error Analysis:", 14, finalY + 10);
+  doc.setFontSize(9);
+  doc.setTextColor(0, 0, 0); // Black
+  
+  // Calculate Diff for report
+  const originalWords = (result.originalText || "").trim().split(/\s+/);
+  const typedWords = result.typedText.trim().split(/\s+/);
+  const maxLength = Math.max(originalWords.length, typedWords.length);
+  
+  let errorLog = [];
+  for (let i = 0; i < maxLength; i++) {
+    const orig = originalWords[i] || "";
+    const type = typedWords[i] || "";
+    if (orig !== type) {
+      // Basic check
+       const cleanOrig = orig.replace(/[.,]/g, '');
+       const cleanType = type.replace(/[.,]/g, '');
+       
+       if (cleanOrig !== cleanType) {
+         errorLog.push(`Word ${i+1}: Expected "${orig}", Typed "${type}"`);
+       } else {
+         // Punctuation error
+         if (orig.includes(',') !== type.includes(',')) errorLog.push(`Word ${i+1}: Comma mismatch in "${type}"`);
+         if (orig.includes('.') !== type.includes('.')) errorLog.push(`Word ${i+1}: Period mismatch in "${type}"`);
+       }
+    }
+  }
+
+  if (errorLog.length > 0) {
+    const errorText = errorLog.slice(0, 50).join("\n"); // Limit to first 50 errors to avoid overflow
+    const splitErrors = doc.splitTextToSize(errorText + (errorLog.length > 50 ? `\n...and ${errorLog.length - 50} more errors.` : ""), 180);
+    doc.text(splitErrors, 14, finalY + 17);
+  } else {
+     doc.setTextColor(22, 163, 74); // Green
+     doc.text("Perfect! No errors found.", 14, finalY + 17);
+  }
+
+  doc.save(`result_${result.studentId}_${result.id}.pdf`);
+};

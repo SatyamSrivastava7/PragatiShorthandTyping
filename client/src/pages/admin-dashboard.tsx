@@ -1,32 +1,10 @@
-import { useState } from "react";
-import { useMockStore, Content, Result, User, PdfFolder } from "@/lib/store";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { Download, Printer, Search, FileUp, Eye, EyeOff, FolderPlus, Upload, File, Music } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { generateResultPDF } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const { 
     content, addContent, toggleContent, results, users, updateUser, 
-    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource 
+    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource,
+    qrCodeUrl, setQrCodeUrl
   } = useMockStore();
   const { toast } = useToast();
   
@@ -41,6 +19,7 @@ export default function AdminDashboard() {
 
   // Filter State
   const [studentFilter, setStudentFilter] = useState("");
+  const [studentListSearch, setStudentListSearch] = useState("");
   
   // PDF Store State
   const [newFolderName, setNewFolderName] = useState("");
@@ -104,60 +83,7 @@ export default function AdminDashboard() {
   };
 
   const handleDownloadResult = (result: Result) => {
-    const doc = new jsPDF();
-    
-    doc.setFontSize(18);
-    doc.text("Pragati Shorthand and Typing", 105, 15, { align: "center" });
-    doc.setFontSize(12);
-    doc.text(`Student Report: ${result.studentName} (${result.studentId})`, 14, 25);
-    doc.text(`Test: ${result.contentTitle} (${result.contentType.toUpperCase()})`, 14, 32);
-    doc.text(`Language: ${result.language?.toUpperCase() || 'ENGLISH'}`, 14, 39);
-    doc.text(`Date: ${format(new Date(result.submittedAt), "PPP p")}`, 14, 46);
-
-    if (result.contentType === 'typing') {
-      const data = [
-        ["Metric", "Value"],
-        ["Words Typed", result.metrics.words.toString()],
-        ["Time Allocated", `${result.metrics.time} min`],
-        ["Mistakes", result.metrics.mistakes.toString()],
-        ["Backspaces", result.metrics.backspaces.toString()],
-        ["Gross Speed", `${result.metrics.grossSpeed} WPM`],
-        ["Net Speed", `${result.metrics.netSpeed} WPM`]
-      ];
-      
-      autoTable(doc, {
-        startY: 52,
-        head: [['Metric', 'Value']],
-        body: data.slice(1),
-      });
-      
-    } else {
-      const data = [
-        ["Metric", "Value"],
-        ["Words Typed", result.metrics.words.toString()],
-        ["Time Allocated", `${result.metrics.time} min`],
-        ["Mistakes", result.metrics.mistakes.toString()],
-        ["Result", result.metrics.result || "N/A"]
-      ];
-       autoTable(doc, {
-        startY: 52,
-        head: [['Metric', 'Value']],
-        body: data.slice(1),
-      });
-    }
-
-    // Add Typed Content snippet
-    const finalY = (doc as any).lastAutoTable.finalY || 52;
-    doc.text("Original Content:", 14, finalY + 10);
-    const splitOriginal = doc.splitTextToSize(result.originalText || "", 180);
-    doc.text(splitOriginal, 14, finalY + 17);
-    
-    const secondY = finalY + 17 + (splitOriginal.length * 5);
-    doc.text("Typed Content:", 14, secondY + 10);
-    const splitTyped = doc.splitTextToSize(result.typedText, 180);
-    doc.text(splitTyped, 14, secondY + 17);
-
-    doc.save(`result_${result.studentId}_${result.id}.pdf`);
+    generateResultPDF(result);
   };
 
   const filteredResults = results
@@ -167,7 +93,13 @@ export default function AdminDashboard() {
     )
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 
-  const filteredStudents = users.filter(u => u.role === 'student');
+  const filteredStudents = users.filter(u => 
+    u.role === 'student' && (
+      u.name.toLowerCase().includes(studentListSearch.toLowerCase()) ||
+      u.studentId?.toLowerCase().includes(studentListSearch.toLowerCase()) ||
+      u.mobile.includes(studentListSearch)
+    )
+  );
 
   return (
     <div className="space-y-6">
@@ -336,24 +268,47 @@ export default function AdminDashboard() {
         <TabsContent value="students" className="space-y-4 mt-6">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                   <CardTitle>Student Management</CardTitle>
                   <CardDescription>Manage student access and payments.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label>Registration Fee:</Label>
-                  <Input 
-                    type="number" 
-                    className="w-24" 
-                    value={registrationFee} 
-                    onChange={e => setRegistrationFee(Number(e.target.value))} 
-                  />
+                <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+                  <div className="flex items-center gap-2">
+                    <Label>Reg Fee:</Label>
+                    <Input 
+                      type="number" 
+                      className="w-24" 
+                      value={registrationFee} 
+                      onChange={e => setRegistrationFee(Number(e.target.value))} 
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 w-full">
+                    <Label className="whitespace-nowrap">QR Code:</Label>
+                    <Input 
+                      type="file" 
+                      accept="image/*"
+                      className="w-full max-w-xs" 
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) setQrCodeUrl(URL.createObjectURL(file));
+                      }} 
+                    />
+                  </div>
                 </div>
+              </div>
+              <div className="mt-4 relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search students by Name, ID or Mobile..." 
+                  className="pl-8" 
+                  value={studentListSearch}
+                  onChange={e => setStudentListSearch(e.target.value)}
+                />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
+              <div className="rounded-md border max-h-[500px] overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -390,6 +345,11 @@ export default function AdminDashboard() {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filteredStudents.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">No students found.</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
