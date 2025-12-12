@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useMockStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, LogOut, Menu, Home, Phone, LogIn } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, Home, Phone, LogIn, Mail, MapPin } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import logoImage from '../assets/logo.jpeg';
@@ -149,8 +149,39 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 overflow-hidden">
         {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto bg-slate-50">
-            {children}
+          <div className="flex-1 overflow-auto bg-slate-50 flex flex-col">
+            <div className="flex-1">
+              {children}
+            </div>
+            
+            {/* Footer - Now Global */}
+            <footer className="w-full py-8 bg-slate-900 text-white shrink-0">
+              <div className="container px-4 md:px-6 mx-auto">
+                <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                   <div className="space-y-4">
+                     <h4 className="text-lg font-bold">Pragati Institute</h4>
+                     <p className="text-sm text-slate-300">Empowering careers through skill development.</p>
+                   </div>
+                   <div className="space-y-4">
+                     <h4 className="text-lg font-bold">Contact</h4>
+                     <ul className="space-y-3 text-sm text-slate-300">
+                       <li className="flex items-center gap-2"><Mail size={16} /> pragatiprofessionalstudies@gmail.com</li>
+                       <li className="flex items-center gap-2"><Phone size={16} /> +91 9026212705</li>
+                     </ul>
+                   </div>
+                   <div className="space-y-4 col-span-2">
+                     <h4 className="text-lg font-bold">Address</h4>
+                     <p className="text-sm text-slate-300 flex items-start gap-2">
+                       <MapPin size={16} className="mt-1 shrink-0" />
+                       Kalindipuram, Rajrooppur, Prayagraj, Uttar Pradesh, India, 211011
+                     </p>
+                   </div>
+                </div>
+                <div className="mt-8 border-t border-slate-800 pt-8 text-center text-xs text-slate-400">
+                  © 2024 Pragati Professional Studies. All rights reserved.
+                </div>
+              </div>
+            </footer>
           </div>
         </main>
       </div>

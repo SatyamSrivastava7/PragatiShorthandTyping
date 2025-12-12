@@ -245,7 +245,7 @@ export default function AuthPage() {
                 {qrCodeUrl && (
                   <div className="flex flex-col items-center justify-center p-4 border rounded-md bg-muted/20">
                     <p className="text-sm font-semibold mb-2">Scan to Pay Registration Fee</p>
-                    <img src={qrCodeUrl} alt="Payment QR Code" className="w-32 h-32 object-contain" />
+                    <img src={qrCodeUrl} alt="Payment QR Code" className="w-64 h-64 object-contain" />
                   </div>
                 )}
 

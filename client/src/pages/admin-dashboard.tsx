@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMockStore, Content, Result, User, PdfFolder } from "@/lib/store";
+import { useMockStore, Result, User } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode } from "lucide-react";
+import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,18 +18,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const { 
-    content, addContent, toggleContent, deleteContent, results, users, updateUser, 
+    content, addContent, toggleContent, deleteContent, results, users, updateUser, deleteUser,
     registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource,
-    qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage
+    qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage,
+    dictations, addDictation, deleteDictation
   } = useMockStore();
   const { toast } = useToast();
   
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState("students");
 
   // Upload State
   const [title, setTitle] = useState("");
@@ -50,6 +52,10 @@ export default function AdminDashboard() {
   const [pdfName, setPdfName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  
+  // Dictation State
+  const [dictationTitle, setDictationTitle] = useState("");
+  const [dictationFile, setDictationFile] = useState<File | null>(null);
 
   // Analysis State
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
@@ -77,12 +83,32 @@ export default function AdminDashboard() {
     setAudioFile(null);
   };
 
+  const handleUploadDictation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dictationTitle || !dictationFile) {
+      toast({ variant: "destructive", title: "Error", description: "Title and audio file required" });
+      return;
+    }
+    
+    addDictation(dictationTitle, URL.createObjectURL(dictationFile));
+    toast({ title: "Success", description: "Dictation audio uploaded" });
+    setDictationTitle("");
+    setDictationFile(null);
+  };
+
   const handleStudentPaymentToggle = (student: User) => {
     updateUser(student.id, { isPaymentCompleted: !student.isPaymentCompleted });
     toast({ 
       title: "Updated", 
       description: `Payment status for ${student.name} updated.` 
     });
+  };
+  
+  const handleDeleteStudent = (id: string) => {
+    if (confirm("Are you sure you want to delete this student? This cannot be undone.")) {
+      deleteUser(id);
+      toast({ title: "Deleted", description: "Student profile removed." });
+    }
   };
   
   const handleDeleteContent = (id: string) => {
@@ -164,6 +190,94 @@ export default function AdminDashboard() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case "students":
+        return (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                  <CardTitle>Student Management</CardTitle>
+                  <CardDescription className="flex flex-wrap gap-2 mt-1">
+                    <span className="font-medium">Total: {totalStudents}</span>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-green-600 font-medium">Enabled: {enabledStudents}</span>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-red-600 font-medium">Disabled: {disabledStudents}</span>
+                  </CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
+                  <div className="flex items-center gap-2">
+                    <Label>Reg Fee:</Label>
+                    <Input type="number" className="w-24" value={registrationFee} onChange={e => setRegistrationFee(Number(e.target.value))} />
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <Label className="whitespace-nowrap">QR Code:</Label>
+                     <div className="flex items-center gap-2">
+                       {qrCodeUrl && (
+                         <Dialog>
+                           <DialogTrigger asChild>
+                             <Button variant="ghost" size="icon"><QrCode className="h-4 w-4"/></Button>
+                           </DialogTrigger>
+                           <DialogContent>
+                             <img src={qrCodeUrl} alt="QR Code" className="w-full h-auto max-w-sm mx-auto" />
+                           </DialogContent>
+                         </Dialog>
+                       )}
+                       <Input type="file" accept="image/*" className="w-full max-w-[180px]" onChange={handleQrUpload} />
+                     </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search students..." className="pl-8" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border max-h-[500px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Mobile</TableHead>
+                      <TableHead>City/State</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Access</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStudents.map(student => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-mono">{student.studentId}</TableCell>
+                        <TableCell>{student.name}</TableCell>
+                        <TableCell>{student.mobile}</TableCell>
+                        <TableCell>{student.city}, {student.state}</TableCell>
+                        <TableCell>
+                          {student.isPaymentCompleted ? 
+                            <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle className="h-4 w-4"/> Paid</span> : 
+                            <span className="text-red-500 font-bold">Pending</span>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch checked={student.isPaymentCompleted} onCheckedChange={() => handleStudentPaymentToggle(student)} />
+                            <Label className="text-xs hidden sm:inline">{student.isPaymentCompleted ? 'Enabled' : 'Disabled'}</Label>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" onClick={() => handleDeleteStudent(student.id)}>
+                             <Trash2 className="h-4 w-4" />
+                           </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        );
       case "upload":
         return (
           <Card>
@@ -302,80 +416,58 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         );
-      case "students":
+      case "audio_dictation":
         return (
           <Card>
             <CardHeader>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <CardTitle>Student Management</CardTitle>
-                  <CardDescription>
-                    Total Students: <span className="font-bold">{totalStudents}</span> • 
-                    Enabled: <span className="text-green-600 font-bold">{enabledStudents}</span> • 
-                    Disabled: <span className="text-red-600 font-bold">{disabledStudents}</span>
-                  </CardDescription>
-                </div>
-                <div className="flex flex-col items-end gap-2 w-full md:w-auto">
-                  <div className="flex items-center gap-2">
-                    <Label>Reg Fee:</Label>
-                    <Input type="number" className="w-24" value={registrationFee} onChange={e => setRegistrationFee(Number(e.target.value))} />
-                  </div>
-                  <div className="flex items-center gap-2 w-full">
-                    <Label className="whitespace-nowrap">QR Code:</Label>
-                     <div className="flex items-center gap-2">
-                       {qrCodeUrl && (
-                         <Dialog>
-                           <DialogTrigger asChild>
-                             <Button variant="ghost" size="icon"><QrCode className="h-4 w-4"/></Button>
-                           </DialogTrigger>
-                           <DialogContent>
-                             <img src={qrCodeUrl} alt="QR Code" className="w-full" />
-                           </DialogContent>
-                         </Dialog>
-                       )}
-                       <Input type="file" accept="image/*" className="w-full max-w-xs" onChange={handleQrUpload} />
-                     </div>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search students..." className="pl-8" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
-              </div>
+              <CardTitle>Dictation Audio Upload</CardTitle>
+              <CardDescription>Upload audio files for student practice (no typing test attached).</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border max-h-[500px] overflow-auto">
+              <form onSubmit={handleUploadDictation} className="space-y-4 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Title</Label>
+                    <Input value={dictationTitle} onChange={e => setDictationTitle(e.target.value)} placeholder="Dictation Title" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Audio File</Label>
+                    <Input type="file" accept="audio/*" onChange={e => setDictationFile(e.target.files?.[0] || null)} required />
+                  </div>
+                </div>
+                <Button type="submit"><Upload className="mr-2 h-4 w-4" /> Upload Dictation</Button>
+              </form>
+
+              <div className="border rounded-md">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Mobile</TableHead>
-                      <TableHead>City/State</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Access</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Preview</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStudents.map(student => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-mono">{student.studentId}</TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.mobile}</TableCell>
-                        <TableCell>{student.city}, {student.state}</TableCell>
+                    {dictations.map(d => (
+                      <TableRow key={d.id}>
+                        <TableCell>{format(new Date(d.createdAt), "MMM d")}</TableCell>
+                        <TableCell className="font-medium">{d.title}</TableCell>
                         <TableCell>
-                          {student.isPaymentCompleted ? 
-                            <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle className="h-4 w-4"/> Paid</span> : 
-                            <span className="text-red-500 font-bold">Pending</span>}
+                          <audio controls src={d.mediaUrl} className="h-8 w-48" />
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Switch checked={student.isPaymentCompleted} onCheckedChange={() => handleStudentPaymentToggle(student)} />
-                            <Label className="text-xs">{student.isPaymentCompleted ? 'Enabled' : 'Disabled'}</Label>
-                          </div>
+                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDictation(d.id)}>
+                             <Trash2 className="h-4 w-4" />
+                           </Button>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {dictations.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No dictation audios uploaded.</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -451,73 +543,91 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border max-h-[600px] overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Test Title</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Metrics</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredResults.map((result) => (
-                      <TableRow key={result.id}>
-                        <TableCell>
-                          <div className="font-medium">{result.studentName}</div>
-                          <div className="text-xs text-muted-foreground">{result.studentId}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{result.contentTitle}</div>
-                          <div className="text-xs text-muted-foreground capitalize">{result.contentType}</div>
-                        </TableCell>
-                        <TableCell>{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
-                        <TableCell>
-                          <div className="text-sm space-y-1">
-                            {result.contentType === 'typing' ? (
-                              <>
-                                <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.metrics.netSpeed} WPM</strong></div>
-                                <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
-                              </>
-                            ) : (
-                              <>
-                                <div><span className="text-muted-foreground">Result:</span> 
-                                  <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
-                                    {result.metrics.result}
-                                  </span>
-                                </div>
-                                <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => setSelectedResult(result)}>
-                                <Eye className="h-4 w-4 mr-1" /> View
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-                              <DialogHeader>
-                                <DialogTitle>Result Analysis</DialogTitle>
-                              </DialogHeader>
-                              <div className="flex-1 overflow-auto p-4 border rounded bg-slate-50">
-                                <ResultAnalysisView result={result} />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                          <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
-                            <Download className="h-4 w-4 mr-1" /> PDF
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <Tabs defaultValue="typing" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="typing">Typing Results</TabsTrigger>
+                  <TabsTrigger value="shorthand">Shorthand Results</TabsTrigger>
+                </TabsList>
+
+                {['typing', 'shorthand'].map(type => (
+                  <TabsContent key={type} value={type}>
+                    <div className="rounded-md border max-h-[600px] overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Test Title</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Metrics</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredResults
+                            .filter(r => r.contentType === type)
+                            .map((result) => (
+                              <TableRow key={result.id}>
+                                <TableCell>
+                                  <div className="font-medium">{result.studentName}</div>
+                                  <div className="text-xs text-muted-foreground">{result.studentId}</div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{result.contentTitle}</div>
+                                  <div className="text-xs text-muted-foreground capitalize">{result.language}</div>
+                                </TableCell>
+                                <TableCell>{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
+                                <TableCell>
+                                  <div className="text-sm space-y-1">
+                                    {result.contentType === 'typing' ? (
+                                      <>
+                                        <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.metrics.netSpeed} WPM</strong></div>
+                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div><span className="text-muted-foreground">Result:</span> 
+                                          <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
+                                            {result.metrics.result}
+                                          </span>
+                                        </div>
+                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right space-x-2">
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button variant="ghost" size="sm" onClick={() => setSelectedResult(result)}>
+                                        <Eye className="h-4 w-4 mr-1" /> View
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+                                      <DialogHeader>
+                                        <DialogTitle>Result Analysis</DialogTitle>
+                                      </DialogHeader>
+                                      <div className="flex-1 overflow-auto p-4 border rounded bg-slate-50">
+                                        <ResultAnalysisView result={result} />
+                                      </div>
+                                    </DialogContent>
+                                  </Dialog>
+                                  <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
+                                    <Download className="h-4 w-4 mr-1" /> PDF
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                          ))}
+                          {filteredResults.filter(r => r.contentType === type).length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No results found.</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
             </CardContent>
           </Card>
         );
@@ -573,9 +683,10 @@ export default function AdminDashboard() {
       <aside className="w-64 border-r bg-muted/20 flex flex-col p-4 space-y-2 shrink-0 overflow-y-auto">
         <h2 className="px-4 text-xs font-semibold text-muted-foreground mb-2 tracking-wider uppercase">Menu</h2>
         {[
-          { id: "upload", label: "Upload New Tests", icon: FileUp },
-          { id: "manage", label: "Previously Uploaded", icon: LayoutList },
           { id: "students", label: "Students", icon: Users },
+          { id: "upload", label: "Upload New Tests", icon: FileUp },
+          { id: "manage", label: "Manage Tests", icon: LayoutList },
+          { id: "audio_dictation", label: "Dictation Audio", icon: Mic },
           { id: "pdfstore", label: "Pdf store", icon: FolderPlus },
           { id: "results", label: "Results", icon: BarChart },
           { id: "gallery", label: "Gallery upload", icon: ImageIcon },
@@ -608,6 +719,9 @@ function ResultAnalysisView({ result }: { result: Result }) {
   const typedWords = result.typedText.trim().split(/\s+/);
   const maxLength = Math.max(originalWords.length, typedWords.length);
 
+  // Font class for Mangal if Hindi
+  const fontClass = result.language === 'hindi' ? 'font-mangal' : '';
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 text-sm font-medium border-b pb-2">
@@ -615,7 +729,7 @@ function ResultAnalysisView({ result }: { result: Result }) {
         <div>Typed Comparison</div>
       </div>
       
-      <div className="space-y-1 font-mono text-base leading-loose">
+      <div className={cn("space-y-1 font-mono text-base leading-loose", fontClass)}>
         {Array.from({ length: maxLength }).map((_, i) => {
           const orig = originalWords[i] || "";
           const type = typedWords[i] || "";

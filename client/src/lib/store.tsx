@@ -111,6 +111,7 @@ interface StoreContextType {
   registrationFee: number;
   qrCodeUrl: string;
   galleryImages: string[];
+  dictations: {id: string, title: string, mediaUrl: string, createdAt: string}[];
   
   login: (identifier: string, mobile: string) => boolean;
   logout: () => void;
@@ -133,6 +134,11 @@ interface StoreContextType {
   setQrCodeUrl: (url: string) => void;
   addGalleryImage: (url: string) => void;
   removeGalleryImage: (url: string) => void;
+
+  // New Dictation Actions
+  addDictation: (title: string, mediaUrl: string) => void;
+  deleteDictation: (id: string) => void;
+  deleteUser: (id: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -143,6 +149,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [results, setResults] = useState<Result[]>(() => getStorage(STORAGE_KEYS.RESULTS, []));
   const [pdfFolders, setPdfFolders] = useState<PdfFolder[]>(() => getStorage(STORAGE_KEYS.PDF_FOLDERS, []));
   const [pdfResources, setPdfResources] = useState<PdfResource[]>(() => getStorage(STORAGE_KEYS.PDF_RESOURCES, []));
+  const [dictations, setDictations] = useState<{id: string, title: string, mediaUrl: string, createdAt: string}[]>(() => getStorage('pragati_dictations', []));
   const [currentUser, setCurrentUser] = useState<User | null>(() => getStorage(STORAGE_KEYS.CURRENT_USER, null));
   const [registrationFee, setRegistrationFeeState] = useState<number>(() => getStorage(STORAGE_KEYS.SETTINGS + '_FEE', 500)); 
   const [qrCodeUrl, setQrCodeUrlState] = useState<string>(() => getStorage(STORAGE_KEYS.SETTINGS + '_QR', ''));
@@ -154,6 +161,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(results)), [results]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.PDF_FOLDERS, JSON.stringify(pdfFolders)), [pdfFolders]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.PDF_RESOURCES, JSON.stringify(pdfResources)), [pdfResources]);
+  useEffect(() => localStorage.setItem('pragati_dictations', JSON.stringify(dictations)), [dictations]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_FEE', JSON.stringify(registrationFee)), [registrationFee]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_QR', JSON.stringify(qrCodeUrl)), [qrCodeUrl]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_GALLERY', JSON.stringify(galleryImages)), [galleryImages]);
@@ -206,6 +214,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (currentUser?.id === id) {
       setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
     }
+  };
+  
+  const deleteUser = (id: string) => {
+    setUsers(prev => prev.filter(u => u.id !== id));
   };
 
   const resetPassword = (studentId: string, mobile: string, city: string, newPassword: string) => {
@@ -316,6 +328,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const removeGalleryImage = (url: string) => {
     setGalleryImages(prev => prev.filter(img => img !== url));
   };
+  
+  const addDictation = (title: string, mediaUrl: string) => {
+    setDictations(prev => [{
+      id: Math.random().toString(36).substr(2, 9),
+      title,
+      mediaUrl,
+      createdAt: new Date().toISOString()
+    }, ...prev]);
+  };
+
+  const deleteDictation = (id: string) => {
+    setDictations(prev => prev.filter(d => d.id !== id));
+  };
 
   const value = {
     users,
@@ -323,6 +348,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     results,
     pdfFolders,
     pdfResources,
+    dictations,
     currentUser,
     registrationFee,
     qrCodeUrl,
@@ -331,6 +357,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     logout,
     registerStudent,
     updateUser,
+    deleteUser,
     resetPassword,
     addContent,
     toggleContent,
@@ -343,7 +370,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setRegistrationFee,
     setQrCodeUrl,
     addGalleryImage,
-    removeGalleryImage
+    removeGalleryImage,
+    addDictation,
+    deleteDictation
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

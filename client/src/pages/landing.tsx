@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useMockStore } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Mail, Phone, MapPin } from "lucide-react";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
@@ -28,9 +28,9 @@ export default function LandingPage() {
                   Get Started <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link href="/contact">
+              <Link href="/gallery">
                 <Button variant="outline" size="lg">
-                  Contact Us
+                  <ImageIcon className="mr-2 h-4 w-4" /> View Gallery
                 </Button>
               </Link>
             </div>
@@ -97,20 +97,9 @@ export default function LandingPage() {
       <section className="w-full py-12 md:py-24 lg:py-32">
         <div className="container px-4 md:px-6 mx-auto">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-8 text-center">Gallery</h2>
-          {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="aspect-video relative overflow-hidden rounded-lg bg-muted">
-                 <img 
-                   src={`https://picsum.photos/seed/${i + 10}/600/400`} 
-                   alt={`Gallery Image ${i}`}
-                   className="object-cover w-full h-full hover:scale-105 transition-transform duration-300"
-                 />
-              </div>
-            ))}
-          </div> */}
           {galleryImages.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {galleryImages.map((url, idx) => (
+              {galleryImages.slice(0, 8).map((url, idx) => (
                 <Dialog key={idx}>
                   <DialogTrigger asChild>
                     <div className="relative group aspect-square rounded-lg overflow-hidden border cursor-pointer shadow-sm hover:shadow-md transition-all hover:scale-[1.02]">
@@ -129,37 +118,15 @@ export default function LandingPage() {
               <p className="text-muted-foreground">No images uploaded yet.</p>
             </div>
           )}
+          {galleryImages.length > 0 && (
+            <div className="mt-8 text-center">
+              <Link href="/gallery">
+                 <Button variant="outline">View All Images</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="w-full py-8 bg-slate-900 text-white">
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-             <div className="space-y-4">
-               <h4 className="text-lg font-bold">Pragati Institute</h4>
-               <p className="text-sm text-slate-300">Empowering careers through skill development.</p>
-             </div>
-             <div className="space-y-4">
-               <h4 className="text-lg font-bold">Contact</h4>
-               <ul className="space-y-3 text-sm text-slate-300">
-                 <li className="flex items-center gap-2"><Mail size={16} /> pragatiprofessionalstudies@gmail.com</li>
-                 <li className="flex items-center gap-2"><Phone size={16} /> +91 9026212705</li>
-               </ul>
-             </div>
-             <div className="space-y-4 col-span-2">
-               <h4 className="text-lg font-bold">Address</h4>
-               <p className="text-sm text-slate-300 flex items-start gap-2">
-                 <MapPin size={16} className="mt-1 shrink-0" />
-                 Kalindipuram, Rajrooppur, Prayagraj, Uttar Pradesh, India, 211011
-               </p>
-             </div>
-          </div>
-          <div className="mt-8 border-t border-slate-800 pt-8 text-center text-xs text-slate-400">
-            © 2024 Pragati Professional Studies. All rights reserved.
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { format, isSameDay } from "date-fns";
-import { PlayCircle, CheckCircle, Download, FileText, ShoppingCart, Folder, ArrowLeft, Loader2 } from "lucide-react";
+import { PlayCircle, CheckCircle, Download, FileText, ShoppingCart, Folder, ArrowLeft, Loader2, Mic } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
@@ -12,7 +12,7 @@ import autoTable from "jspdf-autotable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function StudentDashboard() {
-  const { content, results, currentUser, pdfFolders, pdfResources, buyPdf, consumePdfPurchase, qrCodeUrl } = useMockStore();
+  const { content, results, currentUser, pdfFolders, pdfResources, buyPdf, consumePdfPurchase, qrCodeUrl, dictations } = useMockStore();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -139,8 +139,9 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs defaultValue="tests" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="tests">Tests</TabsTrigger>
+          <TabsTrigger value="dictation">Dictation</TabsTrigger>
           <TabsTrigger value="results">My Results</TabsTrigger>
           <TabsTrigger value="store">PDF Store</TabsTrigger>
         </TabsList>
@@ -203,6 +204,40 @@ export default function StudentDashboard() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="dictation">
+           <Card>
+             <CardHeader>
+               <CardTitle>Dictation Practice</CardTitle>
+               <CardDescription>Audio resources for shorthand practice.</CardDescription>
+             </CardHeader>
+             <CardContent>
+               <div className="space-y-4">
+                 {dictations.map(d => (
+                   <div key={d.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                     <div className="flex items-center gap-3">
+                       <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                         <Mic size={20} />
+                       </div>
+                       <div>
+                         <h4 className="font-medium">{d.title}</h4>
+                         <p className="text-xs text-muted-foreground">Added on {format(new Date(d.createdAt), "MMM d, yyyy")}</p>
+                       </div>
+                     </div>
+                     <div>
+                       <audio controls src={d.mediaUrl} className="h-10 w-64" controlsList="nodownload" />
+                     </div>
+                   </div>
+                 ))}
+                 {dictations.length === 0 && (
+                   <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                     No dictation audio files available.
+                   </div>
+                 )}
+               </div>
+             </CardContent>
+           </Card>
         </TabsContent>
 
         <TabsContent value="results">

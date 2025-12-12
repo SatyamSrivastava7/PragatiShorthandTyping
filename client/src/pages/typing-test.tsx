@@ -162,7 +162,8 @@ export default function TypingTestPage() {
   }
 
   // Font family based on language selection
-  const fontClass = testContent.language === 'hindi' ? 'font-[Mangal]' : (testContent.type === 'shorthand' ? 'font-sans' : 'font-mono');
+  // Updated to use custom 'font-mangal' class if Hindi
+  const fontClass = testContent.language === 'hindi' ? 'font-mangal' : (testContent.type === 'shorthand' ? 'font-sans' : 'font-mono');
 
   return (
     <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
