@@ -4,6 +4,22 @@ import { format } from 'date-fns';
 // Types
 export type Role = 'admin' | 'student';
 
+export interface PdfResource {
+  id: string;
+  name: string;
+  url: string; // Mock URL
+  pageCount: number;
+  price: number;
+  folderId?: string;
+  isBought?: boolean; // Mock property to track purchased status
+}
+
+export interface PdfFolder {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -13,6 +29,14 @@ export interface User {
   email?: string;
   role: Role;
   password?: string; // Simple mock password
+  
+  // New fields
+  city?: string;
+  state?: string;
+  isPaymentCompleted?: boolean;
+  paymentAmount?: number;
+  validUntil?: string; // ISO date
+  purchasedPdfs?: string[]; // IDs of PDFs
 }
 
 export interface Content {
@@ -24,6 +48,8 @@ export interface Content {
   dateFor: string; // ISO date string (YYYY-MM-DD)
   isEnabled: boolean;
   createdAt: string;
+  mediaUrl?: string; // For Audio (shorthand) or PDF
+  language?: 'english' | 'hindi'; // Default english
 }
 
 export interface Result {
@@ -34,13 +60,15 @@ export interface Result {
   contentTitle: string;
   contentType: 'typing' | 'shorthand';
   typedText: string;
+  originalText?: string; // Snapshot
+  language?: 'english' | 'hindi';
   metrics: {
     words: number;
     time: number; // allocated time in minutes
     mistakes: number;
     backspaces: number;
-    grossSpeed?: number;
-    netSpeed?: number;
+    grossSpeed?: number | string; // Can be string formatted
+    netSpeed?: number | string;
     result?: 'Pass' | 'Fail'; // For shorthand
   };
   submittedAt: string;
@@ -61,6 +89,9 @@ const STORAGE_KEYS = {
   CONTENT: 'pragati_content',
   RESULTS: 'pragati_results',
   CURRENT_USER: 'pragati_current_user',
+  PDF_FOLDERS: 'pragati_pdf_folders',
+  PDF_RESOURCES: 'pragati_pdf_resources',
+  SETTINGS: 'pragati_settings' // For registration fee amount
 };
 
 // Helper to get from storage
@@ -74,13 +105,26 @@ interface StoreContextType {
   users: User[];
   content: Content[];
   results: Result[];
+  pdfFolders: PdfFolder[];
+  pdfResources: PdfResource[];
   currentUser: User | null;
+  registrationFee: number;
+  
   login: (identifier: string, mobile: string) => boolean;
   logout: () => void;
-  registerStudent: (data: Omit<User, 'id' | 'role'>) => User;
+  registerStudent: (data: Omit<User, 'id' | 'role' | 'isPaymentCompleted'>) => User;
+  updateUser: (id: string, updates: Partial<User>) => void;
+  
   addContent: (data: Omit<Content, 'id' | 'createdAt' | 'isEnabled'>) => void;
   toggleContent: (id: string) => void;
+  
   submitResult: (data: Omit<Result, 'id' | 'submittedAt'>) => void;
+  
+  addPdfFolder: (name: string) => void;
+  addPdfResource: (data: Omit<PdfResource, 'id'>) => void;
+  buyPdf: (pdfId: string) => void;
+  
+  setRegistrationFee: (amount: number) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -89,12 +133,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(() => getStorage(STORAGE_KEYS.USERS, [INITIAL_ADMIN]));
   const [content, setContent] = useState<Content[]>(() => getStorage(STORAGE_KEYS.CONTENT, []));
   const [results, setResults] = useState<Result[]>(() => getStorage(STORAGE_KEYS.RESULTS, []));
+  const [pdfFolders, setPdfFolders] = useState<PdfFolder[]>(() => getStorage(STORAGE_KEYS.PDF_FOLDERS, []));
+  const [pdfResources, setPdfResources] = useState<PdfResource[]>(() => getStorage(STORAGE_KEYS.PDF_RESOURCES, []));
   const [currentUser, setCurrentUser] = useState<User | null>(() => getStorage(STORAGE_KEYS.CURRENT_USER, null));
+  const [registrationFee, setRegistrationFeeState] = useState<number>(() => getStorage(STORAGE_KEYS.SETTINGS, 500)); // Default 500
 
   // Sync to local storage
   useEffect(() => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)), [users]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.CONTENT, JSON.stringify(content)), [content]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(results)), [results]);
+  useEffect(() => localStorage.setItem(STORAGE_KEYS.PDF_FOLDERS, JSON.stringify(pdfFolders)), [pdfFolders]);
+  useEffect(() => localStorage.setItem(STORAGE_KEYS.PDF_RESOURCES, JSON.stringify(pdfResources)), [pdfResources]);
+  useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(registrationFee)), [registrationFee]);
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
@@ -119,7 +169,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const logout = () => setCurrentUser(null);
 
-  const registerStudent = (data: Omit<User, 'id' | 'role'>) => {
+  const registerStudent = (data: Omit<User, 'id' | 'role' | 'isPaymentCompleted'>) => {
     if (users.some(u => u.mobile === data.mobile)) {
       throw new Error('Mobile number already registered');
     }
@@ -131,9 +181,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...data,
       id: Math.random().toString(36).substr(2, 9),
       role: 'student',
+      isPaymentCompleted: false, // Default false, needs payment
+      purchasedPdfs: [],
     };
     setUsers([...users, newUser]);
     return newUser;
+  };
+
+  const updateUser = (id: string, updates: Partial<User>) => {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+    // Also update current user if it's them
+    if (currentUser?.id === id) {
+      setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+    }
   };
 
   const addContent = (data: Omit<Content, 'id' | 'createdAt' | 'isEnabled'>) => {
@@ -180,17 +240,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setResults([newResult, ...results]);
   };
 
+  const addPdfFolder = (name: string) => {
+    const newFolder: PdfFolder = {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+      createdAt: new Date().toISOString()
+    };
+    setPdfFolders([...pdfFolders, newFolder]);
+  };
+
+  const addPdfResource = (data: Omit<PdfResource, 'id'>) => {
+    const newRes: PdfResource = {
+      ...data,
+      id: Math.random().toString(36).substr(2, 9),
+    };
+    setPdfResources([...pdfResources, newRes]);
+  };
+
+  const buyPdf = (pdfId: string) => {
+    if (!currentUser) return;
+    const updatedPurchased = [...(currentUser.purchasedPdfs || []), pdfId];
+    updateUser(currentUser.id, { purchasedPdfs: updatedPurchased });
+  };
+
+  const setRegistrationFee = (amount: number) => {
+    setRegistrationFeeState(amount);
+  };
+
   const value = {
     users,
     content,
     results,
+    pdfFolders,
+    pdfResources,
     currentUser,
+    registrationFee,
     login,
     logout,
     registerStudent,
+    updateUser,
     addContent,
     toggleContent,
     submitResult,
+    addPdfFolder,
+    addPdfResource,
+    buyPdf,
+    setRegistrationFee
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

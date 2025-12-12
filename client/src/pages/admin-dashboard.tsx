@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMockStore, Content, Result } from "@/lib/store";
+import { useMockStore, Content, Result, User, PdfFolder } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Printer, Search, FileUp, Eye, EyeOff } from "lucide-react";
+import { Download, Printer, Search, FileUp, Eye, EyeOff, FolderPlus, Upload, File, Music } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -24,7 +24,10 @@ import {
 } from "@/components/ui/dialog";
 
 export default function AdminDashboard() {
-  const { content, addContent, toggleContent, results, users } = useMockStore();
+  const { 
+    content, addContent, toggleContent, results, users, updateUser, 
+    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource 
+  } = useMockStore();
   const { toast } = useToast();
   
   // Upload State
@@ -33,14 +36,22 @@ export default function AdminDashboard() {
   const [textContent, setTextContent] = useState("");
   const [duration, setDuration] = useState("5");
   const [dateFor, setDateFor] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [language, setLanguage] = useState<'english' | 'hindi'>('english');
+  const [audioFile, setAudioFile] = useState<File | null>(null); // Mock file handling
 
   // Filter State
   const [studentFilter, setStudentFilter] = useState("");
+  
+  // PDF Store State
+  const [newFolderName, setNewFolderName] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("");
+  const [pdfName, setPdfName] = useState("");
+  const [pdfPageCount, setPdfPageCount] = useState("");
 
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!textContent.trim()) {
-      toast({ variant: "destructive", title: "Error", description: "Content cannot be empty" });
+    if (!textContent.trim() && !audioFile) {
+      toast({ variant: "destructive", title: "Error", description: "Content text or audio is required" });
       return;
     }
 
@@ -50,11 +61,46 @@ export default function AdminDashboard() {
       text: textContent,
       duration: parseInt(duration),
       dateFor,
+      language,
+      mediaUrl: audioFile ? URL.createObjectURL(audioFile) : undefined // Mock URL
     });
 
     toast({ title: "Success", description: "Content uploaded successfully" });
     setTitle("");
     setTextContent("");
+    setAudioFile(null);
+  };
+
+  const handleStudentPaymentToggle = (student: User) => {
+    updateUser(student.id, { isPaymentCompleted: !student.isPaymentCompleted });
+    toast({ 
+      title: "Updated", 
+      description: `Payment status for ${student.name} updated.` 
+    });
+  };
+
+  const handleCreateFolder = () => {
+    if (!newFolderName) return;
+    addPdfFolder(newFolderName);
+    setNewFolderName("");
+    toast({ title: "Success", description: "Folder created" });
+  };
+
+  const handleUploadPdf = () => {
+    if (!selectedFolderId || !pdfName || !pdfPageCount) {
+      toast({ variant: "destructive", title: "Error", description: "All fields required" });
+      return;
+    }
+    addPdfResource({
+      name: pdfName,
+      folderId: selectedFolderId,
+      pageCount: parseInt(pdfPageCount),
+      price: parseInt(pdfPageCount) * 1, // 1 rupee per page logic
+      url: "#", // Mock URL
+    });
+    toast({ title: "Success", description: "PDF Resource added" });
+    setPdfName("");
+    setPdfPageCount("");
   };
 
   const handleDownloadResult = (result: Result) => {
@@ -65,7 +111,8 @@ export default function AdminDashboard() {
     doc.setFontSize(12);
     doc.text(`Student Report: ${result.studentName} (${result.studentId})`, 14, 25);
     doc.text(`Test: ${result.contentTitle} (${result.contentType.toUpperCase()})`, 14, 32);
-    doc.text(`Date: ${format(new Date(result.submittedAt), "PPP p")}`, 14, 39);
+    doc.text(`Language: ${result.language?.toUpperCase() || 'ENGLISH'}`, 14, 39);
+    doc.text(`Date: ${format(new Date(result.submittedAt), "PPP p")}`, 14, 46);
 
     if (result.contentType === 'typing') {
       const data = [
@@ -79,7 +126,7 @@ export default function AdminDashboard() {
       ];
       
       autoTable(doc, {
-        startY: 45,
+        startY: 52,
         head: [['Metric', 'Value']],
         body: data.slice(1),
       });
@@ -93,17 +140,22 @@ export default function AdminDashboard() {
         ["Result", result.metrics.result || "N/A"]
       ];
        autoTable(doc, {
-        startY: 45,
+        startY: 52,
         head: [['Metric', 'Value']],
         body: data.slice(1),
       });
     }
 
     // Add Typed Content snippet
-    const finalY = (doc as any).lastAutoTable.finalY || 45;
-    doc.text("Typed Content:", 14, finalY + 10);
-    const splitText = doc.splitTextToSize(result.typedText, 180);
-    doc.text(splitText, 14, finalY + 17);
+    const finalY = (doc as any).lastAutoTable.finalY || 52;
+    doc.text("Original Content:", 14, finalY + 10);
+    const splitOriginal = doc.splitTextToSize(result.originalText || "", 180);
+    doc.text(splitOriginal, 14, finalY + 17);
+    
+    const secondY = finalY + 17 + (splitOriginal.length * 5);
+    doc.text("Typed Content:", 14, secondY + 10);
+    const splitTyped = doc.splitTextToSize(result.typedText, 180);
+    doc.text(splitTyped, 14, secondY + 17);
 
     doc.save(`result_${result.studentId}_${result.id}.pdf`);
   };
@@ -115,6 +167,8 @@ export default function AdminDashboard() {
     )
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 
+  const filteredStudents = users.filter(u => u.role === 'student');
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -122,24 +176,26 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
-          <TabsTrigger value="upload">Upload Content</TabsTrigger>
-          <TabsTrigger value="manage">Manage Uploads</TabsTrigger>
-          <TabsTrigger value="results">Student Results</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1">
+          <TabsTrigger value="upload">Upload</TabsTrigger>
+          <TabsTrigger value="manage">Tests</TabsTrigger>
+          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="pdfstore">PDF Store</TabsTrigger>
+          <TabsTrigger value="results">Results</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4 mt-6">
           <Card>
             <CardHeader>
               <CardTitle>Upload New Test Content</CardTitle>
-              <CardDescription>Add typing or shorthand content for students.</CardDescription>
+              <CardDescription>Add typing or shorthand content.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleUpload} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Title</Label>
-                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Batch A Morning Test" required />
+                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Test Title" required />
                   </div>
                   <div className="space-y-2">
                     <Label>Date For</Label>
@@ -158,6 +214,18 @@ export default function AdminDashboard() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <Label>Language</Label>
+                    <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="english">English</SelectItem>
+                        <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label>Duration (Minutes)</Label>
                     <Select value={duration} onValueChange={setDuration}>
                       <SelectTrigger>
@@ -172,20 +240,23 @@ export default function AdminDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+                  
+                  {contentType === 'shorthand' && (
+                    <div className="space-y-2">
+                      <Label>Audio File (Optional)</Label>
+                      <Input type="file" accept="audio/*" onChange={e => setAudioFile(e.target.files?.[0] || null)} />
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Content</Label>
+                  <Label>Content Text (Transcript)</Label>
                   <Textarea 
                     value={textContent} 
                     onChange={e => setTextContent(e.target.value)} 
-                    placeholder={contentType === 'typing' ? "Paste text here..." : "Paste shorthand transcript here..."}
+                    placeholder="Paste text here..."
                     className="h-64 font-mono"
-                    required
                   />
-                  <p className="text-sm text-muted-foreground">
-                    {contentType === 'shorthand' ? "This content will be HIDDEN from students. They will type from their hard copy." : "Students will see this content side-by-side."}
-                  </p>
                 </div>
 
                 <Button type="submit" className="w-full md:w-auto">
@@ -199,8 +270,7 @@ export default function AdminDashboard() {
         <TabsContent value="manage" className="space-y-4 mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Manage Uploads</CardTitle>
-              <CardDescription>Enable/Disable tests. Only one test can be active at a time.</CardDescription>
+              <CardTitle>Manage Tests</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-8">
@@ -213,72 +283,169 @@ export default function AdminDashboard() {
                           <TableRow>
                             <TableHead>Date</TableHead>
                             <TableHead>Title</TableHead>
+                            <TableHead>Lang</TableHead>
                             <TableHead>Duration</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Content</TableHead>
-                            <TableHead>Action</TableHead>
+                            <TableHead>Preview</TableHead>
+                            <TableHead>Enable</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {content.filter(c => c.type === type).map((item) => (
                             <TableRow key={item.id}>
-                              <TableCell>{format(new Date(item.dateFor), "MMM d, yyyy")}</TableCell>
+                              <TableCell>{format(new Date(item.dateFor), "MMM d")}</TableCell>
                               <TableCell className="font-medium">{item.title}</TableCell>
+                              <TableCell className="capitalize">{item.language}</TableCell>
                               <TableCell>{item.duration} min</TableCell>
                               <TableCell>
                                 {item.isEnabled ? (
-                                  <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">Active</span>
+                                  <span className="text-green-600 font-bold text-xs">Active</span>
                                 ) : (
-                                  <span className="inline-flex items-center rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">Inactive</span>
+                                  <span className="text-gray-400 text-xs">Inactive</span>
                                 )}
                               </TableCell>
                               <TableCell>
                                 <Dialog>
                                   <DialogTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <Eye className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
+                                    <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
                                   </DialogTrigger>
-                                  <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
-                                    <DialogHeader>
-                                      <DialogTitle>{item.title}</DialogTitle>
-                                      <DialogDescription>
-                                        Content preview for {item.type} test.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="flex-1 overflow-auto bg-muted/30 p-4 rounded-md mt-4 border">
-                                      <p className="whitespace-pre-wrap font-serif text-sm leading-relaxed">
-                                        {item.text}
-                                      </p>
+                                  <DialogContent>
+                                    <DialogHeader><DialogTitle>{item.title}</DialogTitle></DialogHeader>
+                                    <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
+                                      <p className="whitespace-pre-wrap">{item.text}</p>
+                                      {item.mediaUrl && <div className="mt-2 text-xs text-blue-600 flex items-center gap-1"><Music size={12}/> Audio Attached</div>}
                                     </div>
                                   </DialogContent>
                                 </Dialog>
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center space-x-2">
-                                  <Switch 
-                                    checked={item.isEnabled}
-                                    onCheckedChange={() => toggleContent(item.id)}
-                                  />
-                                  <Label className="text-xs text-muted-foreground">
-                                    {item.isEnabled ? "Enabled" : "Disabled"}
-                                  </Label>
-                                </div>
+                                <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(item.id)} />
                               </TableCell>
                             </TableRow>
                           ))}
-                          {content.filter(c => c.type === type).length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                No {type} content uploaded yet.
-                              </TableCell>
-                            </TableRow>
-                          )}
                         </TableBody>
                       </Table>
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="students" className="space-y-4 mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Student Management</CardTitle>
+                  <CardDescription>Manage student access and payments.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label>Registration Fee:</Label>
+                  <Input 
+                    type="number" 
+                    className="w-24" 
+                    value={registrationFee} 
+                    onChange={e => setRegistrationFee(Number(e.target.value))} 
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Mobile</TableHead>
+                      <TableHead>City/State</TableHead>
+                      <TableHead>Payment Status</TableHead>
+                      <TableHead>Access</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStudents.map(student => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-mono">{student.studentId}</TableCell>
+                        <TableCell>{student.name}</TableCell>
+                        <TableCell>{student.mobile}</TableCell>
+                        <TableCell>{student.city}, {student.state}</TableCell>
+                        <TableCell>
+                          {student.isPaymentCompleted ? (
+                            <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle className="h-4 w-4"/> Paid</span>
+                          ) : (
+                            <span className="text-red-500 font-bold">Pending</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch 
+                              checked={student.isPaymentCompleted} 
+                              onCheckedChange={() => handleStudentPaymentToggle(student)} 
+                            />
+                            <Label className="text-xs">{student.isPaymentCompleted ? 'Enabled' : 'Disabled'}</Label>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pdfstore" className="space-y-4 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>PDF Store Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Create Folder</h3>
+                  <div className="flex gap-2">
+                    <Input placeholder="Folder Name" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
+                    <Button onClick={handleCreateFolder}><FolderPlus className="mr-2 h-4 w-4"/> Create</Button>
+                  </div>
+                  
+                  <div className="mt-4 border rounded p-4">
+                    <h4 className="text-sm font-medium mb-2">Existing Folders</h4>
+                    <div className="space-y-1">
+                      {pdfFolders.map(f => (
+                        <div key={f.id} className="text-sm p-2 bg-muted rounded flex items-center gap-2">
+                          <FolderPlus size={14} /> {f.name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Upload PDF Resource</h3>
+                  <div className="space-y-2">
+                    <Label>Select Folder</Label>
+                    <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
+                      <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
+                      <SelectContent>
+                        {pdfFolders.map(f => (
+                          <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>PDF Name</Label>
+                    <Input value={pdfName} onChange={e => setPdfName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Page Count (Price = 1 * Pages)</Label>
+                    <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} />
+                  </div>
+                  <Button onClick={handleUploadPdf} className="w-full"><Upload className="mr-2 h-4 w-4"/> Upload PDF</Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -380,4 +547,14 @@ export default function AdminDashboard() {
       </Tabs>
     </div>
   );
+}
+
+// Helper icon component
+function CheckCircle({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  )
 }

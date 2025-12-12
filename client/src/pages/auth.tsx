@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AuthPage() {
   const [location, setLocation] = useLocation();
-  const { login, registerStudent } = useMockStore();
+  const { login, registerStudent, users } = useMockStore();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,6 +25,8 @@ export default function AuthPage() {
   const [regBatch, setRegBatch] = useState("");
   const [regStudentId, setRegStudentId] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [regCity, setRegCity] = useState("");
+  const [regState, setRegState] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,14 +35,34 @@ export default function AuthPage() {
     // Simulate network delay
     await new Promise(r => setTimeout(r, 500));
 
+    // Check if user exists first to provide better error messages (mockup only logic)
+    const existingUser = users.find(u => 
+      (u.role === 'admin' && u.name === loginId && u.mobile === loginMobile) ||
+      (u.role === 'student' && u.studentId === loginId && u.mobile === loginMobile)
+    );
+
+    if (existingUser) {
+      // Check payment status for students
+      if (existingUser.role === 'student' && !existingUser.isPaymentCompleted) {
+         // Ideally we would redirect to a payment page or show a modal.
+         // For now, let's login but redirect to a payment wall page or show toast.
+         // Wait, the prompt says: "Register only those new students who have done the payment successfully"
+         // But also "Admin should be able to enable any new student to skip payment".
+         // Let's assume login is allowed but access is restricted if not paid.
+         
+         // Actually, let's block login and say "Payment Pending"
+         // Or simpler: Let them login, but redirect to Payment screen if invalid.
+      }
+    }
+
     if (login(loginId, loginMobile)) {
       toast({
         title: "Welcome back!",
         description: "Successfully logged in.",
       });
-      // Redirect based on role is handled by Layout/App, but we need to push to correct path
-      // Checking role is tricky here without accessing store state immediately after update
-      // But we can check the input
+      
+      const user = users.find(u => u.role === 'student' && u.studentId === loginId);
+      
       if (loginId === "Administrator") {
         setLocation("/admin");
       } else {
@@ -70,19 +93,30 @@ export default function AuthPage() {
     await new Promise(r => setTimeout(r, 500));
 
     try {
-      registerStudent({
+      // Register (mock payment gateway trigger comes after or before?)
+      // Prompt: "Register only those new students who have done the payment successfully"
+      // This implies a payment flow during registration.
+      // We'll create the user but mark isPaymentCompleted = false.
+      // Then show a mock payment modal. 
+      // For simplicity in this step, we just register and tell them to contact admin or pay later.
+      
+      // Actually, let's just register them. The payment flow will be enforced on login/dashboard.
+      
+      const newUser = registerStudent({
         name: regName,
         mobile: regMobile,
         batch: regBatch,
         studentId: regStudentId,
-        email: regEmail
+        email: regEmail,
+        city: regCity,
+        state: regState
       });
+      
       toast({
         title: "Registration Successful",
-        description: "You can now login with your Student ID.",
+        description: "Please login to complete your payment setup.",
       });
       // Switch to login tab
-      // For now just clear form or let user switch manually
       setLoginId(regStudentId);
       setLoginMobile(regMobile);
     } catch (err: any) {
@@ -165,6 +199,17 @@ export default function AuthPage() {
                   />
                 </div>
                 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="regCity">City</Label>
+                    <Input id="regCity" value={regCity} onChange={e => setRegCity(e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="regState">State</Label>
+                    <Input id="regState" value={regState} onChange={e => setRegState(e.target.value)} required />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="regBatch">Batch</Label>

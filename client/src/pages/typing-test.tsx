@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Timer, AlertCircle, Save, EyeOff, CheckCircle } from "lucide-react";
+import { Timer, AlertCircle, Save, EyeOff, CheckCircle, Music } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -63,6 +63,14 @@ export default function TypingTestPage() {
     // Focus textarea
     const textarea = document.getElementById("typing-area");
     if (textarea) textarea.focus();
+    
+    // Play audio if available and shorthand
+    if (testContent?.type === 'shorthand' && testContent.mediaUrl) {
+      const audio = document.getElementById('shorthand-audio') as HTMLAudioElement;
+      if (audio) {
+        audio.play().catch(e => console.log("Audio play failed", e));
+      }
+    }
   };
 
   const finishTest = () => {
@@ -91,6 +99,8 @@ export default function TypingTestPage() {
       contentTitle: testContent.title,
       contentType: testContent.type,
       typedText: typedText,
+      originalText: testContent.text, // Save original snapshot
+      language: testContent.language,
       metrics: {
         ...metrics,
         time: testContent.duration,
@@ -123,16 +133,19 @@ export default function TypingTestPage() {
     return <div className="p-8">Test not found</div>;
   }
 
-  // Split text for Typing Test view
-  // We want to show original content but prevent copy paste (CSS user-select: none)
-  
+  // Font family based on language
+  const contentFontClass = testContent.language === 'hindi' ? 'font-[Mangal]' : 'font-serif';
+  const typingFontClass = testContent.language === 'hindi' ? 'font-[Mangal]' : 'font-mono';
+
   return (
     <div className="h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]">
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0">
         <div>
           <h2 className="text-xl font-bold">{testContent.title}</h2>
-          <p className="text-sm text-muted-foreground capitalize">{testContent.type} Test - {testContent.duration} Min</p>
+          <p className="text-sm text-muted-foreground capitalize">
+            {testContent.type} Test - {testContent.duration} Min - {testContent.language || 'English'}
+          </p>
         </div>
         
         <div className={cn(
@@ -153,7 +166,7 @@ export default function TypingTestPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Original Text</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar">
-              <div className="text-lg leading-relaxed font-serif text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+              <div className={cn("text-lg leading-relaxed whitespace-pre-wrap", contentFontClass)}>
                 {testContent.text}
               </div>
             </CardContent>
@@ -161,7 +174,7 @@ export default function TypingTestPage() {
         )}
         
         {testContent.type === 'shorthand' && (
-          <div className="flex flex-col justify-center items-center h-full p-8 border-2 border-dashed rounded-lg bg-muted/20 text-center">
+          <div className="flex flex-col justify-center items-center h-full p-8 border-2 border-dashed rounded-lg bg-muted/20 text-center relative">
             <div className="bg-orange-100 p-4 rounded-full mb-4">
                <EyeOff className="h-10 w-10 text-orange-600" />
             </div>
@@ -170,6 +183,21 @@ export default function TypingTestPage() {
               This is a Shorthand transcription test. Please type from your provided hard copy. 
               The content is hidden on screen.
             </p>
+            
+            {testContent.mediaUrl && (
+              <div className="mt-6 w-full max-w-sm bg-card p-4 rounded border shadow-sm">
+                <div className="flex items-center gap-2 mb-2 text-blue-600 font-medium">
+                  <Music size={16} /> Audio Transcription
+                </div>
+                <audio 
+                  id="shorthand-audio" 
+                  src={testContent.mediaUrl} 
+                  controls 
+                  className="w-full"
+                  controlsList="nodownload" 
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -188,7 +216,10 @@ export default function TypingTestPage() {
               onChange={(e) => setTypedText(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={!isActive}
-              className="w-full h-full resize-none p-4 text-lg font-mono border-0 focus-visible:ring-0 rounded-none bg-transparent"
+              className={cn(
+                "w-full h-full resize-none p-4 text-lg border-0 focus-visible:ring-0 rounded-none bg-transparent", 
+                typingFontClass
+              )}
               placeholder={isActive ? "Start typing here..." : "Waiting to start..."}
               spellCheck={false}
               autoComplete="off"
