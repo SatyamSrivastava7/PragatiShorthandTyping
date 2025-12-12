@@ -25,9 +25,9 @@ import { cn } from "@/lib/utils";
 export default function AdminDashboard() {
   const { 
     content, addContent, toggleContent, deleteContent, results, users, updateUser, deleteUser,
-    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource,
+    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource, deletePdfResource,
     qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage,
-    dictations, addDictation, deleteDictation
+    dictations, addDictation, toggleDictation, deleteDictation
   } = useMockStore();
   const { toast } = useToast();
   
@@ -55,6 +55,7 @@ export default function AdminDashboard() {
   
   // Dictation State
   const [dictationTitle, setDictationTitle] = useState("");
+  const [dictationLanguage, setDictationLanguage] = useState<'english' | 'hindi'>('english');
   const [dictationFile, setDictationFile] = useState<File | null>(null);
 
   // Analysis State
@@ -90,7 +91,7 @@ export default function AdminDashboard() {
       return;
     }
     
-    addDictation(dictationTitle, URL.createObjectURL(dictationFile));
+    addDictation(dictationTitle, URL.createObjectURL(dictationFile), dictationLanguage);
     toast({ title: "Success", description: "Dictation audio uploaded" });
     setDictationTitle("");
     setDictationFile(null);
@@ -162,6 +163,13 @@ export default function AdminDashboard() {
       const url = URL.createObjectURL(e.target.files[0]);
       setQrCodeUrl(url);
       toast({ title: "Updated", description: "QR Code updated successfully" });
+    }
+  };
+
+  const handleDeletePdf = (id: string) => {
+    if (confirm("Are you sure you want to delete this PDF resource?")) {
+      deletePdfResource(id);
+      toast({ title: "Deleted", description: "PDF resource removed." });
     }
   };
 
@@ -431,6 +439,16 @@ export default function AdminDashboard() {
                     <Input value={dictationTitle} onChange={e => setDictationTitle(e.target.value)} placeholder="Dictation Title" required />
                   </div>
                   <div className="space-y-2">
+                    <Label>Language</Label>
+                    <Select value={dictationLanguage} onValueChange={(v: any) => setDictationLanguage(v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="english">English</SelectItem>
+                        <SelectItem value="hindi">Hindi</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label>Audio File</Label>
                     <Input type="file" accept="audio/*" onChange={e => setDictationFile(e.target.files?.[0] || null)} required />
                   </div>
@@ -522,6 +540,21 @@ export default function AdminDashboard() {
                     <Input type="file" accept=".pdf,.doc,.docx" onChange={e => setPdfFile(e.target.files?.[0] || null)} />
                   </div>
                   <Button onClick={handleUploadPdf} className="w-full"><Upload className="mr-2 h-4 w-4"/> Upload Resource</Button>
+                  
+                  <div className="mt-8 border-t pt-4">
+                    <h4 className="font-semibold mb-2">Manage Resources</h4>
+                    <div className="space-y-2 max-h-60 overflow-auto">
+                      {pdfResources.filter(p => !selectedFolderId || p.folderId === selectedFolderId).map(pdf => (
+                        <div key={pdf.id} className="flex items-center justify-between p-2 border rounded text-sm">
+                          <span className="truncate max-w-[180px]">{pdf.name}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeletePdf(pdf.id)}>
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                      ))}
+                      {pdfResources.length === 0 && <p className="text-muted-foreground text-xs">No resources found.</p>}
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

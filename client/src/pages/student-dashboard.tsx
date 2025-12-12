@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function StudentDashboard() {
@@ -35,9 +36,10 @@ export default function StudentDashboard() {
     return results.find(r => r.contentId === contentId && r.studentId === currentUser?.id);
   };
 
-  const handleDownloadResult = (result: Result) => {
+  const handleDownloadResult = async (result: Result) => {
     const doc = new jsPDF();
     
+    // Header
     doc.setFontSize(18);
     doc.text("Pragati Shorthand and Typing", 105, 15, { align: "center" });
     doc.setFontSize(12);
@@ -46,6 +48,7 @@ export default function StudentDashboard() {
     doc.text(`Language: ${result.language?.toUpperCase() || 'ENGLISH'}`, 14, 39);
     doc.text(`Date: ${format(new Date(result.submittedAt), "PPP p")}`, 14, 46);
 
+    // Metrics Table
     if (result.contentType === 'typing') {
       const data = [
         ["Metric", "Value"],
@@ -78,18 +81,89 @@ export default function StudentDashboard() {
       });
     }
 
-    // Add Typed Content snippet
+    // Prepare temporary HTML for rendering complex text/Hindi
     const finalY = (doc as any).lastAutoTable.finalY || 52;
-    doc.text("Original Content:", 14, finalY + 10);
-    const splitOriginal = doc.splitTextToSize(result.originalText || "", 180);
-    doc.text(splitOriginal, 14, finalY + 17);
     
-    const secondY = finalY + 17 + (splitOriginal.length * 5);
-    doc.text("Typed Content:", 14, secondY + 10);
-    const splitTyped = doc.splitTextToSize(result.typedText, 180);
-    doc.text(splitTyped, 14, secondY + 17);
+    // Create a temporary container for rendering
+    const tempDiv = document.createElement('div');
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '0';
+    tempDiv.style.width = '595px'; // A4 width in px approx (at 72dpi, but we scale)
+    tempDiv.style.padding = '20px';
+    tempDiv.style.fontFamily = result.language === 'hindi' ? '"Mangal", "Tiro Devanagari Hindi", sans-serif' : 'sans-serif';
+    tempDiv.style.fontSize = '12px';
+    tempDiv.style.color = 'black';
+    tempDiv.style.background = 'white';
+    
+    // Construct HTML content with highlighting
+    const originalWords = (result.originalText || "").trim().split(/\s+/);
+    const typedWords = result.typedText.trim().split(/\s+/);
+    const maxLength = Math.max(originalWords.length, typedWords.length);
+    
+    let comparisonHtml = `<h3 style="margin-bottom: 10px; font-weight: bold;">Detailed Analysis</h3><div style="display: flex; flex-direction: column; gap: 5px;">`;
+    
+    // Add header row
+    comparisonHtml += `
+      <div style="display: flex; border-bottom: 1px solid #ccc; font-weight: bold; padding-bottom: 5px;">
+        <div style="flex: 1; padding-right: 10px;">Original Text</div>
+        <div style="flex: 1;">Typed Comparison</div>
+      </div>
+    `;
 
-    doc.save(`result_${result.studentId}_${result.id}.pdf`);
+    for (let i = 0; i < maxLength; i++) {
+      const orig = originalWords[i] || "";
+      const type = typedWords[i] || "";
+      let style = "";
+      let typeContent = type;
+      
+      const isMatch = orig === type;
+      
+      if (!isMatch) {
+        style = "color: red; font-weight: bold;";
+        if (!orig && type) {
+          typeContent = `<span style="color: red;">${type} (Extra)</span>`;
+        } else if (orig && !type) {
+           typeContent = `<span style="color: red; font-style: italic;">[Missing]</span>`;
+        } else {
+           typeContent = `<span style="color: red;">${type}</span>`;
+        }
+      }
+
+      comparisonHtml += `
+        <div style="display: flex; border-bottom: 1px dashed #eee; padding: 4px 0;">
+          <div style="flex: 1; padding-right: 10px;">${orig}</div>
+          <div style="flex: 1;">${typeContent}</div>
+        </div>
+      `;
+    }
+    comparisonHtml += `</div>`;
+    
+    tempDiv.innerHTML = comparisonHtml;
+    document.body.appendChild(tempDiv);
+    
+    try {
+      const canvas = await html2canvas(tempDiv, { scale: 2 });
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = doc.getImageProperties(imgData);
+      const pdfWidth = doc.internal.pageSize.getWidth() - 28;
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Add a new page if content is too long
+      if (finalY + pdfHeight + 10 > doc.internal.pageSize.getHeight()) {
+        doc.addPage();
+        doc.addImage(imgData, 'PNG', 14, 15, pdfWidth, pdfHeight);
+      } else {
+        doc.addImage(imgData, 'PNG', 14, finalY + 10, pdfWidth, pdfHeight);
+      }
+      
+      doc.save(`result_${result.studentId}_${result.id}.pdf`);
+    } catch (err) {
+      console.error("PDF Generation Error", err);
+      toast({ variant: "destructive", title: "PDF Error", description: "Failed to generate detailed PDF." });
+    } finally {
+      document.body.removeChild(tempDiv);
+    }
   };
 
   const initiateBuyPdf = (pdfId: string, price: number) => {
@@ -214,7 +288,7 @@ export default function StudentDashboard() {
              </CardHeader>
              <CardContent>
                <div className="space-y-4">
-                 {dictations.map(d => (
+                 {dictations.filter(d => d.isEnabled).map(d => (
                    <div key={d.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                      <div className="flex items-center gap-3">
                        <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
@@ -223,6 +297,7 @@ export default function StudentDashboard() {
                        <div>
                          <h4 className="font-medium">{d.title}</h4>
                          <p className="text-xs text-muted-foreground">Added on {format(new Date(d.createdAt), "MMM d, yyyy")}</p>
+                         <p className="text-xs text-blue-600 capitalize">{d.language || 'english'}</p>
                        </div>
                      </div>
                      <div>
@@ -230,9 +305,9 @@ export default function StudentDashboard() {
                      </div>
                    </div>
                  ))}
-                 {dictations.length === 0 && (
+                 {dictations.filter(d => d.isEnabled).length === 0 && (
                    <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                     No dictation audio files available.
+                     No active dictation audio files available.
                    </div>
                  )}
                </div>

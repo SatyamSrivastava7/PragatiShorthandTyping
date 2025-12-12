@@ -146,10 +146,18 @@
 /* Mangal Font support */
 @font-face {
   font-family: 'Mangal';
-  src: local('Mangal'), local('Inknut Antiqua'), url('https://fonts.googleapis.com/css2?family=Inknut+Antiqua:wght@400;700&display=swap');
-  /* Fallback to system fonts if not available */
+  src: url('https://fonts.gstatic.com/s/tirodevanagarihindi/v1/aftu3_P-wQk-yWz_M1sM3QyYgNlQf5M.woff2') format('woff2');
+  /* Using Tiro Devanagari Hindi as a high-quality web alternative for Mangal */
 }
 
 .font-mangal {
-  font-family: 'Mangal', 'Inknut Antiqua', 'Devanagari MT', sans-serif;
+  font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;
+}
+
+/* Heading Colors - Blue as requested */
+h1, h2, h3, h4, h5, h6 {
+  color: #1e3a8a; /* blue-900 */
+}
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: #60a5fa; /* blue-400 */
 }

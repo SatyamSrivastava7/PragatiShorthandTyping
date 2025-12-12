@@ -107,16 +107,17 @@ interface StoreContextType {
   results: Result[];
   pdfFolders: PdfFolder[];
   pdfResources: PdfResource[];
+  dictations: {id: string, title: string, mediaUrl: string, language?: 'english' | 'hindi', isEnabled?: boolean, createdAt: string}[];
   currentUser: User | null;
   registrationFee: number;
   qrCodeUrl: string;
   galleryImages: string[];
-  dictations: {id: string, title: string, mediaUrl: string, createdAt: string}[];
   
   login: (identifier: string, mobile: string) => boolean;
   logout: () => void;
   registerStudent: (data: Omit<User, 'id' | 'role' | 'isPaymentCompleted'>) => User;
   updateUser: (id: string, updates: Partial<User>) => void;
+  deleteUser: (id: string) => void;
   resetPassword: (studentId: string, mobile: string, city: string, newPassword: string) => boolean;
   
   addContent: (data: Omit<Content, 'id' | 'createdAt' | 'isEnabled'>) => void;
@@ -127,6 +128,7 @@ interface StoreContextType {
   
   addPdfFolder: (name: string) => void;
   addPdfResource: (data: Omit<PdfResource, 'id'>) => void;
+  deletePdfResource: (id: string) => void;
   buyPdf: (pdfId: string) => void;
   consumePdfPurchase: (pdfId: string) => void;
   
@@ -136,9 +138,9 @@ interface StoreContextType {
   removeGalleryImage: (url: string) => void;
 
   // New Dictation Actions
-  addDictation: (title: string, mediaUrl: string) => void;
+  addDictation: (title: string, mediaUrl: string, language: 'english' | 'hindi') => void;
+  toggleDictation: (id: string) => void;
   deleteDictation: (id: string) => void;
-  deleteUser: (id: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -149,7 +151,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [results, setResults] = useState<Result[]>(() => getStorage(STORAGE_KEYS.RESULTS, []));
   const [pdfFolders, setPdfFolders] = useState<PdfFolder[]>(() => getStorage(STORAGE_KEYS.PDF_FOLDERS, []));
   const [pdfResources, setPdfResources] = useState<PdfResource[]>(() => getStorage(STORAGE_KEYS.PDF_RESOURCES, []));
-  const [dictations, setDictations] = useState<{id: string, title: string, mediaUrl: string, createdAt: string}[]>(() => getStorage('pragati_dictations', []));
+  const [dictations, setDictations] = useState<{id: string, title: string, mediaUrl: string, language?: 'english' | 'hindi', isEnabled?: boolean, createdAt: string}[]>(() => getStorage('pragati_dictations', []));
   const [currentUser, setCurrentUser] = useState<User | null>(() => getStorage(STORAGE_KEYS.CURRENT_USER, null));
   const [registrationFee, setRegistrationFeeState] = useState<number>(() => getStorage(STORAGE_KEYS.SETTINGS + '_FEE', 500)); 
   const [qrCodeUrl, setQrCodeUrlState] = useState<string>(() => getStorage(STORAGE_KEYS.SETTINGS + '_QR', ''));
@@ -301,6 +303,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setPdfResources([...pdfResources, newRes]);
   };
 
+  const deletePdfResource = (id: string) => {
+    setPdfResources(prev => prev.filter(p => p.id !== id));
+  };
+
   const buyPdf = (pdfId: string) => {
     if (!currentUser) return;
     const updatedPurchased = [...(currentUser.purchasedPdfs || []), pdfId];
@@ -329,13 +335,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setGalleryImages(prev => prev.filter(img => img !== url));
   };
   
-  const addDictation = (title: string, mediaUrl: string) => {
+  const addDictation = (title: string, mediaUrl: string, language: 'english' | 'hindi') => {
     setDictations(prev => [{
       id: Math.random().toString(36).substr(2, 9),
       title,
       mediaUrl,
+      language,
+      isEnabled: false,
       createdAt: new Date().toISOString()
     }, ...prev]);
+  };
+
+  const toggleDictation = (id: string) => {
+    setDictations(prev => {
+      const target = prev.find(d => d.id === id);
+      if (!target) return prev;
+
+      // Toggle logic
+      if (!target.isEnabled) {
+         // Enable this one, disable others of same language
+         return prev.map(d => {
+            if (d.id === id) return { ...d, isEnabled: true };
+            if (d.language === target.language) return { ...d, isEnabled: false };
+            return d;
+         });
+      } else {
+         return prev.map(d => d.id === id ? { ...d, isEnabled: false } : d);
+      }
+    });
   };
 
   const deleteDictation = (id: string) => {
@@ -365,6 +392,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     submitResult,
     addPdfFolder,
     addPdfResource,
+    deletePdfResource,
     buyPdf,
     consumePdfPurchase,
     setRegistrationFee,
@@ -372,6 +400,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addGalleryImage,
     removeGalleryImage,
     addDictation,
+    toggleDictation,
     deleteDictation
   };
 
