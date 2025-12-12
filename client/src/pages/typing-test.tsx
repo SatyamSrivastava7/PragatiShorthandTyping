@@ -6,8 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Timer, AlertCircle, Save, EyeOff } from "lucide-react";
+import { Timer, AlertCircle, Save, EyeOff, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -22,6 +30,7 @@ export default function TypingTestPage() {
   const [isActive, setIsActive] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [backspaces, setBackspaceCount] = useState(0);
+  const [showResultModal, setShowResultModal] = useState(false);
   
   // Timer Reference
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,10 +103,7 @@ export default function TypingTestPage() {
       description: "Your results have been recorded.",
     });
 
-    // Redirect to dashboard after short delay
-    setTimeout(() => {
-      setLocation("/student");
-    }, 2000);
+    setShowResultModal(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -210,7 +216,26 @@ export default function TypingTestPage() {
          )}
       </div>
 
-       {/* Results Modal / Overlay (Simplified as alert/toast for now, full report on dashboard) */}
+       <Dialog open={showResultModal} onOpenChange={setShowResultModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="text-green-600" /> Test Submitted
+            </DialogTitle>
+            <DialogDescription>
+              Your test has been successfully submitted to the instructor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2">
+            
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button type="button" variant="default" className="w-full" onClick={() => setLocation('/student')}>
+              Back to Dashboard
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

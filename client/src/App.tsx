@@ -9,6 +9,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import StudentDashboard from "@/pages/student-dashboard";
 import TypingTestPage from "@/pages/typing-test";
 import { Layout } from "@/components/layout";
+import { StoreProvider } from "@/lib/store";
 
 function Router() {
   return (
@@ -27,10 +28,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <StoreProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </StoreProvider>
     </QueryClientProvider>
   );
 }

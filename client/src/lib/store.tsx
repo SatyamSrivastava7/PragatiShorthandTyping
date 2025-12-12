@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { format } from 'date-fns';
 
 // Types
@@ -70,8 +70,22 @@ const getStorage = <T>(key: string, defaultVal: T): T => {
   return stored ? JSON.parse(stored) : defaultVal;
 };
 
-// Store Hook
-export function useMockStore() {
+interface StoreContextType {
+  users: User[];
+  content: Content[];
+  results: Result[];
+  currentUser: User | null;
+  login: (identifier: string, mobile: string) => boolean;
+  logout: () => void;
+  registerStudent: (data: Omit<User, 'id' | 'role'>) => User;
+  addContent: (data: Omit<Content, 'id' | 'createdAt' | 'isEnabled'>) => void;
+  toggleContent: (id: string) => void;
+  submitResult: (data: Omit<Result, 'id' | 'submittedAt'>) => void;
+}
+
+const StoreContext = createContext<StoreContextType | undefined>(undefined);
+
+export function StoreProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(() => getStorage(STORAGE_KEYS.USERS, [INITIAL_ADMIN]));
   const [content, setContent] = useState<Content[]>(() => getStorage(STORAGE_KEYS.CONTENT, []));
   const [results, setResults] = useState<Result[]>(() => getStorage(STORAGE_KEYS.RESULTS, []));
@@ -91,10 +105,6 @@ export function useMockStore() {
 
   // Actions
   const login = (identifier: string, mobile: string) => {
-    // Identifier can be Student ID or Name for admin? Prompt says "Login page for admin and user"
-    // For admin, maybe use a specific hardcoded login or just check role.
-    // Prompt says: "Student profile should be one time registration... allow users to create a student id also, using that student id, student should be able to login"
-    
     const user = users.find(u => 
       (u.role === 'admin' && u.name === identifier && u.mobile === mobile) ||
       (u.role === 'student' && u.studentId === identifier && u.mobile === mobile)
@@ -123,7 +133,6 @@ export function useMockStore() {
       role: 'student',
     };
     setUsers([...users, newUser]);
-    // Auto login after register? Or redirect to login. Let's return user.
     return newUser;
   };
 
@@ -134,35 +143,32 @@ export function useMockStore() {
       isEnabled: false,
       createdAt: new Date().toISOString(),
     };
-    // Admin needs to upload 500+ items? We just push to array.
-    // New requirement: "Only one content can be enabled at a time" (per type? or globally? Prompt says "only one content can be enabled at a time")
-    // If we enable one, we might need to disable others. Let's handle that in toggle.
     setContent([newContent, ...content]);
   };
 
   const toggleContent = (id: string) => {
-    setContent(prev => prev.map(c => {
-      if (c.id === id) {
-        // If we are enabling this one, we must disable ALL others to satisfy "only one content can be enabled at a time"
-        // Wait, implies GLOBAL enable? Or "User should be able to see only content of today... Enable button for Admin to enable previously uploaded content... only one content can be enabled at a time"
-        // It likely means one active test at a time for the users to take.
-        const willEnable = !c.isEnabled;
-        if (willEnable) {
-          // Disable all others first, then return this one enabled
-           // BUT we can't map inside map easily like that without multiple passes or side effects.
-           // Actually, let's do it in the setContent call properly.
-           return { ...c, isEnabled: true };
-        }
-        return { ...c, isEnabled: false };
-      }
-      // If we enabled the target, disable everyone else.
-      // If we disabled the target, everyone else stays as is (disabled).
+    setContent(prev => {
       const target = prev.find(p => p.id === id);
-      if (target && !target.isEnabled) { // We are about to enable target
-         return { ...c, isEnabled: false };
+      if (!target) return prev;
+
+      // If we are disabling, just disable it.
+      if (target.isEnabled) {
+         return prev.map(c => c.id === id ? { ...c, isEnabled: false } : c);
       }
-      return c;
-    }));
+
+      // If we are enabling, we need to disable other tests OF THE SAME TYPE
+      return prev.map(c => {
+        if (c.id === id) {
+          return { ...c, isEnabled: true };
+        }
+        // If same type as target, disable it
+        if (c.type === target.type) {
+          return { ...c, isEnabled: false };
+        }
+        // Otherwise leave it alone
+        return c;
+      });
+    });
   };
 
   const submitResult = (data: Omit<Result, 'id' | 'submittedAt'>) => {
@@ -174,7 +180,7 @@ export function useMockStore() {
     setResults([newResult, ...results]);
   };
 
-  return {
+  const value = {
     users,
     content,
     results,
@@ -186,4 +192,14 @@ export function useMockStore() {
     toggleContent,
     submitResult,
   };
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+}
+
+export function useMockStore() {
+  const context = useContext(StoreContext);
+  if (context === undefined) {
+    throw new Error('useMockStore must be used within a StoreProvider');
+  }
+  return context;
 }

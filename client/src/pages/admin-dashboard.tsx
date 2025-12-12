@@ -273,65 +273,76 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-               <div className="rounded-md border max-h-[600px] overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Test Title</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Metrics</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredResults.map((result) => (
-                      <TableRow key={result.id}>
-                        <TableCell>
-                          <div className="font-medium">{result.studentName}</div>
-                          <div className="text-xs text-muted-foreground">{result.studentId}</div>
-                        </TableCell>
-                        <TableCell>{result.contentTitle}</TableCell>
-                        <TableCell className="capitalize">{result.contentType}</TableCell>
-                        <TableCell>{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
-                        <TableCell>
-                          <div className="text-sm space-y-1">
-                            {result.contentType === 'typing' ? (
-                              <>
-                                <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.metrics.netSpeed} WPM</strong></div>
-                                <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
-                              </>
-                            ) : (
-                              <>
-                                <div><span className="text-muted-foreground">Result:</span> 
-                                  <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
-                                    {result.metrics.result}
-                                  </span>
-                                </div>
-                                <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
-                            <Download className="h-4 w-4 mr-1" />
-                            Download
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredResults.length === 0 && (
-                      <TableRow>
-                         <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                            No results found.
-                         </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <Tabs defaultValue="typing_results" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="typing_results">Typing Test Results</TabsTrigger>
+                  <TabsTrigger value="shorthand_results">Shorthand Test Results</TabsTrigger>
+                </TabsList>
+
+                {['typing', 'shorthand'].map((resultType) => (
+                  <TabsContent key={resultType} value={`${resultType}_results`}>
+                    <div className="rounded-md border max-h-[600px] overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Test Title</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Metrics</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredResults
+                            .filter(r => r.contentType === resultType)
+                            .map((result) => (
+                              <TableRow key={result.id}>
+                                <TableCell>
+                                  <div className="font-medium">{result.studentName}</div>
+                                  <div className="text-xs text-muted-foreground">{result.studentId}</div>
+                                </TableCell>
+                                <TableCell>{result.contentTitle}</TableCell>
+                                <TableCell>{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
+                                <TableCell>
+                                  <div className="text-sm space-y-1">
+                                    {result.contentType === 'typing' ? (
+                                      <>
+                                        <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.metrics.netSpeed} WPM</strong></div>
+                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div><span className="text-muted-foreground">Result:</span> 
+                                          <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
+                                            {result.metrics.result}
+                                          </span>
+                                        </div>
+                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
+                                    <Download className="h-4 w-4 mr-1" />
+                                    Download
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                          ))}
+                          {filteredResults.filter(r => r.contentType === resultType).length === 0 && (
+                            <TableRow>
+                               <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                  No {resultType} results found.
+                               </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
             </CardContent>
           </Card>
         </TabsContent>
