@@ -120,12 +120,14 @@ interface StoreContextType {
   
   addContent: (data: Omit<Content, 'id' | 'createdAt' | 'isEnabled'>) => void;
   toggleContent: (id: string) => void;
+  deleteContent: (id: string) => void;
   
   submitResult: (data: Omit<Result, 'id' | 'submittedAt'>) => void;
   
   addPdfFolder: (name: string) => void;
   addPdfResource: (data: Omit<PdfResource, 'id'>) => void;
   buyPdf: (pdfId: string) => void;
+  consumePdfPurchase: (pdfId: string) => void;
   
   setRegistrationFee: (amount: number) => void;
   setQrCodeUrl: (url: string) => void;
@@ -242,19 +244,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
          return prev.map(c => c.id === id ? { ...c, isEnabled: false } : c);
       }
 
-      // If we are enabling, we need to disable other tests OF THE SAME TYPE
+      // If we are enabling, we need to disable other tests OF THE SAME TYPE AND LANGUAGE
       return prev.map(c => {
         if (c.id === id) {
           return { ...c, isEnabled: true };
         }
-        // If same type as target, disable it
-        if (c.type === target.type) {
+        // If same type AND same language as target, disable it
+        if (c.type === target.type && c.language === target.language) {
           return { ...c, isEnabled: false };
         }
         // Otherwise leave it alone
         return c;
       });
     });
+  };
+
+  const deleteContent = (id: string) => {
+    setContent(prev => prev.filter(c => c.id !== id));
   };
 
   const submitResult = (data: Omit<Result, 'id' | 'submittedAt'>) => {
@@ -286,6 +292,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const buyPdf = (pdfId: string) => {
     if (!currentUser) return;
     const updatedPurchased = [...(currentUser.purchasedPdfs || []), pdfId];
+    updateUser(currentUser.id, { purchasedPdfs: updatedPurchased });
+  };
+
+  const consumePdfPurchase = (pdfId: string) => {
+    if (!currentUser) return;
+    const updatedPurchased = (currentUser.purchasedPdfs || []).filter(id => id !== pdfId);
     updateUser(currentUser.id, { purchasedPdfs: updatedPurchased });
   };
 
@@ -322,10 +334,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     resetPassword,
     addContent,
     toggleContent,
+    deleteContent,
     submitResult,
     addPdfFolder,
     addPdfResource,
     buyPdf,
+    consumePdfPurchase,
     setRegistrationFee,
     setQrCodeUrl,
     addGalleryImage,

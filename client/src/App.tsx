@@ -27,6 +27,8 @@ function PrivateRoute({ component: Component, allowedRoles }: { component: React
   return <Component />;
 }
 
+import GalleryPage from "@/pages/gallery";
+
 function Router() {
   return (
     <Layout>
@@ -35,6 +37,7 @@ function Router() {
         <Route path="/" component={LandingPage} />
         <Route path="/auth" component={AuthPage} />
         <Route path="/contact" component={ContactPage} />
+        <Route path="/gallery" component={GalleryPage} />
         
         {/* Protected Routes */}
         <Route path="/admin">

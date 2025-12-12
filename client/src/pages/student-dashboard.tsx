@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function StudentDashboard() {
-  const { content, results, currentUser, pdfFolders, pdfResources, buyPdf } = useMockStore();
+  const { content, results, currentUser, pdfFolders, pdfResources, buyPdf, consumePdfPurchase, qrCodeUrl } = useMockStore();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
@@ -20,6 +21,8 @@ export default function StudentDashboard() {
   // PDF Store State
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [processingPdf, setProcessingPdf] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPdfForPurchase, setSelectedPdfForPurchase] = useState<{id: string, price: number} | null>(null);
 
   // Filter content: Enabled AND Date is Today
   const todaysTests = content.filter(c => {
@@ -89,29 +92,43 @@ export default function StudentDashboard() {
     doc.save(`result_${result.studentId}_${result.id}.pdf`);
   };
 
-  const handleBuyPdf = async (pdfId: string, price: number) => {
-    setProcessingPdf(pdfId);
+  const initiateBuyPdf = (pdfId: string, price: number) => {
+    setSelectedPdfForPurchase({ id: pdfId, price });
+    setShowPaymentModal(true);
+  };
+
+  const confirmPurchase = async () => {
+    if (!selectedPdfForPurchase) return;
+    
+    setProcessingPdf(selectedPdfForPurchase.id);
+    setShowPaymentModal(false);
+    
     // Mock payment gateway delay
     await new Promise(r => setTimeout(r, 1500));
     
-    // In real app, here we would trigger payment gateway
-    // For now, assume success
-    buyPdf(pdfId);
+    buyPdf(selectedPdfForPurchase.id);
     setProcessingPdf(null);
+    setSelectedPdfForPurchase(null);
+    
     toast({
       title: "Purchase Successful",
-      description: `You have successfully purchased this PDF for ₹${price}.`
+      description: `You can now download the file.`
     });
   };
 
-  const handleDownloadPdf = (pdfUrl: string) => {
-    // In mockup, we can't really download external mock URLs, so we simulate
+  const handleDownloadPdf = (pdfId: string, pdfUrl: string) => {
     toast({ title: "Downloading...", description: "Your PDF download has started." });
-    // Simulate link click
-    // const link = document.createElement('a');
-    // link.href = pdfUrl;
-    // link.download = 'resource.pdf';
-    // link.click();
+    
+    // Create temporary link to trigger download
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = `resource_${pdfId}.pdf`; 
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Revert to Pay button (consume purchase)
+    consumePdfPurchase(pdfId);
   };
 
   return (
@@ -189,42 +206,53 @@ export default function StudentDashboard() {
         </TabsContent>
 
         <TabsContent value="results">
-           <div className="space-y-4">
-            {results
-              .filter(r => r.studentId === currentUser?.studentId || r.studentId === currentUser?.id)
-              .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
-              .map(result => (
-                <Card key={result.id} className="p-4 flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold">{result.contentTitle}</h4>
-                    <p className="text-sm text-muted-foreground">{format(new Date(result.submittedAt), "PPP p")}</p>
-                  </div>
-                  <div className="text-right flex items-center gap-4">
-                    {result.contentType === 'typing' ? (
-                       <div className="text-sm">
-                         <span className="font-bold text-primary">{result.metrics.netSpeed} WPM</span>
-                         <span className="mx-2 text-muted-foreground">|</span>
-                         <span className="text-muted-foreground">{result.metrics.mistakes} Mistakes</span>
-                       </div>
-                    ) : (
-                      <div className="text-sm">
-                        <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
-                          {result.metrics.result}
-                        </span>
-                        <span className="mx-2 text-muted-foreground">|</span>
-                        <span className="text-muted-foreground">{result.metrics.mistakes} Mistakes</span>
-                      </div>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-             {results.filter(r => r.studentId === currentUser?.studentId || r.studentId === currentUser?.id).length === 0 && (
-               <p className="text-muted-foreground text-center py-8">No history yet.</p>
-             )}
-          </div>
+           <Tabs defaultValue="typing_results" className="w-full">
+             <TabsList className="mb-4">
+               <TabsTrigger value="typing_results">Typing Results</TabsTrigger>
+               <TabsTrigger value="shorthand_results">Shorthand Results</TabsTrigger>
+             </TabsList>
+             
+             {['typing', 'shorthand'].map(type => (
+               <TabsContent key={type} value={`${type}_results`}>
+                 <div className="space-y-4">
+                  {results
+                    .filter(r => (r.studentId === currentUser?.studentId || r.studentId === currentUser?.id) && r.contentType === type)
+                    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
+                    .map(result => (
+                      <Card key={result.id} className="p-4 flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold">{result.contentTitle}</h4>
+                          <p className="text-sm text-muted-foreground">{format(new Date(result.submittedAt), "PPP p")}</p>
+                        </div>
+                        <div className="text-right flex items-center gap-4">
+                          {result.contentType === 'typing' ? (
+                             <div className="text-sm">
+                               <span className="font-bold text-primary">{result.metrics.netSpeed} WPM</span>
+                               <span className="mx-2 text-muted-foreground">|</span>
+                               <span className="text-muted-foreground">{result.metrics.mistakes} Mistakes</span>
+                             </div>
+                          ) : (
+                            <div className="text-sm">
+                              <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                                {result.metrics.result}
+                              </span>
+                              <span className="mx-2 text-muted-foreground">|</span>
+                              <span className="text-muted-foreground">{result.metrics.mistakes} Mistakes</span>
+                            </div>
+                          )}
+                          <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                   {results.filter(r => (r.studentId === currentUser?.studentId || r.studentId === currentUser?.id) && r.contentType === type).length === 0 && (
+                     <p className="text-muted-foreground text-center py-8">No {type} history yet.</p>
+                   )}
+                </div>
+               </TabsContent>
+             ))}
+           </Tabs>
         </TabsContent>
 
         <TabsContent value="store">
@@ -276,11 +304,11 @@ export default function StudentDashboard() {
                          
                          <div>
                            {isPurchased ? (
-                              <Button variant="outline" className="text-green-600 border-green-200 bg-green-50" onClick={() => handleDownloadPdf(pdf.url)}>
+                              <Button variant="outline" className="text-green-600 border-green-200 bg-green-50" onClick={() => handleDownloadPdf(pdf.id, pdf.url)}>
                                 <Download className="mr-2 h-4 w-4" /> Download
                               </Button>
                            ) : (
-                             <Button onClick={() => handleBuyPdf(pdf.id, pdf.price)} disabled={processingPdf === pdf.id}>
+                             <Button onClick={() => initiateBuyPdf(pdf.id, pdf.price)} disabled={processingPdf === pdf.id}>
                                {processingPdf === pdf.id ? (
                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                ) : (
@@ -302,6 +330,31 @@ export default function StudentDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Purchase</DialogTitle>
+            <DialogDescription>Scan QR to pay ₹{selectedPdfForPurchase?.price}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-4">
+             {qrCodeUrl ? (
+               <img src={qrCodeUrl} alt="Payment QR" className="w-48 h-48 object-contain mb-4" />
+             ) : (
+               <div className="w-48 h-48 bg-muted flex items-center justify-center mb-4 text-muted-foreground">
+                 No QR Code Configured
+               </div>
+             )}
+             <p className="text-sm text-center text-muted-foreground mb-4">
+               Please scan the QR code to complete payment for <strong>₹{selectedPdfForPurchase?.price}</strong>.
+             </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentModal(false)}>Cancel</Button>
+            <Button onClick={confirmPurchase}>I have made the payment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

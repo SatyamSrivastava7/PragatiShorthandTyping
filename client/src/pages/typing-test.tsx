@@ -33,18 +33,16 @@ export default function TypingTestPage() {
   const [isFinished, setIsFinished] = useState(false);
   const [backspaces, setBackspaceCount] = useState(0);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [userLanguage, setUserLanguage] = useState<'english' | 'hindi'>('english');
   const [fontSize, setFontSize] = useState(18);
   const [isFullScreen, setIsFullScreen] = useState(false);
   
   // Timer Reference
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const originalTextRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (testContent) {
       setTimeLeft(testContent.duration * 60);
-      // Default to test content language, but allow override
-      if (testContent.language) setUserLanguage(testContent.language as 'english' | 'hindi');
     }
   }, [testContent]);
 
@@ -61,6 +59,22 @@ export default function TypingTestPage() {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isActive, timeLeft]);
+  
+  // Auto-scroll logic
+  useEffect(() => {
+    if (testContent?.type === 'typing' && originalTextRef.current) {
+      // Very basic sync: Scroll original text based on progress
+      const totalLength = testContent.text.length;
+      const currentLength = typedText.length;
+      const progress = currentLength / totalLength;
+      
+      const scrollHeight = originalTextRef.current.scrollHeight;
+      const clientHeight = originalTextRef.current.clientHeight;
+      
+      // Scroll proportional to progress
+      originalTextRef.current.scrollTop = (scrollHeight - clientHeight) * progress;
+    }
+  }, [typedText, testContent]);
 
   const startTest = () => {
     setIsActive(true);
@@ -104,7 +118,7 @@ export default function TypingTestPage() {
       contentType: testContent.type,
       typedText: typedText,
       originalText: testContent.text, // Save original snapshot
-      language: userLanguage, // Use user selected language preference
+      language: testContent.language as 'english' | 'hindi',
       metrics: {
         ...metrics,
         time: testContent.duration,
@@ -148,8 +162,7 @@ export default function TypingTestPage() {
   }
 
   // Font family based on language selection
-  const typingFontClass = userLanguage === 'hindi' ? 'font-[Mangal]' : 'font-mono';
-  const contentFontClass = testContent.language === 'hindi' ? 'font-[Mangal]' : 'font-serif';
+  const fontClass = testContent.language === 'hindi' ? 'font-[Mangal]' : (testContent.type === 'shorthand' ? 'font-sans' : 'font-mono');
 
   return (
     <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
@@ -167,6 +180,8 @@ export default function TypingTestPage() {
             <h2 className="text-xl font-bold truncate max-w-[200px] md:max-w-md">{testContent.title}</h2>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                <span className="capitalize">{testContent.type} Test</span>
+               <span>•</span>
+               <span className="capitalize">{testContent.language}</span>
                <span>•</span>
                <span>{testContent.duration} Min</span>
             </div>
@@ -189,19 +204,6 @@ export default function TypingTestPage() {
               />
               <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
             </div>
-
-            <div className="hidden md:flex items-center gap-2">
-              <Settings className="h-4 w-4 text-muted-foreground" />
-              <Select value={userLanguage} onValueChange={(v: any) => setUserLanguage(v)} disabled={isActive}>
-                <SelectTrigger className="w-[120px] h-8 text-xs">
-                  <SelectValue placeholder="Language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div className={cn(
@@ -214,20 +216,21 @@ export default function TypingTestPage() {
         </div>
       </div>
 
-      {/* Main Workspace */}
-      <div className={cn("flex-1 grid gap-6 min-h-0", testContent.type === 'shorthand' ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2")}>
+      {/* Main Workspace - Vertical Layout */}
+      <div className="flex-1 flex flex-col gap-6 min-h-0">
         
-        {/* Original Content / Shorthand Info */}
+        {/* Original Content */}
         {testContent.type === 'typing' ? (
-           <Card className="flex flex-col h-full overflow-hidden border-2 shadow-sm">
-            <CardHeader className="py-3 bg-muted/50 border-b">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Original Text</CardTitle>
+           <Card className="flex flex-col h-[40%] overflow-hidden border-2 shadow-sm shrink-0">
+            <CardHeader className="py-2 bg-muted/50 border-b min-h-[40px] px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Original Text</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar">
+            <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef}>
               <div 
-                className={cn("leading-relaxed whitespace-pre-wrap select-none", contentFontClass)}
+                className={cn("leading-relaxed whitespace-pre-wrap select-none transition-all", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
               >
+                {/* Highlight Logic could go here, for now simpler implementation */}
                 {testContent.text}
               </div>
             </CardContent>
@@ -249,9 +252,9 @@ export default function TypingTestPage() {
         )}
 
         {/* Typing Area */}
-        <Card className={cn("flex flex-col h-full overflow-hidden border-2 shadow-sm", testContent.type === 'shorthand' ? "h-full" : "")}>
-          <CardHeader className="py-3 bg-muted/50 border-b flex flex-row justify-between items-center">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Your Input ({userLanguage})</CardTitle>
+        <Card className={cn("flex flex-col overflow-hidden border-2 shadow-sm flex-1", testContent.type === 'shorthand' ? "h-full" : "")}>
+          <CardHeader className="py-2 bg-muted/50 border-b flex flex-row justify-between items-center min-h-[40px] px-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Input</CardTitle>
              {!isActive && !isFinished && (
                <div className="text-xs text-blue-600 font-medium animate-bounce">Click "Start" below</div>
              )}
@@ -265,7 +268,7 @@ export default function TypingTestPage() {
               disabled={!isActive}
               className={cn(
                 "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none bg-transparent leading-relaxed", 
-                typingFontClass
+                fontClass
               )}
               style={{ fontSize: `${fontSize}px` }}
               placeholder={isActive ? "Start typing here..." : "Waiting to start..."}

@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, FileText, BarChart, Trash2 } from "lucide-react";
+import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const { 
-    content, addContent, toggleContent, results, users, updateUser, 
+    content, addContent, toggleContent, deleteContent, results, users, updateUser, 
     registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource,
     qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage
   } = useMockStore();
@@ -84,6 +84,13 @@ export default function AdminDashboard() {
       description: `Payment status for ${student.name} updated.` 
     });
   };
+  
+  const handleDeleteContent = (id: string) => {
+    if (confirm("Are you sure you want to delete this test?")) {
+      deleteContent(id);
+      toast({ title: "Deleted", description: "Test content removed." });
+    }
+  };
 
   const handleCreateFolder = () => {
     if (!newFolderName) return;
@@ -123,6 +130,14 @@ export default function AdminDashboard() {
       toast({ title: "Success", description: "Images uploaded to gallery" });
     }
   };
+  
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const url = URL.createObjectURL(e.target.files[0]);
+      setQrCodeUrl(url);
+      toast({ title: "Updated", description: "QR Code updated successfully" });
+    }
+  };
 
   const handleDownloadResult = (result: Result) => {
     generateResultPDF(result);
@@ -142,6 +157,10 @@ export default function AdminDashboard() {
       u.mobile.includes(studentListSearch)
     )
   );
+
+  const totalStudents = users.filter(u => u.role === 'student').length;
+  const enabledStudents = users.filter(u => u.role === 'student' && u.isPaymentCompleted).length;
+  const disabledStudents = totalStudents - enabledStudents;
 
   const renderContent = () => {
     switch (activeTab) {
@@ -239,7 +258,7 @@ export default function AdminDashboard() {
                             <TableHead>Duration</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Preview</TableHead>
-                            <TableHead>Enable</TableHead>
+                            <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -265,7 +284,12 @@ export default function AdminDashboard() {
                                 </Dialog>
                               </TableCell>
                               <TableCell>
-                                <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(item.id)} />
+                                <div className="flex items-center gap-2">
+                                  <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(item.id)} />
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/90" onClick={() => handleDeleteContent(item.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -285,7 +309,11 @@ export default function AdminDashboard() {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                   <CardTitle>Student Management</CardTitle>
-                  <CardDescription>Manage student access and payments.</CardDescription>
+                  <CardDescription>
+                    Total Students: <span className="font-bold">{totalStudents}</span> • 
+                    Enabled: <span className="text-green-600 font-bold">{enabledStudents}</span> • 
+                    Disabled: <span className="text-red-600 font-bold">{disabledStudents}</span>
+                  </CardDescription>
                 </div>
                 <div className="flex flex-col items-end gap-2 w-full md:w-auto">
                   <div className="flex items-center gap-2">
@@ -294,10 +322,19 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center gap-2 w-full">
                     <Label className="whitespace-nowrap">QR Code:</Label>
-                    <Input type="file" accept="image/*" className="w-full max-w-xs" onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) setQrCodeUrl(URL.createObjectURL(file));
-                      }} />
+                     <div className="flex items-center gap-2">
+                       {qrCodeUrl && (
+                         <Dialog>
+                           <DialogTrigger asChild>
+                             <Button variant="ghost" size="icon"><QrCode className="h-4 w-4"/></Button>
+                           </DialogTrigger>
+                           <DialogContent>
+                             <img src={qrCodeUrl} alt="QR Code" className="w-full" />
+                           </DialogContent>
+                         </Dialog>
+                       )}
+                       <Input type="file" accept="image/*" className="w-full max-w-xs" onChange={handleQrUpload} />
+                     </div>
                   </div>
                 </div>
               </div>
