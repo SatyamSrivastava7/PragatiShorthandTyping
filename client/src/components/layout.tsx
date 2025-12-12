@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LayoutDashboard, LogOut, FileText, UserCircle, Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
+import logoImage from '@assets/generated_images/minimalist_blue_abstract_logo_with_p_letter_mark.png';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { currentUser, logout } = useMockStore();
@@ -62,16 +63,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
-              <div className="p-6 border-b">
-                <h1 className="text-xl font-bold text-primary tracking-tight">Pragati<br/><span className="text-sm font-normal text-muted-foreground">Shorthand & Typing</span></h1>
+              <div className="p-6 border-b flex items-center gap-2">
+                 <img src={logoImage} alt="Pragati Logo" className="h-8 w-8 object-contain" />
+                 <h1 className="text-xl font-bold text-primary tracking-tight">Pragati<br/><span className="text-sm font-normal text-muted-foreground">Shorthand & Typing</span></h1>
               </div>
               <NavContent />
             </SheetContent>
           </Sheet>
           
-          <h1 className="text-lg md:text-xl font-bold text-primary tracking-tight">
-            Pragati <span className="hidden md:inline font-normal text-muted-foreground">| Shorthand & Typing</span>
-          </h1>
+          <div className="flex items-center gap-2">
+            <img src={logoImage} alt="Pragati Logo" className="h-10 w-10 object-contain hidden md:block" />
+            <h1 className="text-lg md:text-xl font-bold text-primary tracking-tight">
+              Pragati <span className="hidden md:inline font-normal text-muted-foreground">| Shorthand & Typing</span>
+            </h1>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -92,12 +97,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar (Desktop) */}
-        <aside className="w-64 bg-sidebar border-r border-sidebar-border hidden md:flex flex-col">
-          <NavContent />
-        </aside>
-
-        {/* Main Content */}
+        {/* Main Content - Sidebar removed as requested */}
         <main className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-auto p-4 md:p-8">
             {children}

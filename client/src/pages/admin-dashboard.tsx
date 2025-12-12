@@ -14,6 +14,14 @@ import { format } from "date-fns";
 import { Download, Printer, Search, FileUp, Eye, EyeOff } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function AdminDashboard() {
   const { content, addContent, toggleContent, results, users } = useMockStore();
@@ -207,6 +215,7 @@ export default function AdminDashboard() {
                             <TableHead>Title</TableHead>
                             <TableHead>Duration</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Content</TableHead>
                             <TableHead>Action</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -224,6 +233,28 @@ export default function AdminDashboard() {
                                 )}
                               </TableCell>
                               <TableCell>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <Eye className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
+                                    <DialogHeader>
+                                      <DialogTitle>{item.title}</DialogTitle>
+                                      <DialogDescription>
+                                        Content preview for {item.type} test.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="flex-1 overflow-auto bg-muted/30 p-4 rounded-md mt-4 border">
+                                      <p className="whitespace-pre-wrap font-serif text-sm leading-relaxed">
+                                        {item.text}
+                                      </p>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </TableCell>
+                              <TableCell>
                                 <div className="flex items-center space-x-2">
                                   <Switch 
                                     checked={item.isEnabled}
@@ -238,7 +269,7 @@ export default function AdminDashboard() {
                           ))}
                           {content.filter(c => c.type === type).length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                                 No {type} content uploaded yet.
                               </TableCell>
                             </TableRow>

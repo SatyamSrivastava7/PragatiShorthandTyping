@@ -83,11 +83,17 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
   // Ensure net speed isn't negative
   netSpeed = Math.max(0, netSpeed);
 
+  // Helper to format to 2 decimal places, removing trailing .00
+  const formatSpeed = (speed: number) => {
+    const rounded = Math.round(speed * 100) / 100;
+    return Number.isInteger(rounded) ? rounded : rounded.toFixed(2);
+  };
+
   return {
     words: wordCount,
     mistakes,
-    grossSpeed: Math.round(grossSpeed),
-    netSpeed: Math.round(netSpeed),
+    grossSpeed: formatSpeed(grossSpeed),
+    netSpeed: formatSpeed(netSpeed),
     backspaces
   };
 }
@@ -98,10 +104,49 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
   
   let mistakes = 0;
   
+  // Updated Logic: Count words while checking for mistakes, not character. 
+  // Match exact words and count 1 wrong word = 1 mistake; 
+  // 1 wrong /missed / extra ',' = 0.25 mistakes; 
+  // 1 wrong /missed / extra '.' = 1 mistake; 
+  // 1 skipped word = 1 mistake; 
+  // 1 extra word = 1 mistake; 
+
   const maxLength = Math.max(originalWords.length, typedWords.length);
+  
   for (let i = 0; i < maxLength; i++) {
-    if (originalWords[i] !== typedWords[i]) {
-      mistakes++;
+    const original = originalWords[i] || "";
+    const typed = typedWords[i] || "";
+    
+    if (!original && typed) {
+      // Extra word
+      mistakes += 1;
+      continue;
+    }
+    
+    if (original && !typed) {
+      // Skipped word
+      mistakes += 1;
+      continue;
+    }
+    
+    // Check main word content excluding punctuation
+    const cleanOriginal = original.replace(/[.,]/g, '');
+    const cleanTyped = typed.replace(/[.,]/g, '');
+    
+    if (cleanOriginal !== cleanTyped) {
+       // Wrong word
+       mistakes += 1;
+    } else {
+       // Word matches, check punctuation penalties
+       // Check commas (0.25 per mismatch)
+       const originalCommas = (original.match(/,/g) || []).length;
+       const typedCommas = (typed.match(/,/g) || []).length;
+       mistakes += Math.abs(originalCommas - typedCommas) * 0.25;
+       
+       // Check periods (1 per mismatch)
+       const originalPeriods = (original.match(/\./g) || []).length;
+       const typedPeriods = (typed.match(/\./g) || []).length;
+       mistakes += Math.abs(originalPeriods - typedPeriods) * 1;
     }
   }
 
