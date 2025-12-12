@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 export default function AdminDashboard() {
   const { 
     content, addContent, toggleContent, deleteContent, results, users, updateUser, deleteUser,
-    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource, deletePdfResource,
+    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource, deletePdfResource, pdfResources,
     qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage,
     dictations, addDictation, toggleDictation, deleteDictation
   } = useMockStore();
@@ -475,6 +475,7 @@ export default function AdminDashboard() {
                           <audio controls src={d.mediaUrl} className="h-8 w-48" />
                         </TableCell>
                         <TableCell>
+                           <Switch checked={d.isEnabled} onCheckedChange={() => toggleDictation(d.id)} />
                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDictation(d.id)}>
                              <Trash2 className="h-4 w-4" />
                            </Button>
