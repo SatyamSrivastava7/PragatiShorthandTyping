@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LayoutDashboard, LogOut, Menu, Home, Phone, LogIn } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
-import logoImage from '@assets/generated_images/minimalist_blue_abstract_logo_with_p_letter_mark.png';
+import logoImage from '../assets/logo.jpeg';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { currentUser, logout } = useMockStore();
@@ -88,19 +88,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
               <div className="p-6 border-b flex items-center gap-2">
-                 <img src={logoImage} alt="Pragati Logo" className="h-8 w-8 object-contain" />
-                 <h1 className="text-xl font-bold text-primary tracking-tight">Pragati<br/><span className="text-sm font-normal text-muted-foreground">Shorthand & Typing</span></h1>
+                 <img src={logoImage} alt="Pragati Logo" className="h-12 w-12 object-contain" />
+                 <h1 className="text-xl font-bold text-primary tracking-tight">Pragati<br/><span className="text-sm font-normal text-muted-foreground">Institute</span></h1>
               </div>
               <NavContent />
             </SheetContent>
           </Sheet>
           
           <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer">
-              <img src={logoImage} alt="Pragati Logo" className="h-10 w-10 object-contain hidden md:block" />
-              <h1 className="text-lg md:text-xl font-bold text-primary tracking-tight">
-                Pragati <span className="hidden md:inline font-normal text-muted-foreground">| Shorthand & Typing</span>
-              </h1>
+            <div className="flex items-center gap-3 cursor-pointer">
+              <img src={logoImage} alt="Pragati Logo" className="h-12 w-12 object-contain hidden md:block rounded-full border" />
+              <div className="flex flex-col">
+                <h1 className="text-lg md:text-xl font-bold text-primary tracking-tight leading-none">
+                  Pragati Institute of Professional Studies
+                </h1>
+                <span className="hidden md:inline text-xs text-muted-foreground font-medium">Prayagraj</span>
+              </div>
             </div>
           </Link>
         </div>

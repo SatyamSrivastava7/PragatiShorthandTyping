@@ -189,8 +189,9 @@ export default function AuthPage() {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
-                <div className="text-xs text-center text-muted-foreground mt-2">
+                <div className="text-xs text-center text-muted-foreground mt-2 space-y-1">
                   <p>Demo Admin: ID: <strong>Administrator</strong> / Mobile: <strong>1234567890</strong></p>
+                  <p>Demo Student: ID: <strong>STU001</strong> / Mobile: <strong>9876543210</strong></p>
                 </div>
               </form>
             </TabsContent>

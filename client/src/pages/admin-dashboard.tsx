@@ -4,32 +4,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Printer, Search, FileUp, Eye, EyeOff, FolderPlus, Upload, File, Music, CheckCircle } from "lucide-react";
+import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, FileText, BarChart, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { generateResultPDF } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export default function AdminDashboard() {
   const { 
     content, addContent, toggleContent, results, users, updateUser, 
     registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource,
-    qrCodeUrl, setQrCodeUrl
+    qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage
   } = useMockStore();
   const { toast } = useToast();
   
+  const [activeTab, setActiveTab] = useState("upload");
+
   // Upload State
   const [title, setTitle] = useState("");
   const [contentType, setContentType] = useState<'typing' | 'shorthand'>("typing");
@@ -37,7 +38,7 @@ export default function AdminDashboard() {
   const [duration, setDuration] = useState("5");
   const [dateFor, setDateFor] = useState(format(new Date(), "yyyy-MM-dd"));
   const [language, setLanguage] = useState<'english' | 'hindi'>('english');
-  const [audioFile, setAudioFile] = useState<File | null>(null); // Mock file handling
+  const [audioFile, setAudioFile] = useState<File | null>(null);
 
   // Filter State
   const [studentFilter, setStudentFilter] = useState("");
@@ -48,6 +49,10 @@ export default function AdminDashboard() {
   const [selectedFolderId, setSelectedFolderId] = useState<string>("");
   const [pdfName, setPdfName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState("");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+
+  // Analysis State
+  const [selectedResult, setSelectedResult] = useState<Result | null>(null);
 
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +68,7 @@ export default function AdminDashboard() {
       duration: parseInt(duration),
       dateFor,
       language,
-      mediaUrl: audioFile ? URL.createObjectURL(audioFile) : undefined // Mock URL
+      mediaUrl: audioFile ? URL.createObjectURL(audioFile) : undefined 
     });
 
     toast({ title: "Success", description: "Content uploaded successfully" });
@@ -92,16 +97,31 @@ export default function AdminDashboard() {
       toast({ variant: "destructive", title: "Error", description: "All fields required" });
       return;
     }
+    
+    // In a real app we would upload the file. Here we mock it.
+    const url = pdfFile ? URL.createObjectURL(pdfFile) : "#";
+
     addPdfResource({
       name: pdfName,
       folderId: selectedFolderId,
       pageCount: parseInt(pdfPageCount),
-      price: parseInt(pdfPageCount) * 1, // 1 rupee per page logic
-      url: "#", // Mock URL
+      price: parseInt(pdfPageCount) * 1, 
+      url: url,
     });
-    toast({ title: "Success", description: "PDF Resource added" });
+    toast({ title: "Success", description: "PDF/Doc Resource added" });
     setPdfName("");
     setPdfPageCount("");
+    setPdfFile(null);
+  };
+
+  const handleUploadGallery = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      Array.from(e.target.files).forEach(file => {
+        const url = URL.createObjectURL(file);
+        addGalleryImage(url);
+      });
+      toast({ title: "Success", description: "Images uploaded to gallery" });
+    }
   };
 
   const handleDownloadResult = (result: Result) => {
@@ -123,22 +143,10 @@ export default function AdminDashboard() {
     )
   );
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-      </div>
-
-      <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1">
-          <TabsTrigger value="upload">Upload</TabsTrigger>
-          <TabsTrigger value="manage">Tests</TabsTrigger>
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="pdfstore">PDF Store</TabsTrigger>
-          <TabsTrigger value="results">Results</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="upload" className="space-y-4 mt-6">
+  const renderContent = () => {
+    switch (activeTab) {
+      case "upload":
+        return (
           <Card>
             <CardHeader>
               <CardTitle>Upload New Test Content</CardTitle>
@@ -158,9 +166,7 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <Label>Test Type</Label>
                     <Select value={contentType} onValueChange={(v: any) => setContentType(v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="typing">Typing Test</SelectItem>
                         <SelectItem value="shorthand">Shorthand Test</SelectItem>
@@ -170,9 +176,7 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <Label>Language</Label>
                     <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="english">English</SelectItem>
                         <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
@@ -182,9 +186,7 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <Label>Duration (Minutes)</Label>
                     <Select value={duration} onValueChange={setDuration}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="2">2 Minutes</SelectItem>
                         <SelectItem value="5">5 Minutes</SelectItem>
@@ -213,19 +215,15 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <Button type="submit" className="w-full md:w-auto">
-                  <FileUp className="mr-2 h-4 w-4" /> Upload Content
-                </Button>
+                <Button type="submit"><FileUp className="mr-2 h-4 w-4" /> Upload Content</Button>
               </form>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="manage" className="space-y-4 mt-6">
+        );
+      case "manage":
+        return (
           <Card>
-            <CardHeader>
-              <CardTitle>Manage Tests</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Manage Tests</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-8">
                 {['typing', 'shorthand'].map(type => (
@@ -252,17 +250,11 @@ export default function AdminDashboard() {
                               <TableCell className="capitalize">{item.language}</TableCell>
                               <TableCell>{item.duration} min</TableCell>
                               <TableCell>
-                                {item.isEnabled ? (
-                                  <span className="text-green-600 font-bold text-xs">Active</span>
-                                ) : (
-                                  <span className="text-gray-400 text-xs">Inactive</span>
-                                )}
+                                {item.isEnabled ? <span className="text-green-600 font-bold text-xs">Active</span> : <span className="text-gray-400 text-xs">Inactive</span>}
                               </TableCell>
                               <TableCell>
                                 <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
-                                  </DialogTrigger>
+                                  <DialogTrigger asChild><Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button></DialogTrigger>
                                   <DialogContent>
                                     <DialogHeader><DialogTitle>{item.title}</DialogTitle></DialogHeader>
                                     <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
@@ -285,9 +277,9 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="students" className="space-y-4 mt-6">
+        );
+      case "students":
+        return (
           <Card>
             <CardHeader>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -298,35 +290,20 @@ export default function AdminDashboard() {
                 <div className="flex flex-col items-end gap-2 w-full md:w-auto">
                   <div className="flex items-center gap-2">
                     <Label>Reg Fee:</Label>
-                    <Input 
-                      type="number" 
-                      className="w-24" 
-                      value={registrationFee} 
-                      onChange={e => setRegistrationFee(Number(e.target.value))} 
-                    />
+                    <Input type="number" className="w-24" value={registrationFee} onChange={e => setRegistrationFee(Number(e.target.value))} />
                   </div>
                   <div className="flex items-center gap-2 w-full">
                     <Label className="whitespace-nowrap">QR Code:</Label>
-                    <Input 
-                      type="file" 
-                      accept="image/*"
-                      className="w-full max-w-xs" 
-                      onChange={e => {
+                    <Input type="file" accept="image/*" className="w-full max-w-xs" onChange={e => {
                         const file = e.target.files?.[0];
                         if (file) setQrCodeUrl(URL.createObjectURL(file));
-                      }} 
-                    />
+                      }} />
                   </div>
                 </div>
               </div>
               <div className="mt-4 relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search students by Name, ID or Mobile..." 
-                  className="pl-8" 
-                  value={studentListSearch}
-                  onChange={e => setStudentListSearch(e.target.value)}
-                />
+                <Input placeholder="Search students..." className="pl-8" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
               </div>
             </CardHeader>
             <CardContent>
@@ -338,7 +315,7 @@ export default function AdminDashboard() {
                       <TableHead>Name</TableHead>
                       <TableHead>Mobile</TableHead>
                       <TableHead>City/State</TableHead>
-                      <TableHead>Payment Status</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead>Access</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -350,40 +327,28 @@ export default function AdminDashboard() {
                         <TableCell>{student.mobile}</TableCell>
                         <TableCell>{student.city}, {student.state}</TableCell>
                         <TableCell>
-                          {student.isPaymentCompleted ? (
-                            <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle className="h-4 w-4"/> Paid</span>
-                          ) : (
-                            <span className="text-red-500 font-bold">Pending</span>
-                          )}
+                          {student.isPaymentCompleted ? 
+                            <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle className="h-4 w-4"/> Paid</span> : 
+                            <span className="text-red-500 font-bold">Pending</span>}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Switch 
-                              checked={student.isPaymentCompleted} 
-                              onCheckedChange={() => handleStudentPaymentToggle(student)} 
-                            />
+                            <Switch checked={student.isPaymentCompleted} onCheckedChange={() => handleStudentPaymentToggle(student)} />
                             <Label className="text-xs">{student.isPaymentCompleted ? 'Enabled' : 'Disabled'}</Label>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
-                    {filteredStudents.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">No students found.</TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="pdfstore" className="space-y-4 mt-6">
+        );
+      case "pdfstore":
+        return (
           <Card>
-            <CardHeader>
-              <CardTitle>PDF Store Management</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>PDF Store Management</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
@@ -392,8 +357,7 @@ export default function AdminDashboard() {
                     <Input placeholder="Folder Name" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
                     <Button onClick={handleCreateFolder}><FolderPlus className="mr-2 h-4 w-4"/> Create</Button>
                   </div>
-                  
-                  <div className="mt-4 border rounded p-4">
+                  <div className="mt-4 border rounded p-4 max-h-60 overflow-auto">
                     <h4 className="text-sm font-medium mb-2">Existing Folders</h4>
                     <div className="space-y-1">
                       {pdfFolders.map(f => (
@@ -406,34 +370,36 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="font-semibold">Upload PDF Resource</h3>
+                  <h3 className="font-semibold">Upload PDF/Doc Resource</h3>
                   <div className="space-y-2">
                     <Label>Select Folder</Label>
                     <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
                       <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
                       <SelectContent>
-                        {pdfFolders.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                        ))}
+                        {pdfFolders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>PDF Name</Label>
+                    <Label>File Name</Label>
                     <Input value={pdfName} onChange={e => setPdfName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Page Count (Price = 1 * Pages)</Label>
                     <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} />
                   </div>
-                  <Button onClick={handleUploadPdf} className="w-full"><Upload className="mr-2 h-4 w-4"/> Upload PDF</Button>
+                  <div className="space-y-2">
+                    <Label>Upload File (PDF/Doc)</Label>
+                    <Input type="file" accept=".pdf,.doc,.docx" onChange={e => setPdfFile(e.target.files?.[0] || null)} />
+                  </div>
+                  <Button onClick={handleUploadPdf} className="w-full"><Upload className="mr-2 h-4 w-4"/> Upload Resource</Button>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="results" className="space-y-4 mt-6">
+        );
+      case "results":
+        return (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -443,91 +409,207 @@ export default function AdminDashboard() {
                 </div>
                 <div className="relative w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search student..." 
-                    className="pl-8" 
-                    value={studentFilter}
-                    onChange={e => setStudentFilter(e.target.value)}
-                  />
+                  <Input placeholder="Search student..." className="pl-8" value={studentFilter} onChange={e => setStudentFilter(e.target.value)} />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="typing_results" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="typing_results">Typing Test Results</TabsTrigger>
-                  <TabsTrigger value="shorthand_results">Shorthand Test Results</TabsTrigger>
-                </TabsList>
-
-                {['typing', 'shorthand'].map((resultType) => (
-                  <TabsContent key={resultType} value={`${resultType}_results`}>
-                    <div className="rounded-md border max-h-[600px] overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Test Title</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Metrics</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredResults
-                            .filter(r => r.contentType === resultType)
-                            .map((result) => (
-                              <TableRow key={result.id}>
-                                <TableCell>
-                                  <div className="font-medium">{result.studentName}</div>
-                                  <div className="text-xs text-muted-foreground">{result.studentId}</div>
-                                </TableCell>
-                                <TableCell>{result.contentTitle}</TableCell>
-                                <TableCell>{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
-                                <TableCell>
-                                  <div className="text-sm space-y-1">
-                                    {result.contentType === 'typing' ? (
-                                      <>
-                                        <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.metrics.netSpeed} WPM</strong></div>
-                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <div><span className="text-muted-foreground">Result:</span> 
-                                          <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
-                                            {result.metrics.result}
-                                          </span>
-                                        </div>
-                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
-                                      </>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
-                                    <Download className="h-4 w-4 mr-1" />
-                                    Download
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                          ))}
-                          {filteredResults.filter(r => r.contentType === resultType).length === 0 && (
-                            <TableRow>
-                               <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                                  No {resultType} results found.
-                               </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </TabsContent>
-                ))}
-              </Tabs>
+              <div className="rounded-md border max-h-[600px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Test Title</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Metrics</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredResults.map((result) => (
+                      <TableRow key={result.id}>
+                        <TableCell>
+                          <div className="font-medium">{result.studentName}</div>
+                          <div className="text-xs text-muted-foreground">{result.studentId}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{result.contentTitle}</div>
+                          <div className="text-xs text-muted-foreground capitalize">{result.contentType}</div>
+                        </TableCell>
+                        <TableCell>{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
+                        <TableCell>
+                          <div className="text-sm space-y-1">
+                            {result.contentType === 'typing' ? (
+                              <>
+                                <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.metrics.netSpeed} WPM</strong></div>
+                                <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                              </>
+                            ) : (
+                              <>
+                                <div><span className="text-muted-foreground">Result:</span> 
+                                  <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
+                                    {result.metrics.result}
+                                  </span>
+                                </div>
+                                <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" onClick={() => setSelectedResult(result)}>
+                                <Eye className="h-4 w-4 mr-1" /> View
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+                              <DialogHeader>
+                                <DialogTitle>Result Analysis</DialogTitle>
+                              </DialogHeader>
+                              <div className="flex-1 overflow-auto p-4 border rounded bg-slate-50">
+                                <ResultAnalysisView result={result} />
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
+                            <Download className="h-4 w-4 mr-1" /> PDF
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        );
+      case "gallery":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gallery Upload</CardTitle>
+              <CardDescription>Upload images for the landing page gallery.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center">
+                  <Upload className="h-10 w-10 text-muted-foreground mb-4" />
+                  <Label htmlFor="gallery-upload" className="cursor-pointer">
+                    <span className="text-primary font-semibold hover:underline">Click to upload</span> or drag and drop
+                    <p className="text-sm text-muted-foreground mt-1">JPG, JPEG, PNG (Bulk upload supported)</p>
+                  </Label>
+                  <Input 
+                    id="gallery-upload" 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    className="hidden" 
+                    onChange={handleUploadGallery} 
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {galleryImages.map((url, idx) => (
+                    <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border">
+                      <img src={url} alt="Gallery" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Button variant="destructive" size="icon" onClick={() => removeGalleryImage(url)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)]">
+      {/* Sidebar */}
+      <aside className="w-64 border-r bg-muted/20 flex flex-col p-4 space-y-2 shrink-0 overflow-y-auto">
+        <h2 className="px-4 text-xs font-semibold text-muted-foreground mb-2 tracking-wider uppercase">Menu</h2>
+        {[
+          { id: "upload", label: "Upload New Tests", icon: FileUp },
+          { id: "manage", label: "Previously Uploaded", icon: LayoutList },
+          { id: "students", label: "Students", icon: Users },
+          { id: "pdfstore", label: "Pdf store", icon: FolderPlus },
+          { id: "results", label: "Results", icon: BarChart },
+          { id: "gallery", label: "Gallery upload", icon: ImageIcon },
+        ].map(item => (
+          <Button
+            key={item.id}
+            variant={activeTab === item.id ? "secondary" : "ghost"}
+            className={cn("justify-start gap-3", activeTab === item.id && "bg-white shadow-sm")}
+            onClick={() => setActiveTab(item.id)}
+          >
+            <item.icon size={18} />
+            <span className="truncate">{item.label}</span>
+          </Button>
+        ))}
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto bg-slate-50/50">
+        {renderContent()}
+      </main>
     </div>
   );
 }
 
+// Result Analysis Component
+function ResultAnalysisView({ result }: { result: Result }) {
+  if (!result.originalText) return <div className="text-center p-4">Original text snapshot not available for comparison.</div>;
+
+  const originalWords = result.originalText.trim().split(/\s+/);
+  const typedWords = result.typedText.trim().split(/\s+/);
+  const maxLength = Math.max(originalWords.length, typedWords.length);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 text-sm font-medium border-b pb-2">
+        <div>Original Text</div>
+        <div>Typed Comparison</div>
+      </div>
+      
+      <div className="space-y-1 font-mono text-base leading-loose">
+        {Array.from({ length: maxLength }).map((_, i) => {
+          const orig = originalWords[i] || "";
+          const type = typedWords[i] || "";
+          
+          let status: 'correct' | 'error' | 'missing' | 'extra' = 'correct';
+          
+          if (!orig && type) status = 'extra';
+          else if (orig && !type) status = 'missing';
+          else if (orig !== type) status = 'error';
+
+          // Check punctuation specifically if word matches but punctuation doesn't
+          // Simplified check:
+          const isMatch = orig === type;
+
+          return (
+            <div key={i} className="grid grid-cols-2 gap-4 border-b border-dashed border-gray-100 hover:bg-gray-50">
+              <div className="text-gray-600">{orig}</div>
+              <div className={cn(
+                "relative",
+                !isMatch && "text-red-600 font-bold"
+              )}>
+                {type}
+                {!isMatch && (
+                  <span className="absolute -bottom-1 left-0 w-full h-[2px] bg-red-500/50"></span>
+                )}
+                {status === 'missing' && <span className="text-red-400 italic">[Missing]</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

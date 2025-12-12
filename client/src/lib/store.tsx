@@ -110,6 +110,7 @@ interface StoreContextType {
   currentUser: User | null;
   registrationFee: number;
   qrCodeUrl: string;
+  galleryImages: string[];
   
   login: (identifier: string, mobile: string) => boolean;
   logout: () => void;
@@ -128,6 +129,8 @@ interface StoreContextType {
   
   setRegistrationFee: (amount: number) => void;
   setQrCodeUrl: (url: string) => void;
+  addGalleryImage: (url: string) => void;
+  removeGalleryImage: (url: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -141,6 +144,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => getStorage(STORAGE_KEYS.CURRENT_USER, null));
   const [registrationFee, setRegistrationFeeState] = useState<number>(() => getStorage(STORAGE_KEYS.SETTINGS + '_FEE', 500)); 
   const [qrCodeUrl, setQrCodeUrlState] = useState<string>(() => getStorage(STORAGE_KEYS.SETTINGS + '_QR', ''));
+  const [galleryImages, setGalleryImages] = useState<string[]>(() => getStorage(STORAGE_KEYS.SETTINGS + '_GALLERY', []));
 
   // Sync to local storage
   useEffect(() => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)), [users]);
@@ -150,6 +154,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => localStorage.setItem(STORAGE_KEYS.PDF_RESOURCES, JSON.stringify(pdfResources)), [pdfResources]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_FEE', JSON.stringify(registrationFee)), [registrationFee]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_QR', JSON.stringify(qrCodeUrl)), [qrCodeUrl]);
+  useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_GALLERY', JSON.stringify(galleryImages)), [galleryImages]);
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
@@ -292,6 +297,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setQrCodeUrlState(url);
   };
 
+  const addGalleryImage = (url: string) => {
+    setGalleryImages(prev => [...prev, url]);
+  };
+
+  const removeGalleryImage = (url: string) => {
+    setGalleryImages(prev => prev.filter(img => img !== url));
+  };
+
   const value = {
     users,
     content,
@@ -301,6 +314,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     currentUser,
     registrationFee,
     qrCodeUrl,
+    galleryImages,
     login,
     logout,
     registerStudent,
@@ -313,7 +327,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addPdfResource,
     buyPdf,
     setRegistrationFee,
-    setQrCodeUrl
+    setQrCodeUrl,
+    addGalleryImage,
+    removeGalleryImage
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

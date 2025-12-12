@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Timer, EyeOff, Save, CheckCircle, Music, ArrowLeft, Settings } from "lucide-react";
+import { Timer, EyeOff, Save, CheckCircle, Music, ArrowLeft, Settings, Maximize, Minimize, Type } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Slider } from "@/components/ui/slider";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -33,6 +34,8 @@ export default function TypingTestPage() {
   const [backspaces, setBackspaceCount] = useState(0);
   const [showResultModal, setShowResultModal] = useState(false);
   const [userLanguage, setUserLanguage] = useState<'english' | 'hindi'>('english');
+  const [fontSize, setFontSize] = useState(18);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   
   // Timer Reference
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -124,6 +127,16 @@ export default function TypingTestPage() {
     }
   };
 
+  const toggleFullScreen = () => {
+     if (!document.fullscreenElement) {
+       document.documentElement.requestFullscreen().then(() => setIsFullScreen(true));
+     } else {
+       if (document.exitFullscreen) {
+         document.exitFullscreen().then(() => setIsFullScreen(false));
+       }
+     }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -139,15 +152,17 @@ export default function TypingTestPage() {
   const contentFontClass = testContent.language === 'hindi' ? 'font-[Mangal]' : 'font-serif';
 
   return (
-    <div className="h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]">
+    <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/student">
-            <Button variant="ghost" size="icon" className="shrink-0">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
+          {!isFullScreen && (
+            <Link href="/student">
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
           <div>
             <h2 className="text-xl font-bold truncate max-w-[200px] md:max-w-md">{testContent.title}</h2>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -159,17 +174,34 @@ export default function TypingTestPage() {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2">
-            <Settings className="h-4 w-4 text-muted-foreground" />
-            <Select value={userLanguage} onValueChange={(v: any) => setUserLanguage(v)} disabled={isActive}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
-                <SelectValue placeholder="Language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="english">English</SelectItem>
-                <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={toggleFullScreen} title="Toggle Full Screen">
+              {isFullScreen ? <Minimize size={20}/> : <Maximize size={20}/>}
+            </Button>
+            
+            <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+              <Type size={16} className="text-muted-foreground" />
+              <Slider 
+                value={[fontSize]} 
+                onValueChange={(val) => setFontSize(val[0])} 
+                min={12} max={32} step={2}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
+            </div>
+
+            <div className="hidden md:flex items-center gap-2">
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              <Select value={userLanguage} onValueChange={(v: any) => setUserLanguage(v)} disabled={isActive}>
+                <SelectTrigger className="w-[120px] h-8 text-xs">
+                  <SelectValue placeholder="Language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="english">English</SelectItem>
+                  <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className={cn(
@@ -183,7 +215,7 @@ export default function TypingTestPage() {
       </div>
 
       {/* Main Workspace */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 min-h-0">
+      <div className={cn("flex-1 grid gap-6 min-h-0", testContent.type === 'shorthand' ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2")}>
         
         {/* Original Content / Shorthand Info */}
         {testContent.type === 'typing' ? (
@@ -192,48 +224,32 @@ export default function TypingTestPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">Original Text</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar">
-              <div className={cn("text-lg leading-relaxed whitespace-pre-wrap select-none", contentFontClass)}>
+              <div 
+                className={cn("leading-relaxed whitespace-pre-wrap select-none", contentFontClass)}
+                style={{ fontSize: `${fontSize}px` }}
+              >
                 {testContent.text}
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="flex flex-col gap-4 h-full">
-            <Alert className="bg-orange-50 border-orange-200">
-              <EyeOff className="h-4 w-4 text-orange-600" />
-              <AlertTitle className="text-orange-800">Content Hidden</AlertTitle>
-              <AlertDescription className="text-orange-700">
-                This is a shorthand test. Please transcribe from your hard copy or audio.
-              </AlertDescription>
-            </Alert>
-            
-            {testContent.mediaUrl && (
-              <Card>
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Music size={16} /> Audio Dictation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="py-4">
-                  <audio 
-                    id="shorthand-audio" 
-                    src={testContent.mediaUrl} 
-                    controls 
-                    className="w-full"
-                    controlsList="nodownload" 
-                  />
-                </CardContent>
-              </Card>
-            )}
-            
-            <div className="flex-1 bg-muted/10 rounded-lg border-2 border-dashed flex items-center justify-center p-8 text-center text-muted-foreground">
-              <p>Focus on your transcription.</p>
-            </div>
-          </div>
+          /* Shorthand Audio Player (Compact) */
+          testContent.mediaUrl && (
+             <div className="fixed bottom-4 left-4 z-50 bg-card p-2 rounded-full shadow-lg border flex items-center gap-2 animate-in slide-in-from-bottom-5">
+               <Music size={16} className="ml-2 text-primary" />
+               <audio 
+                 id="shorthand-audio" 
+                 src={testContent.mediaUrl} 
+                 controls 
+                 className="h-8 w-64"
+                 controlsList="nodownload" 
+               />
+             </div>
+          )
         )}
 
         {/* Typing Area */}
-        <Card className={cn("flex flex-col h-full overflow-hidden border-2 shadow-sm", testContent.type === 'shorthand' ? "md:col-span-1" : "")}>
+        <Card className={cn("flex flex-col h-full overflow-hidden border-2 shadow-sm", testContent.type === 'shorthand' ? "h-full" : "")}>
           <CardHeader className="py-3 bg-muted/50 border-b flex flex-row justify-between items-center">
             <CardTitle className="text-sm font-medium text-muted-foreground">Your Input ({userLanguage})</CardTitle>
              {!isActive && !isFinished && (
@@ -248,9 +264,10 @@ export default function TypingTestPage() {
               onKeyDown={handleKeyDown}
               disabled={!isActive}
               className={cn(
-                "w-full h-full resize-none p-4 text-lg border-0 focus-visible:ring-0 rounded-none bg-transparent leading-relaxed", 
+                "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none bg-transparent leading-relaxed", 
                 typingFontClass
               )}
+              style={{ fontSize: `${fontSize}px` }}
               placeholder={isActive ? "Start typing here..." : "Waiting to start..."}
               spellCheck={false}
               autoComplete="off"
