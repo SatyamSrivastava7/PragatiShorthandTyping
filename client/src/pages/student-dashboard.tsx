@@ -29,7 +29,7 @@ export default function StudentDashboard() {
   const todaysTests = content.filter(c => {
     const contentDate = new Date(c.dateFor);
     const isToday = isSameDay(contentDate, today);
-    return c.isEnabled && isToday;
+    return c.isEnabled;
   });
 
   const getResultForContent = (contentId: string) => {
@@ -204,6 +204,8 @@ export default function StudentDashboard() {
     // Revert to Pay button (consume purchase)
     consumePdfPurchase(pdfId);
   };
+
+  console.log("todaysTests****", todaysTests)
 
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">

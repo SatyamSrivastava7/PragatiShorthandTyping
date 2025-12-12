@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMockStore, Result, User } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 export default function AdminDashboard() {
   const { 
     content, addContent, toggleContent, deleteContent, results, users, updateUser, deleteUser,
-    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource, deletePdfResource, pdfResources,
+    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource, deletePdfResource,
     qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage,
     dictations, addDictation, toggleDictation, deleteDictation
   } = useMockStore();
@@ -57,14 +57,15 @@ export default function AdminDashboard() {
   const [dictationTitle, setDictationTitle] = useState("");
   const [dictationLanguage, setDictationLanguage] = useState<'english' | 'hindi'>('english');
   const [dictationFile, setDictationFile] = useState<File | null>(null);
+  const dictationFileInputRef = useRef<HTMLInputElement>(null);
 
   // Analysis State
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
 
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!textContent.trim() && !audioFile) {
-      toast({ variant: "destructive", title: "Error", description: "Content text or audio is required" });
+    if (!textContent.trim()) {
+      toast({ variant: "destructive", title: "Error", description: "Content text is required" });
       return;
     }
 
@@ -75,13 +76,12 @@ export default function AdminDashboard() {
       duration: parseInt(duration),
       dateFor,
       language,
-      mediaUrl: audioFile ? URL.createObjectURL(audioFile) : undefined 
+      // No mediaUrl for regular tests anymore as requested
     });
 
     toast({ title: "Success", description: "Content uploaded successfully" });
     setTitle("");
     setTextContent("");
-    setAudioFile(null);
   };
 
   const handleUploadDictation = (e: React.FormEvent) => {
@@ -95,6 +95,9 @@ export default function AdminDashboard() {
     toast({ title: "Success", description: "Dictation audio uploaded" });
     setDictationTitle("");
     setDictationFile(null);
+    if (dictationFileInputRef.current) {
+        dictationFileInputRef.current.value = "";
+    }
   };
 
   const handleStudentPaymentToggle = (student: User) => {
@@ -195,6 +198,8 @@ export default function AdminDashboard() {
   const totalStudents = users.filter(u => u.role === 'student').length;
   const enabledStudents = users.filter(u => u.role === 'student' && u.isPaymentCompleted).length;
   const disabledStudents = totalStudents - enabledStudents;
+
+  console.log("content ****", content)
 
   const renderContent = () => {
     switch (activeTab) {
@@ -339,9 +344,8 @@ export default function AdminDashboard() {
                   </div>
                   
                   {contentType === 'shorthand' && (
-                    <div className="space-y-2">
-                      <Label>Audio File (Optional)</Label>
-                      <Input type="file" accept="audio/*" onChange={e => setAudioFile(e.target.files?.[0] || null)} />
+                    <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground border">
+                      <p>Note: Audio upload for shorthand tests has been moved to the separate "Dictation Audio Upload" tab.</p>
                     </div>
                   )}
                 </div>
@@ -352,7 +356,10 @@ export default function AdminDashboard() {
                     value={textContent} 
                     onChange={e => setTextContent(e.target.value)} 
                     placeholder="Paste text here..."
-                    className="h-64 font-mono"
+                    className={cn(
+                      "h-64 font-mono",
+                      language === 'hindi' ? "font-mangal" : ""
+                    )}
                   />
                 </div>
 
@@ -450,7 +457,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="space-y-2">
                     <Label>Audio File</Label>
-                    <Input type="file" accept="audio/*" onChange={e => setDictationFile(e.target.files?.[0] || null)} required />
+                    <Input type="file" accept="audio/*" onChange={e => setDictationFile(e.target.files?.[0] || null)} ref={dictationFileInputRef} required />
                   </div>
                 </div>
                 <Button type="submit"><Upload className="mr-2 h-4 w-4" /> Upload Dictation</Button>
@@ -509,53 +516,78 @@ export default function AdminDashboard() {
                     <h4 className="text-sm font-medium mb-2">Existing Folders</h4>
                     <div className="space-y-1">
                       {pdfFolders.map(f => (
-                        <div key={f.id} className="text-sm p-2 bg-muted rounded flex items-center gap-2">
-                          <FolderPlus size={14} /> {f.name}
+                        <div 
+                          key={f.id} 
+                          className={cn(
+                            "text-sm p-2 rounded flex items-center justify-between cursor-pointer hover:bg-muted",
+                            selectedFolderId === f.id ? "bg-muted font-medium" : ""
+                          )}
+                          onClick={() => setSelectedFolderId(f.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FolderPlus size={14} className="text-blue-500" /> {f.name}
+                          </div>
+                          <span className="text-xs text-muted-foreground bg-white px-1.5 rounded border">
+                            {pdfResources.filter(p => p.folderId === f.id).length}
+                          </span>
                         </div>
                       ))}
+                      {pdfFolders.length === 0 && <p className="text-muted-foreground text-xs italic">No folders created yet.</p>}
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <h3 className="font-semibold">Upload PDF/Doc Resource</h3>
-                  <div className="space-y-2">
-                    <Label>Select Folder</Label>
-                    <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
-                      <SelectTrigger><SelectValue placeholder="Select Folder" /></SelectTrigger>
-                      <SelectContent>
-                        {pdfFolders.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>File Name</Label>
-                    <Input value={pdfName} onChange={e => setPdfName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Page Count (Price = 1 * Pages)</Label>
-                    <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Upload File (PDF/Doc)</Label>
-                    <Input type="file" accept=".pdf,.doc,.docx" onChange={e => setPdfFile(e.target.files?.[0] || null)} />
-                  </div>
-                  <Button onClick={handleUploadPdf} className="w-full"><Upload className="mr-2 h-4 w-4"/> Upload Resource</Button>
-                  
-                  <div className="mt-8 border-t pt-4">
-                    <h4 className="font-semibold mb-2">Manage Resources</h4>
-                    <div className="space-y-2 max-h-60 overflow-auto">
-                      {pdfResources.filter(p => !selectedFolderId || p.folderId === selectedFolderId).map(pdf => (
-                        <div key={pdf.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                          <span className="truncate max-w-[180px]">{pdf.name}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeletePdf(pdf.id)}>
-                            <Trash2 size={14} />
-                          </Button>
+                  {selectedFolderId ? (
+                    <div className="p-4 border rounded-lg bg-slate-50/50 space-y-4">
+                      <div className="text-sm font-medium text-blue-800 flex items-center gap-2 mb-2">
+                        <FolderPlus size={16}/> 
+                        Selected: {pdfFolders.find(f => f.id === selectedFolderId)?.name}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Resource Name</Label>
+                        <Input value={pdfName} onChange={e => setPdfName(e.target.value)} placeholder="e.g. Chapter 1 Notes" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Page Count</Label>
+                          <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} placeholder="Pages" />
                         </div>
-                      ))}
-                      {pdfResources.length === 0 && <p className="text-muted-foreground text-xs">No resources found.</p>}
+                        <div className="space-y-2">
+                          <Label>Upload File</Label>
+                          <Input type="file" accept=".pdf,.doc,.docx" onChange={e => setPdfFile(e.target.files?.[0] || null)} />
+                        </div>
+                      </div>
+                      <Button onClick={handleUploadPdf} className="w-full"><Upload className="mr-2 h-4 w-4"/> Upload Resource</Button>
+                      
+                      <div className="mt-6 border-t pt-4">
+                        <h4 className="font-semibold mb-2 text-sm">Files in Folder</h4>
+                        <div className="space-y-2 max-h-48 overflow-auto">
+                          {pdfResources.filter(p => p.folderId === selectedFolderId).map(pdf => (
+                            <div key={pdf.id} className="flex items-center justify-between p-2 border rounded text-sm bg-white">
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="truncate font-medium">{pdf.name}</span>
+                                <span className="text-xs text-muted-foreground">{pdf.pageCount} pages • ₹{pdf.price}</span>
+                              </div>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDeletePdf(pdf.id)}>
+                                <Trash2 size={14} />
+                              </Button>
+                            </div>
+                          ))}
+                          {pdfResources.filter(p => p.folderId === selectedFolderId).length === 0 && (
+                            <p className="text-muted-foreground text-xs text-center py-4 border border-dashed rounded">No files in this folder.</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                      <FolderPlus className="h-10 w-10 mb-2 opacity-20" />
+                      <p>Select a folder from the left to manage files</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
