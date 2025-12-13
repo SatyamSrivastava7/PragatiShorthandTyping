@@ -4,13 +4,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { format, isSameDay } from "date-fns";
-import { PlayCircle, CheckCircle, Download, FileText, ShoppingCart, Folder, ArrowLeft, Loader2, Mic } from "lucide-react";
+import { PlayCircle, CheckCircle, Download, FileText, ShoppingCart, Folder, ArrowLeft, Loader2, Mic, CreditCard, QrCode } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function StudentDashboard() {
   const { content, results, currentUser, pdfFolders, pdfResources, buyPdf, consumePdfPurchase, qrCodeUrl, dictations } = useMockStore();
@@ -24,6 +26,10 @@ export default function StudentDashboard() {
   const [processingPdf, setProcessingPdf] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPdfForPurchase, setSelectedPdfForPurchase] = useState<{id: string, price: number} | null>(null);
+  
+  // Payment Gateway State
+  const [paymentTab, setPaymentTab] = useState("qr");
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
   // Filter content: Enabled AND Date is Today
   const todaysTests = content.filter(c => {
@@ -169,24 +175,26 @@ export default function StudentDashboard() {
   const initiateBuyPdf = (pdfId: string, price: number) => {
     setSelectedPdfForPurchase({ id: pdfId, price });
     setShowPaymentModal(true);
+    setPaymentTab("qr"); // Reset to default
   };
 
   const confirmPurchase = async () => {
     if (!selectedPdfForPurchase) return;
     
-    setProcessingPdf(selectedPdfForPurchase.id);
-    setShowPaymentModal(false);
+    setIsVerifyingPayment(true);
     
     // Mock payment gateway delay
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 2000));
     
     buyPdf(selectedPdfForPurchase.id);
     setProcessingPdf(null);
     setSelectedPdfForPurchase(null);
+    setShowPaymentModal(false);
+    setIsVerifyingPayment(false);
     
     toast({
-      title: "Purchase Successful",
-      description: `You can now download the file.`
+      title: "Payment Successful",
+      description: `Payment verified. You can now download the file.`
     });
   };
 
@@ -444,26 +452,66 @@ export default function StudentDashboard() {
       </Tabs>
 
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm Purchase</DialogTitle>
-            <DialogDescription>Scan QR to pay ₹{selectedPdfForPurchase?.price}</DialogDescription>
+            <DialogTitle>Secure Payment Gateway</DialogTitle>
+            <DialogDescription>Complete your purchase of ₹{selectedPdfForPurchase?.price}</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center p-4">
-             {qrCodeUrl ? (
-               <img src={qrCodeUrl} alt="Payment QR" className="w-48 h-48 object-contain mb-4" />
-             ) : (
-               <div className="w-48 h-48 bg-muted flex items-center justify-center mb-4 text-muted-foreground">
-                 No QR Code Configured
-               </div>
-             )}
-             <p className="text-sm text-center text-muted-foreground mb-4">
-               Please scan the QR code to complete payment for <strong>₹{selectedPdfForPurchase?.price}</strong>.
-             </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentModal(false)}>Cancel</Button>
-            <Button onClick={confirmPurchase}>I have made the payment</Button>
+          
+          <Tabs value={paymentTab} onValueChange={setPaymentTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="qr" className="flex items-center gap-2"><QrCode size={16}/> UPI QR Code</TabsTrigger>
+              <TabsTrigger value="card" className="flex items-center gap-2"><CreditCard size={16}/> Debit Card</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="qr" className="flex flex-col items-center py-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm border mb-4">
+                 {/* Auto-generated QR Code for UPI */}
+                 <img 
+                   src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=pragati@upi&pn=PragatiInstitute&am=${selectedPdfForPurchase?.price}&cu=INR`} 
+                   alt="Payment QR" 
+                   className="w-48 h-48 object-contain" 
+                 />
+              </div>
+              <p className="text-sm font-medium text-center mb-1">Scan to Pay ₹{selectedPdfForPurchase?.price}</p>
+              <p className="text-xs text-muted-foreground text-center">Use any UPI App (GPay, PhonePe, Paytm)</p>
+            </TabsContent>
+            
+            <TabsContent value="card" className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Card Number</Label>
+                <Input placeholder="0000 0000 0000 0000" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Expiry Date</Label>
+                  <Input placeholder="MM/YY" />
+                </div>
+                <div className="space-y-2">
+                  <Label>CVV</Label>
+                  <Input placeholder="123" type="password" maxLength={3} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Cardholder Name</Label>
+                <Input placeholder="Name on card" />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="sm:justify-between flex-row items-center gap-4 mt-4">
+            <div className="text-xs text-muted-foreground flex-1">
+              Secured by SSL Encryption
+            </div>
+            <Button onClick={confirmPurchase} disabled={isVerifyingPayment} className="w-full sm:w-auto">
+              {isVerifyingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Verifying...
+                </>
+              ) : (
+                `Pay ₹${selectedPdfForPurchase?.price}`
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

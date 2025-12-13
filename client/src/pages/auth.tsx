@@ -7,16 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage() {
   const [location, setLocation] = useLocation();
   const { login, registerStudent, users, resetPassword, qrCodeUrl } = useMockStore();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
 
   // Login State
   const [loginId, setLoginId] = useState("");
   const [loginMobile, setLoginMobile] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Register State
   const [regName, setRegName] = useState("");
@@ -114,6 +117,7 @@ export default function AuthPage() {
       // Switch to login tab
       setLoginId(regStudentId);
       setLoginMobile(regMobile);
+      setActiveTab("login");
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -138,6 +142,7 @@ export default function AuthPage() {
       });
       setLoginId(resetId);
       setLoginMobile(resetMobile);
+      setActiveTab("login");
     } else {
       toast({
         variant: "destructive",
@@ -156,7 +161,7 @@ export default function AuthPage() {
           <CardDescription>Shorthand & Typing Assessment Platform</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Register</TabsTrigger>
@@ -177,18 +182,43 @@ export default function AuthPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="loginMobile">Mobile Number</Label>
-                  <Input 
-                    id="loginMobile" 
-                    type="password" // Masking mobile as password-ish
-                    placeholder="Enter 10-digit Mobile No." 
-                    value={loginMobile}
-                    onChange={(e) => setLoginMobile(e.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <Input 
+                      id="loginMobile" 
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter 10-digit Mobile No." 
+                      value={loginMobile}
+                      onChange={(e) => setLoginMobile(e.target.value)}
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
+                <div className="text-center">
+                   <Button 
+                     type="button" 
+                     variant="link" 
+                     className="text-xs text-muted-foreground hover:text-primary hover:underline p-0 h-auto"
+                     onClick={() => setActiveTab("reset")}
+                   >
+                     Forgot Password?
+                   </Button>
+                </div>
                 <div className="text-xs text-center text-muted-foreground mt-2 space-y-1">
                   <p>Demo Admin: ID: <strong>Administrator</strong> / Mobile: <strong>1234567890</strong></p>
                   <p>Demo Student: ID: <strong>STU001</strong> / Mobile: <strong>9876543210</strong></p>
@@ -270,12 +300,23 @@ export default function AuthPage() {
                   <Input value={resetCity} onChange={e => setResetCity(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label>New Password</Label>
-                  <Input type="password" value={resetNewPass} onChange={e => setResetNewPass(e.target.value)} required />
+                  <Label>New Password (Mobile No)</Label>
+                  <Input type="text" placeholder="Enter new mobile number" value={resetNewPass} onChange={e => setResetNewPass(e.target.value)} required />
+                  <p className="text-[10px] text-muted-foreground">Since mobile number is your password, this updates your registered mobile number.</p>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Processing..." : "Reset Password"}
                 </Button>
+                <div className="text-center">
+                   <Button 
+                     type="button" 
+                     variant="link" 
+                     className="text-xs text-muted-foreground hover:text-primary hover:underline p-0 h-auto"
+                     onClick={() => setActiveTab("login")}
+                   >
+                     Back to Login
+                   </Button>
+                </div>
               </form>
             </TabsContent>
           </Tabs>

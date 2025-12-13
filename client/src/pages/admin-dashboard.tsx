@@ -342,12 +342,6 @@ export default function AdminDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  {contentType === 'shorthand' && (
-                    <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground border">
-                      <p>Note: Audio upload for shorthand tests has been moved to the separate "Dictation Audio Upload" tab.</p>
-                    </div>
-                  )}
                 </div>
                 
                 <div className="space-y-2">
