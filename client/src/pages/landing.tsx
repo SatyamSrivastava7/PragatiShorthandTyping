@@ -171,7 +171,7 @@ export default function LandingPage() {
                        <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow bg-gradient-to-b from-white to-blue-50/50">
                          <CardContent className="flex flex-col items-center p-6 text-center">
                            <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-white shadow-md mb-4 bg-gray-100">
-                             <img src={student.image} alt={student.name} className="h-full w-full object-cover" />
+                             <img src={student.imageUrl} alt={student.name} className="h-full w-full object-cover" />
                            </div>
                            <h3 className="font-bold text-lg text-primary">{student.name}</h3>
                            <p className="text-sm font-medium text-gray-700 mt-1">{student.designation}</p>

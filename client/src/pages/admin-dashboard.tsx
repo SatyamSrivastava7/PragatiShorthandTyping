@@ -686,40 +686,114 @@ export default function AdminDashboard() {
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Gallery Upload</CardTitle>
-              <CardDescription>Upload images for the landing page gallery.</CardDescription>
+              <CardTitle>Gallery & Selected Candidates</CardTitle>
+              <CardDescription>Manage images and top students.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center">
-                  <Upload className="h-10 w-10 text-muted-foreground mb-4" />
-                  <Label htmlFor="gallery-upload" className="cursor-pointer">
-                    <span className="text-primary font-semibold hover:underline">Click to upload</span> or drag and drop
-                    <p className="text-sm text-muted-foreground mt-1">JPG, JPEG, PNG (Bulk upload supported)</p>
-                  </Label>
-                  <Input 
-                    id="gallery-upload" 
-                    type="file" 
-                    accept="image/*" 
-                    multiple 
-                    className="hidden" 
-                    onChange={handleUploadGallery} 
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {galleryImages.map((url, idx) => (
-                    <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border">
-                      <img src={url} alt="Gallery" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Button variant="destructive" size="icon" onClick={() => removeGalleryImage(url)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+              <Tabs defaultValue="gallery_images">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="gallery_images">Gallery Images</TabsTrigger>
+                  <TabsTrigger value="selected_candidates">Selected Candidates</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="gallery_images">
+                  <div className="space-y-6">
+                    <div className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center">
+                      <Upload className="h-10 w-10 text-muted-foreground mb-4" />
+                      <Label htmlFor="gallery-upload" className="cursor-pointer">
+                        <span className="text-primary font-semibold hover:underline">Click to upload</span> or drag and drop
+                        <p className="text-sm text-muted-foreground mt-1">JPG, JPEG, PNG (Bulk upload supported)</p>
+                      </Label>
+                      <Input 
+                        id="gallery-upload" 
+                        type="file" 
+                        accept="image/*" 
+                        multiple 
+                        className="hidden" 
+                        onChange={handleUploadGallery} 
+                      />
                     </div>
-                  ))}
-                </div>
-              </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {galleryImages.map((url, idx) => (
+                        <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border">
+                          <img src={url} alt="Gallery" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Button variant="destructive" size="icon" onClick={() => removeGalleryImage(url)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="selected_candidates">
+                  <div className="space-y-6">
+                    <form onSubmit={handleAddCandidate} className="space-y-4 border rounded-lg p-4 bg-slate-50">
+                       <h3 className="font-semibold text-sm mb-2">Add New Candidate</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                          <div className="space-y-2">
+                            <Label>Name</Label>
+                            <Input value={candidateName} onChange={e => setCandidateName(e.target.value)} placeholder="Student Name" required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Designation</Label>
+                            <Input value={candidateDesignation} onChange={e => setCandidateDesignation(e.target.value)} placeholder="e.g. Stenographer" required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Batch Year</Label>
+                            <Input value={candidateYear} onChange={e => setCandidateYear(e.target.value)} placeholder="e.g. 2024" required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Photo</Label>
+                            <Input type="file" accept="image/*" onChange={e => setCandidateImage(e.target.files?.[0] || null)} required />
+                          </div>
+                          <Button type="submit"><Users className="mr-2 h-4 w-4"/> Add</Button>
+                       </div>
+                    </form>
+
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Photo</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Designation</TableHead>
+                            <TableHead>Year</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedCandidates.map((candidate) => (
+                            <TableRow key={candidate.id}>
+                              <TableCell>
+                                <div className="h-10 w-10 rounded-full overflow-hidden border">
+                                  <img src={candidate.imageUrl} alt={candidate.name} className="h-full w-full object-cover" />
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-medium">{candidate.name}</TableCell>
+                              <TableCell>{candidate.designation}</TableCell>
+                              <TableCell>{candidate.year}</TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeSelectedCandidate(candidate.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {selectedCandidates.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No candidates added yet.</TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         );
