@@ -170,11 +170,11 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
 export const generateResultPDF = async (result: Result) => {
   // Create a temporary container for the report
   const container = document.createElement("div");
-  container.style.position = "fixed"; // Changed from absolute to fixed
-  container.style.left = "0";
+  container.style.position = "fixed"; 
+  container.style.left = "-10000px"; // Off-screen instead of invisible
   container.style.top = "0";
-  container.style.zIndex = "-1"; // Hide behind everything
-  container.style.opacity = "0"; // Invisible but rendered
+  container.style.zIndex = "1000"; 
+  // container.style.opacity = "0"; // Removed opacity hidden
   container.style.width = "800px"; // Fixed width for A4 consistency
   container.style.backgroundColor = "white";
   container.style.padding = "40px";
