@@ -82,7 +82,7 @@ export default function LandingPage() {
       </div>
 
       {/* Hero Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-background flex justify-center text-center relative overflow-hidden">
+      <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-b from-blue-50 via-white to-white flex justify-center text-center relative overflow-hidden">
         
         <div className="container px-4 md:px-6 relative z-10">
           <div className="flex flex-col items-center gap-8">
@@ -126,7 +126,7 @@ export default function LandingPage() {
       </section>
 
       {/* About Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-muted/50">
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-slate-50/80">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
@@ -165,7 +165,7 @@ export default function LandingPage() {
                 <div className="p-4 bg-primary/10 rounded-full">
                   <Award className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">Computer Teaching & Certification</h3>
+                <h3 className="text-xl font-bold text-center">Computer Teaching & Certification</h3>
                 <p className="text-center text-muted-foreground">
                   Track your progress and earn recognition for your speed and accuracy.
                 </p>
@@ -176,7 +176,7 @@ export default function LandingPage() {
       </section>
 
       {/* Selected Candidates Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 bg-background">
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-white">
         <div className="container px-4 md:px-6 mx-auto">
            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-12 text-center">Our Selected Candidates</h2>
            <div className="max-w-6xl mx-auto px-12">
@@ -210,7 +210,7 @@ export default function LandingPage() {
       </section>
 
       {/* Gallery Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32">
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-slate-50/50">
         <div className="container px-4 md:px-6 mx-auto">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-8 text-center">Gallery</h2>
           {galleryImages.length > 0 ? (
