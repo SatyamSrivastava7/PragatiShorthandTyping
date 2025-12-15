@@ -446,6 +446,14 @@ export default function StudentDashboard() {
                                       </span>
                                     </div>
                                     <div>
+                                      <span className="font-semibold">
+                                        Total Original Words:
+                                      </span>{" "}
+                                      <span>
+                                        {(result.originalText || "").trim().split(/\s+/).length}
+                                      </span>
+                                    </div>
+                                    <div>
                                       {result.contentType === "typing" ? (
                                         <span>
                                           <span className="font-semibold">

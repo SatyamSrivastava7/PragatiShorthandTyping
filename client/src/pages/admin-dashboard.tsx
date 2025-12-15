@@ -670,6 +670,9 @@ export default function AdminDashboard() {
                                             <span className="font-semibold">Mistakes:</span> <span className="text-red-600 font-bold">{result.metrics.mistakes}</span>
                                           </div>
                                           <div>
+                                            <span className="font-semibold">Total Original Words:</span> <span>{(result.originalText || "").trim().split(/\s+/).length}</span>
+                                          </div>
+                                          <div>
                                             {result.contentType === "typing" ? (
                                               <span>
                                                 <span className="font-semibold">Net Speed:</span> {result.metrics.netSpeed} WPM
