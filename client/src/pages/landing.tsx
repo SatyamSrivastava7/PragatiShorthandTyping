@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/carousel";
 
 export default function LandingPage() {
-  const { galleryImages, selectedCandidates } = useMockStore();
+  const { galleryImages, selectedCandidates, currentUser } = useMockStore();
   const { toast } = useToast();
   
   const openLink = (url: string) => {
@@ -30,6 +30,10 @@ export default function LandingPage() {
       description: `${label} copied to clipboard.`
     });
   };
+
+  const getStartedLink = currentUser 
+    ? (currentUser.role === 'admin' ? '/admin' : '/dashboard') 
+    : '/auth';
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -99,9 +103,9 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center pt-4">
-                <Link href="/auth">
+                <Link href={getStartedLink}>
                   <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all">
-                    Get Started <ArrowRight className="ml-2 h-5 w-5" />
+                    {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
                 <Link href="/gallery">
