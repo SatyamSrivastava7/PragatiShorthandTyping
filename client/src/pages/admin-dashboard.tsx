@@ -53,9 +53,7 @@ export default function AdminDashboard() {
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   
-  // Dictation State
-  const [dictationTitle, setDictationTitle] = useState("");
-  const [dictationLanguage, setDictationLanguage] = useState<'english' | 'hindi'>('english');
+  // Dictation State - Merged into Upload
   const [dictationFile, setDictationFile] = useState<File | null>(null);
   const dictationFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +66,12 @@ export default function AdminDashboard() {
       toast({ variant: "destructive", title: "Error", description: "Content text is required" });
       return;
     }
+    
+    // Create mock URL for audio if shorthand
+    let mediaUrl = undefined;
+    if (contentType === 'shorthand' && dictationFile) {
+      mediaUrl = URL.createObjectURL(dictationFile);
+    }
 
     addContent({
       title,
@@ -76,29 +80,19 @@ export default function AdminDashboard() {
       duration: parseInt(duration),
       dateFor,
       language,
-      // No mediaUrl for regular tests anymore as requested
+      mediaUrl, // Attach audio URL
     });
 
     toast({ title: "Success", description: "Content uploaded successfully" });
     setTitle("");
     setTextContent("");
-  };
-
-  const handleUploadDictation = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!dictationTitle || !dictationFile) {
-      toast({ variant: "destructive", title: "Error", description: "Title and audio file required" });
-      return;
-    }
-    
-    addDictation(dictationTitle, URL.createObjectURL(dictationFile), dictationLanguage);
-    toast({ title: "Success", description: "Dictation audio uploaded" });
-    setDictationTitle("");
     setDictationFile(null);
     if (dictationFileInputRef.current) {
-        dictationFileInputRef.current.value = "";
+      dictationFileInputRef.current.value = "";
     }
   };
+
+  // Deprecated: handleUploadDictation removed
 
   const handleStudentPaymentToggle = (student: User) => {
     updateUser(student.id, { isPaymentCompleted: !student.isPaymentCompleted });
@@ -319,6 +313,14 @@ export default function AdminDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+                  
+                  {contentType === 'shorthand' && (
+                    <div className="space-y-2">
+                       <Label>Audio File (Required for Shorthand)</Label>
+                       <Input type="file" accept="audio/*" onChange={e => setDictationFile(e.target.files?.[0] || null)} ref={dictationFileInputRef} required={contentType === 'shorthand'} />
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label>Language</Label>
                     <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
@@ -403,6 +405,32 @@ export default function AdminDashboard() {
                                       <p className="whitespace-pre-wrap">{item.text}</p>
                                       {item.mediaUrl && <div className="mt-2 text-xs text-blue-600 flex items-center gap-1"><Music size={12}/> Audio Attached</div>}
                                     </div>
+                                    <div className="mt-4 flex justify-end">
+                                      {/* Mock result download for admin preview */}
+                                      <Button variant="outline" size="sm" onClick={() => generateResultPDF({
+                                        id: "preview",
+                                        studentId: "admin",
+                                        studentName: "Admin Preview",
+                                        contentId: item.id,
+                                        contentTitle: item.title,
+                                        contentType: item.type,
+                                        language: item.language,
+                                        originalText: item.text,
+                                        typedText: item.text, // Perfect match for preview
+                                        submittedAt: new Date().toISOString(),
+                                        metrics: {
+                                          words: item.text.split(" ").length,
+                                          mistakes: 0,
+                                          grossSpeed: 0,
+                                          netSpeed: 0,
+                                          backspaces: 0,
+                                          result: "Pass",
+                                          time: item.duration
+                                        }
+                                      })}>
+                                        <Download className="mr-2 h-4 w-4" /> Download PDF Preview
+                                      </Button>
+                                    </div>
                                   </DialogContent>
                                 </Dialog>
                               </TableCell>
@@ -426,74 +454,8 @@ export default function AdminDashboard() {
           </Card>
         );
       case "audio_dictation":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Dictation Audio Upload</CardTitle>
-              <CardDescription>Upload audio files for student practice (no typing test attached).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUploadDictation} className="space-y-4 mb-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input value={dictationTitle} onChange={e => setDictationTitle(e.target.value)} placeholder="Dictation Title" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select value={dictationLanguage} onValueChange={(v: any) => setDictationLanguage(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="english">English</SelectItem>
-                        <SelectItem value="hindi">Hindi</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Audio File</Label>
-                    <Input type="file" accept="audio/*" onChange={e => setDictationFile(e.target.files?.[0] || null)} ref={dictationFileInputRef} required />
-                  </div>
-                </div>
-                <Button type="submit"><Upload className="mr-2 h-4 w-4" /> Upload Dictation</Button>
-              </form>
-
-              <div className="border rounded-md">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Preview</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dictations.map(d => (
-                      <TableRow key={d.id}>
-                        <TableCell>{format(new Date(d.createdAt), "MMM d")}</TableCell>
-                        <TableCell className="font-medium">{d.title}</TableCell>
-                        <TableCell>
-                          <audio controls src={d.mediaUrl} className="h-8 w-48" />
-                        </TableCell>
-                        <TableCell>
-                           <Switch checked={d.isEnabled} onCheckedChange={() => toggleDictation(d.id)} />
-                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteDictation(d.id)}>
-                             <Trash2 className="h-4 w-4" />
-                           </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {dictations.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No dictation audios uploaded.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        );
+        // Removed as per request
+        return <div className="p-4 text-center">Section moved to Upload</div>;
       case "pdfstore":
         return (
           <Card>
@@ -546,8 +508,8 @@ export default function AdminDashboard() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Page Count</Label>
-                          <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} placeholder="Pages" />
+                          <Label>Amount</Label>
+                          <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} placeholder="e.g. 99" />
                         </div>
                         <div className="space-y-2">
                           <Label>Upload File</Label>

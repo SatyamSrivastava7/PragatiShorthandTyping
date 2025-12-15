@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { format, isSameDay } from "date-fns";
-import { PlayCircle, CheckCircle, Download, FileText, ShoppingCart, Folder, ArrowLeft, Loader2, Mic, CreditCard, QrCode } from "lucide-react";
+import { PlayCircle, CheckCircle, Download, FileText, ShoppingCart, Folder, ArrowLeft, Loader2, Mic, CreditCard, QrCode, Eye } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,12 +29,11 @@ export default function StudentDashboard() {
   const [paymentTab, setPaymentTab] = useState("qr");
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
-  // Filter content: Enabled AND Date is Today
-  const todaysTests = content.filter(c => {
-    const contentDate = new Date(c.dateFor);
-    const isToday = isSameDay(contentDate, today);
-    return c.isEnabled;
-  });
+  // Filter content: Enabled (Date filter removed as requested)
+  const availableTests = content.filter(c => c.isEnabled);
+  
+  const typingTests = availableTests.filter(c => c.type === 'typing');
+  const shorthandTests = availableTests.filter(c => c.type === 'shorthand');
 
   const getResultForContent = (contentId: string) => {
     return results.find(r => r.contentId === contentId && r.studentId === currentUser?.id);
@@ -94,7 +93,7 @@ export default function StudentDashboard() {
     consumePdfPurchase(pdfId);
   };
 
-  console.log("todaysTests****", todaysTests)
+  console.log("availableTests****", availableTests)
 
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
@@ -103,18 +102,18 @@ export default function StudentDashboard() {
         <p className="text-muted-foreground">Welcome back, {currentUser?.name}</p>
       </div>
 
-      <Tabs defaultValue="tests" className="w-full">
+      <Tabs defaultValue="typing_tests" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="tests">Tests</TabsTrigger>
-          <TabsTrigger value="dictation">Dictation</TabsTrigger>
+          <TabsTrigger value="typing_tests">Typing Tests</TabsTrigger>
+          <TabsTrigger value="shorthand_tests">Shorthand Tests</TabsTrigger>
           <TabsTrigger value="results">My Results</TabsTrigger>
           <TabsTrigger value="store">PDF Store</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="tests">
+        <TabsContent value="typing_tests">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {todaysTests.length > 0 ? (
-              todaysTests.map((test) => {
+            {typingTests.length > 0 ? (
+              typingTests.map((test) => {
                 const result = getResultForContent(test.id);
                 const isCompleted = !!result;
 
@@ -123,30 +122,28 @@ export default function StudentDashboard() {
                     <CardHeader>
                       <CardTitle className="text-xl">{test.title}</CardTitle>
                       <CardDescription className="capitalize font-medium text-primary flex justify-between">
-                        <span>{test.type} Test</span>
+                        <span>Typing Test</span>
                         <span>{test.language || 'English'}</span>
                       </CardDescription>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(test.dateFor), "PPP")}
+                      </div>
                     </CardHeader>
                     <CardContent className="flex-1">
                       <div className="space-y-2 text-sm text-muted-foreground">
                         <p>Duration: <span className="font-semibold text-foreground">{test.duration} Minutes</span></p>
-                        {test.type === 'shorthand' && (
-                          <p className="text-orange-600 bg-orange-50 inline-block px-2 py-1 rounded-sm text-xs">
-                            Requires Hard Copy
-                          </p>
-                        )}
-                        {test.mediaUrl && (
-                          <p className="text-blue-600 bg-blue-50 inline-block px-2 py-1 rounded-sm text-xs ml-2">
-                            Audio Available
-                          </p>
-                        )}
                       </div>
                     </CardContent>
                     <CardFooter className="pt-4 border-t bg-muted/20">
                       {isCompleted ? (
-                        <Button variant="outline" className="w-full cursor-default bg-green-50 hover:bg-green-50 text-green-700 border-green-200">
-                          <CheckCircle className="mr-2 h-4 w-4" /> Completed
-                        </Button>
+                        <div className="w-full flex gap-2">
+                           <Button variant="outline" className="flex-1 cursor-default bg-green-50 text-green-700 border-green-200">
+                             <CheckCircle className="mr-2 h-4 w-4" /> Completed
+                           </Button>
+                           <Button variant="outline" size="icon" onClick={() => handleDownloadResult(result)}>
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                        </div>
                       ) : (
                         <Button 
                           className="w-full" 
@@ -164,46 +161,71 @@ export default function StudentDashboard() {
                 <div className="bg-muted rounded-full p-4 mb-4">
                   <CheckCircle className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold">No tests available for today</h3>
-                <p className="text-muted-foreground mt-2">Please check back later or contact your administrator.</p>
+                <h3 className="text-lg font-semibold">No typing tests available</h3>
               </div>
             )}
           </div>
         </TabsContent>
+        
+        <TabsContent value="shorthand_tests">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {shorthandTests.length > 0 ? (
+              shorthandTests.map((test) => {
+                const result = getResultForContent(test.id);
+                const isCompleted = !!result;
 
-        <TabsContent value="dictation">
-           <Card>
-             <CardHeader>
-               <CardTitle>Dictation Practice</CardTitle>
-               <CardDescription>Audio resources for shorthand practice.</CardDescription>
-             </CardHeader>
-             <CardContent>
-               <div className="space-y-4">
-                 {dictations.filter(d => d.isEnabled).map(d => (
-                   <div key={d.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                     <div className="flex items-center gap-3">
-                       <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                         <Mic size={20} />
-                       </div>
-                       <div>
-                         <h4 className="font-medium">{d.title}</h4>
-                         <p className="text-xs text-muted-foreground">Added on {format(new Date(d.createdAt), "MMM d, yyyy")}</p>
-                         <p className="text-xs text-blue-600 capitalize">{d.language || 'english'}</p>
-                       </div>
-                     </div>
-                     <div>
-                       <audio controls src={d.mediaUrl} className="h-10 w-64" controlsList="nodownload" />
-                     </div>
-                   </div>
-                 ))}
-                 {dictations.filter(d => d.isEnabled).length === 0 && (
-                   <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                     No active dictation audio files available.
-                   </div>
-                 )}
-               </div>
-             </CardContent>
-           </Card>
+                return (
+                  <Card key={test.id} className="flex flex-col border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <CardTitle className="text-xl">{test.title}</CardTitle>
+                      <CardDescription className="capitalize font-medium text-orange-600 flex justify-between">
+                        <span>Shorthand Test</span>
+                        <span>{test.language || 'English'}</span>
+                      </CardDescription>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(test.dateFor), "PPP")}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex-1">
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>Duration: <span className="font-semibold text-foreground">{test.duration} Minutes</span></p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                           Workflow: Listen to Audio → Write on Paper → Type Here
+                        </p>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-4 border-t bg-muted/20">
+                      {isCompleted ? (
+                         <div className="w-full flex gap-2">
+                           <Button variant="outline" className="flex-1 cursor-default bg-green-50 text-green-700 border-green-200">
+                             <CheckCircle className="mr-2 h-4 w-4" /> Completed
+                           </Button>
+                           <Button variant="outline" size="icon" onClick={() => handleDownloadResult(result)}>
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          className="w-full" 
+                          variant="secondary"
+                          onClick={() => setLocation(`/test/${test.id}`)}
+                        >
+                          <PlayCircle className="mr-2 h-4 w-4" /> Start Shorthand Test
+                        </Button>
+                      )}
+                    </CardFooter>
+                  </Card>
+                );
+              })
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
+                <div className="bg-muted rounded-full p-4 mb-4">
+                  <Mic className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold">No shorthand tests available</h3>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="results">

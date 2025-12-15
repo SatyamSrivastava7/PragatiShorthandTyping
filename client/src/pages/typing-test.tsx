@@ -162,8 +162,8 @@ export default function TypingTestPage() {
   }
 
   // Font family based on language selection
-  // Updated to use custom 'font-mangal' class if Hindi
-  const fontClass = testContent.language === 'hindi' ? 'font-mangal' : (testContent.type === 'shorthand' ? 'font-sans' : 'font-mono');
+  // Updated to use custom 'font-mangal' class if Hindi, Times New Roman for English
+  const fontClass = testContent.language === 'hindi' ? 'font-mangal' : 'font-times';
 
   return (
     <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
@@ -220,8 +220,32 @@ export default function TypingTestPage() {
       {/* Main Workspace - Vertical Layout */}
       <div className="flex-1 flex flex-col gap-6 min-h-0">
         
-        {/* Original Content */}
-        {testContent.type === 'typing' ? (
+        {/* Shorthand Audio Player - Prominent at top */}
+        {testContent.type === 'shorthand' && testContent.mediaUrl && (
+           <Card className="bg-muted/30 border-2 border-orange-200 shrink-0">
+             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+               <div className="flex items-center gap-3">
+                 <div className="p-3 bg-orange-100 rounded-full text-orange-600">
+                   <Music size={24} />
+                 </div>
+                 <div>
+                   <h3 className="font-semibold text-lg">Dictation Audio</h3>
+                   <p className="text-sm text-muted-foreground">Listen carefully, write on your shorthand pad, then type below.</p>
+                 </div>
+               </div>
+               <audio 
+                 id="shorthand-audio" 
+                 src={testContent.mediaUrl} 
+                 controls 
+                 className="w-full md:w-96"
+                 controlsList="nodownload" 
+               />
+             </CardContent>
+           </Card>
+        )}
+
+        {/* Original Content - Hidden for Shorthand */}
+        {testContent.type === 'typing' && (
            <Card className="flex flex-col h-[40%] overflow-hidden border-2 shadow-sm shrink-0">
             <CardHeader className="py-2 bg-muted/50 border-b min-h-[40px] px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Original Text</CardTitle>
@@ -236,20 +260,6 @@ export default function TypingTestPage() {
               </div>
             </CardContent>
           </Card>
-        ) : (
-          /* Shorthand Audio Player (Compact) */
-          testContent.mediaUrl && (
-             <div className="fixed bottom-4 left-4 z-50 bg-card p-2 rounded-full shadow-lg border flex items-center gap-2 animate-in slide-in-from-bottom-5">
-               <Music size={16} className="ml-2 text-primary" />
-               <audio 
-                 id="shorthand-audio" 
-                 src={testContent.mediaUrl} 
-                 controls 
-                 className="h-8 w-64"
-                 controlsList="nodownload" 
-               />
-             </div>
-          )
         )}
 
         {/* Typing Area */}

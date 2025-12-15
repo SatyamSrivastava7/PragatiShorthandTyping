@@ -42,7 +42,7 @@ export default function AuthPage() {
     
     // Simulate network delay
     await new Promise(r => setTimeout(r, 500));
-
+  console.log("*******", loginId, loginMobile)
     // Check if user exists first to provide better error messages (mockup only logic)
     const existingUser = users.find(u => 
       (u.role === 'admin' && u.name === loginId && u.mobile === loginMobile) ||
@@ -52,6 +52,7 @@ export default function AuthPage() {
     if (existingUser) {
       // Check payment status for students
       if (existingUser.role === 'student' && !existingUser.isPaymentCompleted) {
+        console.log("******* Invalid credentials. Please check your ID and Mobile Number.", existingUser.isPaymentCompleted)
          if (!existingUser.isPaymentCompleted) {
            toast({
              variant: "destructive",
@@ -63,7 +64,7 @@ export default function AuthPage() {
          }
       }
     }
-
+console.log("*******", login, login(loginId, loginMobile))
     if (login(loginId, loginMobile)) {
       toast({
         title: "Welcome back!",
@@ -76,6 +77,8 @@ export default function AuthPage() {
         setLocation("/student");
       }
     } else {
+      console.log("******* Invalid credentials. Please check your ID and Mobile Number.")
+
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -95,7 +98,6 @@ export default function AuthPage() {
       });
       return;
     }
-
     setIsLoading(true);
     await new Promise(r => setTimeout(r, 500));
 
@@ -109,6 +111,7 @@ export default function AuthPage() {
         city: regCity,
         state: regState
       });
+      console.log("****", newUser)
       
       toast({
         title: "Registration Successful",
@@ -119,6 +122,7 @@ export default function AuthPage() {
       setLoginMobile(regMobile);
       setActiveTab("login");
     } catch (err: any) {
+      console.log("******* error", err);
       toast({
         variant: "destructive",
         title: "Registration Failed",
@@ -222,6 +226,7 @@ export default function AuthPage() {
                 <div className="text-xs text-center text-muted-foreground mt-2 space-y-1">
                   <p>Demo Admin: ID: <strong>Administrator</strong> / Mobile: <strong>1234567890</strong></p>
                   <p>Demo Student: ID: <strong>STU001</strong> / Mobile: <strong>9876543210</strong></p>
+                  <p>Demo Student: ID: <strong>id1</strong> / Mobile: <strong>5678905678</strong></p>
                 </div>
               </form>
             </TabsContent>

@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { format } from "date-fns";
 import { Result } from "./store";
 
@@ -41,7 +41,8 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
       continue;
     }
     
-    if (original === typed) {
+    // Case-insensitive comparison for word content
+    if (original.toLowerCase() === typed.toLowerCase()) {
       continue;
     }
     
@@ -50,11 +51,11 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
     const cleanOriginal = original.replace(/[.,]/g, '');
     const cleanTyped = typed.replace(/[.,]/g, '');
     
-    if (cleanOriginal !== cleanTyped) {
+    if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
       // The word itself is wrong
       mistakes += 1;
     } else {
-      // Word is correct, check punctuation
+      // Word is correct (case-insensitive), check punctuation
       // Check commas
       const originalCommas = (original.match(/,/g) || []).length;
       const typedCommas = (typed.match(/,/g) || []).length;
@@ -137,7 +138,8 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
     const cleanOriginal = original.replace(/[.,]/g, '');
     const cleanTyped = typed.replace(/[.,]/g, '');
     
-    if (cleanOriginal !== cleanTyped) {
+    // Case-insensitive comparison
+    if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
        // Wrong word
        mistakes += 1;
     } else {
@@ -165,105 +167,180 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
   };
 }
 
-export const generateResultPDF = (result: Result) => {
-  const doc = new jsPDF();
+export const generateResultPDF = async (result: Result) => {
+  // Create a temporary container for the report
+  const container = document.createElement("div");
+  container.style.position = "absolute";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.style.width = "800px"; // Fixed width for A4 consistency
+  container.style.backgroundColor = "white";
+  container.style.padding = "40px";
+  container.style.fontFamily = "Arial, sans-serif";
   
-  doc.setFontSize(18);
-  doc.text("Pragati Shorthand and Typing", 105, 15, { align: "center" });
-  doc.setFontSize(12);
-  doc.text(`Student Report: ${result.studentName} (${result.studentId})`, 14, 25);
-  doc.text(`Test: ${result.contentTitle} (${result.contentType.toUpperCase()})`, 14, 32);
-  doc.text(`Language: ${result.language?.toUpperCase() || 'ENGLISH'}`, 14, 39);
-  doc.text(`Date: ${format(new Date(result.submittedAt), "PPP p")}`, 14, 46);
+  // Font selection based on language
+  const contentFont = result.language === 'hindi' ? 
+    "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;" : 
+    "font-family: 'Times New Roman', Times, serif;";
+
+  // Build the HTML content
+  let html = `
+    <div style="border: 2px solid #000; padding: 20px; min-height: 1000px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #1e3a8a; font-size: 28px; margin-bottom: 5px;">Pragati Institute of Professional Studies</h1>
+        <p style="font-size: 16px; color: #555;">Prayagraj</p>
+        <h2 style="font-size: 22px; margin-top: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">Test Result Report</h2>
+      </div>
+
+      <div style="margin-bottom: 30px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">Student Name:</td>
+            <td style="padding: 8px;">${result.studentName}</td>
+            <td style="padding: 8px; font-weight: bold;">Student ID:</td>
+            <td style="padding: 8px;">${result.studentId}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">Test Title:</td>
+            <td style="padding: 8px;">${result.contentTitle}</td>
+            <td style="padding: 8px; font-weight: bold;">Date:</td>
+            <td style="padding: 8px;">${format(new Date(result.submittedAt), "PPP p")}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">Type:</td>
+            <td style="padding: 8px; text-transform: capitalize;">${result.contentType}</td>
+            <td style="padding: 8px; font-weight: bold;">Language:</td>
+            <td style="padding: 8px; text-transform: capitalize;">${result.language}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="margin-bottom: 30px;">
+        <h3 style="background-color: #f1f5f9; padding: 10px; border-radius: 4px; margin-bottom: 15px;">Performance Metrics</h3>
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+          <thead>
+            <tr style="background-color: #f8fafc;">
+              <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Metric</th>
+              <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd;">Mistakes</td>
+              <td style="padding: 10px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${result.metrics.mistakes}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd;">Total Words Typed</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${result.metrics.words}</td>
+            </tr>
+  `;
 
   if (result.contentType === 'typing') {
-    const data = [
-      ["Metric", "Value"],
-      ["Words Typed", result.metrics.words.toString()],
-      ["Time Allocated", `${result.metrics.time} min`],
-      ["Mistakes", result.metrics.mistakes.toString()],
-      ["Backspaces", result.metrics.backspaces.toString()],
-      ["Gross Speed", `${result.metrics.grossSpeed} WPM`],
-      ["Net Speed", `${result.metrics.netSpeed} WPM`]
-    ];
-    
-    autoTable(doc, {
-      startY: 52,
-      head: [['Metric', 'Value']],
-      body: data.slice(1),
-    });
-    
+    html += `
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd;">Net Speed</td>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #15803d;">${result.metrics.netSpeed} WPM</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd;">Gross Speed</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${result.metrics.grossSpeed} WPM</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd;">Backspaces</td>
+              <td style="padding: 10px; border: 1px solid #ddd;">${result.metrics.backspaces}</td>
+            </tr>
+    `;
   } else {
-    const data = [
-      ["Metric", "Value"],
-      ["Words Typed", result.metrics.words.toString()],
-      ["Time Allocated", `${result.metrics.time} min`],
-      ["Mistakes", result.metrics.mistakes.toString()],
-      ["Result", result.metrics.result || "N/A"]
-    ];
-     autoTable(doc, {
-      startY: 52,
-      head: [['Metric', 'Value']],
-      body: data.slice(1),
-    });
+    html += `
+            <tr>
+              <td style="padding: 10px; border: 1px solid #ddd;">Result</td>
+              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: ${result.metrics.result === 'Pass' ? '#15803d' : '#dc2626'};">${result.metrics.result}</td>
+            </tr>
+    `;
   }
 
-  // Add Original Content
-  let finalY = (doc as any).lastAutoTable.finalY || 52;
-  doc.setFontSize(10);
-  doc.text("Original Content:", 14, finalY + 10);
-  const splitOriginal = doc.splitTextToSize(result.originalText || "", 180);
-  doc.text(splitOriginal, 14, finalY + 17);
-  
-  finalY = finalY + 17 + (splitOriginal.length * 4); // Update Y based on original text lines
+  html += `
+          </tbody>
+        </table>
+      </div>
+  `;
 
-  // Add Typed Content with basic error marking (since actual color highlighting per word in PDF is complex in client-side JS without heavy libs)
-  // We will simply list the diff analysis below the text.
-  
-  doc.text("Typed Content:", 14, finalY + 10);
-  const splitTyped = doc.splitTextToSize(result.typedText, 180);
-  doc.text(splitTyped, 14, finalY + 17);
-  
-  finalY = finalY + 17 + (splitTyped.length * 4);
-
-  // Detailed Error Analysis
-  doc.setTextColor(220, 38, 38); // Red
-  doc.text("Error Analysis:", 14, finalY + 10);
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0); // Black
-  
-  // Calculate Diff for report
+  // Compare text to find errors for highlighting
   const originalWords = (result.originalText || "").trim().split(/\s+/);
   const typedWords = result.typedText.trim().split(/\s+/);
   const maxLength = Math.max(originalWords.length, typedWords.length);
   
-  let errorLog = [];
+  let typedHtml = "";
+  
   for (let i = 0; i < maxLength; i++) {
-    const orig = originalWords[i] || "";
-    const type = typedWords[i] || "";
-    if (orig !== type) {
-      // Basic check
-       const cleanOrig = orig.replace(/[.,]/g, '');
-       const cleanType = type.replace(/[.,]/g, '');
-       
-       if (cleanOrig !== cleanType) {
-         errorLog.push(`Word ${i+1}: Expected "${orig}", Typed "${type}"`);
-       } else {
-         // Punctuation error
-         if (orig.includes(',') !== type.includes(',')) errorLog.push(`Word ${i+1}: Comma mismatch in "${type}"`);
-         if (orig.includes('.') !== type.includes('.')) errorLog.push(`Word ${i+1}: Period mismatch in "${type}"`);
-       }
+    const original = originalWords[i] || "";
+    const typed = typedWords[i] || "";
+    
+    let isError = false;
+    
+    if (original.toLowerCase() !== typed.toLowerCase()) {
+      isError = true;
+      // Refined check for punctuation
+      const cleanOriginal = original.replace(/[.,]/g, '');
+      const cleanTyped = typed.replace(/[.,]/g, '');
+      
+      if (cleanOriginal.toLowerCase() === cleanTyped.toLowerCase()) {
+         // Word correct, punct wrong - still error but maybe different style? 
+         // For now treat as error
+         isError = true;
+      }
+    }
+    
+    if (isError) {
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626;">${typed}</span> `;
+    } else {
+      typedHtml += `<span>${typed}</span> `;
     }
   }
 
-  if (errorLog.length > 0) {
-    const errorText = errorLog.slice(0, 50).join("\n"); // Limit to first 50 errors to avoid overflow
-    const splitErrors = doc.splitTextToSize(errorText + (errorLog.length > 50 ? `\n...and ${errorLog.length - 50} more errors.` : ""), 180);
-    doc.text(splitErrors, 14, finalY + 17);
-  } else {
-     doc.setTextColor(22, 163, 74); // Green
-     doc.text("Perfect! No errors found.", 14, finalY + 17);
-  }
+  html += `
+      <div style="margin-bottom: 30px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">Typed Content (Errors Underlined)</h3>
+        <div style="padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; ${contentFont}">
+          ${typedHtml}
+        </div>
+      </div>
 
-  doc.save(`result_${result.studentId}_${result.id}.pdf`);
+      <div style="margin-bottom: 30px;">
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">Original Content</h3>
+        <div style="padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; ${contentFont}">
+          ${result.originalText}
+        </div>
+      </div>
+      
+      <div style="margin-top: 50px; text-align: center; font-size: 12px; color: #999;">
+        <p>Generated by Pragati Institute Portal</p>
+        <p>${format(new Date(), "PPP")}</p>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+  document.body.appendChild(container);
+
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 2, // Higher resolution
+      useCORS: true,
+      logging: false
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`result_${result.studentId}_${result.id}.pdf`);
+  } catch (error) {
+    console.error("PDF Generation failed", error);
+    alert("Could not generate PDF. Please try again.");
+  } finally {
+    document.body.removeChild(container);
+  }
 };

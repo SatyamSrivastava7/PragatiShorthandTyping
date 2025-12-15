@@ -69,13 +69,13 @@ export default function ContactPage() {
                 <Facebook className="h-5 w-5 text-blue-700" /> Facebook
               </Button>
               <Button variant="outline" className="w-full justify-start gap-2 h-12 hover:bg-red-50 hover:text-red-600 hover:border-red-200" onClick={() => openLink('https://youtube.com/@pragatistenohublive')}>
-                <Youtube className="h-5 w-5 text-red-600" /> YouTube StenoHub
+                <Youtube className="h-5 w-5 text-red-600" /> Stenographers' Hub
               </Button>
-               <Button variant="outline" className="w-full justify-start gap-2 h-12 hover:bg-red-50 hover:text-red-600 hover:border-red-200" onClick={() => openLink('https://youtube.com/channel/UC31F9IyUlh0360Wkv9QPVgQ')}>
-                <Youtube className="h-5 w-5 text-red-600" /> YouTube Classes
+               <Button variant="outline" className="w-full justify-start gap-2 h-12 hover:bg-red-50 hover:text-red-600 hover:border-red-200" onClick={() => openLink('https://youtube.com/@pragatidictationhub?si=ogoVJalxwkufcYyB')}>
+                <Youtube className="h-5 w-5 text-red-600" /> Dictations Hub
               </Button>
               <Button variant="outline" className="w-full justify-start gap-2 h-12 hover:bg-green-50 hover:text-green-600 hover:border-green-200" onClick={() => openLink('https://gbolton.page.link/ZS5v')}>
-                <Smartphone className="h-5 w-5 text-green-600" /> App
+                <Smartphone className="h-5 w-5 text-green-600" /> Classes App
               </Button>
             </div>
           </CardContent>

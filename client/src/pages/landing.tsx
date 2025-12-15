@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useMockStore } from "@/lib/store";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Facebook, Instagram, Twitter } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import Autoplay from "embla-carousel-autoplay";
@@ -17,10 +17,28 @@ import {
 export default function LandingPage() {
   const { galleryImages } = useMockStore();
   
+  // Mock Selected Candidates Data
+  const selectedCandidates = [
+    { name: "Rahul Sharma", designation: "Stenographer Grade C", year: "2023", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rahul" },
+    { name: "Priya Singh", designation: "High Court Clerk", year: "2023", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Priya" },
+    { name: "Amit Patel", designation: "SSC Steno", year: "2022", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Amit" },
+    { name: "Sneha Gupta", designation: "Junior Assistant", year: "2024", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sneha" },
+    { name: "Vikram Malhotra", designation: "Private Secretary", year: "2023", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Vikram" },
+  ];
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-background flex justify-center text-center">
+      <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-background flex justify-center text-center relative overflow-hidden">
+        {/* Connect With Us Sidebar (Desktop) */}
+        <div className="hidden xl:flex flex-col fixed left-0 top-1/2 -translate-y-1/2 z-10 bg-white p-4 shadow-lg rounded-r-xl gap-4 border-r border-y border-gray-100">
+           <p className="font-bold text-xs text-muted-foreground uppercase -rotate-90 mb-2">Connect</p>
+           <a href="#" className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100"><Facebook size={20}/></a>
+           <a href="#" className="p-2 bg-pink-50 text-pink-600 rounded-full hover:bg-pink-100"><Instagram size={20}/></a>
+           <a href="#" className="p-2 bg-sky-50 text-sky-600 rounded-full hover:bg-sky-100"><Twitter size={20}/></a>
+           <a href="tel:+919876543210" className="p-2 bg-green-50 text-green-600 rounded-full hover:bg-green-100"><Phone size={20}/></a>
+        </div>
+
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center space-y-4">
             <div className="space-y-2">
@@ -29,6 +47,9 @@ export default function LandingPage() {
               </h1>
               <p className="max-w-[600px] mx-auto text-muted-foreground md:text-xl">
                 Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
+              </p>
+              <p className="text-sm font-semibold text-primary/80 uppercase tracking-widest mt-4">
+                Established in 2008
               </p>
             </div>
             <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center">
@@ -92,13 +113,47 @@ export default function LandingPage() {
                 <div className="p-4 bg-primary/10 rounded-full">
                   <Award className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">Certification</h3>
+                <h3 className="text-xl font-bold">Computer Teaching & Certification</h3>
                 <p className="text-center text-muted-foreground">
                   Track your progress and earn recognition for your speed and accuracy.
                 </p>
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* Selected Candidates Section */}
+      <section className="w-full py-12 md:py-24 lg:py-32 bg-background">
+        <div className="container px-4 md:px-6 mx-auto">
+           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-12 text-center">Our Selected Candidates</h2>
+           <div className="max-w-6xl mx-auto px-12">
+             <Carousel
+               plugins={[Autoplay({ delay: 3000 })]}
+               className="w-full"
+             >
+               <CarouselContent className="-ml-4">
+                 {selectedCandidates.map((student, idx) => (
+                   <CarouselItem key={idx} className="pl-4 md:basis-1/3 lg:basis-1/4">
+                     <div className="p-1">
+                       <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow bg-gradient-to-b from-white to-blue-50/50">
+                         <CardContent className="flex flex-col items-center p-6 text-center">
+                           <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-white shadow-md mb-4 bg-gray-100">
+                             <img src={student.image} alt={student.name} className="h-full w-full object-cover" />
+                           </div>
+                           <h3 className="font-bold text-lg text-primary">{student.name}</h3>
+                           <p className="text-sm font-medium text-gray-700 mt-1">{student.designation}</p>
+                           <p className="text-xs text-muted-foreground mt-2 bg-white px-3 py-1 rounded-full border">Batch {student.year}</p>
+                         </CardContent>
+                       </Card>
+                     </div>
+                   </CarouselItem>
+                 ))}
+               </CarouselContent>
+               <CarouselPrevious />
+               <CarouselNext />
+             </Carousel>
+           </div>
         </div>
       </section>
 
