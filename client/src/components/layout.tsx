@@ -155,37 +155,37 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             
             {/* Footer - Now Global */}
-            <footer className="w-full py-12 bg-slate-950 text-slate-200 shrink-0 border-t border-slate-800">
+            <footer className="w-full py-12 bg-slate-100 text-slate-600 shrink-0 border-t border-slate-200">
               <div className="container px-4 md:px-6 mx-auto">
                 <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
                    <div className="space-y-4">
-                     <h4 className="text-xl font-bold text-white tracking-tight">Pragati Institute</h4>
-                     <p className="text-sm text-slate-400 leading-relaxed">
+                     <h4 className="text-xl font-bold text-slate-900 tracking-tight">Pragati Institute</h4>
+                     <p className="text-sm text-slate-600 leading-relaxed">
                        Empowering careers through professional skill development since 2008. Your success is our mission.
                      </p>
                    </div>
                    <div className="space-y-4">
-                     <h4 className="text-lg font-bold text-white">Contact</h4>
-                     <ul className="space-y-3 text-sm text-slate-300">
-                       <li className="flex items-center gap-3 hover:text-white transition-colors">
-                         <div className="p-1.5 bg-slate-800 rounded-md">
-                           <Mail size={14} /> 
+                     <h4 className="text-lg font-bold text-slate-900">Contact</h4>
+                     <ul className="space-y-3 text-sm text-slate-600">
+                       <li className="flex items-center gap-3 hover:text-primary transition-colors">
+                         <div className="p-1.5 bg-white shadow-sm rounded-md border border-slate-200">
+                           <Mail size={14} className="text-primary" /> 
                          </div>
                          <span className="truncate">pragatiprofessionalstudies@gmail.com</span>
                        </li>
-                       <li className="flex items-center gap-3 hover:text-white transition-colors">
-                         <div className="p-1.5 bg-slate-800 rounded-md">
-                           <Phone size={14} /> 
+                       <li className="flex items-center gap-3 hover:text-primary transition-colors">
+                         <div className="p-1.5 bg-white shadow-sm rounded-md border border-slate-200">
+                           <Phone size={14} className="text-primary" /> 
                          </div>
                          +91 9026212705
                        </li>
                      </ul>
                    </div>
                    <div className="space-y-4 col-span-2">
-                     <h4 className="text-lg font-bold text-white">Visit Us</h4>
-                     <div className="flex items-start gap-3 text-sm text-slate-300 group">
-                       <div className="p-1.5 bg-slate-800 rounded-md mt-0.5 group-hover:bg-slate-700 transition-colors">
-                         <MapPin size={16} />
+                     <h4 className="text-lg font-bold text-slate-900">Visit Us</h4>
+                     <div className="flex items-start gap-3 text-sm text-slate-600 group">
+                       <div className="p-1.5 bg-white shadow-sm rounded-md mt-0.5 border border-slate-200 group-hover:border-primary/50 transition-colors">
+                         <MapPin size={16} className="text-primary" />
                        </div>
                        <p className="leading-relaxed">
                          Kalindipuram, Rajrooppur, Prayagraj,<br/> 
@@ -194,7 +194,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                      </div>
                    </div>
                 </div>
-                <div className="mt-12 border-t border-slate-800/50 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+                <div className="mt-12 border-t border-slate-200 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
                   <p>© 2024 Pragati Professional Studies. All rights reserved.</p>
                   <p>Designed for Excellence</p>
                 </div>
