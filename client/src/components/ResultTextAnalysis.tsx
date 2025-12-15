@@ -20,46 +20,10 @@ export function ResultTextAnalysis({ originalText, typedText, language }: Result
         const original = originalWords[i] || "";
         const typed = typedWords[i] || "";
         
-        let isError = false;
-        
-        // Simple mismatch check
-        if (original !== typed) {
-            // Check case-insensitive
-            if (original.toLowerCase() !== typed.toLowerCase()) {
-                isError = true;
-            } else {
-                 // Case matches, exact match failed? Must be punctuation or case sensitivity if we care (we do for Hindi/English usually)
-                 // But PDF logic uses case-insensitive for words but penalizes punctuation.
-                 // Let's stick to simple: If it's not exact match, check if it counts as error.
-                 
-                 // Reuse PDF logic roughly:
-                 const cleanOriginal = original.replace(/[.,]/g, '');
-                 const cleanTyped = typed.replace(/[.,]/g, '');
-                 
-                 if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
-                     isError = true;
-                 }
-                 // If word matches but punctuation mismatch -> strictly it's an error in typing tests usually.
-                 // If original != typed, let's underline it to be safe and strict.
-                 isError = true; 
-            }
-        }
-        
-        // Refined Logic based on PDF:
-        // if (original.toLowerCase() !== typed.toLowerCase()) -> Error
-        // if original == typed (case insensitive) -> Check if punctuation differs. If so, Error.
-        
-        if (original.toLowerCase() !== typed.toLowerCase()) {
-             isError = true;
-        } else {
-            // Word content matches.
-            // If exact string doesn't match (case or punctuation), mark error?
-            // The user asked to underline errors.
-            if (original !== typed) {
-                // This catches punctuation diffs and case diffs
-                isError = true;
-            }
-        }
+        // Case-insensitive comparison: 
+        // If words match case-insensitively, it's NOT an error (even if case differs).
+        // If they differ case-insensitively (including punctuation differences), it IS an error.
+        const isError = original.toLowerCase() !== typed.toLowerCase();
 
         if (isError) {
           return (
