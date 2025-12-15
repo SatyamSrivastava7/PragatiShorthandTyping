@@ -32,7 +32,7 @@ export default function LandingPage() {
   };
 
   const getStartedLink = currentUser 
-    ? (currentUser.role === 'admin' ? '/admin' : '/dashboard') 
+    ? (currentUser.role === 'admin' ? '/admin' : '/student') 
     : '/auth';
 
   return (

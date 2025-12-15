@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 
 export default function StudentDashboard() {
   const {
@@ -474,9 +475,11 @@ export default function StudentDashboard() {
                                     <h4 className="font-semibold mb-2">
                                       Your Input
                                     </h4>
-                                    <p className="text-sm whitespace-pre-wrap">
-                                      {result.typedText}
-                                    </p>
+                                    <ResultTextAnalysis 
+                                      originalText={result.originalText || ""} 
+                                      typedText={result.typedText} 
+                                      language={result.language}
+                                    />
                                   </div>
 
                                   <div className="border rounded p-4 bg-muted/30">

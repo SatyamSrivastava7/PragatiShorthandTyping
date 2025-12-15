@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 
 export default function AdminDashboard() {
   const { 
@@ -653,12 +654,58 @@ export default function AdminDashboard() {
                                         <Eye className="h-4 w-4 mr-1" /> View
                                       </Button>
                                     </DialogTrigger>
-                                    <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+                                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
                                       <DialogHeader>
                                         <DialogTitle>Result Analysis</DialogTitle>
                                       </DialogHeader>
-                                      <div className="flex-1 overflow-auto p-4 border rounded bg-slate-50">
-                                        <ResultAnalysisView result={result} />
+                                      <div className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                          <div>
+                                            <span className="font-semibold">Test:</span> {result.contentTitle}
+                                          </div>
+                                          <div>
+                                            <span className="font-semibold">Date:</span> {format(new Date(result.submittedAt), "PPP")}
+                                          </div>
+                                          <div>
+                                            <span className="font-semibold">Mistakes:</span> <span className="text-red-600 font-bold">{result.metrics.mistakes}</span>
+                                          </div>
+                                          <div>
+                                            {result.contentType === "typing" ? (
+                                              <span>
+                                                <span className="font-semibold">Net Speed:</span> {result.metrics.netSpeed} WPM
+                                              </span>
+                                            ) : (
+                                              <span>
+                                                <span className="font-semibold">Result:</span>{" "}
+                                                <span className={result.metrics.result === "Pass" ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                                                  {result.metrics.result}
+                                                </span>
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        <div className="border rounded p-4 bg-muted/30">
+                                          <h4 className="font-semibold mb-2">Your Input</h4>
+                                          <ResultTextAnalysis 
+                                            originalText={result.originalText || ""} 
+                                            typedText={result.typedText} 
+                                            language={result.language}
+                                          />
+                                        </div>
+
+                                        <div className="border rounded p-4 bg-muted/30">
+                                          <h4 className="font-semibold mb-2">Original Text</h4>
+                                          <p className={cn("text-sm whitespace-pre-wrap", result.language === 'hindi' ? "font-mangal" : "")}>
+                                            {result.originalText}
+                                          </p>
+                                        </div>
+
+                                        <div className="flex justify-end pt-4">
+                                          <Button onClick={() => handleDownloadResult(result)}>
+                                            <Download className="mr-2 h-4 w-4" /> Download PDF Report
+                                          </Button>
+                                        </div>
                                       </div>
                                     </DialogContent>
                                   </Dialog>
@@ -831,60 +878,6 @@ export default function AdminDashboard() {
       <main className="flex-1 p-6 overflow-auto bg-slate-50/50">
         {renderContent()}
       </main>
-    </div>
-  );
-}
-
-// Result Analysis Component
-function ResultAnalysisView({ result }: { result: Result }) {
-  if (!result.originalText) return <div className="text-center p-4">Original text snapshot not available for comparison.</div>;
-
-  const originalWords = result.originalText.trim().split(/\s+/);
-  const typedWords = result.typedText.trim().split(/\s+/);
-  const maxLength = Math.max(originalWords.length, typedWords.length);
-
-  // Font class for Mangal if Hindi
-  const fontClass = result.language === 'hindi' ? 'font-mangal' : '';
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 text-sm font-medium border-b pb-2">
-        <div>Original Text</div>
-        <div>Typed Comparison</div>
-      </div>
-      
-      <div className={cn("space-y-1 font-mono text-base leading-loose", fontClass)}>
-        {Array.from({ length: maxLength }).map((_, i) => {
-          const orig = originalWords[i] || "";
-          const type = typedWords[i] || "";
-          
-          let status: 'correct' | 'error' | 'missing' | 'extra' = 'correct';
-          
-          if (!orig && type) status = 'extra';
-          else if (orig && !type) status = 'missing';
-          else if (orig !== type) status = 'error';
-
-          // Check punctuation specifically if word matches but punctuation doesn't
-          // Simplified check:
-          const isMatch = orig === type;
-
-          return (
-            <div key={i} className="grid grid-cols-2 gap-4 border-b border-dashed border-gray-100 hover:bg-gray-50">
-              <div className="text-gray-600">{orig}</div>
-              <div className={cn(
-                "relative",
-                !isMatch && "text-red-600 font-bold"
-              )}>
-                {type}
-                {!isMatch && (
-                  <span className="absolute -bottom-1 left-0 w-full h-[2px] bg-red-500/50"></span>
-                )}
-                {status === 'missing' && <span className="text-red-400 italic">[Missing]</span>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

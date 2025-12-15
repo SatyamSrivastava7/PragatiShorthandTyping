@@ -220,10 +220,10 @@ export const generateResultPDF = async (result: Result) => {
     <head>
       <title>Result Report - ${result.studentName}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 40px; color: #000; background: #fff; }
+        body { font-family: Arial, sans-serif; padding: 8px; color: #000; background: #fff; }
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { size: A4; margin: 20mm; }
+          @page { size: A4; margin: 10mm; }
         }
         h1 { color: #1e3a8a; font-size: 24px; margin: 0 0 5px 0; text-align: center; }
         p.subtitle { text-align: center; color: #555; margin: 0 0 20px 0; }
@@ -233,7 +233,7 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 120px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; margin-bottom: 20px; font-size: 14px; white-space: pre-wrap; }
+        .content-box { padding: 5px; background-color: #f9fafb; border-radius: 4px; line-height: 1; margin-bottom: 8px; font-size: 14px; white-space: pre-wrap; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
@@ -269,6 +269,9 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Total Words Typed</td><td>${result.metrics.words}</td>
+        </tr>
+        <tr>
+          <td>Total Original Words</td><td>${originalWords.length}</td>
         </tr>
         ${result.contentType === 'typing' ? `
           <tr>
