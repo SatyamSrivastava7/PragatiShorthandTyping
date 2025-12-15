@@ -2,10 +2,11 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useMockStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Send, Youtube, Smartphone } from "lucide-react";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Send, Youtube, Smartphone, Copy } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import Autoplay from "embla-carousel-autoplay";
+import { useToast } from "@/hooks/use-toast";
 import {
   Carousel,
   CarouselContent,
@@ -16,91 +17,106 @@ import {
 
 export default function LandingPage() {
   const { galleryImages, selectedCandidates } = useMockStore();
+  const { toast } = useToast();
   
   const openLink = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard.`
+    });
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
+      {/* Top Bar - Contact Info */}
+      <div className="w-full bg-primary text-primary-foreground py-2 px-4 md:px-6">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center gap-2 text-sm">
+          <div className="flex flex-wrap justify-center md:justify-start gap-4 md:gap-6">
+             <div 
+               className="flex items-center gap-2 cursor-pointer hover:bg-white/10 px-2 py-1 rounded transition-colors group"
+               onClick={() => copyToClipboard('+91 9026212705', 'Phone number')}
+             >
+               <Phone className="h-4 w-4" />
+               <span className="group-hover:underline">+91 9026212705</span>
+             </div>
+             <div 
+               className="flex items-center gap-2 cursor-pointer hover:bg-white/10 px-2 py-1 rounded transition-colors group"
+               onClick={() => copyToClipboard('pragatiprofessionalstudies@gmail.com', 'Email')}
+             >
+               <Mail className="h-4 w-4" />
+               <span className="group-hover:underline truncate max-w-[200px] md:max-w-none">pragatiprofessionalstudies@gmail.com</span>
+             </div>
+             <div className="hidden lg:flex items-center gap-2">
+               <MapPin className="h-4 w-4" />
+               <span>Rajrooppur, Prayagraj</span>
+             </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <span className="hidden md:inline text-xs opacity-90">Connect:</span>
+            <div className="flex gap-2">
+               <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/20 hover:text-white" onClick={() => openLink('https://web.telegram.org/a/@pragatistenohublive')} title="Telegram">
+                 <Send className="h-4 w-4" />
+               </Button>
+               <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/20 hover:text-white" onClick={() => openLink('https://instagram.com/pragati_shorthand?igsh=NXJidTkzYW9sYjI=')} title="Instagram">
+                 <Instagram className="h-4 w-4" />
+               </Button>
+               <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/20 hover:text-white" onClick={() => openLink('https://youtube.com/@pragatistenohublive')} title="YouTube">
+                 <Youtube className="h-4 w-4" />
+               </Button>
+               <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-white/20 hover:text-white" onClick={() => openLink('https://gbolton.page.link/ZS5v')} title="Download App">
+                 <Smartphone className="h-4 w-4" />
+               </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-background flex justify-center text-center relative overflow-hidden">
         
         <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex flex-col xl:flex-row items-center gap-12">
+          <div className="flex flex-col items-center gap-8">
             
-            {/* Connect Section - Left Aligned */}
-            <div className="hidden xl:flex flex-col w-72 shrink-0 text-left space-y-6">
-               <Card className="border-l-4 border-l-primary shadow-lg bg-white/95 backdrop-blur">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Connect With Us</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-sm">
-                    <div className="flex items-center gap-3">
-                       <div className="p-2 bg-primary/10 rounded-full"><Phone className="h-4 w-4 text-primary"/></div>
-                       <div><p className="font-medium">Phone</p><p className="text-muted-foreground text-xs">+91 9026212705</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                       <div className="p-2 bg-primary/10 rounded-full"><Mail className="h-4 w-4 text-primary"/></div>
-                       <div><p className="font-medium">Email</p><p className="text-muted-foreground text-xs truncate w-32">pragatiprofessionalstudies@gmail.com</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                       <div className="p-2 bg-primary/10 rounded-full"><MapPin className="h-4 w-4 text-primary"/></div>
-                       <div><p className="font-medium">Address</p><p className="text-muted-foreground text-xs">Rajrooppur, Prayagraj</p></div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 pt-2">
-                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://web.telegram.org/a/@pragatistenohublive')}>
-                        <Send className="h-3 w-3 mr-1 text-blue-500" /> Telegram
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://instagram.com/pragati_shorthand?igsh=NXJidTkzYW9sYjI=')}>
-                        <Instagram className="h-3 w-3 mr-1 text-pink-600" /> Insta
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://youtube.com/@pragatistenohublive')}>
-                        <Youtube className="h-3 w-3 mr-1 text-red-600" /> Steno Hub
-                      </Button>
-                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://gbolton.page.link/ZS5v')}>
-                        <Smartphone className="h-3 w-3 mr-1 text-green-600" /> App
-                      </Button>
-                    </div>
-                  </CardContent>
-               </Card>
-            </div>
-
             {/* Main Hero Content */}
-            <div className="flex-1 flex flex-col items-center space-y-4">
+            <div className="flex-1 flex flex-col items-center space-y-4 max-w-4xl">
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
                   Master Shorthand & Typing with Pragati
                 </h1>
-                <p className="max-w-[600px] mx-auto text-muted-foreground md:text-xl">
+                <p className="max-w-[700px] mx-auto text-muted-foreground md:text-xl">
                   Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
                 </p>
-                <p className="text-sm font-semibold text-primary/80 uppercase tracking-widest mt-4">
-                  Established in 2008
-                </p>
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-semibold tracking-wide uppercase">
+                    Since 2008
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center">
+              <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center pt-4">
                 <Link href="/auth">
-                  <Button size="lg" className="px-8">
-                    Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                  <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all">
+                    Get Started <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
                 <Link href="/gallery">
-                  <Button variant="outline" size="lg">
-                    <ImageIcon className="mr-2 h-4 w-4" /> View Gallery
+                  <Button variant="outline" size="lg" className="h-12 px-8 text-base">
+                    <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
                   </Button>
                 </Link>
               </div>
-              <img
-                src={heroImage}
-                alt="Hero"
-                className="mx-auto mt-8 aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full max-w-4xl shadow-2xl"
-              />
             </div>
             
-             {/* Right Spacer for Balance on XL screens */}
-             <div className="hidden xl:block w-72 shrink-0"></div>
+            <img
+              src={heroImage}
+              alt="Hero"
+              className="mx-auto mt-4 aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full max-w-5xl shadow-2xl border-4 border-white/50"
+            />
           </div>
         </div>
       </section>

@@ -168,104 +168,21 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
 }
 
 export const generateResultPDF = async (result: Result) => {
-  // Create a temporary container for the report
-  const container = document.createElement("div");
-  container.style.position = "fixed"; 
-  container.style.left = "-10000px"; // Off-screen instead of invisible
-  container.style.top = "0";
-  container.style.zIndex = "1000"; 
-  // container.style.opacity = "0"; // Removed opacity hidden
-  container.style.width = "800px"; // Fixed width for A4 consistency
-  container.style.backgroundColor = "white";
-  container.style.padding = "40px";
-  container.style.fontFamily = "Arial, sans-serif";
-  
+  // Use a completely different approach: browser native print
+  // Create a hidden iframe
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
   // Font selection based on language
   const contentFont = result.language === 'hindi' ? 
     "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;" : 
     "font-family: 'Times New Roman', Times, serif;";
-
-  // Build the HTML content
-  let html = `
-    <div style="border: 2px solid #000; padding: 20px; min-height: 1000px; color: black; background: white;">
-      <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #1e3a8a; font-size: 28px; margin-bottom: 5px;">Pragati Institute of Professional Studies</h1>
-        <p style="font-size: 16px; color: #555;">Prayagraj</p>
-        <h2 style="font-size: 22px; margin-top: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px;">Test Result Report</h2>
-      </div>
-
-      <div style="margin-bottom: 30px;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px; font-weight: bold;">Student Name:</td>
-            <td style="padding: 8px;">${result.studentName}</td>
-            <td style="padding: 8px; font-weight: bold;">Student ID:</td>
-            <td style="padding: 8px;">${result.studentId}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-weight: bold;">Test Title:</td>
-            <td style="padding: 8px;">${result.contentTitle}</td>
-            <td style="padding: 8px; font-weight: bold;">Date:</td>
-            <td style="padding: 8px;">${format(new Date(result.submittedAt), "PPP p")}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; font-weight: bold;">Type:</td>
-            <td style="padding: 8px; text-transform: capitalize;">${result.contentType}</td>
-            <td style="padding: 8px; font-weight: bold;">Language:</td>
-            <td style="padding: 8px; text-transform: capitalize;">${result.language}</td>
-          </tr>
-        </table>
-      </div>
-
-      <div style="margin-bottom: 30px;">
-        <h3 style="background-color: #f1f5f9; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-weight: bold;">Performance Metrics</h3>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
-          <thead>
-            <tr style="background-color: #f8fafc;">
-              <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Metric</th>
-              <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd;">Mistakes</td>
-              <td style="padding: 10px; border: 1px solid #ddd; color: #dc2626; font-weight: bold;">${result.metrics.mistakes}</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd;">Total Words Typed</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${result.metrics.words}</td>
-            </tr>
-  `;
-
-  if (result.contentType === 'typing') {
-    html += `
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd;">Net Speed</td>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: #15803d;">${result.metrics.netSpeed} WPM</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd;">Gross Speed</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${result.metrics.grossSpeed} WPM</td>
-            </tr>
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd;">Backspaces</td>
-              <td style="padding: 10px; border: 1px solid #ddd;">${result.metrics.backspaces}</td>
-            </tr>
-    `;
-  } else {
-    html += `
-            <tr>
-              <td style="padding: 10px; border: 1px solid #ddd;">Result</td>
-              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; color: ${result.metrics.result === 'Pass' ? '#15803d' : '#dc2626'};">${result.metrics.result}</td>
-            </tr>
-    `;
-  }
-
-  html += `
-          </tbody>
-        </table>
-      </div>
-  `;
 
   // Compare text to find errors for highlighting
   const originalWords = (result.originalText || "").trim().split(/\s+/);
@@ -282,13 +199,10 @@ export const generateResultPDF = async (result: Result) => {
     
     if (original.toLowerCase() !== typed.toLowerCase()) {
       isError = true;
-      // Refined check for punctuation
       const cleanOriginal = original.replace(/[.,]/g, '');
       const cleanTyped = typed.replace(/[.,]/g, '');
       
       if (cleanOriginal.toLowerCase() === cleanTyped.toLowerCase()) {
-         // Word correct, punct wrong - still error but maybe different style? 
-         // For now treat as error
          isError = true;
       }
     }
@@ -300,84 +214,117 @@ export const generateResultPDF = async (result: Result) => {
     }
   }
 
-  html += `
-      <div style="margin-bottom: 30px;">
-        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; font-weight: bold;">Typed Content (Errors Underlined)</h3>
-        <div style="padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; ${contentFont}">
-          ${typedHtml}
-        </div>
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Result Report - ${result.studentName}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 40px; color: #000; background: #fff; }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { size: A4; margin: 20mm; }
+        }
+        h1 { color: #1e3a8a; font-size: 24px; margin: 0 0 5px 0; text-align: center; }
+        p.subtitle { text-align: center; color: #555; margin: 0 0 20px 0; }
+        h2 { font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 20px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+        td { padding: 8px; vertical-align: top; }
+        .label { font-weight: bold; width: 120px; }
+        .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .metrics-table th { background-color: #f8fafc; }
+        .content-box { padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; margin-bottom: 20px; font-size: 14px; white-space: pre-wrap; }
+        .error { color: #dc2626; font-weight: bold; }
+        .success { color: #15803d; font-weight: bold; }
+        .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
+      </style>
+    </head>
+    <body>
+      <h1>Pragati Institute of Professional Studies</h1>
+      <p class="subtitle">Prayagraj</p>
+      <h2>Test Result Report</h2>
+
+      <table>
+        <tr>
+          <td class="label">Student Name:</td><td>${result.studentName}</td>
+          <td class="label">Student ID:</td><td>${result.studentId}</td>
+        </tr>
+        <tr>
+          <td class="label">Test Title:</td><td>${result.contentTitle}</td>
+          <td class="label">Date:</td><td>${format(new Date(result.submittedAt), "PPP p")}</td>
+        </tr>
+        <tr>
+          <td class="label">Type:</td><td style="text-transform: capitalize;">${result.contentType}</td>
+          <td class="label">Language:</td><td style="text-transform: capitalize;">${result.language}</td>
+        </tr>
+      </table>
+
+      <h3>Performance Metrics</h3>
+      <table class="metrics-table">
+        <tr>
+          <th>Metric</th><th>Value</th>
+        </tr>
+        <tr>
+          <td>Mistakes</td><td class="error">${result.metrics.mistakes}</td>
+        </tr>
+        <tr>
+          <td>Total Words Typed</td><td>${result.metrics.words}</td>
+        </tr>
+        ${result.contentType === 'typing' ? `
+          <tr>
+            <td>Net Speed</td><td class="success">${result.metrics.netSpeed} WPM</td>
+          </tr>
+          <tr>
+            <td>Gross Speed</td><td>${result.metrics.grossSpeed} WPM</td>
+          </tr>
+          <tr>
+            <td>Backspaces</td><td>${result.metrics.backspaces}</td>
+          </tr>
+        ` : `
+          <tr>
+            <td>Result</td><td class="${result.metrics.result === 'Pass' ? 'success' : 'error'}">${result.metrics.result}</td>
+          </tr>
+        `}
+      </table>
+
+      <h3>Typed Content (Errors Underlined)</h3>
+      <div class="content-box" style="${contentFont}">
+        ${typedHtml}
       </div>
 
-      <div style="margin-bottom: 30px;">
-        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; font-weight: bold;">Original Content</h3>
-        <div style="padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; ${contentFont}">
-          ${result.originalText}
-        </div>
+      <h3>Original Content</h3>
+      <div class="content-box" style="${contentFont}">
+        ${result.originalText}
       </div>
-      
-      <div style="margin-top: 50px; text-align: center; font-size: 12px; color: #999;">
-        <p>Generated by Pragati Institute Portal</p>
-        <p>${format(new Date(), "PPP")}</p>
+
+      <div class="footer">
+        Generated by Pragati Institute Portal • ${format(new Date(), "PPP")}
       </div>
-    </div>
+    </body>
+    </html>
   `;
 
-  container.innerHTML = html;
-  document.body.appendChild(container);
-
-  // Slight delay to ensure rendering
-  await new Promise(r => setTimeout(r, 500));
-
-  try {
-    const canvas = await html2canvas(container, {
-      scale: 2, // Higher resolution
-      useCORS: true,
-      logging: false,
-      allowTaint: true,
-      backgroundColor: '#ffffff'
-    });
+  // Write content to iframe
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
     
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    // Split into pages if too long (basic implementation)
-    // For now, we scale to fit if it's one page, or just add page. 
-    // Since auto-paging image is hard, let's just stick to single long image for now 
-    // or we'd need to slice canvas.
-    // Given most tests are 1-2 pages, let's try to fit or split.
-    
-    if (pdfHeight > pdf.internal.pageSize.getHeight()) {
-       // Multi-page logic for image is tricky, let's just add it and let jsPDF handle it or scale it down?
-       // Scaling down makes it unreadable.
-       // Let's just create a very long PDF page? No, standard A4.
-       
-       // Fallback: If it's too long, we might need a better library or just let it cut off for now.
-       // However, to fix "could not generate", we just ensure no errors are thrown.
-       
-       // For a robust solution, we'll iterate.
-       let heightLeft = pdfHeight;
-       let position = 0;
-       
-       pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-       heightLeft -= pdf.internal.pageSize.getHeight();
-       
-       while (heightLeft >= 0) {
-         position = heightLeft - pdfHeight;
-         pdf.addPage();
-         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-         heightLeft -= pdf.internal.pageSize.getHeight();
-       }
-    } else {
-       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    }
-    
-    pdf.save(`result_${result.studentId}_${result.id}.pdf`);
-  } catch (error) {
-    console.error("PDF Generation failed", error);
-    alert("Could not generate PDF. Please try again.");
-  } finally {
-    document.body.removeChild(container);
+    // Wait for images/fonts to load then print
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      
+      // Cleanup after print dialog closes (approximate)
+      // Note: We can't detect exactly when print cancels, so we just leave it or remove after long delay.
+      // Better to remove immediately? No, some browsers need it there.
+      // Let's remove after 1 minute or on next call.
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+           document.body.removeChild(iframe);
+        }
+      }, 60000);
+    }, 500);
   }
 };
