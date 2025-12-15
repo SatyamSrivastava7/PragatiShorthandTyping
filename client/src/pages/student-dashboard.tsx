@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMockStore, Result } from "@/lib/store";
+import { generateResultPDF } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -7,9 +8,6 @@ import { format, isSameDay } from "date-fns";
 import { PlayCircle, CheckCircle, Download, FileText, ShoppingCart, Folder, ArrowLeft, Loader2, Mic, CreditCard, QrCode } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import html2canvas from "html2canvas";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,133 +40,16 @@ export default function StudentDashboard() {
     return results.find(r => r.contentId === contentId && r.studentId === currentUser?.id);
   };
 
-  const handleDownloadResult = async (result: Result) => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(18);
-    doc.text("Pragati Shorthand and Typing", 105, 15, { align: "center" });
-    doc.setFontSize(12);
-    doc.text(`Student Report: ${result.studentName} (${result.studentId})`, 14, 25);
-    doc.text(`Test: ${result.contentTitle} (${result.contentType.toUpperCase()})`, 14, 32);
-    doc.text(`Language: ${result.language?.toUpperCase() || 'ENGLISH'}`, 14, 39);
-    doc.text(`Date: ${format(new Date(result.submittedAt), "PPP p")}`, 14, 46);
-
-    // Metrics Table
-    if (result.contentType === 'typing') {
-      const data = [
-        ["Metric", "Value"],
-        ["Words Typed", result.metrics.words.toString()],
-        ["Time Allocated", `${result.metrics.time} min`],
-        ["Mistakes", result.metrics.mistakes.toString()],
-        ["Backspaces", result.metrics.backspaces.toString()],
-        ["Gross Speed", `${result.metrics.grossSpeed} WPM`],
-        ["Net Speed", `${result.metrics.netSpeed} WPM`]
-      ];
-      
-      autoTable(doc, {
-        startY: 52,
-        head: [['Metric', 'Value']],
-        body: data.slice(1),
-      });
-      
-    } else {
-      const data = [
-        ["Metric", "Value"],
-        ["Words Typed", result.metrics.words.toString()],
-        ["Time Allocated", `${result.metrics.time} min`],
-        ["Mistakes", result.metrics.mistakes.toString()],
-        ["Result", result.metrics.result || "N/A"]
-      ];
-       autoTable(doc, {
-        startY: 52,
-        head: [['Metric', 'Value']],
-        body: data.slice(1),
-      });
-    }
-
-    // Prepare temporary HTML for rendering complex text/Hindi
-    const finalY = (doc as any).lastAutoTable.finalY || 52;
-    
-    // Create a temporary container for rendering
-    const tempDiv = document.createElement('div');
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '0';
-    tempDiv.style.width = '595px'; // A4 width in px approx (at 72dpi, but we scale)
-    tempDiv.style.padding = '20px';
-    tempDiv.style.fontFamily = result.language === 'hindi' ? '"Mangal", "Tiro Devanagari Hindi", sans-serif' : 'sans-serif';
-    tempDiv.style.fontSize = '12px';
-    tempDiv.style.color = 'black';
-    tempDiv.style.background = 'white';
-    
-    // Construct HTML content with highlighting
-    const originalWords = (result.originalText || "").trim().split(/\s+/);
-    const typedWords = result.typedText.trim().split(/\s+/);
-    const maxLength = Math.max(originalWords.length, typedWords.length);
-    
-    let comparisonHtml = `<h3 style="margin-bottom: 10px; font-weight: bold;">Detailed Analysis</h3><div style="display: flex; flex-direction: column; gap: 5px;">`;
-    
-    // Add header row
-    comparisonHtml += `
-      <div style="display: flex; border-bottom: 1px solid #ccc; font-weight: bold; padding-bottom: 5px;">
-        <div style="flex: 1; padding-right: 10px;">Original Text</div>
-        <div style="flex: 1;">Typed Comparison</div>
-      </div>
-    `;
-
-    for (let i = 0; i < maxLength; i++) {
-      const orig = originalWords[i] || "";
-      const type = typedWords[i] || "";
-      let style = "";
-      let typeContent = type;
-      
-      const isMatch = orig === type;
-      
-      if (!isMatch) {
-        style = "color: red; font-weight: bold;";
-        if (!orig && type) {
-          typeContent = `<span style="color: red;">${type} (Extra)</span>`;
-        } else if (orig && !type) {
-           typeContent = `<span style="color: red; font-style: italic;">[Missing]</span>`;
-        } else {
-           typeContent = `<span style="color: red;">${type}</span>`;
-        }
-      }
-
-      comparisonHtml += `
-        <div style="display: flex; border-bottom: 1px dashed #eee; padding: 4px 0;">
-          <div style="flex: 1; padding-right: 10px;">${orig}</div>
-          <div style="flex: 1;">${typeContent}</div>
-        </div>
-      `;
-    }
-    comparisonHtml += `</div>`;
-    
-    tempDiv.innerHTML = comparisonHtml;
-    document.body.appendChild(tempDiv);
-    
+  const handleDownloadResult = (result: Result) => {
     try {
-      const canvas = await html2canvas(tempDiv, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-      const imgProps = doc.getImageProperties(imgData);
-      const pdfWidth = doc.internal.pageSize.getWidth() - 28;
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      
-      // Add a new page if content is too long
-      if (finalY + pdfHeight + 10 > doc.internal.pageSize.getHeight()) {
-        doc.addPage();
-        doc.addImage(imgData, 'PNG', 14, 15, pdfWidth, pdfHeight);
-      } else {
-        doc.addImage(imgData, 'PNG', 14, finalY + 10, pdfWidth, pdfHeight);
-      }
-      
-      doc.save(`result_${result.studentId}_${result.id}.pdf`);
-    } catch (err) {
-      console.error("PDF Generation Error", err);
-      toast({ variant: "destructive", title: "PDF Error", description: "Failed to generate detailed PDF." });
-    } finally {
-      document.body.removeChild(tempDiv);
+      generateResultPDF(result);
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "There was an error generating your result PDF.",
+      });
     }
   };
 
