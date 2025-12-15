@@ -104,10 +104,30 @@ export default function StudentDashboard() {
 
       <Tabs defaultValue="typing_tests" className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="typing_tests">Typing Tests</TabsTrigger>
-          <TabsTrigger value="shorthand_tests">Shorthand Tests</TabsTrigger>
-          <TabsTrigger value="results">My Results</TabsTrigger>
-          <TabsTrigger value="store">PDF Store</TabsTrigger>
+          <TabsTrigger 
+            value="typing_tests" 
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-foreground border-r last:border-r-0"
+          >
+            Typing Tests
+          </TabsTrigger>
+          <TabsTrigger 
+            value="shorthand_tests" 
+            className="data-[state=active]:bg-orange-600 data-[state=active]:text-white text-foreground border-r last:border-r-0"
+          >
+            Shorthand Tests
+          </TabsTrigger>
+          <TabsTrigger 
+            value="results" 
+            className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-foreground border-r last:border-r-0"
+          >
+            My Results
+          </TabsTrigger>
+          <TabsTrigger 
+            value="store" 
+            className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-foreground"
+          >
+            PDF Store
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="typing_tests">
@@ -263,9 +283,60 @@ export default function StudentDashboard() {
                               <span className="text-muted-foreground">{result.metrics.mistakes} Mistakes</span>
                             </div>
                           )}
-                          <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-2">
+                             <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
+                                <Download className="h-4 w-4 mr-1" /> PDF
+                             </Button>
+                             
+                             <Dialog>
+                               <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm">
+                                    <Eye className="h-4 w-4 mr-1" /> View
+                                  </Button>
+                               </DialogTrigger>
+                               <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                 <DialogHeader>
+                                   <DialogTitle>Result Analysis</DialogTitle>
+                                 </DialogHeader>
+                                 <div className="space-y-4">
+                                   <div className="grid grid-cols-2 gap-4 text-sm">
+                                     <div>
+                                       <span className="font-semibold">Test:</span> {result.contentTitle}
+                                     </div>
+                                     <div>
+                                       <span className="font-semibold">Date:</span> {format(new Date(result.submittedAt), "PPP")}
+                                     </div>
+                                     <div>
+                                       <span className="font-semibold">Mistakes:</span> <span className="text-red-600 font-bold">{result.metrics.mistakes}</span>
+                                     </div>
+                                     <div>
+                                        {result.contentType === 'typing' ? (
+                                           <span><span className="font-semibold">Net Speed:</span> {result.metrics.netSpeed} WPM</span>
+                                        ) : (
+                                           <span><span className="font-semibold">Result:</span> {result.metrics.result}</span>
+                                        )}
+                                     </div>
+                                   </div>
+                                   
+                                   <div className="border rounded p-4 bg-muted/30">
+                                      <h4 className="font-semibold mb-2">Original Text</h4>
+                                      <p className="text-sm whitespace-pre-wrap">{result.originalText}</p>
+                                   </div>
+                                   
+                                   <div className="border rounded p-4 bg-muted/30">
+                                      <h4 className="font-semibold mb-2">Your Input</h4>
+                                      <p className="text-sm whitespace-pre-wrap">{result.typedText}</p>
+                                   </div>
+                                   
+                                   <div className="flex justify-end pt-4">
+                                      <Button onClick={() => handleDownloadResult(result)}>
+                                        <Download className="mr-2 h-4 w-4" /> Download PDF Report
+                                      </Button>
+                                   </div>
+                                 </div>
+                               </DialogContent>
+                             </Dialog>
+                          </div>
                         </div>
                       </Card>
                     ))}

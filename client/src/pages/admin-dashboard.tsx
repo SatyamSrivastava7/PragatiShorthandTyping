@@ -27,7 +27,8 @@ export default function AdminDashboard() {
     content, addContent, toggleContent, deleteContent, results, users, updateUser, deleteUser,
     registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource, deletePdfResource, pdfResources,
     qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage,
-    dictations, addDictation, toggleDictation, deleteDictation
+    dictations, addDictation, toggleDictation, deleteDictation,
+    selectedCandidates, addSelectedCandidate, removeSelectedCandidate
   } = useMockStore();
   const { toast } = useToast();
   
@@ -59,6 +60,34 @@ export default function AdminDashboard() {
 
   // Analysis State
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
+
+  // Candidate State
+  const [candidateName, setCandidateName] = useState("");
+  const [candidateDesignation, setCandidateDesignation] = useState("");
+  const [candidateYear, setCandidateYear] = useState("");
+  const [candidateImage, setCandidateImage] = useState<File | null>(null);
+
+  const handleAddCandidate = (e: React.FormEvent) => {
+     e.preventDefault();
+     if (!candidateName || !candidateImage) {
+        toast({ variant: "destructive", title: "Error", description: "Name and Image are required" });
+        return;
+     }
+     
+     const imageUrl = URL.createObjectURL(candidateImage);
+     addSelectedCandidate({
+        name: candidateName,
+        designation: candidateDesignation,
+        year: candidateYear,
+        imageUrl: imageUrl
+     });
+     
+     toast({ title: "Success", description: "Candidate added" });
+     setCandidateName("");
+     setCandidateDesignation("");
+     setCandidateYear("");
+     setCandidateImage(null);
+  };
 
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
@@ -708,7 +737,6 @@ export default function AdminDashboard() {
           { id: "students", label: "Students", icon: Users },
           { id: "upload", label: "Upload New Tests", icon: FileUp },
           { id: "manage", label: "Manage Tests", icon: LayoutList },
-          { id: "audio_dictation", label: "Dictation Audio", icon: Mic },
           { id: "pdfstore", label: "Pdf store", icon: FolderPlus },
           { id: "results", label: "Results", icon: BarChart },
           { id: "gallery", label: "Gallery upload", icon: ImageIcon },

@@ -1,8 +1,8 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useMockStore } from "@/lib/store";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Facebook, Instagram, Twitter } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Send, Youtube, Smartphone } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import Autoplay from "embla-carousel-autoplay";
@@ -15,60 +15,92 @@ import {
 } from "@/components/ui/carousel";
 
 export default function LandingPage() {
-  const { galleryImages } = useMockStore();
+  const { galleryImages, selectedCandidates } = useMockStore();
   
-  // Mock Selected Candidates Data
-  const selectedCandidates = [
-    { name: "Rahul Sharma", designation: "Stenographer Grade C", year: "2023", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rahul" },
-    { name: "Priya Singh", designation: "High Court Clerk", year: "2023", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Priya" },
-    { name: "Amit Patel", designation: "SSC Steno", year: "2022", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Amit" },
-    { name: "Sneha Gupta", designation: "Junior Assistant", year: "2024", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sneha" },
-    { name: "Vikram Malhotra", designation: "Private Secretary", year: "2023", image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Vikram" },
-  ];
+  const openLink = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
       <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-background flex justify-center text-center relative overflow-hidden">
-        {/* Connect With Us Sidebar (Desktop) */}
-        <div className="hidden xl:flex flex-col fixed left-0 top-1/2 -translate-y-1/2 z-10 bg-white p-4 shadow-lg rounded-r-xl gap-4 border-r border-y border-gray-100">
-           <p className="font-bold text-xs text-muted-foreground uppercase -rotate-90 mb-2">Connect</p>
-           <a href="#" className="p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100"><Facebook size={20}/></a>
-           <a href="#" className="p-2 bg-pink-50 text-pink-600 rounded-full hover:bg-pink-100"><Instagram size={20}/></a>
-           <a href="#" className="p-2 bg-sky-50 text-sky-600 rounded-full hover:bg-sky-100"><Twitter size={20}/></a>
-           <a href="tel:+919876543210" className="p-2 bg-green-50 text-green-600 rounded-full hover:bg-green-100"><Phone size={20}/></a>
-        </div>
+        
+        <div className="container px-4 md:px-6 relative z-10">
+          <div className="flex flex-col xl:flex-row items-center gap-12">
+            
+            {/* Connect Section - Left Aligned */}
+            <div className="hidden xl:flex flex-col w-72 shrink-0 text-left space-y-6">
+               <Card className="border-l-4 border-l-primary shadow-lg bg-white/95 backdrop-blur">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Connect With Us</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 text-sm">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 bg-primary/10 rounded-full"><Phone className="h-4 w-4 text-primary"/></div>
+                       <div><p className="font-medium">Phone</p><p className="text-muted-foreground text-xs">+91 9026212705</p></div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 bg-primary/10 rounded-full"><Mail className="h-4 w-4 text-primary"/></div>
+                       <div><p className="font-medium">Email</p><p className="text-muted-foreground text-xs truncate w-32">pragatiprofessionalstudies@gmail.com</p></div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 bg-primary/10 rounded-full"><MapPin className="h-4 w-4 text-primary"/></div>
+                       <div><p className="font-medium">Address</p><p className="text-muted-foreground text-xs">Rajrooppur, Prayagraj</p></div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://web.telegram.org/a/@pragatistenohublive')}>
+                        <Send className="h-3 w-3 mr-1 text-blue-500" /> Telegram
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://instagram.com/pragati_shorthand?igsh=NXJidTkzYW9sYjI=')}>
+                        <Instagram className="h-3 w-3 mr-1 text-pink-600" /> Insta
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://youtube.com/@pragatistenohublive')}>
+                        <Youtube className="h-3 w-3 mr-1 text-red-600" /> Steno Hub
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full justify-start h-8 px-2 text-xs" onClick={() => openLink('https://gbolton.page.link/ZS5v')}>
+                        <Smartphone className="h-3 w-3 mr-1 text-green-600" /> App
+                      </Button>
+                    </div>
+                  </CardContent>
+               </Card>
+            </div>
 
-        <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                Master Shorthand & Typing with Pragati
-              </h1>
-              <p className="max-w-[600px] mx-auto text-muted-foreground md:text-xl">
-                Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
-              </p>
-              <p className="text-sm font-semibold text-primary/80 uppercase tracking-widest mt-4">
-                Established in 2008
-              </p>
+            {/* Main Hero Content */}
+            <div className="flex-1 flex flex-col items-center space-y-4">
+              <div className="space-y-2">
+                <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
+                  Master Shorthand & Typing with Pragati
+                </h1>
+                <p className="max-w-[600px] mx-auto text-muted-foreground md:text-xl">
+                  Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
+                </p>
+                <p className="text-sm font-semibold text-primary/80 uppercase tracking-widest mt-4">
+                  Established in 2008
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center">
+                <Link href="/auth">
+                  <Button size="lg" className="px-8">
+                    Get Started <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/gallery">
+                  <Button variant="outline" size="lg">
+                    <ImageIcon className="mr-2 h-4 w-4" /> View Gallery
+                  </Button>
+                </Link>
+              </div>
+              <img
+                src={heroImage}
+                alt="Hero"
+                className="mx-auto mt-8 aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full max-w-4xl shadow-2xl"
+              />
             </div>
-            <div className="flex flex-col gap-2 min-[400px]:flex-row justify-center">
-              <Link href="/auth">
-                <Button size="lg" className="px-8">
-                  Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/gallery">
-                <Button variant="outline" size="lg">
-                  <ImageIcon className="mr-2 h-4 w-4" /> View Gallery
-                </Button>
-              </Link>
-            </div>
-            <img
-              src={heroImage}
-              alt="Hero"
-              className="mx-auto mt-8 aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full max-w-4xl shadow-2xl"
-            />
+            
+             {/* Right Spacer for Balance on XL screens */}
+             <div className="hidden xl:block w-72 shrink-0"></div>
           </div>
         </div>
       </section>

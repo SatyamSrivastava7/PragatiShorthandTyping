@@ -112,6 +112,7 @@ interface StoreContextType {
   registrationFee: number;
   qrCodeUrl: string;
   galleryImages: string[];
+  selectedCandidates: SelectedCandidate[]; // New
   
   login: (identifier: string, mobile: string) => boolean;
   logout: () => void;
@@ -137,10 +138,22 @@ interface StoreContextType {
   addGalleryImage: (url: string) => void;
   removeGalleryImage: (url: string) => void;
 
+  // Selected Candidates Actions
+  addSelectedCandidate: (candidate: Omit<SelectedCandidate, 'id'>) => void;
+  removeSelectedCandidate: (id: string) => void;
+
   // New Dictation Actions
   addDictation: (title: string, mediaUrl: string, language: 'english' | 'hindi') => void;
   toggleDictation: (id: string) => void;
   deleteDictation: (id: string) => void;
+}
+
+export interface SelectedCandidate {
+  id: string;
+  name: string;
+  designation: string;
+  year: string;
+  imageUrl: string;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -156,6 +169,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [registrationFee, setRegistrationFeeState] = useState<number>(() => getStorage(STORAGE_KEYS.SETTINGS + '_FEE', 500)); 
   const [qrCodeUrl, setQrCodeUrlState] = useState<string>(() => getStorage(STORAGE_KEYS.SETTINGS + '_QR', ''));
   const [galleryImages, setGalleryImages] = useState<string[]>(() => getStorage(STORAGE_KEYS.SETTINGS + '_GALLERY', []));
+  const [selectedCandidates, setSelectedCandidates] = useState<SelectedCandidate[]>(() => getStorage(STORAGE_KEYS.SETTINGS + '_CANDIDATES', []));
 
   // Sync to local storage
   useEffect(() => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users)), [users]);
@@ -167,6 +181,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_FEE', JSON.stringify(registrationFee)), [registrationFee]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_QR', JSON.stringify(qrCodeUrl)), [qrCodeUrl]);
   useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_GALLERY', JSON.stringify(galleryImages)), [galleryImages]);
+  useEffect(() => localStorage.setItem(STORAGE_KEYS.SETTINGS + '_CANDIDATES', JSON.stringify(selectedCandidates)), [selectedCandidates]);
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
@@ -334,6 +349,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const removeGalleryImage = (url: string) => {
     setGalleryImages(prev => prev.filter(img => img !== url));
   };
+
+  const addSelectedCandidate = (candidate: Omit<SelectedCandidate, 'id'>) => {
+    const newCandidate = { ...candidate, id: Math.random().toString(36).substr(2, 9) };
+    setSelectedCandidates(prev => [...prev, newCandidate]);
+  };
+
+  const removeSelectedCandidate = (id: string) => {
+    setSelectedCandidates(prev => prev.filter(c => c.id !== id));
+  };
   
   const addDictation = (title: string, mediaUrl: string, language: 'english' | 'hindi') => {
     setDictations(prev => [{
@@ -380,6 +404,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     registrationFee,
     qrCodeUrl,
     galleryImages,
+    selectedCandidates,
     login,
     logout,
     registerStudent,
@@ -399,6 +424,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setQrCodeUrl,
     addGalleryImage,
     removeGalleryImage,
+    addSelectedCandidate,
+    removeSelectedCandidate,
     addDictation,
     toggleDictation,
     deleteDictation

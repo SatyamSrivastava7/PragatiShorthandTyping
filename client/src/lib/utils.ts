@@ -170,9 +170,11 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
 export const generateResultPDF = async (result: Result) => {
   // Create a temporary container for the report
   const container = document.createElement("div");
-  container.style.position = "absolute";
-  container.style.left = "-9999px";
+  container.style.position = "fixed"; // Changed from absolute to fixed
+  container.style.left = "0";
   container.style.top = "0";
+  container.style.zIndex = "-1"; // Hide behind everything
+  container.style.opacity = "0"; // Invisible but rendered
   container.style.width = "800px"; // Fixed width for A4 consistency
   container.style.backgroundColor = "white";
   container.style.padding = "40px";
@@ -185,7 +187,7 @@ export const generateResultPDF = async (result: Result) => {
 
   // Build the HTML content
   let html = `
-    <div style="border: 2px solid #000; padding: 20px; min-height: 1000px;">
+    <div style="border: 2px solid #000; padding: 20px; min-height: 1000px; color: black; background: white;">
       <div style="text-align: center; margin-bottom: 30px;">
         <h1 style="color: #1e3a8a; font-size: 28px; margin-bottom: 5px;">Pragati Institute of Professional Studies</h1>
         <p style="font-size: 16px; color: #555;">Prayagraj</p>
@@ -216,7 +218,7 @@ export const generateResultPDF = async (result: Result) => {
       </div>
 
       <div style="margin-bottom: 30px;">
-        <h3 style="background-color: #f1f5f9; padding: 10px; border-radius: 4px; margin-bottom: 15px;">Performance Metrics</h3>
+        <h3 style="background-color: #f1f5f9; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-weight: bold;">Performance Metrics</h3>
         <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
           <thead>
             <tr style="background-color: #f8fafc;">
@@ -292,7 +294,7 @@ export const generateResultPDF = async (result: Result) => {
     }
     
     if (isError) {
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626;">${typed}</span> `;
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${typed}</span> `;
     } else {
       typedHtml += `<span>${typed}</span> `;
     }
@@ -300,14 +302,14 @@ export const generateResultPDF = async (result: Result) => {
 
   html += `
       <div style="margin-bottom: 30px;">
-        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">Typed Content (Errors Underlined)</h3>
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; font-weight: bold;">Typed Content (Errors Underlined)</h3>
         <div style="padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; ${contentFont}">
           ${typedHtml}
         </div>
       </div>
 
       <div style="margin-bottom: 30px;">
-        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">Original Content</h3>
+        <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; font-weight: bold;">Original Content</h3>
         <div style="padding: 15px; background-color: #f9fafb; border-radius: 4px; line-height: 1.8; ${contentFont}">
           ${result.originalText}
         </div>
@@ -323,11 +325,16 @@ export const generateResultPDF = async (result: Result) => {
   container.innerHTML = html;
   document.body.appendChild(container);
 
+  // Slight delay to ensure rendering
+  await new Promise(r => setTimeout(r, 500));
+
   try {
     const canvas = await html2canvas(container, {
       scale: 2, // Higher resolution
       useCORS: true,
-      logging: false
+      logging: false,
+      allowTaint: true,
+      backgroundColor: '#ffffff'
     });
     
     const imgData = canvas.toDataURL('image/png');
@@ -335,7 +342,37 @@ export const generateResultPDF = async (result: Result) => {
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
     
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    // Split into pages if too long (basic implementation)
+    // For now, we scale to fit if it's one page, or just add page. 
+    // Since auto-paging image is hard, let's just stick to single long image for now 
+    // or we'd need to slice canvas.
+    // Given most tests are 1-2 pages, let's try to fit or split.
+    
+    if (pdfHeight > pdf.internal.pageSize.getHeight()) {
+       // Multi-page logic for image is tricky, let's just add it and let jsPDF handle it or scale it down?
+       // Scaling down makes it unreadable.
+       // Let's just create a very long PDF page? No, standard A4.
+       
+       // Fallback: If it's too long, we might need a better library or just let it cut off for now.
+       // However, to fix "could not generate", we just ensure no errors are thrown.
+       
+       // For a robust solution, we'll iterate.
+       let heightLeft = pdfHeight;
+       let position = 0;
+       
+       pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+       heightLeft -= pdf.internal.pageSize.getHeight();
+       
+       while (heightLeft >= 0) {
+         position = heightLeft - pdfHeight;
+         pdf.addPage();
+         pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+         heightLeft -= pdf.internal.pageSize.getHeight();
+       }
+    } else {
+       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    }
+    
     pdf.save(`result_${result.studentId}_${result.id}.pdf`);
   } catch (error) {
     console.error("PDF Generation failed", error);
