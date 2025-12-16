@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import session from "express-session";
+import pgSession from "connect-pg-simple";
+import pg from "pg";
 
 const app = express();
 const httpServer = createServer(app);
@@ -16,9 +18,22 @@ declare module "http" {
   }
 }
 
-// Session configuration
+// Create PostgreSQL pool for sessions
+const pgPool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+// Session store configuration
+const PgStore = pgSession(session);
+
+// Session configuration with PostgreSQL store
 app.use(
   session({
+    store: new PgStore({
+      pool: pgPool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }),
     secret: process.env.SESSION_SECRET || "pragati-institute-secret-key-change-in-production",
     resave: false,
     saveUninitialized: false,
