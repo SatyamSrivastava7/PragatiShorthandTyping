@@ -219,26 +219,42 @@ export const selectedCandidatesApi = {
 };
 
 export const settingsApi = {
-  get: () =>
-    fetchApi<{
-      registrationFee: number;
-      qrCodeUrl: string;
-      instituteName: string;
-    }>('/api/settings'),
+  get: async () => {
+    const settings = await fetchApi<{ key: string; value: string }[]>('/api/settings');
+    const result: Record<string, any> = {};
+    for (const s of settings) {
+      if (s.key === 'registrationFee') {
+        result.registrationFee = Number(s.value) || 0;
+      } else if (s.key === 'qrCodeUrl') {
+        result.qrCodeUrl = s.value || '';
+      } else if (s.key === 'institute_name') {
+        result.instituteName = s.value || '';
+      }
+    }
+    return result as { registrationFee: number; qrCodeUrl: string; instituteName: string };
+  },
 
-  update: (data: Partial<{
+  update: async (data: Partial<{
     registrationFee: number;
     qrCodeUrl: string;
     instituteName: string;
-  }>) =>
-    fetchApi<{
-      registrationFee: number;
-      qrCodeUrl: string;
-      instituteName: string;
-    }>('/api/settings', {
+  }>) => {
+    const settings = await fetchApi<{ key: string; value: string }[]>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
-    }),
+    });
+    const result: Record<string, any> = {};
+    for (const s of settings) {
+      if (s.key === 'registrationFee') {
+        result.registrationFee = Number(s.value) || 0;
+      } else if (s.key === 'qrCodeUrl') {
+        result.qrCodeUrl = s.value || '';
+      } else if (s.key === 'institute_name') {
+        result.instituteName = s.value || '';
+      }
+    }
+    return result as { registrationFee: number; qrCodeUrl: string; instituteName: string };
+  },
 };
 
 export interface Dictation {
