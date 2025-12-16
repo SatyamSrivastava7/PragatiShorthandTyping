@@ -114,6 +114,25 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get user" });
     }
   });
+
+  // Get session (returns user or null, never 401)
+  app.get("/api/auth/session", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.json({ user: null });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
+      if (!user) {
+        return res.json({ user: null });
+      }
+      
+      const { password, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      res.json({ user: null });
+    }
+  });
   
   // Logout
   app.post("/api/auth/logout", (req, res) => {
