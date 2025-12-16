@@ -44,10 +44,17 @@ export async function registerRoutes(
       // Hash password
       const hashedPassword = await bcrypt.hash(validatedData.password, 10);
       
+      // Generate student ID (PIPS + year + sequential number)
+      const year = new Date().getFullYear().toString().slice(-2);
+      const allUsers = await storage.getAllUsers();
+      const studentCount = allUsers.filter(u => u.role === 'student').length + 1;
+      const studentId = `PIPS${year}${studentCount.toString().padStart(4, '0')}`;
+      
       // Create user
       const user = await storage.createUser({
         ...validatedData,
         password: hashedPassword,
+        studentId,
       });
       
       // Set session
@@ -878,8 +885,16 @@ export async function registerRoutes(
         }
         res.json(setting);
       } else {
-        const settings = await storage.getAllSettings();
-        res.json(settings);
+        const settingsArray = await storage.getAllSettings();
+        const settingsObj: Record<string, any> = {};
+        for (const s of settingsArray) {
+          if (s.key === 'registrationFee') {
+            settingsObj.registrationFee = Number(s.value) || 0;
+          } else {
+            settingsObj[s.key] = s.value;
+          }
+        }
+        res.json(settingsObj);
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to get settings" });
@@ -903,19 +918,25 @@ export async function registerRoutes(
   app.patch("/api/settings", async (req, res) => {
     try {
       const updates = req.body;
-      const results: any[] = [];
       
       // Update each setting provided in the body
       for (const [key, value] of Object.entries(updates)) {
         if (typeof value === 'string' || typeof value === 'number') {
-          const setting = await storage.upsertSetting({ key, value: String(value) });
-          results.push(setting);
+          await storage.upsertSetting({ key, value: String(value) });
         }
       }
       
-      // Return all settings after update
-      const settings = await storage.getAllSettings();
-      res.json(settings);
+      // Return all settings after update in object format
+      const settingsArray = await storage.getAllSettings();
+      const settingsObj: Record<string, any> = {};
+      for (const s of settingsArray) {
+        if (s.key === 'registrationFee') {
+          settingsObj.registrationFee = Number(s.value) || 0;
+        } else {
+          settingsObj[s.key] = s.value;
+        }
+      }
+      res.json(settingsObj);
     } catch (error) {
       res.status(500).json({ message: "Failed to update settings" });
     }
