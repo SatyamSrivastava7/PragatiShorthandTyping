@@ -43,6 +43,7 @@ export interface IStorage {
   // Content methods
   getContent(id: number): Promise<Content | undefined>;
   getAllContent(type?: string): Promise<Content[]>;
+  getEnabledContent(): Promise<Content[]>;
   getContentByDate(dateFor: string, type?: string): Promise<Content[]>;
   createContent(content: InsertContent): Promise<Content>;
   updateContent(id: number, updates: Partial<InsertContent>): Promise<Content | undefined>;
@@ -148,6 +149,10 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(content).where(eq(content.type, type)).orderBy(desc(content.createdAt));
     }
     return await db.select().from(content).orderBy(desc(content.createdAt));
+  }
+
+  async getEnabledContent(): Promise<Content[]> {
+    return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
   }
 
   async getContentByDate(dateFor: string, type?: string): Promise<Content[]> {

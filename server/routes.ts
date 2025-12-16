@@ -236,6 +236,16 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get content" });
     }
   });
+
+  // Get enabled content only
+  app.get("/api/content/enabled", async (req, res) => {
+    try {
+      const content = await storage.getEnabledContent();
+      res.json(content);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get content" });
+    }
+  });
   
   // Get content by ID
   app.get("/api/content/:id", async (req, res) => {
