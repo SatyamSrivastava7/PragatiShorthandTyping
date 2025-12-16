@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { useAuth, useContent, useResults, usePdf, useSettings, useDictations } from "@/lib/hooks";
+import {
+  useAuth,
+  useContent,
+  useResults,
+  usePdf,
+  useSettings,
+  useDictations,
+} from "@/lib/hooks";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
 import {
@@ -46,13 +53,17 @@ export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
   const { enabledContent: content } = useContent();
   const { results } = useResults(currentUser?.id);
-  const { folders: pdfFolders, resources: pdfResources, purchasePdf: buyPdf } = usePdf();
+  const {
+    folders: pdfFolders,
+    resources: pdfResources,
+    purchasePdf: buyPdf,
+  } = usePdf();
   const { settings } = useSettings();
   const { dictations } = useDictations();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
-  const qrCodeUrl = settings?.qrCodeUrl || '';
+
+  const qrCodeUrl = settings?.qrCodeUrl || "";
 
   const today = new Date();
 
@@ -210,30 +221,12 @@ export default function StudentDashboard() {
                       </div>
                     </CardContent>
                     <CardFooter className="pt-4 border-t bg-muted/20">
-                      {isCompleted ? (
-                        <div className="w-full flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="flex-1 cursor-default bg-green-50 text-green-700 border-green-200"
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4" /> Completed
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleDownloadResult(result)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          className="w-full"
-                          onClick={() => setLocation(`/test/${test.id}`)}
-                        >
-                          <PlayCircle className="mr-2 h-4 w-4" /> Start Test
-                        </Button>
-                      )}
+                      <Button
+                        className="w-full"
+                        onClick={() => setLocation(`/test/${test.id}`)}
+                      >
+                        <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                      </Button>
                     </CardFooter>
                   </Card>
                 );
@@ -448,7 +441,11 @@ export default function StudentDashboard() {
                                         Total Original Words:
                                       </span>{" "}
                                       <span>
-                                        {(result.originalText || "").trim().split(/\s+/).length}
+                                        {
+                                          (result.originalText || "")
+                                            .trim()
+                                            .split(/\s+/).length
+                                        }
                                       </span>
                                     </div>
                                     <div>
@@ -464,11 +461,13 @@ export default function StudentDashboard() {
                                           <span className="font-semibold">
                                             Result:
                                           </span>{" "}
-                                          <span className={
+                                          <span
+                                            className={
                                               result.result === "Pass"
                                                 ? "text-green-600 font-bold"
                                                 : "text-red-600 font-bold"
-                                            }>
+                                            }
+                                          >
                                             {" "}
                                             {result.result}
                                           </span>{" "}
@@ -481,9 +480,9 @@ export default function StudentDashboard() {
                                     <h4 className="font-semibold mb-2">
                                       Your Input
                                     </h4>
-                                    <ResultTextAnalysis 
-                                      originalText={result.originalText || ""} 
-                                      typedText={result.typedText} 
+                                    <ResultTextAnalysis
+                                      originalText={result.originalText || ""}
+                                      typedText={result.typedText}
                                       language={result.language}
                                     />
                                   </div>
