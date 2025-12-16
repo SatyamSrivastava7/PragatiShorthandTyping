@@ -1,0 +1,152 @@
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at TLSSocket.emit (node:events:524:28)
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+dataType: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+schema: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at TLSSocket. (/home/runner/workspace/dist/index.cjs:63:47921)
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+error: terminating connection due to administrator command
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at Ef.parse (/home/runner/workspace/dist/index.cjs:63:42497)
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+TIMESTAMPTZ: 1184,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+internalPosition: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at Ef.handlePacket (/home/runner/workspace/dist/index.cjs:63:43865)
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+routine: 'ProcessInterrupts',
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+table: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+CIDR: 650,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at gc.emit (node:events:524:28)
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+TSVECTOR: 3614,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+file: 'postgres.c',
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+_maxListeners: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+REGCONFIG: 3734,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+replication: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+statement_timeout: false,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+throw er; // Unhandled 'error' event
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+internalQuery: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at Ef.parse (/home/runner/workspace/dist/index.cjs:63:42532)
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23)
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at addChunk (node:internal/streams/readable:561:12) {
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+PG_NDISTINCT: 3361,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+user: 'neondb_owner',
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+host: 'ep-frosty-bonus-af8qoe14.c-2.us-west-2.aws.neon.tech',
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+ssl: {},
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+ABSTIME: 702,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+FLOAT4: 700,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+where: undefined,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+binary: false,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+UUID: 2950,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+POLYGON: 604,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+REGOPERATOR: 2204,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+_eventsCount: 1,
+2025-12-16 17:41:42.24
+17c0d1b1
+User
+at gc.r (/home/runner/workspace/dist/index.cjs:64:13559)
+2025-12-16 17:43:16.50
+895b4e37
+System
+command finished with error [node ./dist/index.cjs]: signal: terminated

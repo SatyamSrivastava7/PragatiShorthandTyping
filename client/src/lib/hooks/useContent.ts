@@ -39,7 +39,7 @@ export function useContent() {
       const previousContent = queryClient.getQueryData<Content[]>(['content']);
       
       const optimisticContent: Content = {
-        id: Date.now(),
+        id: -Math.floor(Math.random() * 1000000),
         title: newContent.title,
         type: newContent.type,
         text: newContent.text,

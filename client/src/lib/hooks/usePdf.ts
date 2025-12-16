@@ -24,7 +24,7 @@ export function usePdf() {
       const previousFolders = queryClient.getQueryData<PdfFolder[]>(['pdf', 'folders']);
       
       const optimisticFolder: PdfFolder = {
-        id: Date.now(),
+        id: -Math.floor(Math.random() * 1000000),
         name,
         createdAt: new Date(),
       };
@@ -83,7 +83,7 @@ export function usePdf() {
       const previousResources = queryClient.getQueryData<PdfResource[]>(['pdf', 'resources']);
       
       const optimisticResource: PdfResource = {
-        id: Date.now(),
+        id: -Math.floor(Math.random() * 1000000),
         name: data.name,
         url: data.url,
         pageCount: data.pageCount,

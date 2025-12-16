@@ -127,7 +127,7 @@ export function useSelectedCandidates() {
       const previousCandidates = queryClient.getQueryData<SelectedCandidate[]>(['selected-candidates']);
       
       const optimisticCandidate: SelectedCandidate = {
-        id: Date.now(),
+        id: -Math.floor(Math.random() * 1000000),
         name: data.name,
         designation: data.designation,
         year: data.year,
