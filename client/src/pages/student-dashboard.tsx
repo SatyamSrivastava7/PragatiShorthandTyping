@@ -151,8 +151,6 @@ export default function StudentDashboard() {
     consumePdfPurchase(parseInt(pdfId));
   };
 
-  console.log("availableTests****", availableTests);
-
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div className="space-y-2">
@@ -585,7 +583,7 @@ export default function StudentDashboard() {
                     .filter((p) => p.folderId === currentFolder)
                     .map((pdf) => {
                       const isPurchased = currentUser?.purchasedPdfs?.includes(
-                        pdf.id,
+                        pdf.id.toString(),
                       );
 
                       return (
@@ -609,7 +607,7 @@ export default function StudentDashboard() {
                                 variant="outline"
                                 className="text-green-600 border-green-200 bg-green-50"
                                 onClick={() =>
-                                  handleDownloadPdf(pdf.id, pdf.url)
+                                  handleDownloadPdf(pdf.id.toString(), pdf.url)
                                 }
                               >
                                 <Download className="mr-2 h-4 w-4" /> Download
@@ -617,11 +615,11 @@ export default function StudentDashboard() {
                             ) : (
                               <Button
                                 onClick={() =>
-                                  initiateBuyPdf(pdf.id, pdf.price)
+                                  initiateBuyPdf(pdf.id.toString(), pdf.price)
                                 }
-                                disabled={processingPdf === pdf.id}
+                                disabled={processingPdf === pdf.id.toString()}
                               >
-                                {processingPdf === pdf.id ? (
+                                {processingPdf === pdf.id.toString() ? (
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
                                   <ShoppingCart className="mr-2 h-4 w-4" />
