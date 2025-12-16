@@ -33,6 +33,7 @@ import {
   CreditCard,
   QrCode,
   Eye,
+  Search,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -81,11 +82,17 @@ export default function StudentDashboard() {
   const [paymentTab, setPaymentTab] = useState("qr");
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
+  // Search State
+  const [typingSearch, setTypingSearch] = useState("");
+  const [shorthandSearch, setShorthandSearch] = useState("");
+
   // Filter content: Enabled (Date filter removed as requested)
   const availableTests = content.filter((c) => c.isEnabled);
 
-  const typingTests = availableTests.filter((c) => c.type === "typing");
-  const shorthandTests = availableTests.filter((c) => c.type === "shorthand");
+  const typingTests = availableTests.filter((c) => c.type === "typing" && 
+    c.title.toLowerCase().includes(typingSearch.toLowerCase()));
+  const shorthandTests = availableTests.filter((c) => c.type === "shorthand" && 
+    c.title.toLowerCase().includes(shorthandSearch.toLowerCase()));
 
   const getResultForContent = (contentId: string) => {
     return results.find(
@@ -191,6 +198,18 @@ export default function StudentDashboard() {
         </TabsList>
 
         <TabsContent value="typing_tests">
+          <div className="mb-4">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search typing tests..."
+                value={typingSearch}
+                onChange={(e) => setTypingSearch(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-typing"
+              />
+            </div>
+          </div>
           {isContentLoading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -254,6 +273,18 @@ export default function StudentDashboard() {
         </TabsContent>
 
         <TabsContent value="shorthand_tests">
+          <div className="mb-4">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search shorthand tests..."
+                value={shorthandSearch}
+                onChange={(e) => setShorthandSearch(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-shorthand"
+              />
+            </div>
+          </div>
           {isContentLoading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
@@ -295,32 +326,14 @@ export default function StudentDashboard() {
                       </div>
                     </CardContent>
                     <CardFooter className="pt-4 border-t bg-muted/20">
-                      {isCompleted ? (
-                        <div className="w-full flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="flex-1 cursor-default bg-green-50 text-green-700 border-green-200"
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4" /> Completed
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleDownloadResult(result)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          className="w-full bg-orange-300"
-                          variant="secondary"
-                          onClick={() => setLocation(`/test/${test.id}`)}
-                        >
-                          <PlayCircle className="mr-2 h-4 w-4" /> Start
-                          Shorthand Test
-                        </Button>
-                      )}
+                      <Button
+                        className="w-full bg-orange-300"
+                        variant="secondary"
+                        onClick={() => setLocation(`/test/${test.id}`)}
+                      >
+                        <PlayCircle className="mr-2 h-4 w-4" /> Start
+                        Shorthand Test
+                      </Button>
                     </CardFooter>
                   </Card>
                 );
