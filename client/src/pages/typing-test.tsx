@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation, Link } from "wouter";
-import { useMockStore } from "@/lib/store";
+import { useAuth, useContent, useResults } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,10 +22,12 @@ import { Slider } from "@/components/ui/slider";
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
   const [, setLocation] = useLocation();
-  const { content, currentUser, submitResult } = useMockStore();
+  const { user: currentUser } = useAuth();
+  const { content } = useContent();
+  const { createResult } = useResults();
   const { toast } = useToast();
 
-  const testContent = content.find(c => c.id === params?.id);
+  const testContent = content.find(c => c.id === Number(params?.id));
   
   const [typedText, setTypedText] = useState("");
   const [timeLeft, setTimeLeft] = useState(0); // in seconds
@@ -100,7 +102,7 @@ export default function TypingTestPage() {
     handleSubmit();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!testContent || !currentUser) return;
 
     let metrics;
@@ -110,28 +112,32 @@ export default function TypingTestPage() {
       metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
     }
 
-    submitResult({
-      studentId: currentUser.studentId || currentUser.id,
-      studentName: currentUser.name,
-      contentId: testContent.id,
-      contentTitle: testContent.title,
-      contentType: testContent.type,
-      typedText: typedText,
-      originalText: testContent.text, // Save original snapshot
-      language: testContent.language as 'english' | 'hindi',
-      metrics: {
-        ...metrics,
+    try {
+      await createResult({
+        contentId: testContent.id,
+        typedText: typedText,
+        words: metrics.words,
         time: testContent.duration,
-        backspaces: backspaces
-      }
-    });
+        mistakes: metrics.mistakes,
+        backspaces: backspaces,
+        grossSpeed: metrics.grossWPM.toString(),
+        netSpeed: metrics.netWPM.toString(),
+        result: metrics.result,
+      });
 
-    toast({
-      title: "Test Submitted!",
-      description: "Your results have been recorded.",
-    });
+      toast({
+        title: "Test Submitted!",
+        description: "Your results have been recorded.",
+      });
 
-    setShowResultModal(true);
+      setShowResultModal(true);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: "Failed to submit your test results. Please try again.",
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

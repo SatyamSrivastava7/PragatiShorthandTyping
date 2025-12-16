@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useMockStore, Result } from "@/lib/store";
+import { useAuth, useContent, useResults, usePdf, useSettings, useDictations } from "@/lib/hooks";
+import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
 import {
   Card,
@@ -42,19 +43,16 @@ import { Label } from "@/components/ui/label";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 
 export default function StudentDashboard() {
-  const {
-    content,
-    results,
-    currentUser,
-    pdfFolders,
-    pdfResources,
-    buyPdf,
-    consumePdfPurchase,
-    qrCodeUrl,
-    dictations,
-  } = useMockStore();
+  const { user: currentUser } = useAuth();
+  const { enabledContent: content } = useContent();
+  const { results } = useResults(currentUser?.id);
+  const { folders: pdfFolders, resources: pdfResources, purchasePdf: buyPdf } = usePdf();
+  const { settings } = useSettings();
+  const { dictations } = useDictations();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  
+  const qrCodeUrl = settings?.qrCodeUrl || '';
 
   const today = new Date();
 

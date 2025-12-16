@@ -204,10 +204,10 @@ export const galleryApi = {
 
 export const selectedCandidatesApi = {
   getAll: () =>
-    fetchApi<{ id: number; name: string; imageUrl: string }[]>('/api/selected-candidates'),
+    fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }[]>('/api/selected-candidates'),
 
-  create: (data: { name: string; imageUrl: string }) =>
-    fetchApi<{ id: number; name: string; imageUrl: string }>('/api/selected-candidates', {
+  create: (data: { name: string; designation: string; year: string; imageUrl: string }) =>
+    fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }>('/api/selected-candidates', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -238,5 +238,39 @@ export const settingsApi = {
     }>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+};
+
+export interface Dictation {
+  id: number;
+  title: string;
+  mediaUrl: string;
+  language: string;
+  isEnabled: boolean;
+  createdAt: Date;
+}
+
+export const dictationsApi = {
+  getAll: () =>
+    fetchApi<Dictation[]>('/api/dictations'),
+
+  create: (data: {
+    title: string;
+    mediaUrl: string;
+    language?: 'english' | 'hindi';
+  }) =>
+    fetchApi<Dictation>('/api/dictations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  toggle: (id: number) =>
+    fetchApi<Dictation>(`/api/dictations/${id}/toggle`, {
+      method: 'POST',
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/api/dictations/${id}`, {
+      method: 'DELETE',
     }),
 };

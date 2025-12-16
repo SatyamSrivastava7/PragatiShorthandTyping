@@ -196,7 +196,8 @@ export default function LandingPage() {
                              <img src={student.imageUrl} alt={student.name} className="h-full w-full object-cover" />
                            </div>
                            <h3 className="font-bold text-lg text-primary">{student.name}</h3>
-                           <p className="text-xs text-muted-foreground mt-2 bg-white px-3 py-1 rounded-full border">Selected Candidate</p>
+                           <p className="text-sm font-medium text-gray-700 mt-1">{student.designation}</p>
+                           <p className="text-xs text-muted-foreground mt-2 bg-white px-3 py-1 rounded-full border">Batch {student.year}</p>
                          </CardContent>
                        </Card>
                      </div>

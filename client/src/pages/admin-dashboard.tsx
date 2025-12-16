@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { useMockStore, Result, User } from "@/lib/store";
+import { useAuth, useContent, useResults, useUsers, usePdf, useSettings, useGallery, useSelectedCandidates, useDictations } from "@/lib/hooks";
+import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,14 +25,20 @@ import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 
 export default function AdminDashboard() {
-  const { 
-    content, addContent, toggleContent, deleteContent, results, users, updateUser, deleteUser,
-    registrationFee, setRegistrationFee, pdfFolders, addPdfFolder, addPdfResource, deletePdfResource, pdfResources,
-    qrCodeUrl, setQrCodeUrl, galleryImages, addGalleryImage, removeGalleryImage,
-    dictations, addDictation, toggleDictation, deleteDictation,
-    selectedCandidates, addSelectedCandidate, removeSelectedCandidate
-  } = useMockStore();
+  const { content, createContent, toggleContent, deleteContent } = useContent();
+  const { results } = useResults();
+  const { users, updateUser, deleteUser } = useUsers();
+  const { folders: pdfFolders, resources: pdfResources, createFolder: addPdfFolder, createResource: addPdfResource, deleteResource: deletePdfResource } = usePdf();
+  const { settings, updateSettings } = useSettings();
+  const { images: galleryImages, addImage: addGalleryImage, deleteImage: removeGalleryImage } = useGallery();
+  const { candidates: selectedCandidates, addCandidate: addSelectedCandidate, deleteCandidate: removeSelectedCandidate } = useSelectedCandidates();
+  const { dictations, createDictation: addDictation, toggleDictation, deleteDictation } = useDictations();
   const { toast } = useToast();
+  
+  const registrationFee = settings?.registrationFee || 0;
+  const qrCodeUrl = settings?.qrCodeUrl || '';
+  const setRegistrationFee = (fee: number) => updateSettings?.({ registrationFee: fee });
+  const setQrCodeUrl = (url: string) => updateSettings?.({ qrCodeUrl: url });
   
   const [activeTab, setActiveTab] = useState("students");
 
@@ -50,7 +57,7 @@ export default function AdminDashboard() {
   
   // PDF Store State
   const [newFolderName, setNewFolderName] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<string>("");
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [pdfName, setPdfName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -90,7 +97,7 @@ export default function AdminDashboard() {
      setCandidateImage(null);
   };
 
-  const handleUpload = (e: React.FormEvent) => {
+  const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!textContent.trim()) {
       toast({ variant: "destructive", title: "Error", description: "Content text is required" });
@@ -103,7 +110,7 @@ export default function AdminDashboard() {
       mediaUrl = URL.createObjectURL(dictationFile);
     }
 
-    addContent({
+    await createContent({
       title,
       type: contentType,
       text: textContent,
@@ -124,24 +131,24 @@ export default function AdminDashboard() {
 
   // Deprecated: handleUploadDictation removed
 
-  const handleStudentPaymentToggle = (student: User) => {
-    updateUser(student.id, { isPaymentCompleted: !student.isPaymentCompleted });
+  const handleStudentPaymentToggle = async (student: User) => {
+    await updateUser({ id: student.id, data: { isPaymentCompleted: !student.isPaymentCompleted } });
     toast({ 
       title: "Updated", 
       description: `Payment status for ${student.name} updated.` 
     });
   };
   
-  const handleDeleteStudent = (id: string) => {
+  const handleDeleteStudent = async (id: number) => {
     if (confirm("Are you sure you want to delete this student? This cannot be undone.")) {
-      deleteUser(id);
+      await deleteUser(id);
       toast({ title: "Deleted", description: "Student profile removed." });
     }
   };
   
-  const handleDeleteContent = (id: string) => {
+  const handleDeleteContent = async (id: number) => {
     if (confirm("Are you sure you want to delete this test?")) {
-      deleteContent(id);
+      await deleteContent(id);
       toast({ title: "Deleted", description: "Test content removed." });
     }
   };
@@ -193,9 +200,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeletePdf = (id: string) => {
+  const handleDeletePdf = async (id: number) => {
     if (confirm("Are you sure you want to delete this PDF resource?")) {
-      deletePdfResource(id);
+      await deletePdfResource(id);
       toast({ title: "Deleted", description: "PDF resource removed." });
     }
   };
