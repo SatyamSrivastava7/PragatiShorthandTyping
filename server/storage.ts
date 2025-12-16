@@ -163,7 +163,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createContent(insertContent: InsertContent): Promise<Content> {
-    const [item] = await db.insert(content).values(insertContent).returning();
+    const [item] = await db.insert(content).values({ ...insertContent, isEnabled: false }).returning();
     return item;
   }
 
