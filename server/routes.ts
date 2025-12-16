@@ -275,7 +275,8 @@ export async function registerRoutes(
       
       res.json(content);
     } catch (error) {
-      res.status(500).json({ message: "Failed to get content" });
+      console.error("Error fetching content:", error);
+      res.status(500).json({ message: "Failed to get content", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -285,7 +286,8 @@ export async function registerRoutes(
       const content = await storage.getEnabledContent();
       res.json(content);
     } catch (error) {
-      res.status(500).json({ message: "Failed to get content" });
+      console.error("Error fetching enabled content:", error);
+      res.status(500).json({ message: "Failed to get content", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
   
