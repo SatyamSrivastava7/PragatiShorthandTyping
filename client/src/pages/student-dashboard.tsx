@@ -57,6 +57,7 @@ export default function StudentDashboard() {
     folders: pdfFolders,
     resources: pdfResources,
     purchasePdf: buyPdf,
+    consumePdfPurchase,
   } = usePdf();
   const { settings } = useSettings();
   const { dictations } = useDictations();
@@ -515,8 +516,8 @@ export default function StudentDashboard() {
                     ))}
                   {results.filter(
                     (r) =>
-                      (r.studentId === currentUser?.studentId ||
-                        r.studentId === currentUser?.id) &&
+                      (r.studentId === parseInt(currentUser?.studentId) ||
+                        r.studentId === parseInt(currentUser?.id)) &&
                       r.contentType === type,
                   ).length === 0 && (
                     <p className="text-muted-foreground text-center py-8">

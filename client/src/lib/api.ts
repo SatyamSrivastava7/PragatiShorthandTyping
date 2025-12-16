@@ -183,6 +183,11 @@ export const pdfApi = {
     fetchApi<{ message: string }>(`/api/pdf/purchase/${pdfId}`, {
       method: 'POST',
     }),
+
+  consumePdf: (pdfId: number) =>
+    fetchApi<{ message: string }>(`/api/pdf/consume/${pdfId}`, {
+      method: 'POST',
+    }),
 };
 
 export const galleryApi = {

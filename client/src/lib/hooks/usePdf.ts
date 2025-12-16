@@ -51,6 +51,14 @@ export function usePdf() {
     },
   });
 
+  const consumePdfMutation = useMutation({
+    mutationFn: pdfApi.consumePdf,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['session'] });
+      queryClient.invalidateQueries({ queryKey: ['pdf', 'resources'] });
+    },
+  });
+
   return {
     folders,
     resources,
@@ -60,5 +68,6 @@ export function usePdf() {
     createResource: createResourceMutation.mutateAsync,
     deleteResource: deleteResourceMutation.mutateAsync,
     purchasePdf: purchasePdfMutation.mutateAsync,
+    consumePdfPurchase: consumePdfMutation.mutateAsync,
   };
 }

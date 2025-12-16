@@ -699,6 +699,31 @@ export async function registerRoutes(
     }
   });
   
+  // Consume PDF purchase (remove from purchased list after download)
+  app.post("/api/pdf/consume/:pdfId", async (req, res) => {
+    try {
+      const pdfId = parseInt(req.params.pdfId);
+      const userId = req.session.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Remove pdfId from user's purchasedPdfs
+      const purchasedPdfs = (user.purchasedPdfs || []).filter(id => id !== pdfId.toString());
+      await storage.updateUser(userId, { purchasedPdfs });
+      
+      res.json({ message: "PDF purchase consumed" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to consume PDF purchase" });
+    }
+  });
+  
   // ==================== DICTATION ROUTES ====================
   
   app.get("/api/dictations", async (req, res) => {
