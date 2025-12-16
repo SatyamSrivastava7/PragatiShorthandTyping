@@ -132,6 +132,10 @@ export default function TypingTestPage() {
       metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
     }
 
+    // Determine Pass/Fail based on net speed (30 WPM threshold)
+    const netSpeedNum = typeof metrics.netSpeed === 'string' ? parseFloat(metrics.netSpeed) : metrics.netSpeed;
+    const result: 'Pass' | 'Fail' = netSpeedNum >= 30 ? 'Pass' : 'Fail';
+
     try {
       await createResult({
         contentId: testContent.id,
@@ -140,9 +144,9 @@ export default function TypingTestPage() {
         time: testContent.duration,
         mistakes: metrics.mistakes,
         backspaces: backspaces,
-        grossSpeed: metrics.grossWPM.toString(),
-        netSpeed: metrics.netWPM.toString(),
-        result: metrics.result,
+        grossSpeed: String(metrics.grossSpeed),
+        netSpeed: String(metrics.netSpeed),
+        result: result,
       });
 
       toast({
