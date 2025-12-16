@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useMockStore } from "@/lib/store";
+import { useAuth } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, LogOut, Menu, Home, Phone, LogIn, Mail, MapPin } from "lucide-react";
@@ -8,13 +8,12 @@ import { useState } from "react";
 import logoImage from '../assets/logo.jpeg';
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { currentUser, logout } = useMockStore();
+  const { user: currentUser, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    setLocation("/");
+  const handleLogout = async () => {
+    await logout();
   };
 
   const NavContent = () => (

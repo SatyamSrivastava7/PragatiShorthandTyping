@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useMockStore } from "@/lib/store";
+import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Facebook, Instagram, Twitter, Send, Youtube, Smartphone, Copy } from "lucide-react";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/carousel";
 
 export default function LandingPage() {
-  const { galleryImages, selectedCandidates, currentUser } = useMockStore();
+  const { user: currentUser } = useAuth();
+  const { images: galleryImages } = useGallery();
+  const { candidates: selectedCandidates } = useSelectedCandidates();
   const { toast } = useToast();
   
   const openLink = (url: string) => {
@@ -194,8 +196,7 @@ export default function LandingPage() {
                              <img src={student.imageUrl} alt={student.name} className="h-full w-full object-cover" />
                            </div>
                            <h3 className="font-bold text-lg text-primary">{student.name}</h3>
-                           <p className="text-sm font-medium text-gray-700 mt-1">{student.designation}</p>
-                           <p className="text-xs text-muted-foreground mt-2 bg-white px-3 py-1 rounded-full border">Batch {student.year}</p>
+                           <p className="text-xs text-muted-foreground mt-2 bg-white px-3 py-1 rounded-full border">Selected Candidate</p>
                          </CardContent>
                        </Card>
                      </div>

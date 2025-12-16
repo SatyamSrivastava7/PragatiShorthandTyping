@@ -11,23 +11,26 @@ import TypingTestPage from "@/pages/typing-test";
 import LandingPage from "@/pages/landing";
 import ContactPage from "@/pages/contact";
 import { Layout } from "@/components/layout";
-import { StoreProvider, useMockStore } from "@/lib/store";
+import { useAuth } from "@/lib/hooks";
+import GalleryPage from "@/pages/gallery";
 
 function PrivateRoute({ component: Component, allowedRoles }: { component: React.ComponentType, allowedRoles: string[] }) {
-  const { currentUser } = useMockStore();
+  const { user, isLoading } = useAuth();
 
-  if (!currentUser) {
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
     return <Redirect to="/auth" />;
   }
 
-  if (!allowedRoles.includes(currentUser.role)) {
-    return <Redirect to={currentUser.role === 'admin' ? "/admin" : "/student"} />;
+  if (!allowedRoles.includes(user.role)) {
+    return <Redirect to={user.role === 'admin' ? "/admin" : "/student"} />;
   }
 
   return <Component />;
 }
-
-import GalleryPage from "@/pages/gallery";
 
 function Router() {
   return (
@@ -59,12 +62,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </StoreProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Router />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

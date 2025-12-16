@@ -1,9 +1,9 @@
-import { useMockStore } from "@/lib/store";
+import { useGallery } from "@/lib/hooks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 export default function GalleryPage() {
-  const { galleryImages } = useMockStore();
+  const { images: galleryImages } = useGallery();
 
   return (
     <div className="container px-4 md:px-6 py-12 mx-auto">

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
-import { useMockStore } from "@/lib/store";
+import { useAuth } from "@/lib/hooks";
+import { useSettings } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,82 +10,47 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage() {
-  const [location, setLocation] = useLocation();
-  const { login, registerStudent, users, resetPassword, qrCodeUrl } = useMockStore();
+  const { login, register, resetPassword, isLoggingIn, isRegistering } = useAuth();
+  const { settings } = useSettings();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
 
   // Login State
-  const [loginId, setLoginId] = useState("");
   const [loginMobile, setLoginMobile] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   // Register State
   const [regName, setRegName] = useState("");
   const [regMobile, setRegMobile] = useState("");
+  const [regPassword, setRegPassword] = useState("");
   const [regBatch, setRegBatch] = useState("");
-  const [regStudentId, setRegStudentId] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regCity, setRegCity] = useState("");
   const [regState, setRegState] = useState("");
 
   // Reset Password State
-  const [resetId, setResetId] = useState("");
+  const [resetStudentId, setResetStudentId] = useState("");
   const [resetMobile, setResetMobile] = useState("");
   const [resetCity, setResetCity] = useState("");
   const [resetNewPass, setResetNewPass] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 500));
-  console.log("*******", loginId, loginMobile)
-    // Check if user exists first to provide better error messages (mockup only logic)
-    const existingUser = users.find(u => 
-      (u.role === 'admin' && u.name === loginId && u.mobile === loginMobile) ||
-      (u.role === 'student' && u.studentId === loginId && u.mobile === loginMobile)
-    );
-
-    if (existingUser) {
-      // Check payment status for students
-      if (existingUser.role === 'student' && !existingUser.isPaymentCompleted) {
-        console.log("******* Invalid credentials. Please check your ID and Mobile Number.", existingUser.isPaymentCompleted)
-         if (!existingUser.isPaymentCompleted) {
-           toast({
-             variant: "destructive",
-             title: "Access Denied",
-             description: "Your account is pending payment verification. Please pay via QR Code or contact Admin.",
-           });
-           setIsLoading(false);
-           return;
-         }
-      }
-    }
-console.log("*******", login, login(loginId, loginMobile))
-    if (login(loginId, loginMobile)) {
+    try {
+      await login({ mobile: loginMobile, password: loginPassword });
       toast({
         title: "Welcome back!",
         description: "Successfully logged in.",
       });
-      
-      if (loginId === "Administrator") {
-        setLocation("/admin");
-      } else {
-        setLocation("/student");
-      }
-    } else {
-      console.log("******* Invalid credentials. Please check your ID and Mobile Number.")
-
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Login Failed",
-        description: "Invalid credentials. Please check your ID and Mobile Number.",
+        description: error.message || "Invalid credentials. Please check your mobile number and password.",
       });
     }
-    setIsLoading(false);
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -98,63 +63,60 @@ console.log("*******", login, login(loginId, loginMobile))
       });
       return;
     }
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 500));
 
     try {
-      const newUser = registerStudent({
+      await register({
         name: regName,
         mobile: regMobile,
-        batch: regBatch,
-        studentId: regStudentId,
-        email: regEmail,
-        city: regCity,
-        state: regState
+        password: regPassword,
+        batch: regBatch || undefined,
+        email: regEmail || undefined,
+        city: regCity || undefined,
+        state: regState || undefined,
       });
-      console.log("****", newUser)
       
       toast({
         title: "Registration Successful",
-        description: "Please pay using the QR code to activate your account.",
+        description: "Your account has been created. You can now login.",
       });
       // Switch to login tab
-      setLoginId(regStudentId);
       setLoginMobile(regMobile);
+      setLoginPassword(regPassword);
       setActiveTab("login");
     } catch (err: any) {
-      console.log("******* error", err);
       toast({
         variant: "destructive",
         title: "Registration Failed",
-        description: err.message,
+        description: err.message || "Failed to create account. Please try again.",
       });
     }
-    setIsLoading(false);
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 500));
-
-    const success = resetPassword(resetId, resetMobile, resetCity, resetNewPass);
     
-    if (success) {
+    try {
+      await resetPassword({
+        studentId: resetStudentId,
+        mobile: resetMobile,
+        city: resetCity,
+        newPassword: resetNewPass,
+      });
+      
       toast({
         title: "Password Reset Successful",
         description: "You can now login with your new password.",
       });
-      setLoginId(resetId);
       setLoginMobile(resetMobile);
+      setLoginPassword(resetNewPass);
       setActiveTab("login");
-    } else {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Reset Failed",
-        description: "Details do not match our records.",
+        description: error.message || "Details do not match our records.",
       });
     }
-    setIsLoading(false);
   };
 
   return (
@@ -175,25 +137,27 @@ console.log("*******", login, login(loginId, loginMobile))
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="loginId">User ID / Student ID</Label>
+                  <Label htmlFor="loginMobile">Mobile Number</Label>
                   <Input 
-                    id="loginId" 
-                    placeholder="Enter ID (or 'Administrator' for admin)" 
-                    value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
+                    id="loginMobile" 
+                    placeholder="Enter 10-digit Mobile No." 
+                    value={loginMobile}
+                    onChange={(e) => setLoginMobile(e.target.value)}
                     required
+                    data-testid="input-login-mobile"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="loginMobile">Mobile Number</Label>
+                  <Label htmlFor="loginPassword">Password</Label>
                   <div className="relative">
                     <Input 
-                      id="loginMobile" 
+                      id="loginPassword" 
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter 10-digit Mobile No." 
-                      value={loginMobile}
-                      onChange={(e) => setLoginMobile(e.target.value)}
+                      placeholder="Enter password" 
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
                       required
+                      data-testid="input-login-password"
                     />
                     <Button
                       type="button"
@@ -201,6 +165,7 @@ console.log("*******", login, login(loginId, loginMobile))
                       size="icon"
                       className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
+                      data-testid="button-toggle-password"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -210,8 +175,8 @@ console.log("*******", login, login(loginId, loginMobile))
                     </Button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
+                <Button type="submit" className="w-full" disabled={isLoggingIn} data-testid="button-login">
+                  {isLoggingIn ? "Logging in..." : "Login"}
                 </Button>
                 <div className="text-center">
                    <Button 
@@ -219,29 +184,22 @@ console.log("*******", login, login(loginId, loginMobile))
                      variant="link" 
                      className="text-xs text-muted-foreground hover:text-primary hover:underline p-0 h-auto"
                      onClick={() => setActiveTab("reset")}
+                     data-testid="button-forgot-password"
                    >
                      Forgot Password?
                    </Button>
                 </div>
                 <div className="text-xs text-center text-muted-foreground mt-2 space-y-1">
-                  <p>Demo Admin: ID: <strong>Administrator</strong> / Mobile: <strong>1234567890</strong></p>
-                  <p>Demo Student: ID: <strong>STU001</strong> / Mobile: <strong>9876543210</strong></p>
-                  <p>Demo Student: ID: <strong>id1</strong> / Mobile: <strong>5678905678</strong></p>
+                  <p>Demo Admin: Mobile: <strong>9876543210</strong> / Password: <strong>admin123</strong></p>
                 </div>
               </form>
             </TabsContent>
             
             <TabsContent value="register">
               <form onSubmit={handleRegister} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                    <Label htmlFor="regName">Full Name</Label>
-                    <Input id="regName" value={regName} onChange={e => setRegName(e.target.value)} required />
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="regStudentId">Student ID</Label>
-                    <Input id="regStudentId" placeholder="Create unique ID" value={regStudentId} onChange={e => setRegStudentId(e.target.value)} required />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="regName">Full Name</Label>
+                  <Input id="regName" value={regName} onChange={e => setRegName(e.target.value)} required data-testid="input-register-name" />
                 </div>
                
                 <div className="space-y-2">
@@ -252,40 +210,54 @@ console.log("*******", login, login(loginId, loginMobile))
                     value={regMobile} 
                     onChange={e => setRegMobile(e.target.value.replace(/\D/g, ''))} 
                     required 
+                    data-testid="input-register-mobile"
                   />
                 </div>
                 
+                <div className="space-y-2">
+                  <Label htmlFor="regPassword">Password</Label>
+                  <Input 
+                    id="regPassword" 
+                    type="password"
+                    placeholder="Create a password" 
+                    value={regPassword} 
+                    onChange={e => setRegPassword(e.target.value)} 
+                    required 
+                    data-testid="input-register-password"
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="regCity">City</Label>
-                    <Input id="regCity" value={regCity} onChange={e => setRegCity(e.target.value)} required />
+                    <Input id="regCity" value={regCity} onChange={e => setRegCity(e.target.value)} data-testid="input-register-city" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="regState">State</Label>
-                    <Input id="regState" value={regState} onChange={e => setRegState(e.target.value)} required />
+                    <Input id="regState" value={regState} onChange={e => setRegState(e.target.value)} data-testid="input-register-state" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="regBatch">Batch</Label>
-                    <Input id="regBatch" value={regBatch} onChange={e => setRegBatch(e.target.value)} required />
+                    <Label htmlFor="regBatch">Batch (Optional)</Label>
+                    <Input id="regBatch" value={regBatch} onChange={e => setRegBatch(e.target.value)} data-testid="input-register-batch" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="regEmail">Email (Optional)</Label>
-                    <Input id="regEmail" type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} />
+                    <Input id="regEmail" type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} data-testid="input-register-email" />
                   </div>
                 </div>
 
-                {qrCodeUrl && (
+                {settings?.qrCodeUrl && (
                   <div className="flex flex-col items-center justify-center p-4 border rounded-md bg-muted/20">
                     <p className="text-sm font-semibold mb-2">Scan to Pay Registration Fee</p>
-                    <img src={qrCodeUrl} alt="Payment QR Code" className="w-64 h-64 object-contain" />
+                    <img src={settings.qrCodeUrl} alt="Payment QR Code" className="w-64 h-64 object-contain" />
                   </div>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating Profile..." : "Create Profile"}
+                <Button type="submit" className="w-full" disabled={isRegistering} data-testid="button-register">
+                  {isRegistering ? "Creating Profile..." : "Create Profile"}
                 </Button>
               </form>
             </TabsContent>
@@ -294,23 +266,22 @@ console.log("*******", login, login(loginId, loginMobile))
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Student ID</Label>
-                  <Input value={resetId} onChange={e => setResetId(e.target.value)} required />
+                  <Input value={resetStudentId} onChange={e => setResetStudentId(e.target.value)} required data-testid="input-reset-student-id" />
                 </div>
                 <div className="space-y-2">
                   <Label>Mobile Number</Label>
-                  <Input value={resetMobile} onChange={e => setResetMobile(e.target.value)} required />
+                  <Input value={resetMobile} onChange={e => setResetMobile(e.target.value)} required data-testid="input-reset-mobile" />
                 </div>
                 <div className="space-y-2">
                   <Label>City</Label>
-                  <Input value={resetCity} onChange={e => setResetCity(e.target.value)} required />
+                  <Input value={resetCity} onChange={e => setResetCity(e.target.value)} required data-testid="input-reset-city" />
                 </div>
                 <div className="space-y-2">
-                  <Label>New Password (Mobile No)</Label>
-                  <Input type="text" placeholder="Enter new mobile number" value={resetNewPass} onChange={e => setResetNewPass(e.target.value)} required />
-                  <p className="text-[10px] text-muted-foreground">Since mobile number is your password, this updates your registered mobile number.</p>
+                  <Label>New Password</Label>
+                  <Input type="password" placeholder="Enter new password" value={resetNewPass} onChange={e => setResetNewPass(e.target.value)} required data-testid="input-reset-password" />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Processing..." : "Reset Password"}
+                <Button type="submit" className="w-full" data-testid="button-reset-password">
+                  Reset Password
                 </Button>
                 <div className="text-center">
                    <Button 
@@ -318,6 +289,7 @@ console.log("*******", login, login(loginId, loginMobile))
                      variant="link" 
                      className="text-xs text-muted-foreground hover:text-primary hover:underline p-0 h-auto"
                      onClick={() => setActiveTab("login")}
+                     data-testid="button-back-to-login"
                    >
                      Back to Login
                    </Button>
