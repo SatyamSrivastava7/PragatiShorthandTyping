@@ -143,6 +143,36 @@ export async function registerRoutes(
       res.json({ message: "Logged out successfully" });
     });
   });
+
+  // Reset password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { studentId, mobile, city, newPassword } = req.body;
+      
+      if (!studentId || !mobile || !city || !newPassword) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+      
+      // Find user by mobile
+      const user = await storage.getUserByMobile(mobile);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Verify studentId and city match
+      if (user.studentId !== studentId || user.city?.toLowerCase() !== city.toLowerCase()) {
+        return res.status(400).json({ message: "Details do not match our records" });
+      }
+      
+      // Hash new password and update
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUser(user.id, { password: hashedPassword });
+      
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
   
   // ==================== USER ROUTES ====================
   
@@ -293,8 +323,23 @@ export async function registerRoutes(
     }
   });
   
-  // Toggle content
+  // Toggle content (supports both POST and PATCH)
   app.post("/api/content/:id/toggle", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const content = await storage.toggleContent(id);
+      
+      if (!content) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+      
+      res.json(content);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to toggle content" });
+    }
+  });
+
+  app.patch("/api/content/:id/toggle", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const content = await storage.toggleContent(id);
@@ -342,6 +387,17 @@ export async function registerRoutes(
         results = await storage.getAllResults();
       }
       
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get results" });
+    }
+  });
+
+  // Get results by student ID (URL pattern)
+  app.get("/api/results/student/:studentId", async (req, res) => {
+    try {
+      const studentId = parseInt(req.params.studentId);
+      const results = await storage.getResultsByStudent(studentId);
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to get results" });
@@ -396,7 +452,17 @@ export async function registerRoutes(
   
   // ==================== PDF FOLDER ROUTES ====================
   
+  // Support both /api/pdf-folders and /api/pdf/folders
   app.get("/api/pdf-folders", async (req, res) => {
+    try {
+      const folders = await storage.getAllPdfFolders();
+      res.json(folders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get folders" });
+    }
+  });
+
+  app.get("/api/pdf/folders", async (req, res) => {
     try {
       const folders = await storage.getAllPdfFolders();
       res.json(folders);
@@ -406,6 +472,19 @@ export async function registerRoutes(
   });
   
   app.post("/api/pdf-folders", async (req, res) => {
+    try {
+      const validatedData = insertPdfFolderSchema.parse(req.body);
+      const folder = await storage.createPdfFolder(validatedData);
+      res.status(201).json(folder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Failed to create folder" });
+    }
+  });
+
+  app.post("/api/pdf/folders", async (req, res) => {
     try {
       const validatedData = insertPdfFolderSchema.parse(req.body);
       const folder = await storage.createPdfFolder(validatedData);
@@ -432,10 +511,43 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete folder" });
     }
   });
+
+  app.delete("/api/pdf/folders/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePdfFolder(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+      
+      res.json({ message: "Folder deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete folder" });
+    }
+  });
   
   // ==================== PDF RESOURCE ROUTES ====================
   
+  // Support both /api/pdf-resources and /api/pdf/resources
   app.get("/api/pdf-resources", async (req, res) => {
+    try {
+      const folderId = req.query.folderId ? parseInt(req.query.folderId as string) : undefined;
+      
+      let resources;
+      if (folderId) {
+        resources = await storage.getPdfResourcesByFolder(folderId);
+      } else {
+        resources = await storage.getAllPdfResources();
+      }
+      
+      res.json(resources);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get resources" });
+    }
+  });
+
+  app.get("/api/pdf/resources", async (req, res) => {
     try {
       const folderId = req.query.folderId ? parseInt(req.query.folderId as string) : undefined;
       
@@ -453,6 +565,19 @@ export async function registerRoutes(
   });
   
   app.post("/api/pdf-resources", async (req, res) => {
+    try {
+      const validatedData = insertPdfResourceSchema.parse(req.body);
+      const resource = await storage.createPdfResource(validatedData);
+      res.status(201).json(resource);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Failed to create resource" });
+    }
+  });
+
+  app.post("/api/pdf/resources", async (req, res) => {
     try {
       const validatedData = insertPdfResourceSchema.parse(req.body);
       const resource = await storage.createPdfResource(validatedData);
@@ -492,6 +617,49 @@ export async function registerRoutes(
       res.json({ message: "Resource deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete resource" });
+    }
+  });
+
+  app.delete("/api/pdf/resources/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deletePdfResource(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Resource not found" });
+      }
+      
+      res.json({ message: "Resource deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete resource" });
+    }
+  });
+
+  // PDF Purchase route
+  app.post("/api/pdf/purchase/:pdfId", async (req, res) => {
+    try {
+      const pdfId = parseInt(req.params.pdfId);
+      const userId = req.session.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Add pdfId to user's purchasedPdfs
+      const purchasedPdfs = user.purchasedPdfs || [];
+      if (!purchasedPdfs.includes(pdfId.toString())) {
+        purchasedPdfs.push(pdfId.toString());
+        await storage.updateUser(userId, { purchasedPdfs });
+      }
+      
+      res.json({ message: "PDF purchased successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to purchase PDF" });
     }
   });
   
@@ -641,6 +809,33 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete image" });
     }
   });
+
+  // Delete gallery image by URL (body-based)
+  app.delete("/api/gallery", async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+      
+      // Find image by URL and delete
+      const images = await storage.getAllGalleryImages();
+      const image = images.find(img => img.url === url);
+      
+      if (!image) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+      
+      const success = await storage.deleteGalleryImage(image.id);
+      if (!success) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+      
+      res.json({ message: "Image deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete image" });
+    }
+  });
   
   // ==================== SETTINGS ROUTES ====================
   
@@ -673,6 +868,28 @@ export async function registerRoutes(
         return res.status(400).json({ message: fromZodError(error).message });
       }
       res.status(500).json({ message: "Failed to upsert setting" });
+    }
+  });
+
+  // Update settings (PATCH - update multiple settings at once)
+  app.patch("/api/settings", async (req, res) => {
+    try {
+      const updates = req.body;
+      const results: any[] = [];
+      
+      // Update each setting provided in the body
+      for (const [key, value] of Object.entries(updates)) {
+        if (typeof value === 'string' || typeof value === 'number') {
+          const setting = await storage.upsertSetting({ key, value: String(value) });
+          results.push(setting);
+        }
+      }
+      
+      // Return all settings after update
+      const settings = await storage.getAllSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update settings" });
     }
   });
 
