@@ -490,9 +490,6 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         );
-      case "audio_dictation":
-        // Removed as per request
-        return <div className="p-4 text-center">Section moved to Upload</div>;
       case "pdfstore":
         return (
           <Card>
@@ -513,9 +510,9 @@ export default function AdminDashboard() {
                           key={f.id} 
                           className={cn(
                             "text-sm p-2 rounded flex items-center justify-between cursor-pointer hover:bg-muted",
-                            selectedFolderId === f.id ? "bg-muted font-medium" : ""
+                            selectedFolderId === parseInt(f.id) ? "bg-muted font-medium" : ""
                           )}
-                          onClick={() => setSelectedFolderId(f.id)}
+                          onClick={() => setSelectedFolderId(parseInt(f.id))}
                         >
                           <div className="flex items-center gap-2">
                             <FolderPlus size={14} className="text-blue-500" /> {f.name}
@@ -536,7 +533,7 @@ export default function AdminDashboard() {
                     <div className="p-4 border rounded-lg bg-slate-50/50 space-y-4">
                       <div className="text-sm font-medium text-blue-800 flex items-center gap-2 mb-2">
                         <FolderPlus size={16}/> 
-                        Selected: {pdfFolders.find(f => f.id === selectedFolderId)?.name}
+                        Selected: {pdfFolders.find(f => parseInt(f.id) === selectedFolderId)?.name}
                       </div>
                       
                       <div className="space-y-2">
@@ -558,18 +555,18 @@ export default function AdminDashboard() {
                       <div className="mt-6 border-t pt-4">
                         <h4 className="font-semibold mb-2 text-sm">Files in Folder</h4>
                         <div className="space-y-2 max-h-48 overflow-auto">
-                          {pdfResources.filter(p => p.folderId === selectedFolderId).map(pdf => (
+                          {pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).map(pdf => (
                             <div key={pdf.id} className="flex items-center justify-between p-2 border rounded text-sm bg-white">
                               <div className="flex flex-col overflow-hidden">
                                 <span className="truncate font-medium">{pdf.name}</span>
                                 <span className="text-xs text-muted-foreground">{pdf.pageCount} pages • ₹{pdf.price}</span>
                               </div>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDeletePdf(pdf.id)}>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDeletePdf(parseInt(pdf.id))}>
                                 <Trash2 size={14} />
                               </Button>
                             </div>
                           ))}
-                          {pdfResources.filter(p => p.folderId === selectedFolderId).length === 0 && (
+                          {pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).length === 0 && (
                             <p className="text-muted-foreground text-xs text-center py-4 border border-dashed rounded">No files in this folder.</p>
                           )}
                         </div>

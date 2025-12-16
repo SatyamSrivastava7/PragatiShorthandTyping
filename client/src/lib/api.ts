@@ -167,7 +167,7 @@ export const pdfApi = {
     url: string;
     pageCount: number;
     price: number;
-    folderId?: number;
+    folderId: number;
   }) =>
     fetchApi<PdfResource>('/api/pdf/resources', {
       method: 'POST',
