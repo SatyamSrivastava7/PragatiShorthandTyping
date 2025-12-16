@@ -423,7 +423,35 @@ export async function registerRoutes(
   // Create result
   app.post("/api/results", async (req, res) => {
     try {
-      const validatedData = insertResultSchema.parse(req.body);
+      // Get current user from session
+      const userId = req.session.userId;
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // Get content details
+      const contentItem = await storage.getContent(req.body.contentId);
+      if (!contentItem) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+      
+      // Build complete result data
+      const resultData = {
+        ...req.body,
+        studentId: user.id,
+        studentName: user.name,
+        contentTitle: contentItem.title,
+        contentType: contentItem.type,
+        originalText: contentItem.text,
+        language: contentItem.language || 'english',
+      };
+      
+      const validatedData = insertResultSchema.parse(resultData);
       const result = await storage.createResult(validatedData);
       res.status(201).json(result);
     } catch (error) {
