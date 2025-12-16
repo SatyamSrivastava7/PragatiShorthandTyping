@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Timer, EyeOff, Save, CheckCircle, Music, ArrowLeft, Settings, Maximize, Minimize, Type } from "lucide-react";
+import { Timer, EyeOff, Save, CheckCircle, Music, ArrowLeft, Settings, Maximize, Minimize, Type, RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -37,6 +37,8 @@ export default function TypingTestPage() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [fontSize, setFontSize] = useState(18);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [submissionFailed, setSubmissionFailed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Timer Reference
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,13 +86,13 @@ export default function TypingTestPage() {
     const textarea = document.getElementById("typing-area");
     if (textarea) textarea.focus();
     
-    // Play audio if available and shorthand
-    if (testContent?.type === 'shorthand' && testContent.mediaUrl) {
-      const audio = document.getElementById('shorthand-audio') as HTMLAudioElement;
-      if (audio) {
-        audio.play().catch(e => console.log("Audio play failed", e));
-      }
-    }
+    // // Play audio if available and shorthand
+    // if (testContent?.type === 'shorthand' && testContent.mediaUrl) {
+    //   const audio = document.getElementById('shorthand-audio') as HTMLAudioElement;
+    //   if (audio) {
+    //     audio.play().catch(e => console.log("Audio play failed", e));
+    //   }
+    // }
   };
 
   const finishTest = () => {
@@ -125,6 +127,9 @@ export default function TypingTestPage() {
       return;
     }
 
+    setIsSubmitting(true);
+    setSubmissionFailed(false);
+
     let metrics;
     if (testContent.type === 'typing') {
       metrics = calculateTypingMetrics(testContent.text, typedText, testContent.duration, backspaces);
@@ -154,14 +159,18 @@ export default function TypingTestPage() {
         description: "Your results have been recorded.",
       });
 
+      setSubmissionFailed(false);
       setShowResultModal(true);
     } catch (error) {
       console.error("Test submission error:", error);
+      setSubmissionFailed(true);
       toast({
         variant: "destructive",
         title: "Submission Failed",
-        description: error instanceof Error ? error.message : "Failed to submit your test results. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to submit your test results. Please use the retry button.",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -332,10 +341,30 @@ export default function TypingTestPage() {
       </div>
       
       {/* Footer Controls */}
-      <div className="shrink-0 flex justify-end pb-2">
+      <div className="shrink-0 flex justify-end gap-3 pb-2">
          {isActive && (
             <Button variant="destructive" onClick={finishTest} className="gap-2 shadow-lg">
               <Save size={16} /> Submit Test Early
+            </Button>
+         )}
+         
+         {/* Retry button when submission fails */}
+         {isFinished && submissionFailed && (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isSubmitting}
+              className="gap-2 shadow-lg bg-orange-600 hover:bg-orange-700"
+              data-testid="button-retry-submit"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Submitting...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={16} /> Retry Submit
+                </>
+              )}
             </Button>
          )}
       </div>
