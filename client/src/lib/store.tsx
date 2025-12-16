@@ -55,6 +55,7 @@ export interface Content {
 export interface Result {
   id: number;
   studentId: number;
+  studentDisplayId?: string | null; // PIPS format ID for display
   studentName: string;
   contentId: number;
   contentTitle: string;

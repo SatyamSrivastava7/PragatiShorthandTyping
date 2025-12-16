@@ -651,7 +651,7 @@ export default function AdminDashboard() {
                               <TableRow key={result.id}>
                                 <TableCell>
                                   <div className="font-medium">{result.studentName}</div>
-                                  <div className="text-xs text-muted-foreground">{result.studentId}</div>
+                                  <div className="text-xs text-muted-foreground">{result.studentDisplayId || result.studentId}</div>
                                 </TableCell>
                                 <TableCell>
                                   <div className="font-medium">{result.contentTitle}</div>

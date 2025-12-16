@@ -43,6 +43,7 @@ export const content = pgTable("content", {
 export const results = pgTable("results", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id").notNull().references(() => users.id),
+  studentDisplayId: varchar("student_display_id", { length: 50 }), // PIPS format ID for display
   studentName: text("student_name").notNull(),
   contentId: integer("content_id").notNull().references(() => content.id),
   contentTitle: text("content_title").notNull(),

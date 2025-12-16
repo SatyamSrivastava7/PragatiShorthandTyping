@@ -451,6 +451,7 @@ export async function registerRoutes(
       const resultData = {
         ...req.body,
         studentId: user.id,
+        studentDisplayId: user.studentId, // PIPS format ID for display
         studentName: user.name,
         contentTitle: contentItem.title,
         contentType: contentItem.type,
