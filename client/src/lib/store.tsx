@@ -53,24 +53,22 @@ export interface Content {
 }
 
 export interface Result {
-  id: string;
-  studentId: string;
+  id: number;
+  studentId: number;
   studentName: string;
-  contentId: string;
+  contentId: number;
   contentTitle: string;
-  contentType: 'typing' | 'shorthand';
+  contentType: string;
   typedText: string;
-  originalText?: string; // Snapshot
-  language?: 'english' | 'hindi';
-  metrics: {
-    words: number;
-    time: number; // allocated time in minutes
-    mistakes: number;
-    backspaces: number;
-    grossSpeed?: number | string; // Can be string formatted
-    netSpeed?: number | string;
-    result?: 'Pass' | 'Fail'; // For shorthand
-  };
+  originalText?: string | null;
+  language?: string | null;
+  words: number;
+  time: number;
+  mistakes: string;
+  backspaces: number;
+  grossSpeed?: string | null;
+  netSpeed?: string | null;
+  result?: string | null;
   submittedAt: string;
 }
 

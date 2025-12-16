@@ -265,27 +265,27 @@ export const generateResultPDF = async (result: Result) => {
           <th>Metric</th><th>Value</th>
         </tr>
         <tr>
-          <td>Mistakes</td><td class="error">${result.metrics.mistakes}</td>
+          <td>Mistakes</td><td class="error">${result.mistakes}</td>
         </tr>
         <tr>
-          <td>Total Words Typed</td><td>${result.metrics.words}</td>
+          <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>
           <td>Total Original Words</td><td>${originalWords.length}</td>
         </tr>
         ${result.contentType === 'typing' ? `
           <tr>
-            <td>Net Speed</td><td class="success">${result.metrics.netSpeed} WPM</td>
+            <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
           </tr>
           <tr>
-            <td>Gross Speed</td><td>${result.metrics.grossSpeed} WPM</td>
+            <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
           </tr>
           <tr>
-            <td>Backspaces</td><td>${result.metrics.backspaces}</td>
+            <td>Backspaces</td><td>${result.backspaces}</td>
           </tr>
         ` : `
           <tr>
-            <td>Result</td><td class="${result.metrics.result === 'Pass' ? 'success' : 'error'}">${result.metrics.result}</td>
+            <td>Result</td><td class="${result.result === 'Pass' ? 'success' : 'error'}">${result.result}</td>
           </tr>
         `}
       </table>

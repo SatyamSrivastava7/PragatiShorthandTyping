@@ -371,31 +371,31 @@ export default function StudentDashboard() {
                           {result.contentType === "typing" ? (
                             <div className="text-sm">
                               <span className="font-bold text-primary">
-                                {result.metrics.netSpeed} WPM
+                                {result.netSpeed} WPM
                               </span>
                               <span className="mx-2 text-muted-foreground">
                                 |
                               </span>
                               <span className="text-muted-foreground">
-                                {result.metrics.mistakes} Mistakes
+                                {result.mistakes} Mistakes
                               </span>
                             </div>
                           ) : (
                             <div className="text-sm">
                               <span
                                 className={
-                                  result.metrics.result === "Pass"
+                                  result.result === "Pass"
                                     ? "text-green-600 font-bold"
                                     : "text-red-600 font-bold"
                                 }
                               >
-                                {result.metrics.result}
+                                {result.result}
                               </span>
                               <span className="mx-2 text-muted-foreground">
                                 |
                               </span>
                               <span className="text-muted-foreground">
-                                {result.metrics.mistakes} Mistakes
+                                {result.mistakes} Mistakes
                               </span>
                             </div>
                           )}
@@ -440,7 +440,7 @@ export default function StudentDashboard() {
                                         Mistakes:
                                       </span>{" "}
                                       <span className="text-red-600 font-bold">
-                                        {result.metrics.mistakes}
+                                        {result.mistakes}
                                       </span>
                                     </div>
                                     <div>
@@ -457,7 +457,7 @@ export default function StudentDashboard() {
                                           <span className="font-semibold">
                                             Net Speed:
                                           </span>{" "}
-                                          {result.metrics.netSpeed} WPM
+                                          {result.netSpeed} WPM
                                         </span>
                                       ) : (
                                         <span>
@@ -465,12 +465,12 @@ export default function StudentDashboard() {
                                             Result:
                                           </span>{" "}
                                           <span className={
-                                              result.metrics.result === "Pass"
+                                              result.result === "Pass"
                                                 ? "text-green-600 font-bold"
                                                 : "text-red-600 font-bold"
                                             }>
                                             {" "}
-                                            {result.metrics.result}
+                                            {result.result}
                                           </span>{" "}
                                         </span>
                                       )}
