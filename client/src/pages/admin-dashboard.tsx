@@ -662,17 +662,17 @@ export default function AdminDashboard() {
                                   <div className="text-sm space-y-1">
                                     {result.contentType === 'typing' ? (
                                       <>
-                                        <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.metrics.netSpeed} WPM</strong></div>
-                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                                        <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.netSpeed} WPM</strong></div>
+                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.mistakes}</div>
                                       </>
                                     ) : (
                                       <>
                                         <div><span className="text-muted-foreground">Result:</span> 
-                                          <span className={result.metrics.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
-                                            {result.metrics.result}
+                                          <span className={result.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
+                                            {result.result}
                                           </span>
                                         </div>
-                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.metrics.mistakes}</div>
+                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.mistakes}</div>
                                       </>
                                     )}
                                   </div>
@@ -697,7 +697,7 @@ export default function AdminDashboard() {
                                             <span className="font-semibold">Date:</span> {format(new Date(result.submittedAt), "PPP")}
                                           </div>
                                           <div>
-                                            <span className="font-semibold">Mistakes:</span> <span className="text-red-600 font-bold">{result.metrics.mistakes}</span>
+                                            <span className="font-semibold">Mistakes:</span> <span className="text-red-600 font-bold">{result.mistakes}</span>
                                           </div>
                                           <div>
                                             <span className="font-semibold">Total Original Words:</span> <span>{(result.originalText || "").trim().split(/\s+/).length}</span>
@@ -705,13 +705,13 @@ export default function AdminDashboard() {
                                           <div>
                                             {result.contentType === "typing" ? (
                                               <span>
-                                                <span className="font-semibold">Net Speed:</span> {result.metrics.netSpeed} WPM
+                                                <span className="font-semibold">Net Speed:</span> {result.netSpeed} WPM
                                               </span>
                                             ) : (
                                               <span>
                                                 <span className="font-semibold">Result:</span>{" "}
-                                                <span className={result.metrics.result === "Pass" ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
-                                                  {result.metrics.result}
+                                                <span className={result.result === "Pass" ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                                                  {result.result}
                                                 </span>
                                               </span>
                                             )}
