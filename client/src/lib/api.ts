@@ -127,7 +127,7 @@ export const resultsApi = {
     typedText: string;
     words: number;
     time: number;
-    mistakes: number;
+    mistakes: string;
     backspaces: number;
     grossSpeed?: string;
     netSpeed?: string;

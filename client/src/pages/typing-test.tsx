@@ -142,7 +142,7 @@ export default function TypingTestPage() {
         typedText: typedText,
         words: metrics.words,
         time: testContent.duration,
-        mistakes: metrics.mistakes,
+        mistakes: String(metrics.mistakes),
         backspaces: backspaces,
         grossSpeed: String(metrics.grossSpeed),
         netSpeed: String(metrics.netSpeed),
