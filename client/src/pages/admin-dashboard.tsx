@@ -444,7 +444,13 @@ export default function AdminDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {content.filter(c => c.type === type).map((item) => (
+                          {content
+                            .filter(c => c.type === type)
+                            .sort((a, b) => {
+                              if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+                              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                            })
+                            .map((item) => (
                             <TableRow key={item.id}>
                               <TableCell>{format(new Date(item.dateFor), "MMM d")}</TableCell>
                               <TableCell className="font-medium">{item.title}</TableCell>

@@ -33,7 +33,7 @@ export const content = pgTable("content", {
   text: text("text").notNull(),
   duration: integer("duration").notNull(), // in minutes
   dateFor: varchar("date_for", { length: 20 }).notNull(), // ISO date string
-  isEnabled: boolean("is_enabled").default(true).notNull(),
+  isEnabled: boolean("is_enabled").default(false).notNull(),
   mediaUrl: text("media_url"),
   language: varchar("language", { length: 10 }).default('english'), // 'english' | 'hindi'
   createdAt: timestamp("created_at").defaultNow().notNull(),
