@@ -51,7 +51,7 @@ import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
-  const { enabledContent: content } = useContent();
+  const { enabledContent: content, isLoading: isContentLoading } = useContent();
   const { results } = useResults(currentUser?.id);
   const {
     folders: pdfFolders,
@@ -191,6 +191,12 @@ export default function StudentDashboard() {
         </TabsList>
 
         <TabsContent value="typing_tests">
+          {isContentLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-3 text-muted-foreground">Loading tests...</span>
+            </div>
+          ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {typingTests.length > 0 ? (
               typingTests.map((test) => {
@@ -244,9 +250,16 @@ export default function StudentDashboard() {
               </div>
             )}
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="shorthand_tests">
+          {isContentLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+              <span className="ml-3 text-muted-foreground">Loading tests...</span>
+            </div>
+          ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {shorthandTests.length > 0 ? (
               shorthandTests.map((test) => {
@@ -323,6 +336,7 @@ export default function StudentDashboard() {
               </div>
             )}
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="results">

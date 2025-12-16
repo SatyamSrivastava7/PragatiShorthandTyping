@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 
 export default function AdminDashboard() {
-  const { content, createContent, toggleContent, deleteContent } = useContent();
+  const { content, createContent, toggleContent, deleteContent, isLoading: isContentLoading } = useContent();
   const { results } = useResults();
   const { users, updateUser, deleteUser } = useUsers();
   const { folders: pdfFolders, resources: pdfResources, createFolder: addPdfFolder, createResource: addPdfResource, deleteResource: deletePdfResource } = usePdf();
@@ -442,6 +442,12 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader><CardTitle>Manage Tests</CardTitle></CardHeader>
             <CardContent>
+              {isContentLoading ? (
+                <div className="flex items-center justify-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-3 text-muted-foreground">Loading tests...</span>
+                </div>
+              ) : (
               <div className="space-y-8">
                 {['typing', 'shorthand'].map(type => (
                   <div key={type} className="space-y-4">
@@ -529,6 +535,7 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
         );
