@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -46,8 +46,20 @@ export default function AdminDashboard() {
   
   const registrationFee = settings?.registrationFee || 0;
   const qrCodeUrl = settings?.qrCodeUrl || '';
-  const setRegistrationFee = (fee: number) => updateSettings?.({ registrationFee: fee });
+  const [localRegFee, setLocalRegFee] = useState<number>(registrationFee);
   const setQrCodeUrl = (url: string) => updateSettings?.({ qrCodeUrl: url });
+
+  useEffect(() => {
+    setLocalRegFee(registrationFee);
+  }, [registrationFee]);
+
+  useEffect(() => {
+    if (localRegFee === registrationFee) return;
+    const timer = setTimeout(() => {
+      updateSettings?.({ registrationFee: localRegFee });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [localRegFee]);
   
   const [activeTab, setActiveTab] = useState("students");
 
@@ -260,7 +272,7 @@ export default function AdminDashboard() {
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
                   <div className="flex items-center gap-2">
                     <Label>Reg Fee:</Label>
-                    <Input type="number" className="w-24" value={registrationFee} onChange={e => setRegistrationFee(Number(e.target.value))} />
+                    <Input type="number" className="w-24" value={localRegFee} onChange={e => setLocalRegFee(Number(e.target.value))} />
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <Label className="whitespace-nowrap">QR Code:</Label>
