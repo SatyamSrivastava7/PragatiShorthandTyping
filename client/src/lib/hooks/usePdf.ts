@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { pdfApi } from '../api';
+import type { PdfFolder, PdfResource } from '@shared/schema';
 
 export function usePdf() {
   const queryClient = useQueryClient();
@@ -7,23 +8,69 @@ export function usePdf() {
   const { data: folders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ['pdf', 'folders'],
     queryFn: pdfApi.getFolders,
+    staleTime: 30000,
   });
 
   const { data: resources = [], isLoading: resourcesLoading } = useQuery({
     queryKey: ['pdf', 'resources'],
     queryFn: pdfApi.getResources,
+    staleTime: 30000,
   });
 
   const createFolderMutation = useMutation({
     mutationFn: pdfApi.createFolder,
-    onSuccess: () => {
+    onMutate: async (name) => {
+      await queryClient.cancelQueries({ queryKey: ['pdf', 'folders'] });
+      const previousFolders = queryClient.getQueryData<PdfFolder[]>(['pdf', 'folders']);
+      
+      const optimisticFolder: PdfFolder = {
+        id: Date.now(),
+        name,
+        createdAt: new Date(),
+      };
+      
+      queryClient.setQueryData<PdfFolder[]>(['pdf', 'folders'], (old = []) => [...old, optimisticFolder]);
+      
+      return { previousFolders };
+    },
+    onError: (err, name, context) => {
+      if (context?.previousFolders) {
+        queryClient.setQueryData(['pdf', 'folders'], context.previousFolders);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['pdf', 'folders'] });
     },
   });
 
   const deleteFolderMutation = useMutation({
     mutationFn: pdfApi.deleteFolder,
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['pdf', 'folders'] });
+      await queryClient.cancelQueries({ queryKey: ['pdf', 'resources'] });
+      
+      const previousFolders = queryClient.getQueryData<PdfFolder[]>(['pdf', 'folders']);
+      const previousResources = queryClient.getQueryData<PdfResource[]>(['pdf', 'resources']);
+      
+      queryClient.setQueryData<PdfFolder[]>(['pdf', 'folders'], (old = []) =>
+        old.filter((folder) => folder.id !== id)
+      );
+      
+      queryClient.setQueryData<PdfResource[]>(['pdf', 'resources'], (old = []) =>
+        old.filter((resource) => resource.folderId !== id)
+      );
+      
+      return { previousFolders, previousResources };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousFolders) {
+        queryClient.setQueryData(['pdf', 'folders'], context.previousFolders);
+      }
+      if (context?.previousResources) {
+        queryClient.setQueryData(['pdf', 'resources'], context.previousResources);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['pdf', 'folders'] });
       queryClient.invalidateQueries({ queryKey: ['pdf', 'resources'] });
     },
@@ -31,14 +78,52 @@ export function usePdf() {
 
   const createResourceMutation = useMutation({
     mutationFn: pdfApi.createResource,
-    onSuccess: () => {
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['pdf', 'resources'] });
+      const previousResources = queryClient.getQueryData<PdfResource[]>(['pdf', 'resources']);
+      
+      const optimisticResource: PdfResource = {
+        id: Date.now(),
+        name: data.name,
+        url: data.url,
+        pageCount: data.pageCount,
+        price: data.price,
+        folderId: data.folderId,
+        createdAt: new Date(),
+      };
+      
+      queryClient.setQueryData<PdfResource[]>(['pdf', 'resources'], (old = []) => [...old, optimisticResource]);
+      
+      return { previousResources };
+    },
+    onError: (err, data, context) => {
+      if (context?.previousResources) {
+        queryClient.setQueryData(['pdf', 'resources'], context.previousResources);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['pdf', 'resources'] });
     },
   });
 
   const deleteResourceMutation = useMutation({
     mutationFn: pdfApi.deleteResource,
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['pdf', 'resources'] });
+      const previousResources = queryClient.getQueryData<PdfResource[]>(['pdf', 'resources']);
+      
+      queryClient.setQueryData<PdfResource[]>(['pdf', 'resources'], (old = []) =>
+        old.filter((resource) => resource.id !== id)
+      );
+      
+      return { previousResources };
+    },
+    onError: (err, id, context) => {
+      if (context?.previousResources) {
+        queryClient.setQueryData(['pdf', 'resources'], context.previousResources);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['pdf', 'resources'] });
     },
   });
