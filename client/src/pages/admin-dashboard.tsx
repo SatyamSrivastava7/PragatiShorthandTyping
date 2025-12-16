@@ -1,4 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
+};
 import { useAuth, useContent, useResults, useUsers, usePdf, useSettings, useGallery, useSelectedCandidates, useDictations } from "@/lib/hooks";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -75,14 +84,14 @@ export default function AdminDashboard() {
   const [candidateYear, setCandidateYear] = useState("");
   const [candidateImage, setCandidateImage] = useState<File | null>(null);
 
-  const handleAddCandidate = (e: React.FormEvent) => {
+  const handleAddCandidate = async (e: React.FormEvent) => {
      e.preventDefault();
      if (!candidateName || !candidateImage) {
         toast({ variant: "destructive", title: "Error", description: "Name and Image are required" });
         return;
      }
      
-     const imageUrl = URL.createObjectURL(candidateImage);
+     const imageUrl = await fileToBase64(candidateImage);
      addSelectedCandidate({
         name: candidateName,
         designation: candidateDesignation,
@@ -104,10 +113,10 @@ export default function AdminDashboard() {
       return;
     }
     
-    // Create mock URL for audio if shorthand
+    // Create base64 URL for audio if shorthand
     let mediaUrl = undefined;
     if (contentType === 'shorthand' && dictationFile) {
-      mediaUrl = URL.createObjectURL(dictationFile);
+      mediaUrl = await fileToBase64(dictationFile);
     }
 
     await createContent({
@@ -160,14 +169,13 @@ export default function AdminDashboard() {
     toast({ title: "Success", description: "Folder created" });
   };
 
-  const handleUploadPdf = () => {
+  const handleUploadPdf = async () => {
     if (!selectedFolderId || !pdfName || !pdfPageCount) {
       toast({ variant: "destructive", title: "Error", description: "All fields required" });
       return;
     }
     
-    // In a real app we would upload the file. Here we mock it.
-    const url = pdfFile ? URL.createObjectURL(pdfFile) : "#";
+    const url = pdfFile ? await fileToBase64(pdfFile) : "#";
 
     addPdfResource({
       name: pdfName,
@@ -182,19 +190,19 @@ export default function AdminDashboard() {
     setPdfFile(null);
   };
 
-  const handleUploadGallery = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadGallery = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      Array.from(e.target.files).forEach(file => {
-        const url = URL.createObjectURL(file);
+      for (const file of Array.from(e.target.files)) {
+        const url = await fileToBase64(file);
         addGalleryImage(url);
-      });
+      }
       toast({ title: "Success", description: "Images uploaded to gallery" });
     }
   };
   
-  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
-      const url = URL.createObjectURL(e.target.files[0]);
+      const url = await fileToBase64(e.target.files[0]);
       setQrCodeUrl(url);
       toast({ title: "Updated", description: "QR Code updated successfully" });
     }
