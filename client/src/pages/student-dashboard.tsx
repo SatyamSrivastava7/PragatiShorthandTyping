@@ -152,7 +152,7 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs defaultValue="typing_tests" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-300">
           <TabsTrigger
             value="typing_tests"
             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-foreground border-r last:border-r-0"
@@ -307,7 +307,7 @@ export default function StudentDashboard() {
                         </div>
                       ) : (
                         <Button
-                          className="w-full"
+                          className="w-full bg-orange-300"
                           variant="secondary"
                           onClick={() => setLocation(`/test/${test.id}`)}
                         >

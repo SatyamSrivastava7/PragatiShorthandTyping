@@ -155,7 +155,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             
             {/* Footer - Now Global */}
-            <footer className="w-full py-12 bg-slate-100 text-slate-600 shrink-0 border-t border-slate-200">
+            <footer className="w-full py-12 bg-slate-300 text-slate-600 shrink-0 border-t border-slate-200">
               <div className="container px-4 md:px-6 mx-auto">
                 <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
                    <div className="space-y-4">
