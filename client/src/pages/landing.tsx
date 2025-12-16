@@ -207,6 +207,13 @@ export default function LandingPage() {
                <CarouselPrevious />
                <CarouselNext />
              </Carousel>
+             {selectedCandidates.length > 4 && (
+               <div className="flex justify-center mt-8">
+                 <Link href="/selected-candidates">
+                   <Button variant="outline">View All Selected Candidates</Button>
+                 </Link>
+               </div>
+             )}
            </div>
         </div>
       </section>

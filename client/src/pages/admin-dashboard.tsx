@@ -625,7 +625,7 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="typing" className="w-full">
+              <Tabs key="results-tabs" defaultValue="typing" className="w-full">
                 <TabsList className="mb-4">
                   <TabsTrigger value="typing">Typing Results</TabsTrigger>
                   <TabsTrigger value="shorthand">Shorthand Results</TabsTrigger>
@@ -770,7 +770,7 @@ export default function AdminDashboard() {
               <CardDescription>Manage images and top students.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="gallery_images">
+              <Tabs key="gallery-tabs" defaultValue="gallery_images">
                 <TabsList className="mb-4">
                   <TabsTrigger value="gallery_images">Gallery Images</TabsTrigger>
                   <TabsTrigger value="selected_candidates">Selected Candidates</TabsTrigger>

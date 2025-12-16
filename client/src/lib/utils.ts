@@ -168,6 +168,13 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
 }
 
 export const generateResultPDF = async (result: Result) => {
+  // Generate filename: StudentName_TypeOfResult_Date
+  const sanitizeName = (name: string) => name.replace(/[^a-zA-Z0-9]/g, '_');
+  const studentName = sanitizeName(result.studentName);
+  const resultType = result.contentType.charAt(0).toUpperCase() + result.contentType.slice(1);
+  const dateStr = format(new Date(result.submittedAt), "yyyy-MM-dd");
+  const fileName = `${studentName}_${resultType}_${dateStr}`;
+  
   // Use a completely different approach: browser native print
   // Create a hidden iframe
   const iframe = document.createElement('iframe');
@@ -218,7 +225,7 @@ export const generateResultPDF = async (result: Result) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Result Report - ${result.studentName}</title>
+      <title>${fileName}</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 8px; color: #000; background: #fff; }
         @media print {
@@ -247,7 +254,7 @@ export const generateResultPDF = async (result: Result) => {
       <table>
         <tr>
           <td class="label">Student Name:</td><td>${result.studentName}</td>
-          <td class="label">Student ID:</td><td>${result.studentId}</td>
+          <td class="label">Student ID:</td><td>${result.studentDisplayId || result.studentId}</td>
         </tr>
         <tr>
           <td class="label">Test Title:</td><td>${result.contentTitle}</td>
