@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge"
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { format } from "date-fns";
-import { Result } from "./store";
+import { Result } from "@shared/schema";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

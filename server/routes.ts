@@ -92,6 +92,11 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      // Check if student access is disabled (payment not completed)
+      if (user.role === 'student' && !user.isPaymentCompleted) {
+        return res.status(403).json({ message: "Your access has been disabled. Please contact the administrator." });
+      }
+      
       // Set session
       req.session.userId = user.id;
       

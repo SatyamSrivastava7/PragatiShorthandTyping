@@ -1,4 +1,4 @@
-import type { User, Content, Result, PdfFolder, PdfResource } from './store';
+import type { User, Content, Result, PdfFolder, PdfResource } from '@shared/schema';
 
 const API_URL = '';
 
