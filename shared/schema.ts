@@ -141,6 +141,8 @@ export const insertPdfFolderSchema = createInsertSchema(pdfFolders).omit({
 export const insertPdfResourceSchema = createInsertSchema(pdfResources).omit({
   id: true,
   createdAt: true,
+}).extend({
+  price: z.union([z.string(), z.number()]).transform(val => String(val)),
 });
 
 export const insertDictationSchema = createInsertSchema(dictations).omit({
