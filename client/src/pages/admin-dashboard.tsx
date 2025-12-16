@@ -433,48 +433,11 @@ export default function AdminDashboard() {
                               <TableCell>
                                 {item.isEnabled ? <span className="text-green-600 font-bold text-xs">Active</span> : <span className="text-gray-400 text-xs">Inactive</span>}
                               </TableCell>
-                              <TableCell>
-                                <Dialog>
-                                  <DialogTrigger asChild><Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button></DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader><DialogTitle>{item.title}</DialogTitle></DialogHeader>
-                                    <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
-                                      <p className="whitespace-pre-wrap">{item.text}</p>
-                                      {item.mediaUrl && <div className="mt-2 text-xs text-blue-600 flex items-center gap-1"><Music size={12}/> Audio Attached</div>}
-                                    </div>
-                                    <div className="mt-4 flex justify-end">
-                                      {/* Mock result download for admin preview */}
-                                      {/* <Button variant="outline" size="sm" onClick={() => generateResultPDF({
-                                        id: "preview",
-                                        studentId: "admin",
-                                        studentName: "Admin Preview",
-                                        contentId: item.id,
-                                        contentTitle: item.title,
-                                        contentType: item.type,
-                                        language: item.language,
-                                        originalText: item.text,
-                                        typedText: item.text, // Perfect match for preview
-                                        submittedAt: new Date().toISOString(),
-                                        metrics: {
-                                          words: item.text.split(" ").length,
-                                          mistakes: 0,
-                                          grossSpeed: 0,
-                                          netSpeed: 0,
-                                          backspaces: 0,
-                                          result: "Pass",
-                                          time: item.duration
-                                        }
-                                      })}>
-                                        <Download className="mr-2 h-4 w-4" /> Download PDF Preview
-                                      </Button> */}
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              </TableCell>
+                              
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(item.id)} />
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/90" onClick={() => handleDeleteContent(item.id)}>
+                                  <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(parseInt(item.id))} />
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/90" onClick={() => handleDeleteContent(parseInt(item.id))}>
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
