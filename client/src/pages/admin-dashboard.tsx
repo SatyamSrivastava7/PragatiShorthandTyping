@@ -419,7 +419,7 @@ export default function AdminDashboard() {
                             <TableHead>Lang</TableHead>
                             <TableHead>Duration</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Preview</TableHead>
+                            {/* <TableHead>Preview</TableHead> */}
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -444,7 +444,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className="mt-4 flex justify-end">
                                       {/* Mock result download for admin preview */}
-                                      <Button variant="outline" size="sm" onClick={() => generateResultPDF({
+                                      {/* <Button variant="outline" size="sm" onClick={() => generateResultPDF({
                                         id: "preview",
                                         studentId: "admin",
                                         studentName: "Admin Preview",
@@ -466,7 +466,7 @@ export default function AdminDashboard() {
                                         }
                                       })}>
                                         <Download className="mr-2 h-4 w-4" /> Download PDF Preview
-                                      </Button>
+                                      </Button> */}
                                     </div>
                                   </DialogContent>
                                 </Dialog>
