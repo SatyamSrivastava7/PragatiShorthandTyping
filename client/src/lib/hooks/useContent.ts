@@ -1,6 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { contentApi } from '../api';
 import type { Content } from '@shared/schema';
+
+export function usePrefetchContent() {
+  const queryClient = useQueryClient();
+  
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['content'],
+      queryFn: contentApi.getAll,
+      staleTime: 60000,
+    });
+  }, [queryClient]);
+}
 
 export function useContent() {
   const queryClient = useQueryClient();
@@ -8,13 +21,15 @@ export function useContent() {
   const { data: content = [], isLoading } = useQuery({
     queryKey: ['content'],
     queryFn: contentApi.getAll,
-    staleTime: 30000,
+    staleTime: 60000,
+    gcTime: 300000,
   });
 
   const { data: enabledContent = [], isLoading: isEnabledLoading } = useQuery({
     queryKey: ['content', 'enabled'],
     queryFn: contentApi.getEnabled,
-    staleTime: 30000,
+    staleTime: 60000,
+    gcTime: 300000,
   });
 
   const createMutation = useMutation({

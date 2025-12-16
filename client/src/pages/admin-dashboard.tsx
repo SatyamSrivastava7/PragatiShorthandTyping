@@ -8,7 +8,7 @@ const fileToBase64 = (file: File): Promise<string> => {
     reader.onerror = error => reject(error);
   });
 };
-import { useAuth, useContent, useResults, useUsers, usePdf, useSettings, useGallery, useSelectedCandidates, useDictations } from "@/lib/hooks";
+import { useAuth, useContent, usePrefetchContent, useResults, useUsers, usePdf, useSettings, useGallery, useSelectedCandidates, useDictations } from "@/lib/hooks";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 
 export default function AdminDashboard() {
+  usePrefetchContent();
   const { content, createContent, toggleContent, deleteContent, isLoading: isContentLoading } = useContent();
   const { results } = useResults();
   const { users, updateUser, deleteUser } = useUsers();
