@@ -103,7 +103,27 @@ export default function TypingTestPage() {
   };
 
   const handleSubmit = async () => {
-    if (!testContent || !currentUser) return;
+    console.log("handleSubmit called", { testContent, currentUser });
+    
+    if (!testContent) {
+      console.error("No test content available");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Test content not found.",
+      });
+      return;
+    }
+    
+    if (!currentUser) {
+      console.error("No current user - session may have expired");
+      toast({
+        variant: "destructive",
+        title: "Session Expired",
+        description: "Please log in again to submit your test.",
+      });
+      return;
+    }
 
     let metrics;
     if (testContent.type === 'typing') {
@@ -132,10 +152,11 @@ export default function TypingTestPage() {
 
       setShowResultModal(true);
     } catch (error) {
+      console.error("Test submission error:", error);
       toast({
         variant: "destructive",
         title: "Submission Failed",
-        description: "Failed to submit your test results. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to submit your test results. Please try again.",
       });
     }
   };
