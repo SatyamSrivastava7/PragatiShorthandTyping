@@ -33,7 +33,7 @@ export async function registerRoutes(
   // Register
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const validatedData = insertUserSchema.parse(req.body);
+      const validatedData = insertUserSchema.parse({ ...req.body, role: 'student' });
       
       // Check if user already exists
       const existingUser = await storage.getUserByMobile(validatedData.mobile);

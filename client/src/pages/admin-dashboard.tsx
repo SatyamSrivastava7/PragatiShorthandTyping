@@ -430,7 +430,7 @@ export default function AdminDashboard() {
                 {['typing', 'shorthand'].map(type => (
                   <div key={type} className="space-y-4">
                     <h3 className="text-lg font-semibold capitalize border-b pb-2">{type} Tests</h3>
-                    <div className="rounded-md border max-h-[400px] overflow-auto">
+                    <div className="rounded-md border max-h-[300px] overflow-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
