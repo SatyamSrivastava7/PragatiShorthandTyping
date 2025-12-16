@@ -89,7 +89,7 @@ export default function StudentDashboard() {
 
   const getResultForContent = (contentId: string) => {
     return results.find(
-      (r) => r.contentId === contentId && r.studentId === currentUser?.id,
+      (r) => r.contentId.toString() === contentId && r.studentId.toString() === currentUser?.id,
     );
   };
 
@@ -120,11 +120,12 @@ export default function StudentDashboard() {
     // Mock payment gateway delay
     await new Promise((r) => setTimeout(r, 2000));
 
-    buyPdf(selectedPdfForPurchase.id);
+    buyPdf(parseInt(selectedPdfForPurchase.id));
     setProcessingPdf(null);
     setSelectedPdfForPurchase(null);
     setShowPaymentModal(false);
     setIsVerifyingPayment(false);
+    
 
     toast({
       title: "Payment Successful",
@@ -147,7 +148,7 @@ export default function StudentDashboard() {
     document.body.removeChild(link);
 
     // Revert to Pay button (consume purchase)
-    consumePdfPurchase(pdfId);
+    consumePdfPurchase(parseInt(pdfId));
   };
 
   console.log("availableTests****", availableTests);
