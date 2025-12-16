@@ -914,7 +914,7 @@ export default function AdminDashboard() {
           <Button
             key={item.id}
             variant={activeTab === item.id ? "secondary" : "ghost"}
-            className={cn("justify-start gap-3", activeTab === item.id && "bg-white shadow-sm")}
+            className={cn("justify-start gap-3 cursor-pointer", activeTab === item.id && "bg-white shadow-sm")}
             onClick={() => setActiveTab(item.id)}
           >
             <item.icon size={18} />
