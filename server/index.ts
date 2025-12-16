@@ -7,6 +7,9 @@ import session from "express-session";
 const app = express();
 const httpServer = createServer(app);
 
+// Trust proxy for production (Replit uses reverse proxy)
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -22,6 +25,7 @@ app.use(
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
+      sameSite: "lax",
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     },
   })
