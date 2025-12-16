@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic } from "lucide-react";
+import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -86,6 +86,9 @@ export default function AdminDashboard() {
   // Dictation State - Merged into Upload
   const [dictationFile, setDictationFile] = useState<File | null>(null);
   const dictationFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Upload Loading State
+  const [isUploading, setIsUploading] = useState(false);
 
   // Analysis State
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
@@ -111,7 +114,7 @@ export default function AdminDashboard() {
         imageUrl: imageUrl
      });
      
-     toast({ title: "Success", description: "Candidate added" });
+     toast({ variant: "success", title: "Success", description: "Candidate added" });
      setCandidateName("");
      setCandidateDesignation("");
      setCandidateYear("");
@@ -125,28 +128,35 @@ export default function AdminDashboard() {
       return;
     }
     
-    // Create base64 URL for audio if shorthand
-    let mediaUrl = undefined;
-    if (contentType === 'shorthand' && dictationFile) {
-      mediaUrl = await fileToBase64(dictationFile);
-    }
+    setIsUploading(true);
+    toast({ variant: "info", title: "Uploading...", description: "Please wait while content is being uploaded." });
+    
+    try {
+      // Create base64 URL for audio if shorthand
+      let mediaUrl = undefined;
+      if (contentType === 'shorthand' && dictationFile) {
+        mediaUrl = await fileToBase64(dictationFile);
+      }
 
-    await createContent({
-      title,
-      type: contentType,
-      text: textContent,
-      duration: parseInt(duration),
-      dateFor,
-      language,
-      mediaUrl, // Attach audio URL
-    });
+      await createContent({
+        title,
+        type: contentType,
+        text: textContent,
+        duration: parseInt(duration),
+        dateFor,
+        language,
+        mediaUrl, // Attach audio URL
+      });
 
-    toast({ title: "Success", description: "Content uploaded successfully" });
-    setTitle("");
-    setTextContent("");
-    setDictationFile(null);
-    if (dictationFileInputRef.current) {
-      dictationFileInputRef.current.value = "";
+      toast({ variant: "success", title: "Success", description: "Content uploaded successfully" });
+      setTitle("");
+      setTextContent("");
+      setDictationFile(null);
+      if (dictationFileInputRef.current) {
+        dictationFileInputRef.current.value = "";
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -178,7 +188,7 @@ export default function AdminDashboard() {
     if (!newFolderName) return;
     addPdfFolder(newFolderName);
     setNewFolderName("");
-    toast({ title: "Success", description: "Folder created" });
+    toast({ variant: "success", title: "Success", description: "Folder created" });
   };
 
   const handleUploadPdf = async () => {
@@ -196,7 +206,7 @@ export default function AdminDashboard() {
       price: parseInt(pdfPageCount) * 1, 
       url: url,
     });
-    toast({ title: "Success", description: "PDF/Doc Resource added" });
+    toast({ variant: "success", title: "Success", description: "PDF/Doc Resource added" });
     setPdfName("");
     setPdfPageCount("");
     setPdfFile(null);
@@ -208,7 +218,7 @@ export default function AdminDashboard() {
         const url = await fileToBase64(file);
         addGalleryImage(url);
       }
-      toast({ title: "Success", description: "Images uploaded to gallery" });
+      toast({ variant: "success", title: "Success", description: "Images uploaded to gallery" });
     }
   };
   
@@ -416,7 +426,13 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <Button type="submit"><FileUp className="mr-2 h-4 w-4" /> Upload Content</Button>
+                <Button type="submit" disabled={isUploading}>
+                  {isUploading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                  ) : (
+                    <><FileUp className="mr-2 h-4 w-4" /> Upload Content</>
+                  )}
+                </Button>
               </form>
             </CardContent>
           </Card>

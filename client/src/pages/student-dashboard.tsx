@@ -128,6 +128,7 @@ export default function StudentDashboard() {
     
 
     toast({
+      variant: "success",
       title: "Payment Successful",
       description: `Payment verified. You can now download the file.`,
     });
@@ -135,6 +136,7 @@ export default function StudentDashboard() {
 
   const handleDownloadPdf = (pdfId: string, pdfUrl: string) => {
     toast({
+      variant: "info",
       title: "Downloading...",
       description: "Your PDF download has started.",
     });
