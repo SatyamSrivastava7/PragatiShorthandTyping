@@ -79,7 +79,7 @@ export function useContent() {
   const toggleMutation = useMutation({
     mutationFn: (id: number) => {
       if (id < 0) {
-        return Promise.reject(new Error('Cannot toggle content that is still being created'));
+        return Promise.resolve(null);
       }
       return contentApi.toggle(id);
     },
@@ -126,7 +126,7 @@ export function useContent() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => {
       if (id < 0) {
-        return Promise.reject(new Error('Cannot delete content that is still being created'));
+        return Promise.resolve(null);
       }
       return contentApi.delete(id);
     },
