@@ -33,8 +33,16 @@ export function useAuth() {
   const registerMutation = useMutation({
     mutationFn: authApi.register,
     onSuccess: (data) => {
-      queryClient.setQueryData(['session'], { user: data.user });
-      setLocation('/student');
+      // New students need admin approval, don't auto-login
+      if (data.pendingApproval) {
+        // Don't navigate or set session - user needs approval first
+        return;
+      }
+      // For backwards compatibility if user is returned
+      if (data.user) {
+        queryClient.setQueryData(['session'], { user: data.user });
+        setLocation('/student');
+      }
     },
   });
 

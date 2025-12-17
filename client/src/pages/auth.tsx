@@ -65,7 +65,7 @@ export default function AuthPage() {
     }
 
     try {
-      await register({
+      const result = await register({
         name: regName,
         mobile: regMobile,
         password: regPassword,
@@ -75,14 +75,31 @@ export default function AuthPage() {
         state: regState || undefined,
       });
       
-      toast({
-        title: "Registration Successful",
-        description: "Your account has been created. You can now login.",
-      });
-      // Switch to login tab
-      setLoginMobile(regMobile);
-      setLoginPassword(regPassword);
-      setActiveTab("login");
+      // Show success message for pending approval
+      if (result.pendingApproval) {
+        toast({
+          title: "Profile Created Successfully!",
+          description: `Your Student ID is ${result.studentId}. Please contact the administrator to activate your account before you can log in.`,
+          duration: 10000,
+        });
+        // Clear form and switch to login tab
+        setRegName("");
+        setRegMobile("");
+        setRegPassword("");
+        setRegBatch("");
+        setRegEmail("");
+        setRegCity("");
+        setRegState("");
+        setActiveTab("login");
+      } else {
+        toast({
+          title: "Registration Successful",
+          description: "Your account has been created. You can now login.",
+        });
+        setLoginMobile(regMobile);
+        setLoginPassword(regPassword);
+        setActiveTab("login");
+      }
     } catch (err: any) {
       toast({
         variant: "destructive",

@@ -44,7 +44,13 @@ export const authApi = {
     city?: string;
     state?: string;
   }) =>
-    fetchApi<{ user: User }>('/api/auth/register', {
+    fetchApi<{ 
+      user?: User;
+      success?: boolean;
+      pendingApproval?: boolean;
+      studentId?: string;
+      message?: string;
+    }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

@@ -50,19 +50,22 @@ export async function registerRoutes(
       const studentCount = allUsers.filter(u => u.role === 'student').length + 1;
       const studentId = `PIPS${year}${studentCount.toString().padStart(4, '0')}`;
       
-      // Create user
+      // Create user with isPaymentCompleted = false (requires admin approval)
       const user = await storage.createUser({
         ...validatedData,
         password: hashedPassword,
         studentId,
+        isPaymentCompleted: false,
       });
       
-      // Set session
-      req.session.userId = user.id;
-      
-      // Return user without password
-      const { password, ...userWithoutPassword } = user;
-      res.json({ user: userWithoutPassword });
+      // Don't auto-login students - they need admin approval first
+      // Return success with pending approval message
+      res.json({ 
+        success: true,
+        pendingApproval: true,
+        studentId: user.studentId,
+        message: "Your profile has been created successfully! Please contact the administrator to activate your account before you can log in."
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
