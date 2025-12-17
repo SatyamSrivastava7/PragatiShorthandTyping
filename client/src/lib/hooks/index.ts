@@ -1,5 +1,5 @@
 export { useAuth } from './useAuth';
-export { useContent, usePrefetchContent } from './useContent';
+export { useContent, useContentById, usePrefetchContent } from './useContent';
 export { useResults } from './useResults';
 export { useUsers } from './useUsers';
 export { usePdf } from './usePdf';

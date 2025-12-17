@@ -13,7 +13,7 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
   max: 10,
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 60000,
   connectionTimeoutMillis: 10000,
 });
 
@@ -22,3 +22,21 @@ pool.on('error', (err) => {
 });
 
 export const db = drizzle(pool, { schema });
+
+// Warmup function to keep database connection alive
+export async function warmupDatabase() {
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    console.log('Database connection warmed up');
+  } catch (error) {
+    console.error('Database warmup failed:', error);
+  }
+}
+
+// Initial warmup on startup
+warmupDatabase();
+
+// Keep connection warm every 4 minutes (Neon has 5 minute idle timeout)
+setInterval(warmupDatabase, 4 * 60 * 1000);

@@ -15,6 +15,16 @@ export function usePrefetchContent() {
   }, [queryClient]);
 }
 
+export function useContentById(id: number | undefined) {
+  return useQuery({
+    queryKey: ['content', 'full', id],
+    queryFn: () => contentApi.getById(id!),
+    enabled: !!id,
+    staleTime: 60000,
+    gcTime: 300000,
+  });
+}
+
 export function useContent() {
   const queryClient = useQueryClient();
 

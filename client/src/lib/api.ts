@@ -90,6 +90,9 @@ export const contentApi = {
   getEnabled: () =>
     fetchApi<Content[]>('/api/content/enabled'),
 
+  getById: (id: number) =>
+    fetchApi<Content>(`/api/content/${id}`),
+
   create: (data: {
     title: string;
     type: 'typing' | 'shorthand';

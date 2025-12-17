@@ -151,6 +151,38 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(content).orderBy(desc(content.createdAt));
   }
 
+  async getAllContentList(type?: string): Promise<Omit<Content, 'text'>[]> {
+    const columns = {
+      id: content.id,
+      title: content.title,
+      type: content.type,
+      duration: content.duration,
+      dateFor: content.dateFor,
+      isEnabled: content.isEnabled,
+      mediaUrl: content.mediaUrl,
+      language: content.language,
+      createdAt: content.createdAt,
+    };
+    if (type) {
+      return await db.select(columns).from(content).where(eq(content.type, type)).orderBy(desc(content.createdAt));
+    }
+    return await db.select(columns).from(content).orderBy(desc(content.createdAt));
+  }
+
+  async getEnabledContentList(): Promise<Omit<Content, 'text'>[]> {
+    return await db.select({
+      id: content.id,
+      title: content.title,
+      type: content.type,
+      duration: content.duration,
+      dateFor: content.dateFor,
+      isEnabled: content.isEnabled,
+      mediaUrl: content.mediaUrl,
+      language: content.language,
+      createdAt: content.createdAt,
+    }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
+  }
+
   async getEnabledContent(): Promise<Content[]> {
     return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
   }

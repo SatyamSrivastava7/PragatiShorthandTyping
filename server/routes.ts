@@ -260,7 +260,30 @@ export async function registerRoutes(
   
   // ==================== CONTENT ROUTES ====================
   
-  // Get all content
+  // Get all content list (lightweight - excludes text field)
+  app.get("/api/content/list", async (req, res) => {
+    try {
+      const type = req.query.type as string | undefined;
+      const content = await storage.getAllContentList(type);
+      res.json(content);
+    } catch (error) {
+      console.error("Error fetching content list:", error);
+      res.status(500).json({ message: "Failed to get content", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Get enabled content list (lightweight - excludes text field)
+  app.get("/api/content/enabled/list", async (req, res) => {
+    try {
+      const content = await storage.getEnabledContentList();
+      res.json(content);
+    } catch (error) {
+      console.error("Error fetching enabled content list:", error);
+      res.status(500).json({ message: "Failed to get content", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Get all content (full data including text)
   app.get("/api/content", async (req, res) => {
     try {
       const type = req.query.type as string | undefined;
@@ -280,7 +303,7 @@ export async function registerRoutes(
     }
   });
 
-  // Get enabled content only
+  // Get enabled content only (full data)
   app.get("/api/content/enabled", async (req, res) => {
     try {
       const content = await storage.getEnabledContent();

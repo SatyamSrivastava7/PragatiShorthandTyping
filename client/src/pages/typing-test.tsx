@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation, Link } from "wouter";
-import { useAuth, useContent, useResults } from "@/lib/hooks";
+import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,11 +23,9 @@ export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
   const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
-  const { content } = useContent();
+  const { data: testContent, isLoading: isContentLoading } = useContentById(params?.id ? Number(params.id) : undefined);
   const { createResult } = useResults();
   const { toast } = useToast();
-
-  const testContent = content.find(c => c.id === Number(params?.id));
   
   const [typedText, setTypedText] = useState("");
   const [timeLeft, setTimeLeft] = useState(0); // in seconds
@@ -196,6 +194,15 @@ export default function TypingTestPage() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (isContentLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading test...</span>
+      </div>
+    );
+  }
 
   if (!testContent) {
     return <div className="p-8">Test not found</div>;

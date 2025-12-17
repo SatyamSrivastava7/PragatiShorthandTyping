@@ -5,12 +5,16 @@ import { createServer } from "http";
 import session from "express-session";
 import pgSession from "connect-pg-simple";
 import pg from "pg";
+import compression from "compression";
 
 const app = express();
 const httpServer = createServer(app);
 
 // Trust proxy for production (Replit uses reverse proxy)
 app.set("trust proxy", 1);
+
+// Enable gzip compression for all responses
+app.use(compression());
 
 declare module "http" {
   interface IncomingMessage {
