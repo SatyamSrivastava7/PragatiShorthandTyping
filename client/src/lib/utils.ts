@@ -235,13 +235,13 @@ export const generateResultPDF = async (result: Result) => {
         h1 { color: #1e3a8a; font-size: 20px; margin: 0 0 2px 0; text-align: center; }
         p.subtitle { text-align: center; color: #555; margin: 0 0 8px 0; font-size: 12px; }
         h2 { font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 8px; margin-bottom: 8px; text-align: center; }
-        h3 { font-size: 14px; margin: 8px 0 4px 0; }
+        h3 { font-size: 14px; margin: 16px 0 6px 0; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 12px; }
         td { padding: 4px 6px; vertical-align: top; }
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1.3; margin-bottom: 6px; font-size: 13px; white-space: pre-wrap; }
+        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1; margin-bottom: 6px; font-size: 13px; white-space: pre-wrap; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
@@ -263,7 +263,7 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td class="label">Type:</td><td style="text-transform: capitalize;">${result.contentType}</td>
-          <td class="label">Duration:</td><td>${result.time} minutes</td>
+          <td class="label">Test Duration:</td><td>${result.time} minutes</td>
         </tr>
         <tr>
           <td class="label">Language:</td><td style="text-transform: capitalize;">${result.language}</td>
