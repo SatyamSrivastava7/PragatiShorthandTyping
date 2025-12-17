@@ -77,8 +77,14 @@ export function useContent() {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: contentApi.toggle,
+    mutationFn: (id: number) => {
+      if (id < 0) {
+        return Promise.reject(new Error('Cannot toggle content that is still being created'));
+      }
+      return contentApi.toggle(id);
+    },
     onMutate: async (id) => {
+      if (id < 0) return;
       await queryClient.cancelQueries({ queryKey: ['content'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled'] });
       
@@ -118,8 +124,14 @@ export function useContent() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: contentApi.delete,
+    mutationFn: (id: number) => {
+      if (id < 0) {
+        return Promise.reject(new Error('Cannot delete content that is still being created'));
+      }
+      return contentApi.delete(id);
+    },
     onMutate: async (id) => {
+      if (id < 0) return;
       await queryClient.cancelQueries({ queryKey: ['content'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled'] });
       
