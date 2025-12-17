@@ -38,7 +38,7 @@ export default function AdminDashboard() {
   const { content, createContent, toggleContent, deleteContent, isLoading: isContentLoading } = useContent();
   const { results } = useResults();
   const { users, updateUser, deleteUser } = useUsers();
-  const { folders: pdfFolders, resources: pdfResources, createFolder: addPdfFolder, createResource: addPdfResource, deleteResource: deletePdfResource } = usePdf();
+  const { folders: pdfFolders, resources: pdfResources, createFolder: addPdfFolder, createResource: addPdfResource, deleteResource: deletePdfResource, deleteFolder: deletePdfFolder } = usePdf();
   const { settings, updateSettings } = useSettings();
   const { images: galleryImages, addImage: addGalleryImage, deleteImage: removeGalleryImage } = useGallery();
   const { candidates: selectedCandidates, addCandidate: addSelectedCandidate, deleteCandidate: removeSelectedCandidate } = useSelectedCandidates();
@@ -567,9 +567,29 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2">
                             <FolderPlus size={14} className="text-blue-500" /> {f.name}
                           </div>
-                          <span className="text-xs text-muted-foreground bg-white px-1.5 rounded border">
-                            {pdfResources.filter(p => p.folderId === f.id).length}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground bg-white px-1.5 rounded border">
+                              {pdfResources.filter(p => p.folderId === f.id).length}
+                            </span>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Delete folder "${f.name}"? All files inside will also be deleted.`)) {
+                                  deletePdfFolder(parseInt(f.id));
+                                  if (selectedFolderId === parseInt(f.id)) {
+                                    setSelectedFolderId(null);
+                                  }
+                                  toast({ variant: "success", title: "Deleted", description: "Folder deleted successfully" });
+                                }
+                              }}
+                              data-testid={`button-delete-folder-${f.id}`}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                       {pdfFolders.length === 0 && <p className="text-muted-foreground text-xs italic">No folders created yet.</p>}
