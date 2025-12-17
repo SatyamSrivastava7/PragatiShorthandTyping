@@ -477,6 +477,17 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
+      // Calculate pass/fail result
+      let calculatedResult = req.body.result;
+      const mistakes = parseFloat(req.body.mistakes) || 0;
+      
+      if (contentItem.type === 'shorthand') {
+        // For shorthand: PASS if mistakes <= 5% of total original words, FAIL otherwise
+        const originalWords = contentItem.text.trim().split(/\s+/).filter(w => w.length > 0).length;
+        const maxAllowedMistakes = Math.floor(originalWords * 0.05);
+        calculatedResult = mistakes <= maxAllowedMistakes ? 'Pass' : 'Fail';
+      }
+      
       // Build complete result data
       const resultData = {
         ...req.body,
@@ -487,6 +498,7 @@ export async function registerRoutes(
         contentType: contentItem.type,
         originalText: contentItem.text,
         language: contentItem.language || 'english',
+        result: calculatedResult,
       };
       
       const validatedData = insertResultSchema.parse(resultData);
