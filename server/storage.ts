@@ -264,6 +264,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePdfFolder(id: number): Promise<boolean> {
+    // First delete all resources in this folder (due to foreign key constraint)
+    await db.delete(pdfResources).where(eq(pdfResources.folderId, id));
+    // Then delete the folder
     const result = await db.delete(pdfFolders).where(eq(pdfFolders.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
