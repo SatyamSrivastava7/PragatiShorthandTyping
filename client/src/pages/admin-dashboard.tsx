@@ -741,6 +741,9 @@ export default function AdminDashboard() {
                                             <span className="font-semibold">Date:</span> {format(new Date(result.submittedAt), "PPP")}
                                           </div>
                                           <div>
+                                            <span className="font-semibold">Duration:</span> {result.time} minutes
+                                          </div>
+                                          <div>
                                             <span className="font-semibold">Mistakes:</span> <span className="text-red-600 font-bold">{result.mistakes}</span>
                                           </div>
                                           <div>

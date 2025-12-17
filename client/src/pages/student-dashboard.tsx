@@ -459,6 +459,12 @@ export default function StudentDashboard() {
                                     </div>
                                     <div>
                                       <span className="font-semibold">
+                                        Duration:
+                                      </span>{" "}
+                                      {result.time} minutes
+                                    </div>
+                                    <div>
+                                      <span className="font-semibold">
                                         Mistakes:
                                       </span>{" "}
                                       <span className="text-red-600 font-bold">
