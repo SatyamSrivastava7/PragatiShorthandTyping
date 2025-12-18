@@ -58,6 +58,7 @@ export default function LandingPage() {
               <a href="#about" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">About</a>
               <a href="#candidates" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Candidates</a>
               <Link href="/gallery" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Gallery</Link>
+              <a href="#contact" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Contact Us</a>
             </nav>
             <Link href={getStartedLink}>
               <Button className="bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all">
@@ -344,7 +345,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="w-full py-12 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
+      <footer id="contact" className="w-full py-12 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col items-center md:items-start">
