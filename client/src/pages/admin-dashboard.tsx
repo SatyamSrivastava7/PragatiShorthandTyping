@@ -579,105 +579,129 @@ export default function AdminDashboard() {
         );
       case "manage":
         return (
-          <Card>
-            <CardHeader><CardTitle>Manage Tests</CardTitle></CardHeader>
-            <CardContent>
-              {isContentLoading ? (
-                <div className="flex items-center justify-center p-12">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                <LayoutList className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Manage Tests</h2>
+                <p className="text-muted-foreground">View, enable/disable, and manage all tests</p>
+              </div>
+            </div>
+
+            {isContentLoading ? (
+              <Card className="shadow-lg border-0">
+                <CardContent className="flex items-center justify-center p-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <span className="ml-3 text-muted-foreground">Loading tests...</span>
-                </div>
-              ) : (
-              <div className="space-y-8">
-                {['typing', 'shorthand'].map(type => (
-                  <div key={type} className="space-y-4">
-                    <h3 className="text-lg font-semibold capitalize border-b pb-2">{type} Tests</h3>
-                    <div className="rounded-md border max-h-[300px] overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Lang</TableHead>
-                            <TableHead>Duration</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Preview</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {content
-                            .filter(c => c.type === type)
-                            .sort((a, b) => {
-                              if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
-                              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-                            })
-                            .map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell>{format(new Date(item.dateFor), "MMM d")}</TableCell>
-                              <TableCell className="font-medium">{item.title}</TableCell>
-                              <TableCell className="capitalize">{item.language}</TableCell>
-                              <TableCell>{item.duration} min</TableCell>
-                              <TableCell>
-                                {item.isEnabled ? <span className="text-green-600 font-bold text-xs">Active</span> : <span className="text-gray-400 text-xs">Inactive</span>}
-                              </TableCell>
-                              <TableCell>
-                                <Dialog>
-                                  <DialogTrigger asChild><Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button></DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader><DialogTitle>{item.title}</DialogTitle></DialogHeader>
-                                    <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
-                                      <p className="whitespace-pre-wrap">{item.text}</p>
-                                      {item.mediaUrl && <div className="mt-2 text-xs text-blue-600 flex items-center gap-1"><Music size={12}/> Audio Attached</div>}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {['typing', 'shorthand'].map(type => {
+                  const testCount = content.filter(c => c.type === type).length;
+                  const activeCount = content.filter(c => c.type === type && c.isEnabled).length;
+                  return (
+                    <Card key={type} className="shadow-lg border-0 overflow-hidden">
+                      <CardHeader className={cn(
+                        "border-b",
+                        type === 'typing' ? "bg-gradient-to-r from-blue-50 to-indigo-50" : "bg-gradient-to-r from-orange-50 to-amber-50"
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "p-2 rounded-lg",
+                              type === 'typing' ? "bg-blue-100" : "bg-orange-100"
+                            )}>
+                              {type === 'typing' ? (
+                                <Keyboard className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <Mic className="h-5 w-5 text-orange-600" />
+                              )}
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg capitalize">{type} Tests</CardTitle>
+                              <CardDescription>{testCount} tests, {activeCount} active</CardDescription>
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="max-h-[300px] overflow-auto">
+                          <Table>
+                            <TableHeader className="bg-slate-50 sticky top-0">
+                              <TableRow>
+                                <TableHead className="font-semibold">Date</TableHead>
+                                <TableHead className="font-semibold">Title</TableHead>
+                                <TableHead className="font-semibold">Lang</TableHead>
+                                <TableHead className="font-semibold">Duration</TableHead>
+                                <TableHead className="font-semibold">Status</TableHead>
+                                <TableHead className="font-semibold">Preview</TableHead>
+                                <TableHead className="font-semibold">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {content
+                                .filter(c => c.type === type)
+                                .sort((a, b) => {
+                                  if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+                                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                                })
+                                .map((item) => (
+                                <TableRow key={item.id} className="hover:bg-slate-50/50">
+                                  <TableCell className="font-mono text-sm">{format(new Date(item.dateFor), "MMM d")}</TableCell>
+                                  <TableCell className="font-medium">{item.title}</TableCell>
+                                  <TableCell className="capitalize">{item.language}</TableCell>
+                                  <TableCell>{item.duration} min</TableCell>
+                                  <TableCell>
+                                    {item.isEnabled ? (
+                                      <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Active</span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-semibold">Inactive</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Dialog>
+                                      <DialogTrigger asChild><Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button></DialogTrigger>
+                                      <DialogContent>
+                                        <DialogHeader><DialogTitle>{item.title}</DialogTitle></DialogHeader>
+                                        <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
+                                          <p className="whitespace-pre-wrap">{item.text}</p>
+                                          {item.mediaUrl && <div className="mt-2 text-xs text-blue-600 flex items-center gap-1"><Music size={12}/> Audio Attached</div>}
+                                        </div>
+                                      </DialogContent>
+                                    </Dialog>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(parseInt(item.id))} />
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-red-50" onClick={() => handleDeleteContent(parseInt(item.id))}>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
                                     </div>
-                                    <div className="mt-4 flex justify-end">
-                                      {/* Mock result download for admin preview */}
-                                      {/* <Button variant="outline" size="sm" onClick={() => generateResultPDF({
-                                        id: "preview",
-                                        studentId: "admin",
-                                        studentName: "Admin Preview",
-                                        contentId: item.id,
-                                        contentTitle: item.title,
-                                        contentType: item.type,
-                                        language: item.language,
-                                        originalText: item.text,
-                                        typedText: item.text, // Perfect match for preview
-                                        submittedAt: new Date().toISOString(),
-                                        metrics: {
-                                          words: item.text.split(" ").length,
-                                          mistakes: 0,
-                                          grossSpeed: 0,
-                                          netSpeed: 0,
-                                          backspaces: 0,
-                                          result: "Pass",
-                                          time: item.duration
-                                        }
-                                      })}>
-                                        <Download className="mr-2 h-4 w-4" /> Download PDF Preview
-                                      </Button> */}
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(parseInt(item.id))} />
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive/90" onClick={() => handleDeleteContent(parseInt(item.id))}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                ))}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              {content.filter(c => c.type === type).length === 0 && (
+                                <TableRow>
+                                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                    <LayoutList className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                    No {type} tests yet
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
-              )}
-            </CardContent>
-          </Card>
+            )}
+          </div>
         );
       case "pdfstore":
         return (
@@ -794,73 +818,132 @@ export default function AdminDashboard() {
         );
       case "results":
         return (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Student Results</CardTitle>
-                  <CardDescription>View and download performance reports.</CardDescription>
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-lg">
+                  <BarChart className="h-6 w-6 text-white" />
                 </div>
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search student..." className="pl-8" value={studentFilter} onChange={e => setStudentFilter(e.target.value)} />
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Student Results</h2>
+                  <p className="text-muted-foreground">View and download performance reports</p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Tabs key="results-tabs" defaultValue="typing" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="typing">Typing Results</TabsTrigger>
-                  <TabsTrigger value="shorthand">Shorthand Results</TabsTrigger>
-                </TabsList>
+              <div className="relative w-full lg:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search by name or ID..." className="pl-10 bg-white shadow-sm" value={studentFilter} onChange={e => setStudentFilter(e.target.value)} />
+              </div>
+            </div>
 
-                {['typing', 'shorthand'].map(type => (
-                  <TabsContent key={type} value={type}>
-                    <div className="rounded-md border max-h-[600px] overflow-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Test Title</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Metrics</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredResults
-                            .filter(r => r.contentType === type)
-                            .map((result) => (
-                              <TableRow key={result.id}>
-                                <TableCell>
-                                  <div className="font-medium">{result.studentName}</div>
-                                  <div className="text-xs text-muted-foreground">{result.studentDisplayId || result.studentId}</div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="font-medium">{result.contentTitle}</div>
-                                  <div className="text-xs text-muted-foreground capitalize">{result.language}</div>
-                                </TableCell>
-                                <TableCell>{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
-                                <TableCell>
-                                  <div className="text-sm space-y-1">
-                                    {result.contentType === 'typing' ? (
-                                      <>
-                                        <div><span className="text-muted-foreground">Net Speed:</span> <strong>{result.netSpeed} WPM</strong></div>
-                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.mistakes}</div>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <div><span className="text-muted-foreground">Result:</span> 
-                                          <span className={result.result === 'Pass' ? "text-green-600 font-bold ml-1" : "text-red-600 font-bold ml-1"}>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="border-0 shadow-md bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-indigo-100">Total Results</p>
+                      <p className="text-3xl font-bold mt-1">{results.length}</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <BarChart className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-blue-100">Typing Tests</p>
+                      <p className="text-3xl font-bold mt-1">{results.filter(r => r.contentType === 'typing').length}</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <Keyboard className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-orange-100">Shorthand Tests</p>
+                      <p className="text-3xl font-bold mt-1">{results.filter(r => r.contentType === 'shorthand').length}</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <Mic className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Results Table */}
+            <Card className="shadow-lg border-0">
+              <CardContent className="p-0">
+                <Tabs key="results-tabs" defaultValue="typing" className="w-full">
+                  <div className="px-6 pt-4 border-b bg-slate-50">
+                    <TabsList className="bg-white shadow-sm">
+                      <TabsTrigger value="typing" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
+                        <Keyboard className="h-4 w-4 mr-2" /> Typing Results
+                      </TabsTrigger>
+                      <TabsTrigger value="shorthand" className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
+                        <Mic className="h-4 w-4 mr-2" /> Shorthand Results
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  {['typing', 'shorthand'].map(type => (
+                    <TabsContent key={type} value={type} className="m-0">
+                      <div className="max-h-[500px] overflow-auto">
+                        <Table>
+                          <TableHeader className="bg-slate-50 sticky top-0">
+                            <TableRow>
+                              <TableHead className="font-semibold">Student</TableHead>
+                              <TableHead className="font-semibold">Test Title</TableHead>
+                              <TableHead className="font-semibold">Date</TableHead>
+                              <TableHead className="font-semibold">Metrics</TableHead>
+                              <TableHead className="font-semibold text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredResults
+                              .filter(r => r.contentType === type)
+                              .map((result) => (
+                                <TableRow key={result.id} className="hover:bg-slate-50/50">
+                                  <TableCell>
+                                    <div className="font-medium">{result.studentName}</div>
+                                    <div className="text-xs text-muted-foreground font-mono">{result.studentDisplayId || result.studentId}</div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="font-medium">{result.contentTitle}</div>
+                                    <div className="text-xs text-muted-foreground capitalize">{result.language}</div>
+                                  </TableCell>
+                                  <TableCell className="text-muted-foreground">{format(new Date(result.submittedAt), "MMM d, p")}</TableCell>
+                                  <TableCell>
+                                    <div className="text-sm space-y-1">
+                                      {result.contentType === 'typing' ? (
+                                        <>
+                                          <div className="flex items-center gap-2">
+                                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">{result.netSpeed} WPM</span>
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">Mistakes: {result.mistakes}</div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className={cn(
+                                            "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold",
+                                            result.result === 'Pass' ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                                          )}>
                                             {result.result}
                                           </span>
-                                        </div>
-                                        <div><span className="text-muted-foreground">Mistakes:</span> {result.mistakes}</div>
-                                      </>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right space-x-2">
+                                          <div className="text-xs text-muted-foreground">Mistakes: {result.mistakes}</div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right space-x-2">
                                   <Dialog>
                                     <DialogTrigger asChild>
                                       <Button variant="ghost" size="sm" onClick={() => setSelectedResult(result)}>
@@ -934,134 +1017,180 @@ export default function AdminDashboard() {
                                 </TableCell>
                               </TableRow>
                           ))}
-                          {filteredResults.filter(r => r.contentType === type).length === 0 && (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No results found.</TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </TabsContent>
-                ))}
-              </Tabs>
-            </CardContent>
-          </Card>
+                            {filteredResults.filter(r => r.contentType === type).length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                                  <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                  No {type} results found
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
         );
       case "gallery":
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Gallery & Selected Candidates</CardTitle>
-              <CardDescription>Manage images and top students.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs key="gallery-tabs" defaultValue="gallery_images">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="gallery_images">Gallery Images</TabsTrigger>
-                  <TabsTrigger value="selected_candidates">Selected Candidates</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="gallery_images">
-                  <div className="space-y-6">
-                    <div className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center">
-                      <Upload className="h-10 w-10 text-muted-foreground mb-4" />
-                      <Label htmlFor="gallery-upload" className="cursor-pointer">
-                        <span className="text-primary font-semibold hover:underline">Click to upload</span> or drag and drop
-                        <p className="text-sm text-muted-foreground mt-1">JPG, JPEG, PNG (Bulk upload supported)</p>
-                      </Label>
-                      <Input 
-                        id="gallery-upload" 
-                        type="file" 
-                        accept="image/*" 
-                        multiple 
-                        className="hidden" 
-                        onChange={handleUploadGallery} 
-                      />
-                    </div>
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl shadow-lg">
+                <ImageIcon className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Gallery & Candidates</h2>
+                <p className="text-muted-foreground">Manage images and showcase top students</p>
+              </div>
+            </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {galleryImages.map((url, idx) => (
-                        <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border">
-                          <img src={url} alt="Gallery" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Button variant="destructive" size="icon" onClick={() => removeGalleryImage(url)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+            <Card className="shadow-lg border-0">
+              <CardContent className="p-0">
+                <Tabs key="gallery-tabs" defaultValue="gallery_images">
+                  <div className="px-6 pt-4 border-b bg-slate-50">
+                    <TabsList className="bg-white shadow-sm">
+                      <TabsTrigger value="gallery_images" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">
+                        <ImageIcon className="h-4 w-4 mr-2" /> Gallery Images
+                      </TabsTrigger>
+                      <TabsTrigger value="selected_candidates" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700">
+                        <Users className="h-4 w-4 mr-2" /> Selected Candidates
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+                  
+                  <TabsContent value="gallery_images" className="p-6">
+                    <div className="space-y-6">
+                      <div className="border-2 border-dashed border-pink-200 bg-pink-50/50 rounded-xl p-10 flex flex-col items-center justify-center text-center hover:bg-pink-50 transition-colors cursor-pointer">
+                        <div className="p-4 bg-pink-100 rounded-full mb-4">
+                          <Upload className="h-8 w-8 text-pink-600" />
+                        </div>
+                        <Label htmlFor="gallery-upload" className="cursor-pointer">
+                          <span className="text-pink-600 font-semibold hover:underline text-lg">Click to upload</span>
+                          <p className="text-sm text-muted-foreground mt-2">JPG, JPEG, PNG (Bulk upload supported)</p>
+                        </Label>
+                        <Input 
+                          id="gallery-upload" 
+                          type="file" 
+                          accept="image/*" 
+                          multiple 
+                          className="hidden" 
+                          onChange={handleUploadGallery} 
+                        />
+                      </div>
+
+                      {galleryImages.length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground mb-3">{galleryImages.length} images uploaded</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {galleryImages.map((url, idx) => (
+                              <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border-2 shadow-sm hover:shadow-md transition-shadow">
+                                <img src={url} alt="Gallery" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Button variant="destructive" size="icon" onClick={() => removeGalleryImage(url)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      ))}
+                      )}
+                      
+                      {galleryImages.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                          <p>No images uploaded yet</p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </TabsContent>
+                  </TabsContent>
 
-                <TabsContent value="selected_candidates">
-                  <div className="space-y-6">
-                    <form onSubmit={handleAddCandidate} className="space-y-4 border rounded-lg p-4 bg-slate-50">
-                       <h3 className="font-semibold text-sm mb-2">Add New Candidate</h3>
-                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                          <div className="space-y-2">
-                            <Label>Name</Label>
-                            <Input value={candidateName} onChange={e => setCandidateName(e.target.value)} placeholder="Student Name" required />
+                  <TabsContent value="selected_candidates" className="p-6">
+                    <div className="space-y-6">
+                      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border border-purple-100">
+                        <h3 className="font-semibold text-purple-800 mb-4 flex items-center gap-2">
+                          <Users className="h-5 w-5" /> Add New Candidate
+                        </h3>
+                        <form onSubmit={handleAddCandidate}>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Name</Label>
+                              <Input value={candidateName} onChange={e => setCandidateName(e.target.value)} placeholder="Student Name" required className="bg-white" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Designation</Label>
+                              <Input value={candidateDesignation} onChange={e => setCandidateDesignation(e.target.value)} placeholder="e.g. Stenographer" required className="bg-white" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Batch Year</Label>
+                              <Input value={candidateYear} onChange={e => setCandidateYear(e.target.value)} placeholder="e.g. 2024" required className="bg-white" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Photo</Label>
+                              <Input type="file" accept="image/*" onChange={e => setCandidateImage(e.target.files?.[0] || null)} required className="bg-white" />
+                            </div>
+                            <Button type="submit" className="bg-gradient-to-r from-purple-500 to-purple-600">
+                              <Users className="mr-2 h-4 w-4"/> Add
+                            </Button>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Designation</Label>
-                            <Input value={candidateDesignation} onChange={e => setCandidateDesignation(e.target.value)} placeholder="e.g. Stenographer" required />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Batch Year</Label>
-                            <Input value={candidateYear} onChange={e => setCandidateYear(e.target.value)} placeholder="e.g. 2024" required />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Photo</Label>
-                            <Input type="file" accept="image/*" onChange={e => setCandidateImage(e.target.files?.[0] || null)} required />
-                          </div>
-                          <Button type="submit"><Users className="mr-2 h-4 w-4"/> Add</Button>
-                       </div>
-                    </form>
+                        </form>
+                      </div>
 
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Photo</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Designation</TableHead>
-                            <TableHead>Year</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedCandidates.map((candidate) => (
-                            <TableRow key={candidate.id}>
-                              <TableCell>
-                                <div className="h-10 w-10 rounded-full overflow-hidden border">
-                                  <img src={candidate.imageUrl} alt={candidate.name} className="h-full w-full object-cover" />
-                                </div>
-                              </TableCell>
-                              <TableCell className="font-medium">{candidate.name}</TableCell>
-                              <TableCell>{candidate.designation}</TableCell>
-                              <TableCell>{candidate.year}</TableCell>
-                              <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeSelectedCandidate(candidate.id)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                          {selectedCandidates.length === 0 && (
+                      <div className="rounded-xl border overflow-hidden">
+                        <Table>
+                          <TableHeader className="bg-slate-50">
                             <TableRow>
-                              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No candidates added yet.</TableCell>
+                              <TableHead className="font-semibold">Photo</TableHead>
+                              <TableHead className="font-semibold">Name</TableHead>
+                              <TableHead className="font-semibold">Designation</TableHead>
+                              <TableHead className="font-semibold">Year</TableHead>
+                              <TableHead className="font-semibold text-right">Action</TableHead>
                             </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedCandidates.map((candidate) => (
+                              <TableRow key={candidate.id} className="hover:bg-slate-50/50">
+                                <TableCell>
+                                  <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
+                                    <img src={candidate.imageUrl} alt={candidate.name} className="h-full w-full object-cover" />
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-medium">{candidate.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{candidate.designation}</TableCell>
+                                <TableCell>
+                                  <span className="inline-flex items-center px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                    {candidate.year}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-red-50" onClick={() => removeSelectedCandidate(candidate.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {selectedCandidates.length === 0 && (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                                  <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                  No candidates added yet
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
         );
       default:
         return null;
@@ -1081,9 +1210,9 @@ export default function AdminDashboard() {
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Sidebar */}
       <aside className="w-72 border-r bg-gradient-to-b from-slate-50 to-white flex flex-col shrink-0 overflow-y-auto">
-        <div className="p-5 border-b bg-gradient-to-r from-primary to-blue-600">
-          <h2 className="text-lg font-bold text-white/80">Admin Panel</h2>
-          <p className="text-xs text-white/80 mt-0.5">Manage your institute</p>
+        <div className="p-5 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
+          <h2 className="text-xl font-bold text-white drop-shadow-sm">Admin Panel</h2>
+          <p className="text-sm text-blue-100 mt-1">Manage your institute</p>
         </div>
         <div className="p-3 space-y-1 flex-1">
           <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</p>
