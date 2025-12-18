@@ -157,8 +157,9 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
   }
 
   const totalWordsTyped = typedText.trim() === '' ? 0 : typedWords.length;
-  const allowedMistakes = totalWordsTyped * 0.05; // 5% rule
-  const isPassed = mistakes <= allowedMistakes;
+  // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
+  const mistakePercentage = totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
+  const isPassed = mistakePercentage <= 5;
 
   return {
     words: totalWordsTyped,

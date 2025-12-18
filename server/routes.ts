@@ -480,16 +480,12 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Calculate pass/fail result
-      let calculatedResult = req.body.result;
+      // Calculate pass/fail result based on 5% mistake rule for all test types
+      // More than 5% mistakes = Fail, 5% or less = Pass
       const mistakes = parseFloat(req.body.mistakes) || 0;
-      
-      if (contentItem.type === 'shorthand') {
-        // For shorthand: PASS if mistakes <= 5% of total original words, FAIL otherwise
-        const originalWords = contentItem.text.trim().split(/\s+/).filter(w => w.length > 0).length;
-        const maxAllowedMistakes = Math.floor(originalWords * 0.05);
-        calculatedResult = mistakes <= maxAllowedMistakes ? 'Pass' : 'Fail';
-      }
+      const totalWords = parseFloat(req.body.words) || 0;
+      const mistakePercentage = totalWords > 0 ? (mistakes / totalWords) * 100 : 0;
+      const calculatedResult = mistakePercentage > 5 ? 'Fail' : 'Pass';
       
       // Build complete result data
       const resultData = {
