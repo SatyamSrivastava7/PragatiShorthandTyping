@@ -705,39 +705,89 @@ export default function AdminDashboard() {
         );
       case "pdfstore":
         return (
-          <Card>
-            <CardHeader><CardTitle>PDF Store Management</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Create Folder</h3>
-                  <div className="flex gap-2">
-                    <Input placeholder="Folder Name" value={newFolderName} onChange={e => setNewFolderName(e.target.value)} />
-                    <Button onClick={handleCreateFolder}><FolderPlus className="mr-2 h-4 w-4"/> Create</Button>
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg">
+                  <FolderPlus className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">PDF Store</h2>
+                  <p className="text-muted-foreground">Organize and manage study materials</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full font-medium">{pdfFolders.length} folders</span>
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">{pdfResources.length} files</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Folders Panel */}
+              <Card className="shadow-lg border-0">
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <FolderPlus className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Folders</CardTitle>
+                      <CardDescription>Create and manage folders</CardDescription>
+                    </div>
                   </div>
-                  <div className="mt-4 border rounded p-4 max-h-60 overflow-auto">
-                    <h4 className="text-sm font-medium mb-2">Existing Folders</h4>
-                    <div className="space-y-1">
+                </CardHeader>
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="New folder name..." 
+                      value={newFolderName} 
+                      onChange={e => setNewFolderName(e.target.value)} 
+                      className="bg-white"
+                    />
+                    <Button onClick={handleCreateFolder} className="bg-gradient-to-r from-orange-500 to-orange-600 shrink-0">
+                      <FolderPlus className="mr-2 h-4 w-4"/> Create
+                    </Button>
+                  </div>
+                  
+                  <div className="border rounded-xl overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-2 border-b">
+                      <h4 className="text-sm font-semibold text-gray-700">Your Folders</h4>
+                    </div>
+                    <div className="max-h-[300px] overflow-auto divide-y">
                       {pdfFolders.map(f => (
                         <div 
                           key={f.id} 
                           className={cn(
-                            "text-sm p-2 rounded flex items-center justify-between cursor-pointer hover:bg-muted",
-                            selectedFolderId === parseInt(f.id) ? "bg-muted font-medium" : ""
+                            "p-3 flex items-center justify-between cursor-pointer transition-colors",
+                            selectedFolderId === parseInt(f.id) 
+                              ? "bg-orange-50 border-l-4 border-l-orange-500" 
+                              : "hover:bg-slate-50"
                           )}
                           onClick={() => setSelectedFolderId(parseInt(f.id))}
                         >
-                          <div className="flex items-center gap-2">
-                            <FolderPlus size={14} className="text-blue-500" /> {f.name}
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "p-2 rounded-lg",
+                              selectedFolderId === parseInt(f.id) ? "bg-orange-100" : "bg-slate-100"
+                            )}>
+                              <FolderPlus size={16} className={selectedFolderId === parseInt(f.id) ? "text-orange-600" : "text-slate-500"} />
+                            </div>
+                            <span className={cn(
+                              "font-medium",
+                              selectedFolderId === parseInt(f.id) ? "text-orange-700" : "text-gray-700"
+                            )}>
+                              {f.name}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground bg-white px-1.5 rounded border">
-                              {pdfResources.filter(p => p.folderId === f.id).length}
+                            <span className="text-xs px-2 py-1 bg-white border rounded-full text-muted-foreground">
+                              {pdfResources.filter(p => p.folderId === f.id).length} files
                             </span>
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                              className="h-7 w-7 text-destructive hover:bg-red-50"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (confirm(`Delete folder "${f.name}"? All files inside will also be deleted.`)) {
@@ -755,66 +805,108 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
-                      {pdfFolders.length === 0 && <p className="text-muted-foreground text-xs italic">No folders created yet.</p>}
+                      {pdfFolders.length === 0 && (
+                        <div className="p-8 text-center text-muted-foreground">
+                          <FolderPlus className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                          <p>No folders created yet</p>
+                          <p className="text-xs mt-1">Create your first folder above</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Upload PDF/Doc Resource</h3>
+              {/* Files Panel */}
+              <Card className="shadow-lg border-0">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Upload className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Upload Resources</CardTitle>
+                      <CardDescription>Add PDF and document files</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-5">
                   {selectedFolderId ? (
-                    <div className="p-4 border rounded-lg bg-slate-50/50 space-y-4">
-                      <div className="text-sm font-medium text-blue-800 flex items-center gap-2 mb-2">
-                        <FolderPlus size={16}/> 
-                        Selected: {pdfFolders.find(f => parseInt(f.id) === selectedFolderId)?.name}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Resource Name</Label>
-                        <Input value={pdfName} onChange={e => setPdfName(e.target.value)} placeholder="e.g. Chapter 1 Notes" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Amount</Label>
-                          <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} placeholder="e.g. 99" />
+                    <div className="space-y-5">
+                      <div className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                          <FolderPlus size={16} className="text-orange-600" />
                         </div>
-                        <div className="space-y-2">
-                          <Label>Upload File</Label>
-                          <Input type="file" accept=".pdf,.doc,.docx" onChange={e => setPdfFile(e.target.files?.[0] || null)} />
+                        <div>
+                          <p className="text-xs text-orange-600 font-medium">Selected Folder</p>
+                          <p className="font-semibold text-orange-800">{pdfFolders.find(f => parseInt(f.id) === selectedFolderId)?.name}</p>
                         </div>
                       </div>
-                      <Button onClick={handleUploadPdf} className="w-full"><Upload className="mr-2 h-4 w-4"/> Upload Resource</Button>
                       
-                      <div className="mt-6 border-t pt-4">
-                        <h4 className="font-semibold mb-2 text-sm">Files in Folder</h4>
-                        <div className="space-y-2 max-h-48 overflow-auto">
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Resource Name</Label>
+                          <Input value={pdfName} onChange={e => setPdfName(e.target.value)} placeholder="e.g. Chapter 1 Notes" className="bg-white" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Price (₹)</Label>
+                            <Input type="number" value={pdfPageCount} onChange={e => setPdfPageCount(e.target.value)} placeholder="e.g. 99" className="bg-white" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">File</Label>
+                            <Input type="file" accept=".pdf,.doc,.docx" onChange={e => setPdfFile(e.target.files?.[0] || null)} className="bg-white" />
+                          </div>
+                        </div>
+                      </div>
+                      <Button onClick={handleUploadPdf} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md">
+                        <Upload className="mr-2 h-4 w-4"/> Upload Resource
+                      </Button>
+                      
+                      <div className="border-t pt-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-sm">Files in Folder</h4>
+                          <span className="text-xs text-muted-foreground">{pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).length} items</span>
+                        </div>
+                        <div className="space-y-2 max-h-[200px] overflow-auto">
                           {pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).map(pdf => (
-                            <div key={pdf.id} className="flex items-center justify-between p-2 border rounded text-sm bg-white">
-                              <div className="flex flex-col overflow-hidden">
-                                <span className="truncate font-medium">{pdf.name}</span>
-                                <span className="text-xs text-muted-foreground">{pdf.pageCount} pages • ₹{pdf.price}</span>
+                            <div key={pdf.id} className="flex items-center justify-between p-3 bg-slate-50 border rounded-lg hover:bg-slate-100 transition-colors">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="p-2 bg-red-100 rounded-lg shrink-0">
+                                  <FileUp size={14} className="text-red-600" />
+                                </div>
+                                <div className="overflow-hidden">
+                                  <p className="font-medium text-sm truncate">{pdf.name}</p>
+                                  <p className="text-xs text-muted-foreground">{pdf.pageCount} pages &middot; ₹{pdf.price}</p>
+                                </div>
                               </div>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10 shrink-0" onClick={() => handleDeletePdf(parseInt(pdf.id))}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-red-50 shrink-0" onClick={() => handleDeletePdf(parseInt(pdf.id))}>
                                 <Trash2 size={14} />
                               </Button>
                             </div>
                           ))}
                           {pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).length === 0 && (
-                            <p className="text-muted-foreground text-xs text-center py-4 border border-dashed rounded">No files in this folder.</p>
+                            <div className="p-6 text-center border-2 border-dashed rounded-lg text-muted-foreground">
+                              <FileUp className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                              <p className="text-sm">No files in this folder</p>
+                            </div>
                           )}
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
-                      <FolderPlus className="h-10 w-10 mb-2 opacity-20" />
-                      <p>Select a folder from the left to manage files</p>
+                    <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-blue-200 rounded-xl text-muted-foreground bg-blue-50/30">
+                      <div className="p-4 bg-blue-100 rounded-full mb-4">
+                        <FolderPlus className="h-8 w-8 text-blue-400" />
+                      </div>
+                      <p className="font-medium text-blue-600">Select a Folder</p>
+                      <p className="text-sm mt-1">Choose a folder from the left panel to manage files</p>
                     </div>
                   )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         );
       case "results":
         return (
