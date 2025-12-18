@@ -40,7 +40,35 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Top Contact Bar */}
+      {/* Main Header/Navigation */}
+      <header className="w-full bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white">
+              <img src={logoImage} alt="Pragati Logo" className="w-full h-full object-contain" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="font-bold text-lg text-gray-900 leading-tight">Pragati Institute</h1>
+              <p className="text-xs text-muted-foreground">Professional Studies, Prayagraj</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            <nav className="hidden md:flex items-center gap-6">
+              <a href="#about" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">About</a>
+              <a href="#candidates" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Candidates</a>
+              <Link href="/gallery" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Gallery</Link>
+            </nav>
+            <Link href={getStartedLink}>
+              <Button className="bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all">
+                {currentUser ? "Dashboard" : "Login"}
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Contact Bar - Below Header */}
       <div className="w-full bg-gray-900 text-gray-300 py-1.5 px-4 text-xs">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -75,35 +103,6 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-
-      {/* Main Header/Navigation */}
-      <header className="w-full bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white">
-              <img src={logoImage} alt="Pragati Logo" className="w-full h-full object-contain" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="font-bold text-lg text-gray-900 leading-tight">Pragati Institute</h1>
-              <p className="text-xs text-muted-foreground">Professional Studies, Prayagraj</p>
-            </div>
-          </div>
-          
-          <nav className="hidden md:flex items-center gap-6">
-            <a href="#about" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">About</a>
-            <a href="#candidates" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Candidates</a>
-            <Link href="/gallery" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Gallery</Link>
-          </nav>
-          
-          <div className="flex items-center gap-2">
-            <Link href={getStartedLink}>
-              <Button className="bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all">
-                {currentUser ? "Dashboard" : "Login"}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
 
       {/* Hero Section */}
       <section className="w-full py-16 md:py-24 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex justify-center text-center relative overflow-hidden">
