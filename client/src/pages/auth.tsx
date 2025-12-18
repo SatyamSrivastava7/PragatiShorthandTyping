@@ -137,8 +137,15 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-lg border-t-4 border-t-primary">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl" />
+      <div className="absolute top-1/2 left-1/4 w-4 h-4 bg-primary/40 rounded-full animate-pulse" />
+      <div className="absolute top-1/3 right-1/4 w-3 h-3 bg-orange-400/40 rounded-full animate-pulse" />
+      <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-green-400/40 rounded-full animate-pulse" />
+      
+      <Card className="w-full max-w-md shadow-xl border-t-4 border-t-primary relative z-10 bg-white/95 backdrop-blur-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">Pragati Institute</CardTitle>
           <CardDescription>Shorthand & Typing Assessment Platform</CardDescription>
@@ -192,7 +199,7 @@ export default function AuthPage() {
                     </Button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoggingIn} data-testid="button-login">
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all" disabled={isLoggingIn} data-testid="button-login">
                   {isLoggingIn ? "Logging in..." : "Login"}
                 </Button>
                 <div className="text-center">
@@ -276,7 +283,7 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full" disabled={isRegistering} data-testid="button-register">
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all" disabled={isRegistering} data-testid="button-register">
                   {isRegistering ? "Creating Profile..." : "Create Profile"}
                 </Button>
               </form>
@@ -300,7 +307,7 @@ export default function AuthPage() {
                   <Label>New Password</Label>
                   <Input type="password" placeholder="Enter new password" value={resetNewPass} onChange={e => setResetNewPass(e.target.value)} required data-testid="input-reset-password" />
                 </div>
-                <Button type="submit" className="w-full" data-testid="button-reset-password">
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all" data-testid="button-reset-password">
                   Reset Password
                 </Button>
                 <div className="text-center">
