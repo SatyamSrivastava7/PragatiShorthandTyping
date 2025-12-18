@@ -170,28 +170,28 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs defaultValue="typing_tests" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-300">
+        <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-200 p-1 rounded-full h-auto">
           <TabsTrigger
             value="typing_tests"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-foreground border-r last:border-r-0"
+            className="rounded-full py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-foreground data-[state=active]:shadow-md transition-all"
           >
             Typing Tests
           </TabsTrigger>
           <TabsTrigger
             value="shorthand_tests"
-            className="data-[state=active]:bg-orange-600 data-[state=active]:text-white text-foreground border-r last:border-r-0"
+            className="rounded-full py-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white text-foreground data-[state=active]:shadow-md transition-all"
           >
             Shorthand Tests
           </TabsTrigger>
           <TabsTrigger
             value="results"
-            className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-foreground border-r last:border-r-0"
+            className="rounded-full py-2 data-[state=active]:bg-green-600 data-[state=active]:text-white text-foreground data-[state=active]:shadow-md transition-all"
           >
             My Results
           </TabsTrigger>
           <TabsTrigger
             value="store"
-            className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-foreground"
+            className="rounded-full py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-foreground data-[state=active]:shadow-md transition-all"
           >
             PDF Store
           </TabsTrigger>
