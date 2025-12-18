@@ -119,7 +119,6 @@ export default function StudentDashboard() {
   const initiateBuyPdf = (pdfId: string, price: number) => {
     setSelectedPdfForPurchase({ id: pdfId, price });
     setShowPaymentModal(true);
-    setPaymentTab("qr"); // Reset to default
   };
 
   const confirmPurchase = async () => {
