@@ -267,91 +267,144 @@ export default function AdminDashboard() {
     switch (activeTab) {
       case "students":
         return (
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                <div>
-                  <CardTitle>Student Management</CardTitle>
-                  <CardDescription className="flex flex-wrap gap-2 mt-1">
-                    <span className="font-medium">Total: {totalStudents}</span>
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-green-600 font-medium">Enabled: {enabledStudents}</span>
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-red-600 font-medium">Disabled: {disabledStudents}</span>
-                  </CardDescription>
-                </div>
-                <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
-                  <div className="flex items-center gap-2">
-                    <Label>Reg Fee:</Label>
-                    <Input type="number" className="w-24" value={localRegFee} onChange={e => setLocalRegFee(Number(e.target.value))} />
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-blue-100">Total Students</p>
+                      <p className="text-3xl font-bold mt-1">{totalStudents}</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <Users className="h-6 w-6" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <Label className="whitespace-nowrap">QR Code:</Label>
-                     <div className="flex items-center gap-2">
-                       {qrCodeUrl && (
-                         <Dialog>
-                           <DialogTrigger asChild>
-                             <Button variant="ghost" size="icon"><QrCode className="h-4 w-4"/></Button>
-                           </DialogTrigger>
-                           <DialogContent>
-                             <img src={qrCodeUrl} alt="QR Code" className="w-full h-auto max-w-sm mx-auto" />
-                           </DialogContent>
-                         </Dialog>
-                       )}
-                       <Input type="file" accept="image/*" className="w-full max-w-[180px]" onChange={handleQrUpload} />
-                     </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-green-100">Enabled</p>
+                      <p className="text-3xl font-bold mt-1">{enabledStudents}</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <CheckCircle className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-orange-100">Pending</p>
+                      <p className="text-3xl font-bold mt-1">{disabledStudents}</p>
+                    </div>
+                    <div className="p-3 bg-white/20 rounded-xl">
+                      <Users className="h-6 w-6" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Main Student Management Card */}
+            <Card className="shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50 border-b">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                  <div>
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Users className="h-5 w-5 text-blue-600" />
+                      </div>
+                      Student Management
+                    </CardTitle>
+                    <CardDescription className="mt-2">Manage student access and payment status</CardDescription>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
+                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                      <Label className="text-sm font-medium">Reg Fee:</Label>
+                      <Input type="number" className="w-20 h-8 text-center font-semibold" value={localRegFee} onChange={e => setLocalRegFee(Number(e.target.value))} />
+                    </div>
+                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                      <Label className="text-sm font-medium whitespace-nowrap">QR Code:</Label>
+                       <div className="flex items-center gap-2">
+                         {qrCodeUrl && (
+                           <Dialog>
+                             <DialogTrigger asChild>
+                               <Button variant="outline" size="sm" className="h-8"><QrCode className="h-4 w-4 mr-1"/> View</Button>
+                             </DialogTrigger>
+                             <DialogContent>
+                               <img src={qrCodeUrl} alt="QR Code" className="w-full h-auto max-w-sm mx-auto" />
+                             </DialogContent>
+                           </Dialog>
+                         )}
+                         <Input type="file" accept="image/*" className="w-32 h-8 text-xs" onChange={handleQrUpload} />
+                       </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="mt-4 relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search students..." className="pl-8" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border max-h-[500px] overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Mobile</TableHead>
-                      <TableHead>City/State</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Access</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredStudents.map(student => (
-                      <TableRow key={student.id}>
-                        <TableCell className="font-mono">{student.studentId}</TableCell>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.mobile}</TableCell>
-                        <TableCell>{student.city}, {student.state}</TableCell>
-                        <TableCell>
-                          {student.isPaymentCompleted ? 
-                            <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle className="h-4 w-4"/> Paid</span> : 
-                            <span className="text-red-500 font-bold">Pending</span>}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Switch checked={student.isPaymentCompleted} onCheckedChange={() => handleStudentPaymentToggle(student)} />
-                            <Label className="text-xs hidden sm:inline">{student.isPaymentCompleted ? 'Enabled' : 'Disabled'}</Label>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90" onClick={() => handleDeleteStudent(student.id)}>
-                             <Trash2 className="h-4 w-4" />
-                           </Button>
-                        </TableCell>
+                <div className="mt-4 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Search by name, ID, or mobile..." className="pl-10 bg-white shadow-sm" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="max-h-[450px] overflow-auto">
+                  <Table>
+                    <TableHeader className="bg-slate-50 sticky top-0">
+                      <TableRow>
+                        <TableHead className="font-semibold">Student ID</TableHead>
+                        <TableHead className="font-semibold">Name</TableHead>
+                        <TableHead className="font-semibold">Mobile</TableHead>
+                        <TableHead className="font-semibold">City/State</TableHead>
+                        <TableHead className="font-semibold">Payment</TableHead>
+                        <TableHead className="font-semibold">Access</TableHead>
+                        <TableHead className="font-semibold text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredStudents.map(student => (
+                        <TableRow key={student.id} className="hover:bg-blue-50/50 transition-colors">
+                          <TableCell className="font-mono text-sm bg-slate-50/50">{student.studentId}</TableCell>
+                          <TableCell className="font-medium">{student.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{student.mobile}</TableCell>
+                          <TableCell className="text-muted-foreground">{student.city}, {student.state}</TableCell>
+                          <TableCell>
+                            {student.isPaymentCompleted ? 
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold"><CheckCircle className="h-3.5 w-3.5"/> Paid</span> : 
+                              <span className="inline-flex items-center px-2.5 py-1 bg-red-100 text-red-600 rounded-full text-xs font-semibold">Pending</span>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch checked={student.isPaymentCompleted} onCheckedChange={() => handleStudentPaymentToggle(student)} />
+                              <span className={cn("text-xs font-medium", student.isPaymentCompleted ? "text-green-600" : "text-gray-400")}>{student.isPaymentCompleted ? 'Active' : 'Inactive'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-red-50" onClick={() => handleDeleteStudent(student.id)}>
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredStudents.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                            <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                            No students found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         );
       case "upload":
         return (
@@ -929,33 +982,66 @@ export default function AdminDashboard() {
     }
   };
 
+  const menuItems = [
+    { id: "students", label: "Students", icon: Users, color: "text-blue-600", bg: "bg-blue-100" },
+    { id: "upload", label: "Upload Tests", icon: FileUp, color: "text-green-600", bg: "bg-green-100" },
+    { id: "manage", label: "Manage Tests", icon: LayoutList, color: "text-purple-600", bg: "bg-purple-100" },
+    { id: "pdfstore", label: "PDF Store", icon: FolderPlus, color: "text-orange-600", bg: "bg-orange-100" },
+    { id: "results", label: "Results", icon: BarChart, color: "text-indigo-600", bg: "bg-indigo-100" },
+    { id: "gallery", label: "Gallery", icon: ImageIcon, color: "text-pink-600", bg: "bg-pink-100" },
+  ];
+
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Sidebar */}
-      <aside className="w-64 border-r bg-muted/20 flex flex-col p-4 space-y-2 shrink-0 overflow-y-auto">
-        <h2 className="px-4 text-xs font-semibold text-muted-foreground mb-2 tracking-wider uppercase">Menu</h2>
-        {[
-          { id: "students", label: "Students", icon: Users },
-          { id: "upload", label: "Upload New Tests", icon: FileUp },
-          { id: "manage", label: "Manage Tests", icon: LayoutList },
-          { id: "pdfstore", label: "Pdf store", icon: FolderPlus },
-          { id: "results", label: "Results", icon: BarChart },
-          { id: "gallery", label: "Gallery upload", icon: ImageIcon },
-        ].map(item => (
-          <Button
-            key={item.id}
-            variant={activeTab === item.id ? "secondary" : "ghost"}
-            className={cn("justify-start gap-3 cursor-pointer", activeTab === item.id && "bg-white shadow-sm")}
-            onClick={() => setActiveTab(item.id)}
-          >
-            <item.icon size={18} />
-            <span className="truncate">{item.label}</span>
-          </Button>
-        ))}
+      <aside className="w-72 border-r bg-gradient-to-b from-slate-50 to-white flex flex-col shrink-0 overflow-y-auto">
+        <div className="p-5 border-b bg-gradient-to-r from-primary to-blue-600">
+          <h2 className="text-lg font-bold text-white">Admin Panel</h2>
+          <p className="text-xs text-white/80 mt-0.5">Manage your institute</p>
+        </div>
+        <div className="p-3 space-y-1 flex-1">
+          <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</p>
+          {menuItems.map(item => (
+            <button
+              key={item.id}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left",
+                activeTab === item.id 
+                  ? "bg-white shadow-md border border-slate-200" 
+                  : "hover:bg-white/60"
+              )}
+              onClick={() => setActiveTab(item.id)}
+            >
+              <div className={cn(
+                "p-2 rounded-lg transition-colors",
+                activeTab === item.id ? item.bg : "bg-slate-100"
+              )}>
+                <item.icon size={18} className={activeTab === item.id ? item.color : "text-slate-500"} />
+              </div>
+              <span className={cn(
+                "font-medium text-sm",
+                activeTab === item.id ? "text-gray-900" : "text-gray-600"
+              )}>
+                {item.label}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="p-4 border-t bg-slate-50/50">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white text-sm font-bold">
+              A
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Admin</p>
+              <p className="text-xs text-muted-foreground">Administrator</p>
+            </div>
+          </div>
+        </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 overflow-auto bg-slate-50/50">
+      <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-slate-50 to-blue-50/30">
         {renderContent()}
       </main>
     </div>
