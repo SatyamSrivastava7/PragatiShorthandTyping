@@ -34,6 +34,11 @@ import {
   QrCode,
   Eye,
   Search,
+  Keyboard,
+  Clock,
+  Award,
+  BarChart,
+  BookOpen,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -160,63 +165,98 @@ export default function StudentDashboard() {
     consumePdfPurchase(parseInt(pdfId));
   };
 
+  const typingResultsCount = results.filter(r => r.contentType === 'typing').length;
+  const shorthandResultsCount = results.filter(r => r.contentType === 'shorthand').length;
+
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Student Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {currentUser?.name}
-        </p>
+      {/* Enhanced Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
+        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,black)]" />
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm">Welcome, {currentUser?.name}!</h1>
+            <p className="text-blue-100 flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">ID: {currentUser?.studentId}</span>
+              Student Dashboard
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
+              <p className="text-2xl font-bold">{typingTests.length}</p>
+              <p className="text-xs text-blue-100">Typing Tests</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
+              <p className="text-2xl font-bold">{shorthandTests.length}</p>
+              <p className="text-xs text-blue-100">Shorthand</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
+              <p className="text-2xl font-bold">{results.length}</p>
+              <p className="text-xs text-blue-100">Results</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="typing_tests" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-200 p-1 rounded-full h-auto">
+        <TabsList className="grid w-full grid-cols-4 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
           <TabsTrigger
             value="typing_tests"
-            className="rounded-full py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-foreground data-[state=active]:shadow-md transition-all"
+            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
-            Typing Tests
+            <Keyboard className="h-4 w-4" /> Typing Tests
           </TabsTrigger>
           <TabsTrigger
             value="shorthand_tests"
-            className="rounded-full py-2 data-[state=active]:bg-orange-500 data-[state=active]:text-white text-foreground data-[state=active]:shadow-md transition-all"
+            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
-            Shorthand Tests
+            <Mic className="h-4 w-4" /> Shorthand
           </TabsTrigger>
           <TabsTrigger
             value="results"
-            className="rounded-full py-2 data-[state=active]:bg-green-600 data-[state=active]:text-white text-foreground data-[state=active]:shadow-md transition-all"
+            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
-            My Results
+            <BarChart className="h-4 w-4" /> My Results
           </TabsTrigger>
           <TabsTrigger
             value="store"
-            className="rounded-full py-2 data-[state=active]:bg-blue-600 data-[state=active]:text-white text-foreground data-[state=active]:shadow-md transition-all"
+            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
-            PDF Store
+            <BookOpen className="h-4 w-4" /> PDF Store
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="typing_tests">
-          <div className="mb-4">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search typing tests..."
-                value={typingSearch}
-                onChange={(e) => setTypingSearch(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-typing"
-              />
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Keyboard className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Typing Tests</h3>
+                  <p className="text-sm text-muted-foreground">{typingTests.length} tests available</p>
+                </div>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tests..."
+                  value={typingSearch}
+                  onChange={(e) => setTypingSearch(e.target.value)}
+                  className="pl-10 bg-white shadow-sm"
+                  data-testid="input-search-typing"
+                />
+              </div>
             </div>
           </div>
           {isContentLoading ? (
             <div className="flex items-center justify-center p-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {typingTests.length > 0 ? (
               typingTests.map((test) => {
                 const result = getResultForContent(test.id);
@@ -225,31 +265,35 @@ export default function StudentDashboard() {
                 return (
                   <Card
                     key={test.id}
-                    className="flex flex-col border-l-4 border-l-primary shadow-sm hover:shadow-md transition-shadow"
+                    className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
                   >
-                    <CardHeader>
-                      <CardTitle className="text-xl">{test.title}</CardTitle>
-                      <CardDescription className="capitalize font-medium text-primary flex justify-between">
-                        <span>Typing Test</span>
-                        <span>{test.language || "English"}</span>
-                      </CardDescription>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(test.dateFor), "PPP")}
+                    <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                          {test.language || "English"}
+                        </span>
                       </div>
+                      <CardDescription className="text-xs text-muted-foreground mt-2">
+                        {format(new Date(test.dateFor), "PPP")}
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1">
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <p>
-                          Duration:{" "}
-                          <span className="font-semibold text-foreground">
-                            {test.duration} Minutes
-                          </span>
-                        </p>
+                    <CardContent className="flex-1 pb-4">
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          <span className="font-medium text-foreground">{test.duration} min</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Keyboard className="h-4 w-4" />
+                          <span>Typing</span>
+                        </div>
                       </div>
                     </CardContent>
-                    <CardFooter className="pt-4 border-t bg-muted/20">
+                    <CardFooter className="pt-4 border-t bg-slate-50">
                       <Button
-                        className="w-full"
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
                         onClick={() => setLocation(`/test/${test.id}`)}
                       >
                         <PlayCircle className="mr-2 h-4 w-4" /> Start Test
@@ -259,13 +303,12 @@ export default function StudentDashboard() {
                 );
               })
             ) : (
-              <div className="col-span-full flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
-                <div className="bg-muted rounded-full p-4 mb-4">
-                  <CheckCircle className="h-8 w-8 text-muted-foreground" />
+              <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-blue-200 rounded-xl bg-blue-50/50">
+                <div className="bg-blue-100 rounded-full p-4 mb-4">
+                  <Keyboard className="h-8 w-8 text-blue-400" />
                 </div>
-                <h3 className="text-lg font-semibold">
-                  No typing tests available
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-700">No typing tests available</h3>
+                <p className="text-sm text-muted-foreground mt-1">Check back later for new tests</p>
               </div>
             )}
           </div>
@@ -273,16 +316,27 @@ export default function StudentDashboard() {
         </TabsContent>
 
         <TabsContent value="shorthand_tests">
-          <div className="mb-4">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search shorthand tests..."
-                value={shorthandSearch}
-                onChange={(e) => setShorthandSearch(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-shorthand"
-              />
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Mic className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Shorthand Tests</h3>
+                  <p className="text-sm text-muted-foreground">{shorthandTests.length} tests available</p>
+                </div>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tests..."
+                  value={shorthandSearch}
+                  onChange={(e) => setShorthandSearch(e.target.value)}
+                  className="pl-10 bg-white shadow-sm"
+                  data-testid="input-search-shorthand"
+                />
+              </div>
             </div>
           </div>
           {isContentLoading ? (
@@ -291,7 +345,7 @@ export default function StudentDashboard() {
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {shorthandTests.length > 0 ? (
               shorthandTests.map((test) => {
                 const result = getResultForContent(test.id);
@@ -300,52 +354,53 @@ export default function StudentDashboard() {
                 return (
                   <Card
                     key={test.id}
-                    className="flex flex-col border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow"
+                    className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
                   >
-                    <CardHeader>
-                      <CardTitle className="text-xl">{test.title}</CardTitle>
-                      <CardDescription className="capitalize font-medium text-orange-600 flex justify-between">
-                        <span>Shorthand Test</span>
-                        <span>{test.language || "English"}</span>
-                      </CardDescription>
-                      <div className="text-xs text-muted-foreground mt-1">
+                    <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                        <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                          {test.language || "English"}
+                        </span>
+                      </div>
+                      <CardDescription className="text-xs text-muted-foreground mt-2">
                         {format(new Date(test.dateFor), "PPP")}
-                      </div>
+                      </CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1">
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <p>
-                          Duration:{" "}
-                          <span className="font-semibold text-foreground">
-                            {test.duration} Minutes
-                          </span>
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Workflow: Listen to Audio → Write on Paper → Type Here
-                        </p>
+                    <CardContent className="flex-1 pb-4">
+                      <div className="flex items-center gap-4 text-sm mb-3">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          <span className="font-medium text-foreground">{test.duration} min</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Mic className="h-4 w-4" />
+                          <span>Shorthand</span>
+                        </div>
                       </div>
+                      <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
+                        Listen to Audio, Write on Paper, Type Here
+                      </p>
                     </CardContent>
-                    <CardFooter className="pt-4 border-t bg-muted/20">
+                    <CardFooter className="pt-4 border-t bg-slate-50">
                       <Button
-                        className="w-full bg-orange-300"
-                        variant="secondary"
+                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-md group-hover:shadow-lg transition-shadow"
                         onClick={() => setLocation(`/test/${test.id}`)}
                       >
-                        <PlayCircle className="mr-2 h-4 w-4" /> Start
-                        Shorthand Test
+                        <PlayCircle className="mr-2 h-4 w-4" /> Start Test
                       </Button>
                     </CardFooter>
                   </Card>
                 );
               })
             ) : (
-              <div className="col-span-full flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
-                <div className="bg-muted rounded-full p-4 mb-4">
-                  <Mic className="h-8 w-8 text-muted-foreground" />
+              <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/50">
+                <div className="bg-orange-100 rounded-full p-4 mb-4">
+                  <Mic className="h-8 w-8 text-orange-400" />
                 </div>
-                <h3 className="text-lg font-semibold">
-                  No shorthand tests available
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-700">No shorthand tests available</h3>
+                <p className="text-sm text-muted-foreground mt-1">Check back later for new tests</p>
               </div>
             )}
           </div>
@@ -353,82 +408,134 @@ export default function StudentDashboard() {
         </TabsContent>
 
         <TabsContent value="results">
-          <Tabs defaultValue="typing_results" className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="typing_results">Typing Results</TabsTrigger>
-              <TabsTrigger value="shorthand_results">
-                Shorthand Results
-              </TabsTrigger>
-            </TabsList>
+          <div className="mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <BarChart className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg">My Results</h3>
+                <p className="text-sm text-muted-foreground">{results.length} total results</p>
+              </div>
+            </div>
+          </div>
 
-            {["typing", "shorthand"].map((type) => (
-              <TabsContent key={type} value={`${type}_results`}>
-                <div className="space-y-4">
-                  {results
-                    .filter(
-                      (r) =>
-                        (r.studentId === currentUser?.studentId ||
-                          r.studentId === currentUser?.id) &&
-                        r.contentType === type,
-                    )
-                    .sort(
-                      (a, b) =>
-                        new Date(b.submittedAt).getTime() -
-                        new Date(a.submittedAt).getTime(),
-                    )
-                    .map((result) => (
-                      <Card
-                        key={result.id}
-                        className="p-4 flex items-center justify-between"
-                      >
-                        <div>
-                          <h4 className="font-semibold">
-                            {result.contentTitle}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(result.submittedAt), "PPP p")}
-                          </p>
-                        </div>
-                        <div className="text-right flex items-center gap-4">
-                          {result.contentType === "typing" ? (
-                            <div className="text-sm">
-                              <span className="font-bold text-primary">
-                                {result.netSpeed} WPM
-                              </span>
-                              <span className="mx-2 text-muted-foreground">
-                                |
-                              </span>
-                              <span className="text-muted-foreground">
-                                {result.mistakes} Mistakes
-                              </span>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-blue-100">Typing Tests</p>
+                    <p className="text-2xl font-bold mt-1">{typingResultsCount}</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <Keyboard className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-orange-100">Shorthand Tests</p>
+                    <p className="text-2xl font-bold mt-1">{shorthandResultsCount}</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <Mic className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-green-100">Total Results</p>
+                    <p className="text-2xl font-bold mt-1">{results.length}</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <Award className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-lg border-0">
+            <CardContent className="p-0">
+              <Tabs defaultValue="typing_results" className="w-full">
+                <div className="px-6 pt-4 border-b bg-slate-50">
+                  <TabsList className="bg-white shadow-sm">
+                    <TabsTrigger value="typing_results" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
+                      <Keyboard className="h-4 w-4 mr-2" /> Typing Results
+                    </TabsTrigger>
+                    <TabsTrigger value="shorthand_results" className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
+                      <Mic className="h-4 w-4 mr-2" /> Shorthand Results
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                {["typing", "shorthand"].map((type) => (
+                  <TabsContent key={type} value={`${type}_results`} className="p-6">
+                    <div className="space-y-3">
+                      {results
+                        .filter(
+                          (r) =>
+                            (r.studentId === currentUser?.studentId ||
+                              r.studentId === currentUser?.id) &&
+                            r.contentType === type,
+                        )
+                        .sort(
+                          (a, b) =>
+                            new Date(b.submittedAt).getTime() -
+                            new Date(a.submittedAt).getTime(),
+                        )
+                        .map((result) => (
+                          <div
+                            key={result.id}
+                            className="p-4 rounded-xl border bg-white hover:shadow-md transition-shadow flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`p-2 rounded-lg ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                                {type === 'typing' ? <Keyboard className="h-5 w-5 text-blue-600" /> : <Mic className="h-5 w-5 text-orange-600" />}
+                              </div>
+                              <div>
+                                <h4 className="font-semibold">{result.contentTitle}</h4>
+                                <p className="text-xs text-muted-foreground">{format(new Date(result.submittedAt), "PPP p")}</p>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="text-sm">
-                              <span
-                                className={
-                                  result.result === "Pass"
-                                    ? "text-green-600 font-bold"
-                                    : "text-red-600 font-bold"
-                                }
-                              >
-                                {result.result}
-                              </span>
-                              <span className="mx-2 text-muted-foreground">
-                                |
-                              </span>
-                              <span className="text-muted-foreground">
-                                {result.mistakes} Mistakes
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadResult(result)}
-                            >
-                              <Download className="h-4 w-4 mr-1" /> PDF
-                            </Button>
+                            <div className="flex items-center gap-4">
+                              {result.contentType === "typing" ? (
+                                <div className="flex items-center gap-3">
+                                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                                    {result.netSpeed} WPM
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {result.mistakes} mistakes
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-3">
+                                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                                    result.result === "Pass" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                                  }`}>
+                                    {result.result}
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {result.mistakes} mistakes
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDownloadResult(result)}
+                                >
+                                  <Download className="h-4 w-4 mr-1" /> PDF
+                                </Button>
 
                             <Dialog>
                               <DialogTrigger asChild>
@@ -544,24 +651,32 @@ export default function StudentDashboard() {
                                 </div>
                               </DialogContent>
                             </Dialog>
+                              </div>
+                            </div>
                           </div>
+                        ))}
+                      {results.filter(
+                        (r) =>
+                          (r.studentId === parseInt(currentUser?.studentId) ||
+                            r.studentId === parseInt(currentUser?.id)) &&
+                          r.contentType === type,
+                      ).length === 0 && (
+                        <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${
+                          type === 'typing' ? 'border-blue-200 bg-blue-50/50' : 'border-orange-200 bg-orange-50/50'
+                        }`}>
+                          <div className={`p-3 rounded-full mb-3 ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                            {type === 'typing' ? <Keyboard className="h-6 w-6 text-blue-400" /> : <Mic className="h-6 w-6 text-orange-400" />}
+                          </div>
+                          <p className="text-gray-600 font-medium">No {type} results yet</p>
+                          <p className="text-sm text-muted-foreground mt-1">Complete a test to see your results here</p>
                         </div>
-                      </Card>
-                    ))}
-                  {results.filter(
-                    (r) =>
-                      (r.studentId === parseInt(currentUser?.studentId) ||
-                        r.studentId === parseInt(currentUser?.id)) &&
-                      r.contentType === type,
-                  ).length === 0 && (
-                    <p className="text-muted-foreground text-center py-8">
-                      No {type} history yet.
-                    </p>
-                  )}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+                      )}
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="store">
