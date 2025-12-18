@@ -525,14 +525,13 @@ export default function AdminDashboard() {
                     <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
                       <div className="flex items-center gap-3 mb-3">
                         <Music className="h-5 w-5 text-orange-600" />
-                        <Label className="text-sm font-medium text-orange-800">Audio File (Required)</Label>
+                        <Label className="text-sm font-medium text-orange-800">Audio File (Optional)</Label>
                       </div>
                       <Input 
                         type="file" 
                         accept="audio/*" 
                         onChange={e => setDictationFile(e.target.files?.[0] || null)} 
                         ref={dictationFileInputRef} 
-                        required={contentType === 'shorthand'} 
                         className="bg-white"
                       />
                       {dictationFile && (
