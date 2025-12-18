@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic, Loader2 } from "lucide-react";
+import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic, Loader2, Keyboard } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -408,88 +408,174 @@ export default function AdminDashboard() {
         );
       case "upload":
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload New Test Content</CardTitle>
-              <CardDescription>Add typing or shorthand content.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUpload} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Title</Label>
-                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Test Title" required />
+          <div className="space-y-6">
+            {/* Header Section */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg">
+                <FileUp className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Upload New Test</h2>
+                <p className="text-muted-foreground">Create typing or shorthand test content</p>
+              </div>
+            </div>
+
+            {/* Test Type Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card 
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2",
+                  contentType === 'typing' 
+                    ? "border-blue-500 bg-blue-50/50 shadow-md" 
+                    : "border-transparent hover:border-slate-200 hover:shadow-sm"
+                )}
+                onClick={() => setContentType('typing')}
+              >
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className={cn(
+                    "p-3 rounded-xl",
+                    contentType === 'typing' ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-500"
+                  )}>
+                    <Keyboard className="h-6 w-6" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Date For</Label>
-                    <Input type="date" value={dateFor} onChange={e => setDateFor(e.target.value)} required />
+                  <div>
+                    <h3 className={cn("font-semibold", contentType === 'typing' ? "text-blue-700" : "text-gray-700")}>Typing Test</h3>
+                    <p className="text-sm text-muted-foreground">Text-based typing assessment</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Test Type</Label>
-                    <Select value={contentType} onValueChange={(v: any) => setContentType(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="typing">Typing Test</SelectItem>
-                        <SelectItem value="shorthand">Shorthand Test</SelectItem>
-                      </SelectContent>
-                    </Select>
+                </CardContent>
+              </Card>
+              <Card 
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2",
+                  contentType === 'shorthand' 
+                    ? "border-orange-500 bg-orange-50/50 shadow-md" 
+                    : "border-transparent hover:border-slate-200 hover:shadow-sm"
+                )}
+                onClick={() => setContentType('shorthand')}
+              >
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div className={cn(
+                    "p-3 rounded-xl",
+                    contentType === 'shorthand' ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-500"
+                  )}>
+                    <Mic className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className={cn("font-semibold", contentType === 'shorthand' ? "text-orange-700" : "text-gray-700")}>Shorthand Test</h3>
+                    <p className="text-sm text-muted-foreground">Audio dictation with transcription</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Main Form Card */}
+            <Card className="shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50/50 border-b">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    contentType === 'typing' ? "bg-blue-100" : "bg-orange-100"
+                  )}>
+                    {contentType === 'typing' ? (
+                      <Keyboard className={cn("h-4 w-4", contentType === 'typing' ? "text-blue-600" : "text-orange-600")} />
+                    ) : (
+                      <Mic className="h-4 w-4 text-orange-600" />
+                    )}
+                  </div>
+                  {contentType === 'typing' ? 'Typing Test Details' : 'Shorthand Test Details'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <form onSubmit={handleUpload} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Test Title</Label>
+                      <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter title" required className="bg-white" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Schedule Date</Label>
+                      <Input type="date" value={dateFor} onChange={e => setDateFor(e.target.value)} required className="bg-white" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Language</Label>
+                      <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
+                        <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="english">English</SelectItem>
+                          <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Duration</Label>
+                      <Select value={duration} onValueChange={setDuration}>
+                        <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2">2 Minutes</SelectItem>
+                          <SelectItem value="5">5 Minutes</SelectItem>
+                          <SelectItem value="10">10 Minutes</SelectItem>
+                          <SelectItem value="15">15 Minutes</SelectItem>
+                          <SelectItem value="30">30 Minutes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   
                   {contentType === 'shorthand' && (
-                    <div className="space-y-2">
-                       <Label>Audio File (Required for Shorthand)</Label>
-                       <Input type="file" accept="audio/*" onChange={e => setDictationFile(e.target.files?.[0] || null)} ref={dictationFileInputRef} required={contentType === 'shorthand'} />
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Music className="h-5 w-5 text-orange-600" />
+                        <Label className="text-sm font-medium text-orange-800">Audio File (Required)</Label>
+                      </div>
+                      <Input 
+                        type="file" 
+                        accept="audio/*" 
+                        onChange={e => setDictationFile(e.target.files?.[0] || null)} 
+                        ref={dictationFileInputRef} 
+                        required={contentType === 'shorthand'} 
+                        className="bg-white"
+                      />
+                      {dictationFile && (
+                        <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" /> {dictationFile.name}
+                        </p>
+                      )}
                     </div>
                   )}
-
+                  
                   <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select value={language} onValueChange={(v: any) => setLanguage(v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="english">English</SelectItem>
-                        <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-sm font-medium">Content Text (Transcript)</Label>
+                    <Textarea 
+                      value={textContent} 
+                      onChange={e => setTextContent(e.target.value)} 
+                      placeholder="Paste the text content here..."
+                      className={cn(
+                        "min-h-[200px] font-mono bg-white border-2 focus:border-primary/50",
+                        language === 'hindi' ? "font-mangal" : ""
+                      )}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {textContent.split(/\s+/).filter(Boolean).length} words | {textContent.length} characters
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Duration (Minutes)</Label>
-                    <Select value={duration} onValueChange={setDuration}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="2">2 Minutes</SelectItem>
-                        <SelectItem value="5">5 Minutes</SelectItem>
-                        <SelectItem value="10">10 Minutes</SelectItem>
-                        <SelectItem value="15">15 Minutes</SelectItem>
-                        <SelectItem value="30">30 Minutes</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Content Text (Transcript)</Label>
-                  <Textarea 
-                    value={textContent} 
-                    onChange={e => setTextContent(e.target.value)} 
-                    placeholder="Paste text here..."
-                    className={cn(
-                      "h-64 font-mono",
-                      language === 'hindi' ? "font-mangal" : ""
-                    )}
-                  />
-                </div>
 
-                <Button type="submit" disabled={isUploading}>
-                  {isUploading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
-                  ) : (
-                    <><FileUp className="mr-2 h-4 w-4" /> Upload Content</>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button 
+                      type="submit" 
+                      disabled={isUploading}
+                      className="bg-gradient-to-r from-green-500 to-green-600 shadow-md hover:shadow-lg transition-all px-8"
+                    >
+                      {isUploading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                      ) : (
+                        <><Upload className="mr-2 h-4 w-4" /> Upload Test</>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         );
       case "manage":
         return (
@@ -996,7 +1082,7 @@ export default function AdminDashboard() {
       {/* Sidebar */}
       <aside className="w-72 border-r bg-gradient-to-b from-slate-50 to-white flex flex-col shrink-0 overflow-y-auto">
         <div className="p-5 border-b bg-gradient-to-r from-primary to-blue-600">
-          <h2 className="text-lg font-bold text-white">Admin Panel</h2>
+          <h2 className="text-lg font-bold text-white/80">Admin Panel</h2>
           <p className="text-xs text-white/80 mt-0.5">Manage your institute</p>
         </div>
         <div className="p-3 space-y-1 flex-1">
