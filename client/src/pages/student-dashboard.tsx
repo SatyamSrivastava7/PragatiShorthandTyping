@@ -821,7 +821,7 @@ export default function StudentDashboard() {
               <div className="bg-white p-4 rounded-lg shadow-sm border mb-4">
                 {/* Auto-generated QR Code for UPI */}
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=pragati@upi&pn=PragatiInstitute&am=${selectedPdfForPurchase?.price}&cu=INR`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=pragatiinstiute@sbi&pn=PragatiInstitute&am=${selectedPdfForPurchase?.price}&cu=INR`}
                   alt="Payment QR"
                   className="w-48 h-48 object-contain"
                 />
