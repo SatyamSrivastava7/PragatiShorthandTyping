@@ -30,7 +30,6 @@ import {
   ArrowLeft,
   Loader2,
   Mic,
-  CreditCard,
   QrCode,
   Eye,
   Search,
@@ -84,7 +83,6 @@ export default function StudentDashboard() {
   } | null>(null);
 
   // Payment Gateway State
-  const [paymentTab, setPaymentTab] = useState("qr");
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
   // Search State
@@ -803,58 +801,25 @@ export default function StudentDashboard() {
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs
-            value={paymentTab}
-            onValueChange={setPaymentTab}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="qr" className="flex items-center gap-2">
-                <QrCode size={16} /> UPI QR Code
-              </TabsTrigger>
-              <TabsTrigger value="card" className="flex items-center gap-2">
-                <CreditCard size={16} /> Debit Card
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="qr" className="flex flex-col items-center py-4">
-              <div className="bg-white p-4 rounded-lg shadow-sm border mb-4">
-                {/* Auto-generated QR Code for UPI */}
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=pragatiinstiute@sbi&pn=PragatiInstitute&am=${selectedPdfForPurchase?.price}&cu=INR`}
-                  alt="Payment QR"
-                  className="w-48 h-48 object-contain"
-                />
-              </div>
-              <p className="text-sm font-medium text-center mb-1">
-                Scan to Pay ₹{selectedPdfForPurchase?.price}
-              </p>
-              <p className="text-xs text-muted-foreground text-center">
-                Use any UPI App (GPay, PhonePe, Paytm)
-              </p>
-            </TabsContent>
-
-            <TabsContent value="card" className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label>Card Number</Label>
-                <Input placeholder="0000 0000 0000 0000" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Expiry Date</Label>
-                  <Input placeholder="MM/YY" />
-                </div>
-                <div className="space-y-2">
-                  <Label>CVV</Label>
-                  <Input placeholder="123" type="password" maxLength={3} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Cardholder Name</Label>
-                <Input placeholder="Name on card" />
-              </div>
-            </TabsContent>
-          </Tabs>
+          <div className="flex flex-col items-center py-4">
+            <div className="flex items-center gap-2 mb-4 text-primary">
+              <QrCode size={20} />
+              <span className="font-medium">UPI Payment</span>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border mb-4">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi://pay?pa=pragatiinstiute@sbi&pn=PragatiInstitute&am=${selectedPdfForPurchase?.price}&cu=INR`}
+                alt="Payment QR"
+                className="w-48 h-48 object-contain"
+              />
+            </div>
+            <p className="text-sm font-medium text-center mb-1">
+              Scan to Pay ₹{selectedPdfForPurchase?.price}
+            </p>
+            <p className="text-xs text-muted-foreground text-center">
+              Use any UPI App (GPay, PhonePe, Paytm)
+            </p>
+          </div>
 
           <DialogFooter className="sm:justify-between flex-row items-center gap-4 mt-4">
             <div className="text-xs text-muted-foreground flex-1">
