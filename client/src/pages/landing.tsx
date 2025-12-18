@@ -221,32 +221,46 @@ export default function LandingPage() {
       {/* Gallery Section */}
       <section className="w-full py-12 md:py-24 lg:py-32 bg-slate-50/50">
         <div className="container px-4 md:px-6 mx-auto">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-4 text-center">Photo Gallery</h2>
-          <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Glimpses of life and events at Pragati Institute of Professional Studies.
-          </p>
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl mb-8 text-center">Gallery</h2>
           {galleryImages.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
-              {galleryImages.slice(0, 8).map((url, idx) => (
-                <Dialog key={idx}>
-                  <DialogTrigger asChild>
-                    <div className="relative group aspect-square rounded-xl overflow-hidden cursor-pointer shadow-md hover:shadow-lg transition-all hover:scale-[1.02] bg-white p-1">
-                      <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover rounded-lg" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg" />
-                    </div>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
-                    <img src={url} alt={`Gallery ${idx}`} className="w-full h-auto max-h-[90vh] object-contain rounded-md" />
-                  </DialogContent>
-                </Dialog>
-              ))}
+            <div className="w-full max-w-5xl mx-auto px-12">
+              <Carousel
+                plugins={[
+                  Autoplay({
+                    delay: 2000,
+                  }),
+                ]}
+                className="w-full"
+              >
+                <CarouselContent>
+                  {galleryImages.map((url, idx) => (
+                    <CarouselItem key={idx} className="md:basis-1/2 lg:basis-1/3">
+                      <div className="p-1">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <div className="relative group aspect-square rounded-lg overflow-hidden border cursor-pointer shadow-sm hover:shadow-md transition-all hover:scale-[1.02]">
+                              <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                            </div>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
+                            <img src={url} alt={`Gallery ${idx}`} className="w-full h-auto max-h-[90vh] object-contain rounded-md" />
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious />
+                <CarouselNext />
+              </Carousel>
             </div>
           ) : (
             <div className="text-center py-20 bg-muted/30 rounded-lg border-2 border-dashed">
               <p className="text-muted-foreground">No images uploaded yet.</p>
             </div>
           )}
-          {galleryImages.length > 8 && (
+          {galleryImages.length > 0 && (
             <div className="mt-8 text-center">
               <Link href="/gallery">
                  <Button variant="outline">View All Images</Button>
