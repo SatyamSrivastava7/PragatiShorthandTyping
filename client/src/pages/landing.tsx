@@ -58,7 +58,7 @@ export default function LandingPage() {
               <a href="#about" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">About</a>
               <a href="#candidates" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Candidates</a>
               <Link href="/gallery" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Gallery</Link>
-              <a href="#contact" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Contact Us</a>
+              <Link href="/contact" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Contact Us</Link>
             </nav>
             <Link href={getStartedLink}>
               <Button className="bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all">
