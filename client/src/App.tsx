@@ -35,29 +35,36 @@ function PrivateRoute({ component: Component, allowedRoles }: { component: React
 
 function Router() {
   return (
-    <Layout>
-      <Switch>
-        {/* Public Routes */}
-        <Route path="/" component={LandingPage} />
-        <Route path="/auth" component={AuthPage} />
-        <Route path="/contact" component={ContactPage} />
-        <Route path="/gallery" component={GalleryPage} />
-        <Route path="/selected-candidates" component={SelectedCandidatesPage} />
-        
-        {/* Protected Routes */}
-        <Route path="/admin">
-          <PrivateRoute component={AdminDashboard} allowedRoles={['admin']} />
-        </Route>
-        <Route path="/student">
-          <PrivateRoute component={StudentDashboard} allowedRoles={['student']} />
-        </Route>
-        <Route path="/test/:id">
-          <PrivateRoute component={TypingTestPage} allowedRoles={['student']} />
-        </Route>
+    <Switch>
+      {/* Landing page has its own header/footer */}
+      <Route path="/" component={LandingPage} />
+      
+      {/* All other routes use the Layout */}
+      <Route>
+        <Layout>
+          <Switch>
+            {/* Public Routes */}
+            <Route path="/auth" component={AuthPage} />
+            <Route path="/contact" component={ContactPage} />
+            <Route path="/gallery" component={GalleryPage} />
+            <Route path="/selected-candidates" component={SelectedCandidatesPage} />
+            
+            {/* Protected Routes */}
+            <Route path="/admin">
+              <PrivateRoute component={AdminDashboard} allowedRoles={['admin']} />
+            </Route>
+            <Route path="/student">
+              <PrivateRoute component={StudentDashboard} allowedRoles={['student']} />
+            </Route>
+            <Route path="/test/:id">
+              <PrivateRoute component={TypingTestPage} allowedRoles={['student']} />
+            </Route>
 
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+            <Route component={NotFound} />
+          </Switch>
+        </Layout>
+      </Route>
+    </Switch>
   );
 }
 
