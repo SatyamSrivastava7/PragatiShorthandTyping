@@ -98,22 +98,31 @@ export default function StudentDashboard() {
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !currentUser) return;
+    if (!file || !currentUser?.id) {
+      toast({ variant: "destructive", title: "Error", description: "Please log in again to upload a profile picture." });
+      return;
+    }
 
     if (file.size > 2 * 1024 * 1024) {
       toast({ variant: "destructive", title: "File too large", description: "Please select an image under 2MB." });
       return;
     }
 
+    const userId = currentUser.id;
     setIsUploadingProfilePic(true);
     try {
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64 = reader.result as string;
-        await updateUser(currentUser.id, { profilePicture: base64 });
-        await queryClient.invalidateQueries({ queryKey: ['session'] });
-        toast({ title: "Profile picture updated!" });
-        setIsUploadingProfilePic(false);
+        try {
+          const base64 = reader.result as string;
+          await updateUser(userId, { profilePicture: base64 });
+          await queryClient.invalidateQueries({ queryKey: ['session'] });
+          toast({ title: "Profile picture updated!" });
+        } catch (err) {
+          toast({ variant: "destructive", title: "Upload failed", description: "Could not update profile picture." });
+        } finally {
+          setIsUploadingProfilePic(false);
+        }
       };
       reader.onerror = () => {
         toast({ variant: "destructive", title: "Failed to read file" });
