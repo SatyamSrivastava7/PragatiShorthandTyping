@@ -349,6 +349,35 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+                <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t">
+                  <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                    <Label htmlFor="show-reg-fee" className="text-sm font-medium whitespace-nowrap">Show Fee on Signup:</Label>
+                    <Switch 
+                      id="show-reg-fee"
+                      checked={settings?.showRegistrationFee ?? true}
+                      onCheckedChange={(checked) => updateSettings?.({ showRegistrationFee: checked })}
+                      data-testid="switch-show-registration-fee"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                    <Label htmlFor="show-qr" className="text-sm font-medium whitespace-nowrap">Show QR on Signup:</Label>
+                    <Switch 
+                      id="show-qr"
+                      checked={settings?.showQrCode ?? true}
+                      onCheckedChange={(checked) => updateSettings?.({ showQrCode: checked })}
+                      data-testid="switch-show-qr-code"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                    <Label htmlFor="auto-scroll" className="text-sm font-medium whitespace-nowrap">Auto-scroll in Typing Test:</Label>
+                    <Switch 
+                      id="auto-scroll"
+                      checked={settings?.autoScrollEnabled ?? true}
+                      onCheckedChange={(checked) => updateSettings?.({ autoScrollEnabled: checked })}
+                      data-testid="switch-auto-scroll"
+                    />
+                  </div>
+                </div>
                 <div className="mt-4 flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useAuth,
   useContent,
@@ -6,6 +6,7 @@ import {
   usePdf,
   useSettings,
   useDictations,
+  useUsers,
 } from "@/lib/hooks";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
@@ -38,7 +39,9 @@ import {
   Award,
   BarChart,
   BookOpen,
+  Camera,
 } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -53,6 +56,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
+import { queryClient } from "@/lib/queryClient";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
@@ -66,8 +70,11 @@ export default function StudentDashboard() {
   } = usePdf();
   const { settings } = useSettings();
   const { dictations } = useDictations();
+  const { updateUser } = useUsers();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const profilePicInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingProfilePic, setIsUploadingProfilePic] = useState(false);
 
   const qrCodeUrl = settings?.qrCodeUrl || "";
 
@@ -88,6 +95,36 @@ export default function StudentDashboard() {
   // Search State
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
+
+  const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "File too large", description: "Please select an image under 2MB." });
+      return;
+    }
+
+    setIsUploadingProfilePic(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        await updateUser(currentUser.id, { profilePicture: base64 });
+        await queryClient.invalidateQueries({ queryKey: ['session'] });
+        toast({ title: "Profile picture updated!" });
+        setIsUploadingProfilePic(false);
+      };
+      reader.onerror = () => {
+        toast({ variant: "destructive", title: "Failed to read file" });
+        setIsUploadingProfilePic(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Upload failed", description: "Could not update profile picture." });
+      setIsUploadingProfilePic(false);
+    }
+  };
 
   // Filter content: Enabled (Date filter removed as requested)
   const availableTests = content.filter((c) => c.isEnabled);
@@ -171,12 +208,39 @@ export default function StudentDashboard() {
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
         <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,black)]" />
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm">Welcome, {currentUser?.name}!</h1>
-            <p className="text-blue-100 flex items-center gap-2">
-              <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">ID: {currentUser?.studentId}</span>
-              Student Dashboard
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <Avatar className="w-16 h-16 border-2 border-white/30 shadow-lg">
+                {currentUser?.profilePicture ? (
+                  <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
+                ) : null}
+                <AvatarFallback className="bg-white/20 text-white text-xl font-bold">
+                  {currentUser?.name?.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                onClick={() => profilePicInputRef.current?.click()}
+                className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                disabled={isUploadingProfilePic}
+                data-testid="button-upload-profile-pic"
+              >
+                {isUploadingProfilePic ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
+              </button>
+              <input
+                ref={profilePicInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleProfilePicUpload}
+              />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm">Welcome, {currentUser?.name}!</h1>
+              <p className="text-blue-100 flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">ID: {currentUser?.studentId}</span>
+                Student Dashboard
+              </p>
+            </div>
           </div>
           <div className="flex gap-3">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">

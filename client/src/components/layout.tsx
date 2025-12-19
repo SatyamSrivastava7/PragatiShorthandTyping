@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, LogOut, Menu, Home, Phone, LogIn, Mail, MapPin } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
 import logoImage from '../assets/logo.jpeg';
 
@@ -130,9 +131,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <p className="text-sm font-medium leading-none text-gray-900">{currentUser.name}</p>
                     <p className="text-xs text-muted-foreground capitalize mt-0.5">{currentUser.role}</p>
                   </div>
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-                    {currentUser.name.charAt(0)}
-                  </div>
+                  <Avatar className="w-9 h-9 shadow-md">
+                    {currentUser.profilePicture ? (
+                      <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
+                    ) : null}
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-white font-bold">
+                      {currentUser.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleLogout} className="text-gray-600 hover:text-destructive hover:border-destructive">
                   <LogOut size={16} className="mr-1.5" />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation, Link } from "wouter";
-import { useAuth, useContentById, useResults } from "@/lib/hooks";
+import { useAuth, useContentById, useResults, useSettings } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,7 @@ export default function TypingTestPage() {
   const { user: currentUser } = useAuth();
   const { data: testContent, isLoading: isContentLoading } = useContentById(params?.id ? Number(params.id) : undefined);
   const { createResult } = useResults();
+  const { settings } = useSettings();
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
@@ -90,9 +91,10 @@ export default function TypingTestPage() {
     };
   }, [isActive, timeLeft]);
   
-  // Auto-scroll logic
+  // Auto-scroll logic (controlled by admin setting)
   useEffect(() => {
-    if (testContent?.type === 'typing' && originalTextRef.current) {
+    const autoScrollEnabled = settings?.autoScrollEnabled ?? true;
+    if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current) {
       // Very basic sync: Scroll original text based on progress
       const totalLength = testContent.text.length;
       const currentLength = typedText.length;
@@ -104,7 +106,7 @@ export default function TypingTestPage() {
       // Scroll proportional to progress
       originalTextRef.current.scrollTop = (scrollHeight - clientHeight) * progress;
     }
-  }, [typedText, testContent]);
+  }, [typedText, testContent, settings?.autoScrollEnabled]);
 
   const startTest = () => {
     // Check cooldown before starting
