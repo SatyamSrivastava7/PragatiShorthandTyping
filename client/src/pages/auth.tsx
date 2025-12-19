@@ -155,7 +155,7 @@ export default function AuthPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
+              <TabsTrigger value="register">New Student Signup</TabsTrigger>
               <TabsTrigger value="reset">Reset</TabsTrigger>
             </TabsList>
             
@@ -290,13 +290,15 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                {settings?.qrCodeUrl && (
+                {(settings?.showRegistrationFee || settings?.showQrCode) && (
                   <div className="flex flex-col items-center justify-center p-4 border rounded-md bg-muted/20">
                     <p className="text-sm font-semibold mb-1">Scan to Pay Registration Fee</p>
-                    {settings.registrationFee > 0 && (
+                    {settings?.showRegistrationFee && settings.registrationFee > 0 && (
                       <p className="text-lg font-bold text-primary mb-2">Rs. {settings.registrationFee}/-</p>
                     )}
-                    <img src={settings.qrCodeUrl} alt="Payment QR Code" className="w-64 h-64 object-contain" />
+                    {settings?.showQrCode && settings?.qrCodeUrl && (
+                      <img src={settings.qrCodeUrl} alt="Payment QR Code" className="w-64 h-64 object-contain" />
+                    )}
                   </div>
                 )}
 

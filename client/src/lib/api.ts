@@ -238,17 +238,26 @@ export const settingsApi = {
       registrationFee: number;
       qrCodeUrl: string;
       instituteName: string;
+      autoScrollEnabled: boolean;
+      showRegistrationFee: boolean;
+      showQrCode: boolean;
     }>('/api/settings'),
 
   update: (data: Partial<{
     registrationFee: number;
     qrCodeUrl: string;
     instituteName: string;
+    autoScrollEnabled: boolean;
+    showRegistrationFee: boolean;
+    showQrCode: boolean;
   }>) =>
     fetchApi<{
       registrationFee: number;
       qrCodeUrl: string;
       instituteName: string;
+      autoScrollEnabled: boolean;
+      showRegistrationFee: boolean;
+      showQrCode: boolean;
     }>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),

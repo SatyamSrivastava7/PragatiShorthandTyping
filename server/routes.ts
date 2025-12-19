@@ -999,6 +999,8 @@ export async function registerRoutes(
         for (const s of settingsArray) {
           if (s.key === 'registrationFee') {
             settingsObj.registrationFee = Number(s.value) || 0;
+          } else if (['autoScrollEnabled', 'showRegistrationFee', 'showQrCode'].includes(s.key)) {
+            settingsObj[s.key] = s.value === 'true';
           } else {
             settingsObj[s.key] = s.value;
           }
@@ -1030,7 +1032,7 @@ export async function registerRoutes(
       
       // Update each setting provided in the body
       for (const [key, value] of Object.entries(updates)) {
-        if (typeof value === 'string' || typeof value === 'number') {
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
           await storage.upsertSetting({ key, value: String(value) });
         }
       }
@@ -1041,6 +1043,8 @@ export async function registerRoutes(
       for (const s of settingsArray) {
         if (s.key === 'registrationFee') {
           settingsObj.registrationFee = Number(s.value) || 0;
+        } else if (['autoScrollEnabled', 'showRegistrationFee', 'showQrCode'].includes(s.key)) {
+          settingsObj[s.key] = s.value === 'true';
         } else {
           settingsObj[s.key] = s.value;
         }

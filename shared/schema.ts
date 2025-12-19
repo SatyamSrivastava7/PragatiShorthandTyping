@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   // Additional fields
   city: text("city"),
   state: text("state"),
+  profilePicture: text("profile_picture"),
   isPaymentCompleted: boolean("is_payment_completed").default(false),
   paymentAmount: numeric("payment_amount"),
   validUntil: timestamp("valid_until"),
