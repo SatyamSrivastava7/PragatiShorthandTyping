@@ -89,52 +89,10 @@ export function alignWords(originalText: string, typedText: string): AlignmentEn
   // Reverse to get correct order
   tempResult.reverse();
   
-  // Post-process: pair up extra and missing words into substitutions
-  // First, collect all unpaired extras and missings, then pair them
-  const extras: { index: number; entry: AlignmentEntry }[] = [];
-  const missings: { index: number; entry: AlignmentEntry }[] = [];
-  
-  for (let k = 0; k < tempResult.length; k++) {
-    if (tempResult[k].status === 'extra') {
-      extras.push({ index: k, entry: tempResult[k] });
-    } else if (tempResult[k].status === 'missing') {
-      missings.push({ index: k, entry: tempResult[k] });
-    }
-  }
-  
-  // Pair extras with missings (substitutions) - pair closest ones first
-  const paired = new Set<number>();
-  for (const extra of extras) {
-    // Find the closest unpaired missing
-    let bestMissing: { index: number; entry: AlignmentEntry } | null = null;
-    let bestDistance = Infinity;
-    
-    for (const missing of missings) {
-      if (paired.has(missing.index)) continue;
-      const distance = Math.abs(extra.index - missing.index);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestMissing = missing;
-      }
-    }
-    
-    if (bestMissing && bestDistance <= 3) { // Within 3 positions = likely substitution
-      paired.add(extra.index);
-      paired.add(bestMissing.index);
-      // Mark them for merging
-      tempResult[extra.index] = {
-        typed: extra.entry.typed,
-        original: bestMissing.entry.original,
-        status: 'substitution',
-        isError: true
-      };
-      tempResult[bestMissing.index] = { typed: '', original: '', status: 'match', isError: false }; // Will be filtered out
-    }
-  }
-  
-  // Build final result, filtering out empty placeholder entries
+  // Don't pair extras with missings - keep them separate
+  // Extra words will be shown as "word [Extra]" 
+  // Missing words will be shown as "[missing word]" at their position
   for (const entry of tempResult) {
-    if (entry.typed === '' && entry.original === '' && entry.status === 'match') continue;
     result.push(entry);
   }
   

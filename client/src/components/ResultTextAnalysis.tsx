@@ -32,11 +32,11 @@ export function ResultTextAnalysis({ originalText, typedText, language }: Result
           );
         }
         
-        // Extra word (typed but not in original) - show underlined in red
+        // Extra word (typed but not in original) - show in orange with [Extra] label
         if (item.status === 'extra') {
           return (
-            <span key={i} className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
-              {item.typed}
+            <span key={i} className="text-orange-600 dark:text-orange-400">
+              {item.typed} <span className="text-xs font-medium">[Extra]</span>
             </span>
           );
         }
