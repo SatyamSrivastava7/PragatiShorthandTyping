@@ -258,13 +258,15 @@ export default function AdminDashboard() {
     )
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 
-  const filteredStudents = users.filter(u => 
-    u.role === 'student' && (
-      u.name.toLowerCase().includes(studentListSearch.toLowerCase()) ||
-      u.studentId?.toLowerCase().includes(studentListSearch.toLowerCase()) ||
-      u.mobile.includes(studentListSearch)
+  const filteredStudents = users
+    .filter(u => 
+      u.role === 'student' && (
+        u.name.toLowerCase().includes(studentListSearch.toLowerCase()) ||
+        u.studentId?.toLowerCase().includes(studentListSearch.toLowerCase()) ||
+        u.mobile.includes(studentListSearch)
+      )
     )
-  );
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const totalStudents = users.filter(u => u.role === 'student').length;
   const enabledStudents = users.filter(u => u.role === 'student' && u.isPaymentCompleted).length;
