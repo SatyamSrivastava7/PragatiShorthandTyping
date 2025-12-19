@@ -89,10 +89,51 @@ export function alignWords(originalText: string, typedText: string): AlignmentEn
   // Reverse to get correct order
   tempResult.reverse();
   
-  // Don't pair extras with missings - keep them separate
-  // Extra words will be shown as "word [Extra]" 
-  // Missing words will be shown as "[missing word]" at their position
+  // Post-process: pair up adjacent extra and missing words into substitutions
+  // Only pair when they are immediately adjacent (distance = 1)
+  const extras: { index: number; entry: AlignmentEntry }[] = [];
+  const missings: { index: number; entry: AlignmentEntry }[] = [];
+  
+  for (let k = 0; k < tempResult.length; k++) {
+    if (tempResult[k].status === 'extra') {
+      extras.push({ index: k, entry: tempResult[k] });
+    } else if (tempResult[k].status === 'missing') {
+      missings.push({ index: k, entry: tempResult[k] });
+    }
+  }
+  
+  // Pair extras with immediately adjacent missings (substitutions)
+  const paired = new Set<number>();
+  for (const missing of missings) {
+    // Find an adjacent unpaired extra (immediately before or after)
+    let bestExtra: { index: number; entry: AlignmentEntry } | null = null;
+    
+    for (const extra of extras) {
+      if (paired.has(extra.index)) continue;
+      const distance = Math.abs(extra.index - missing.index);
+      if (distance === 1) {
+        bestExtra = extra;
+        break;
+      }
+    }
+    
+    if (bestExtra) {
+      paired.add(bestExtra.index);
+      paired.add(missing.index);
+      // Mark them for merging - put at the missing's position (original word position)
+      tempResult[missing.index] = {
+        typed: bestExtra.entry.typed,
+        original: missing.entry.original,
+        status: 'substitution',
+        isError: true
+      };
+      tempResult[bestExtra.index] = { typed: '', original: '', status: 'match', isError: false }; // Will be filtered out
+    }
+  }
+  
+  // Build final result, filtering out empty placeholder entries
   for (const entry of tempResult) {
+    if (entry.typed === '' && entry.original === '' && entry.status === 'match') continue;
     result.push(entry);
   }
   

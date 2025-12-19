@@ -20,23 +20,24 @@ export function ResultTextAnalysis({ originalText, typedText, language }: Result
           );
         }
         
-        // Substitution - show typed word underlined in red + correct word in green brackets
+        // Substitution - show correct word in green brackets FIRST, then typed word underlined in red
         if (item.status === 'substitution') {
           return (
             <span key={i}>
+              <span className="text-green-600 font-medium">[{item.original}]</span>
+              {' '}
               <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
                 {item.typed}
               </span>
-              <span className="text-green-600 font-medium">[{item.original}]</span>
             </span>
           );
         }
         
-        // Extra word (typed but not in original) - show in orange with [Extra] label
+        // Extra word (typed but not in original) - show underlined in red
         if (item.status === 'extra') {
           return (
-            <span key={i} className="text-orange-600 dark:text-orange-400">
-              {item.typed} <span className="text-xs font-medium">[Extra]</span>
+            <span key={i} className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
+              {item.typed}
             </span>
           );
         }
