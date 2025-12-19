@@ -105,6 +105,17 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Your access has been disabled. Please contact the administrator." });
       }
       
+      // Check if student access has expired (30 days validity)
+      if (user.role === 'student' && user.validUntil) {
+        const now = new Date();
+        const validUntil = new Date(user.validUntil);
+        if (now > validUntil) {
+          // Auto-disable access when expired
+          await storage.updateUser(user.id, { isPaymentCompleted: false, accessEnabledAt: null, validUntil: null });
+          return res.status(403).json({ message: "Your 30-day access has expired. Please contact the administrator to renew." });
+        }
+      }
+      
       // Set session
       req.session.userId = user.id;
       
@@ -191,6 +202,19 @@ export async function registerRoutes(
       const user = await storage.getUser(req.session.userId);
       if (!user) {
         return res.json({ user: null });
+      }
+      
+      // Check if student access has expired (30 days validity)
+      if (user.role === 'student' && user.validUntil) {
+        const now = new Date();
+        const validUntil = new Date(user.validUntil);
+        if (now > validUntil) {
+          // Auto-disable access when expired
+          await storage.updateUser(user.id, { isPaymentCompleted: false, accessEnabledAt: null, validUntil: null });
+          // Destroy session
+          req.session.destroy(() => {});
+          return res.json({ user: null, expired: true, message: "Your 30-day access has expired." });
+        }
       }
       
       const { password, ...userWithoutPassword } = user;
@@ -282,6 +306,24 @@ export async function registerRoutes(
       // If password is being updated, hash it
       if (updates.password) {
         updates.password = await bcrypt.hash(updates.password, 10);
+      }
+      
+      // Handle access enable/disable with 30-day expiration
+      if (updates.isPaymentCompleted !== undefined) {
+        const existingUser = await storage.getUser(id);
+        if (existingUser) {
+          if (updates.isPaymentCompleted === true && !existingUser.isPaymentCompleted) {
+            // Enabling access - set 30-day validity
+            const now = new Date();
+            const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+            updates.accessEnabledAt = now;
+            updates.validUntil = validUntil;
+          } else if (updates.isPaymentCompleted === false) {
+            // Disabling access - clear validity dates
+            updates.accessEnabledAt = null;
+            updates.validUntil = null;
+          }
+        }
       }
       
       const user = await storage.updateUser(id, updates);

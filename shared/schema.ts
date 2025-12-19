@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   isPaymentCompleted: boolean("is_payment_completed").default(false),
   paymentAmount: numeric("payment_amount"),
   validUntil: timestamp("valid_until"),
+  accessEnabledAt: timestamp("access_enabled_at"),
   purchasedPdfs: text("purchased_pdfs").array().default(sql`ARRAY[]::text[]`),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
