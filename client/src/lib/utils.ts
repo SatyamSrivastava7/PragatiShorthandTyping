@@ -164,9 +164,8 @@ export function calculateAlignedMistakes(originalText: string, typedText: string
 
 export function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes } = calculateAlignedMistakes(originalText, typedText);
+  const { mistakes, alignment } = calculateAlignedMistakes(originalText, typedText);
   const typedWords = typedText.trim().split(/\s+/).filter(w => w);
-  const originalWords = originalText.trim().split(/\s+/).filter(w => w);
 
   const totalWordsTyped = typedWords.length;
   // Use words count, not length of array if empty
@@ -188,8 +187,8 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
   // Ensure net speed isn't negative
   netSpeed = Math.max(0, netSpeed);
 
-  // Calculate missing words (words in original that weren't typed)
-  const missingWords = Math.max(0, originalWords.length - typedWords.length);
+  // Count missing words from alignment (words with status='missing')
+  const missingWords = alignment.filter(a => a.status === 'missing').length;
 
   // Helper to format to 2 decimal places, removing trailing .00
   const formatSpeed = (speed: number) => {
@@ -209,8 +208,7 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
 
 export function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes } = calculateAlignedMistakes(originalText, typedText);
-  const originalWords = originalText.trim().split(/\s+/).filter(w => w);
+  const { mistakes, alignment } = calculateAlignedMistakes(originalText, typedText);
   const typedWords = typedText.trim().split(/\s+/).filter(w => w);
 
   const totalWordsTyped = typedText.trim() === '' ? 0 : typedWords.length;
@@ -218,8 +216,8 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
   const mistakePercentage = totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
   const isPassed = mistakePercentage <= 5;
 
-  // Calculate missing words (words in original that weren't typed)
-  const missingWords = Math.max(0, originalWords.length - typedWords.length);
+  // Count missing words from alignment (words with status='missing')
+  const missingWords = alignment.filter(a => a.status === 'missing').length;
 
   return {
     words: totalWordsTyped,
@@ -342,7 +340,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Total Original Words</td><td>${originalWords.length}</td>
         </tr>
         <tr>
-          <td>Missing Words</td><td class="error">${Math.max(0, originalWords.length - typedWords.length)}</td>
+          <td>Missing Words</td><td class="error">${alignment.filter(a => a.status === 'missing').length}</td>
         </tr>
         ${result.contentType === 'typing' ? `
           <tr>
