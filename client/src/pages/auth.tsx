@@ -416,18 +416,6 @@ export default function AuthPage() {
                   </div>
                 </div>
 
-                {(settings?.showRegistrationFee || settings?.showQrCode) && (
-                  <div className="flex flex-col items-center justify-center p-4 border rounded-md bg-muted/20">
-                    <p className="text-sm font-semibold mb-1">Scan to Pay Registration Fee</p>
-                    {settings?.showRegistrationFee && settings.registrationFee > 0 && (
-                      <p className="text-lg font-bold text-primary mb-2">Rs. {settings.registrationFee}/-</p>
-                    )}
-                    {settings?.showQrCode && settings?.qrCodeUrl && (
-                      <img src={settings.qrCodeUrl} alt="Payment QR Code" className="w-64 h-64 object-contain" />
-                    )}
-                  </div>
-                )}
-
                 <Button type="submit" className="w-full bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all" disabled={isRegistering} data-testid="button-register">
                   {isRegistering ? "Creating Profile..." : "Create Profile"}
                 </Button>
