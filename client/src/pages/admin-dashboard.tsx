@@ -977,29 +977,54 @@ export default function AdminDashboard() {
                                       <Eye size={14} />
                                     </Button>
                                   </DialogTrigger>
-                                  <DialogContent className="max-w-3xl max-h-[80vh]">
+                                  <DialogContent className="max-w-2xl">
                                     <DialogHeader>
                                       <DialogTitle className="flex items-center gap-2">
-                                        <FileUp size={18} className="text-red-600" />
-                                        {pdf.name}
+                                        <FileUp size={18} className="text-red-600 shrink-0" />
+                                        <span className="truncate">{pdf.name}</span>
                                       </DialogTitle>
                                     </DialogHeader>
-                                    <div className="w-full h-[500px] bg-gray-100 rounded-lg overflow-hidden">
-                                      {pdf.url && pdf.url.startsWith('data:') ? (
-                                        <iframe 
-                                          src={pdf.url}
-                                          className="w-full h-full border-0"
-                                          title={pdf.name}
-                                        />
-                                      ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                          <div className="text-center">
-                                            <FileUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                            <p>PDF Preview</p>
-                                            <p className="text-xs mt-1">File: {pdf.name}</p>
+                                    <div className="space-y-4">
+                                      <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg p-6 border">
+                                        <div className="flex items-start gap-4">
+                                          <div className="p-3 bg-red-100 rounded-lg shrink-0">
+                                            <FileUp size={24} className="text-red-600" />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <h3 className="font-semibold text-sm truncate">{pdf.name}</h3>
+                                            <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                                              <p>Pages: <span className="font-medium text-foreground">{pdf.pageCount}</span></p>
+                                              <p>Price: <span className="font-medium text-foreground">₹{pdf.price}</span></p>
+                                              <p>Size: <span className="font-medium text-foreground">Uploaded</span></p>
+                                            </div>
                                           </div>
                                         </div>
-                                      )}
+                                      </div>
+                                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div className="flex items-start gap-3">
+                                          <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                                            <span className="text-xs font-semibold text-blue-600">i</span>
+                                          </div>
+                                          <div className="text-sm text-blue-800">
+                                            PDF preview will be displayed when opened. You can download or view the file in a dedicated PDF viewer.
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <Button 
+                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600"
+                                        onClick={() => {
+                                          if (pdf.url && pdf.url.startsWith('data:')) {
+                                            const link = document.createElement('a');
+                                            link.href = pdf.url;
+                                            link.download = pdf.name;
+                                            link.click();
+                                          }
+                                        }}
+                                        data-testid={`button-download-pdf-${pdf.id}`}
+                                      >
+                                        <Download size={16} className="mr-2" />
+                                        Download File
+                                      </Button>
                                     </div>
                                   </DialogContent>
                                 </Dialog>
