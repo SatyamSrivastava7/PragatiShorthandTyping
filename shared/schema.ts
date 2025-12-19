@@ -15,8 +15,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   
   // Additional fields
-  city: text("city"),
-  state: text("state"),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
   profilePicture: text("profile_picture"),
   isPaymentCompleted: boolean("is_payment_completed").default(false),
   paymentAmount: numeric("payment_amount"),

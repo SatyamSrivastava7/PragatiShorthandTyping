@@ -65,6 +65,42 @@ export default function AuthPage() {
       return;
     }
 
+    if (!regName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Name Required",
+        description: "Please enter your full name.",
+      });
+      return;
+    }
+
+    if (!regPassword.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Password Required",
+        description: "Please create a password.",
+      });
+      return;
+    }
+
+    if (!regCity.trim()) {
+      toast({
+        variant: "destructive",
+        title: "City Required",
+        description: "Please enter your city.",
+      });
+      return;
+    }
+
+    if (!regState.trim()) {
+      toast({
+        variant: "destructive",
+        title: "State Required",
+        description: "Please enter your state.",
+      });
+      return;
+    }
+
     if (!regBatch.trim()) {
       toast({
         variant: "destructive",
@@ -76,13 +112,13 @@ export default function AuthPage() {
 
     try {
       const result = await register({
-        name: regName,
+        name: regName.trim(),
         mobile: regMobile,
         password: regPassword,
         batch: regBatch.trim(),
         email: regEmail || undefined,
-        city: regCity || undefined,
-        state: regState || undefined,
+        city: regCity.trim(),
+        state: regState.trim(),
       });
       
       // Show success message for pending approval
@@ -247,15 +283,16 @@ export default function AuthPage() {
             <TabsContent value="register">
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="regName">Full Name</Label>
-                  <Input id="regName" value={regName} onChange={e => setRegName(e.target.value)} required data-testid="input-register-name" />
+                  <Label htmlFor="regName">Full Name <span className="text-destructive">*</span></Label>
+                  <Input id="regName" value={regName} onChange={e => setRegName(e.target.value)} placeholder="Enter your full name" required data-testid="input-register-name" />
                 </div>
                
                 <div className="space-y-2">
-                  <Label htmlFor="regMobile">Mobile Number (10 digits)</Label>
+                  <Label htmlFor="regMobile">Mobile Number (10 digits) <span className="text-destructive">*</span></Label>
                   <Input 
                     id="regMobile" 
                     maxLength={10} 
+                    placeholder="Enter 10-digit mobile number"
                     value={regMobile} 
                     onChange={e => setRegMobile(e.target.value.replace(/\D/g, ''))} 
                     required 
@@ -264,7 +301,7 @@ export default function AuthPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="regPassword">Password</Label>
+                  <Label htmlFor="regPassword">Password <span className="text-destructive">*</span></Label>
                   <div className="relative">
                     <Input 
                       id="regPassword" 
@@ -294,12 +331,12 @@ export default function AuthPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="regCity">City</Label>
-                    <Input id="regCity" value={regCity} onChange={e => setRegCity(e.target.value)} data-testid="input-register-city" />
+                    <Label htmlFor="regCity">City <span className="text-destructive">*</span></Label>
+                    <Input id="regCity" value={regCity} onChange={e => setRegCity(e.target.value)} placeholder="Enter your city" required data-testid="input-register-city" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="regState">State</Label>
-                    <Input id="regState" value={regState} onChange={e => setRegState(e.target.value)} data-testid="input-register-state" />
+                    <Label htmlFor="regState">State <span className="text-destructive">*</span></Label>
+                    <Input id="regState" value={regState} onChange={e => setRegState(e.target.value)} placeholder="Enter your state" required data-testid="input-register-state" />
                   </div>
                 </div>
 
