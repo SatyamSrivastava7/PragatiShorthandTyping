@@ -86,6 +86,7 @@ export default function AdminDashboard() {
   const [pdfName, setPdfName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [viewPdfId, setViewPdfId] = useState<number | null>(null);
   
   // Dictation State - Merged into Upload
   const [dictationFile, setDictationFile] = useState<File | null>(null);
@@ -963,9 +964,49 @@ export default function AdminDashboard() {
                                   <p className="text-xs text-muted-foreground">{pdf.pageCount} pages &middot; ₹{pdf.price}</p>
                                 </div>
                               </div>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-red-50 shrink-0" onClick={() => handleDeletePdf(pdf.id)}>
-                                <Trash2 size={14} />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Dialog open={viewPdfId === pdf.id} onOpenChange={(open) => !open && setViewPdfId(null)}>
+                                  <DialogTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 text-blue-600 hover:bg-blue-50 shrink-0"
+                                      onClick={() => setViewPdfId(pdf.id)}
+                                      data-testid={`button-view-pdf-${pdf.id}`}
+                                    >
+                                      <Eye size={14} />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-3xl max-h-[80vh]">
+                                    <DialogHeader>
+                                      <DialogTitle className="flex items-center gap-2">
+                                        <FileUp size={18} className="text-red-600" />
+                                        {pdf.name}
+                                      </DialogTitle>
+                                    </DialogHeader>
+                                    <div className="w-full h-[500px] bg-gray-100 rounded-lg overflow-hidden">
+                                      {pdf.url && pdf.url.startsWith('data:') ? (
+                                        <iframe 
+                                          src={pdf.url}
+                                          className="w-full h-full border-0"
+                                          title={pdf.name}
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                          <div className="text-center">
+                                            <FileUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                            <p>PDF Preview</p>
+                                            <p className="text-xs mt-1">File: {pdf.name}</p>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-red-50 shrink-0" onClick={() => handleDeletePdf(pdf.id)} data-testid={`button-delete-pdf-${pdf.id}`}>
+                                  <Trash2 size={14} />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                           {pdfResources.filter(p => p.folderId === selectedFolderId).length === 0 && (
