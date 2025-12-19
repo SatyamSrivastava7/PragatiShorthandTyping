@@ -24,6 +24,7 @@ export default function AuthPage() {
   const [regName, setRegName] = useState("");
   const [regMobile, setRegMobile] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regBatch, setRegBatch] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regCity, setRegCity] = useState("");
@@ -240,15 +241,31 @@ export default function AuthPage() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="regPassword">Password</Label>
-                  <Input 
-                    id="regPassword" 
-                    type="password"
-                    placeholder="Create a password" 
-                    value={regPassword} 
-                    onChange={e => setRegPassword(e.target.value)} 
-                    required 
-                    data-testid="input-register-password"
-                  />
+                  <div className="relative">
+                    <Input 
+                      id="regPassword" 
+                      type={showRegPassword ? "text" : "password"}
+                      placeholder="Create a password" 
+                      value={regPassword} 
+                      onChange={e => setRegPassword(e.target.value)} 
+                      required 
+                      data-testid="input-register-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      data-testid="button-toggle-register-password"
+                    >
+                      {showRegPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

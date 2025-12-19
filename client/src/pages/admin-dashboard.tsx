@@ -20,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic, Loader2, Keyboard, Menu } from "lucide-react";
+import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic, Loader2, Keyboard, Menu, RefreshCw } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Dialog,
@@ -33,11 +33,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
+import { queryClient } from "@/lib/queryClient";
 
 export default function AdminDashboard() {
   usePrefetchContent();
   const { content, createContent, toggleContent, deleteContent, isLoading: isContentLoading } = useContent();
-  const { results } = useResults();
+  const { results, deleteResult } = useResults();
   const { users, updateUser, deleteUser } = useUsers();
   const { folders: pdfFolders, resources: pdfResources, createFolder: addPdfFolder, createResource: addPdfResource, deleteResource: deletePdfResource, deleteFolder: deletePdfFolder } = usePdf();
   const { settings, updateSettings } = useSettings();
@@ -348,9 +349,14 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search by name, ID, or mobile..." className="pl-10 bg-white shadow-sm" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
+                <div className="mt-4 flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search by name, ID, or mobile..." className="pl-10 bg-white shadow-sm" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
+                  </div>
+                  <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })} data-testid="button-refresh-students">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
@@ -626,6 +632,9 @@ export default function AdminDashboard() {
                               <CardDescription>{testCount} tests, {activeCount} active</CardDescription>
                             </div>
                           </div>
+                          <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['content'] })} data-testid={`button-refresh-${type}-tests`}>
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
@@ -975,7 +984,7 @@ export default function AdminDashboard() {
             <Card className="shadow-lg border-0">
               <CardContent className="p-0">
                 <Tabs key="results-tabs" defaultValue="typing" className="w-full">
-                  <div className="px-6 pt-4 border-b bg-slate-50">
+                  <div className="px-6 pt-4 border-b bg-slate-50 flex justify-between items-center">
                     <TabsList className="bg-white shadow-sm">
                       <TabsTrigger value="typing" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
                         <Keyboard className="h-4 w-4 mr-2" /> Typing Results
@@ -984,6 +993,9 @@ export default function AdminDashboard() {
                         <Mic className="h-4 w-4 mr-2" /> Shorthand Results
                       </TabsTrigger>
                     </TabsList>
+                    <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['results'] })} data-testid="button-refresh-results">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {['typing', 'shorthand'].map(type => (
@@ -993,6 +1005,7 @@ export default function AdminDashboard() {
                           <TableHeader className="bg-slate-50 sticky top-0">
                             <TableRow>
                               <TableHead className="font-semibold">Student</TableHead>
+                              <TableHead className="font-semibold">Batch</TableHead>
                               <TableHead className="font-semibold">Test Title</TableHead>
                               <TableHead className="font-semibold">Date</TableHead>
                               <TableHead className="font-semibold">Metrics</TableHead>
@@ -1007,6 +1020,9 @@ export default function AdminDashboard() {
                                   <TableCell>
                                     <div className="font-medium">{result.studentName}</div>
                                     <div className="text-xs text-muted-foreground font-mono">{result.studentDisplayId || result.studentId}</div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-sm text-muted-foreground">{users.find(u => u.id === result.studentId)?.batch || '-'}</span>
                                   </TableCell>
                                   <TableCell>
                                     <div className="font-medium">{result.contentTitle}</div>
@@ -1106,12 +1122,15 @@ export default function AdminDashboard() {
                                   <Button variant="outline" size="sm" onClick={() => handleDownloadResult(result)}>
                                     <Download className="h-4 w-4 mr-1" /> PDF
                                   </Button>
+                                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-red-50" onClick={() => deleteResult(result.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </TableCell>
                               </TableRow>
                           ))}
                             {filteredResults.filter(r => r.contentType === type).length === 0 && (
                               <TableRow>
-                                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                                   <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
                                   No {type} results found
                                 </TableCell>

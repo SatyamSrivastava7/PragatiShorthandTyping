@@ -37,6 +37,7 @@ export default function TypingTestPage() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [submissionFailed, setSubmissionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   
   // Timer Reference
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,6 +48,33 @@ export default function TypingTestPage() {
       setTimeLeft(testContent.duration * 60);
     }
   }, [testContent]);
+
+  // Cooldown check - 30 minutes after starting test
+  useEffect(() => {
+    if (!testContent || !currentUser) return;
+    
+    const cooldownKey = `test_cooldown_${testContent.id}_${currentUser.id}`;
+    const checkCooldown = () => {
+      const cooldownEnd = localStorage.getItem(cooldownKey);
+      if (cooldownEnd) {
+        const endTime = parseInt(cooldownEnd, 10);
+        const remaining = endTime - Date.now();
+        if (remaining <= 0) {
+          localStorage.removeItem(cooldownKey);
+          setCooldownRemaining(0);
+          return false;
+        }
+        setCooldownRemaining(remaining);
+        return true;
+      }
+      setCooldownRemaining(0);
+      return false;
+    };
+    
+    checkCooldown();
+    const interval = setInterval(checkCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [testContent, currentUser]);
 
   useEffect(() => {
     if (isActive && timeLeft > 0) {
@@ -79,18 +107,28 @@ export default function TypingTestPage() {
   }, [typedText, testContent]);
 
   const startTest = () => {
+    // Check cooldown before starting
+    if (cooldownRemaining > 0) {
+      toast({
+        variant: "destructive",
+        title: "Test Cooldown Active",
+        description: `Please wait ${Math.ceil(cooldownRemaining / 60000)} minutes before starting this test again.`,
+      });
+      return;
+    }
+    
+    // Set cooldown for 30 minutes from now
+    if (testContent && currentUser) {
+      const cooldownKey = `test_cooldown_${testContent.id}_${currentUser.id}`;
+      const cooldownEnd = Date.now() + (30 * 60 * 1000); // 30 minutes
+      localStorage.setItem(cooldownKey, cooldownEnd.toString());
+      setCooldownRemaining(30 * 60 * 1000);
+    }
+    
     setIsActive(true);
     // Focus textarea
     const textarea = document.getElementById("typing-area");
     if (textarea) textarea.focus();
-    
-    // // Play audio if available and shorthand
-    // if (testContent?.type === 'shorthand' && testContent.mediaUrl) {
-    //   const audio = document.getElementById('shorthand-audio') as HTMLAudioElement;
-    //   if (audio) {
-    //     audio.play().catch(e => console.log("Audio play failed", e));
-    //   }
-    // }
   };
 
   const finishTest = () => {
@@ -339,9 +377,19 @@ export default function TypingTestPage() {
              {/* Overlay for inactive state */}
              {!isActive && !isFinished && (
                <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-10">
-                 <Button size="lg" onClick={startTest} className="text-lg px-8 py-6 shadow-xl hover:scale-105 transition-transform">
-                   Start Test
-                 </Button>
+                 {cooldownRemaining > 0 ? (
+                   <div className="text-center space-y-2">
+                     <div className="text-lg font-semibold text-orange-600">Cooldown Active</div>
+                     <div className="text-2xl font-bold text-orange-700">
+                       {Math.floor(cooldownRemaining / 60000)}:{String(Math.floor((cooldownRemaining % 60000) / 1000)).padStart(2, '0')}
+                     </div>
+                     <div className="text-sm text-muted-foreground">Please wait before retaking this test</div>
+                   </div>
+                 ) : (
+                   <Button size="lg" onClick={startTest} className="text-lg px-8 py-6 shadow-xl hover:scale-105 transition-transform">
+                     Start Test
+                   </Button>
+                 )}
                </div>
              )}
           </CardContent>

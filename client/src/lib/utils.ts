@@ -88,6 +88,9 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
   // Ensure net speed isn't negative
   netSpeed = Math.max(0, netSpeed);
 
+  // Calculate missing words (words in original that weren't typed)
+  const missingWords = Math.max(0, originalWords.length - typedWords.length);
+
   // Helper to format to 2 decimal places, removing trailing .00
   const formatSpeed = (speed: number) => {
     const rounded = Math.round(speed * 100) / 100;
@@ -99,7 +102,8 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
     mistakes,
     grossSpeed: formatSpeed(grossSpeed),
     netSpeed: formatSpeed(netSpeed),
-    backspaces
+    backspaces,
+    missingWords
   };
 }
 
@@ -161,10 +165,14 @@ export function calculateShorthandMetrics(originalText: string, typedText: strin
   const mistakePercentage = totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
   const isPassed = mistakePercentage <= 5;
 
+  // Calculate missing words (words in original that weren't typed)
+  const missingWords = Math.max(0, originalWords.length - typedWords.length);
+
   return {
     words: totalWordsTyped,
     mistakes,
-    result: isPassed ? 'Pass' : 'Fail' as 'Pass' | 'Fail'
+    result: isPassed ? 'Pass' : 'Fail' as 'Pass' | 'Fail',
+    missingWords
   };
 }
 
@@ -242,7 +250,7 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1; margin-bottom: 6px; font-size: 13px; white-space: pre-wrap; }
+        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
@@ -285,6 +293,9 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Total Original Words</td><td>${originalWords.length}</td>
+        </tr>
+        <tr>
+          <td>Missing Words</td><td class="error">${Math.max(0, originalWords.length - typedWords.length)}</td>
         </tr>
         ${result.contentType === 'typing' ? `
           <tr>
