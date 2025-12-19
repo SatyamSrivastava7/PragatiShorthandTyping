@@ -22,11 +22,18 @@ export function useAuth() {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: authApi.logout,
-    onSuccess: () => {
+    mutationFn: async () => {
+      // Capture user role before logout
+      const currentSession = queryClient.getQueryData<{ user: { role: string } | null }>(['session']);
+      const wasAdmin = currentSession?.user?.role === 'admin';
+      await authApi.logout();
+      return { wasAdmin };
+    },
+    onSuccess: (data) => {
       queryClient.setQueryData(['session'], { user: null });
       queryClient.clear();
-      setLocation('/auth');
+      // Redirect admin to admin login, students to regular auth
+      setLocation(data.wasAdmin ? '/adminlogin' : '/auth');
     },
   });
 
