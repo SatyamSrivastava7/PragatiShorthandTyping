@@ -202,12 +202,12 @@ export default function AdminDashboard() {
   };
 
   const handleUploadPdf = async () => {
-    if (!selectedFolderId || !pdfName || !pdfPageCount) {
-      toast({ variant: "destructive", title: "Error", description: "All fields required" });
+    if (!selectedFolderId || !pdfName || !pdfPageCount || !pdfFile) {
+      toast({ variant: "destructive", title: "Error", description: "All fields required including the file" });
       return;
     }
     
-    const url = pdfFile ? await fileToBase64(pdfFile) : "#";
+    const url = await fileToBase64(pdfFile);
 
     addPdfResource({
       name: pdfName,
