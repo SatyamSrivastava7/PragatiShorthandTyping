@@ -241,6 +241,7 @@ export const settingsApi = {
       autoScrollEnabled: boolean;
       showRegistrationFee: boolean;
       showQrCode: boolean;
+      requirePaymentVerification: boolean;
     }>('/api/settings'),
 
   update: (data: Partial<{
@@ -250,6 +251,7 @@ export const settingsApi = {
     autoScrollEnabled: boolean;
     showRegistrationFee: boolean;
     showQrCode: boolean;
+    requirePaymentVerification: boolean;
   }>) =>
     fetchApi<{
       registrationFee: number;
@@ -258,6 +260,7 @@ export const settingsApi = {
       autoScrollEnabled: boolean;
       showRegistrationFee: boolean;
       showQrCode: boolean;
+      requirePaymentVerification: boolean;
     }>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),

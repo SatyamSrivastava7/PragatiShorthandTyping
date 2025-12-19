@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, QrCode, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function AuthPage() {
   const { login, register, resetPassword, isLoggingIn, isRegistering } = useAuth();
@@ -36,6 +37,18 @@ export default function AuthPage() {
   const [resetCity, setResetCity] = useState("");
   const [resetNewPass, setResetNewPass] = useState("");
 
+  // Payment Verification State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingRegistration, setPendingRegistration] = useState<{
+    name: string;
+    mobile: string;
+    password: string;
+    batch: string;
+    email?: string;
+    city: string;
+    state: string;
+  } | null>(null);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -54,15 +67,14 @@ export default function AuthPage() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateRegistration = () => {
     if (regMobile.length !== 10) {
        toast({
         variant: "destructive",
         title: "Invalid Mobile",
         description: "Mobile number must be 10 digits.",
       });
-      return;
+      return false;
     }
 
     if (!regName.trim()) {
@@ -71,7 +83,7 @@ export default function AuthPage() {
         title: "Name Required",
         description: "Please enter your full name.",
       });
-      return;
+      return false;
     }
 
     if (!regPassword.trim()) {
@@ -80,7 +92,7 @@ export default function AuthPage() {
         title: "Password Required",
         description: "Please create a password.",
       });
-      return;
+      return false;
     }
 
     if (!regCity.trim()) {
@@ -89,7 +101,7 @@ export default function AuthPage() {
         title: "City Required",
         description: "Please enter your city.",
       });
-      return;
+      return false;
     }
 
     if (!regState.trim()) {
@@ -98,7 +110,7 @@ export default function AuthPage() {
         title: "State Required",
         description: "Please enter your state.",
       });
-      return;
+      return false;
     }
 
     if (!regBatch.trim()) {
@@ -107,11 +119,23 @@ export default function AuthPage() {
         title: "Batch Required",
         description: "Please enter your batch (e.g., 2024-25).",
       });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateRegistration()) {
       return;
     }
 
-    try {
-      const result = await register({
+    // Check if payment verification is required
+    if (settings?.requirePaymentVerification) {
+      // Store pending registration data and show payment modal
+      setPendingRegistration({
         name: regName.trim(),
         mobile: regMobile,
         password: regPassword,
@@ -120,6 +144,33 @@ export default function AuthPage() {
         city: regCity.trim(),
         state: regState.trim(),
       });
+      setShowPaymentModal(true);
+      return;
+    }
+
+    // If no payment verification required, proceed directly
+    await completeRegistration({
+      name: regName.trim(),
+      mobile: regMobile,
+      password: regPassword,
+      batch: regBatch.trim(),
+      email: regEmail || undefined,
+      city: regCity.trim(),
+      state: regState.trim(),
+    });
+  };
+
+  const completeRegistration = async (data: {
+    name: string;
+    mobile: string;
+    password: string;
+    batch: string;
+    email?: string;
+    city: string;
+    state: string;
+  }) => {
+    try {
+      const result = await register(data);
       
       // Show success message for pending approval
       if (result.pendingApproval) {
@@ -142,10 +193,14 @@ export default function AuthPage() {
           title: "Registration Successful",
           description: "Your account has been created. You can now login.",
         });
-        setLoginMobile(regMobile);
-        setLoginPassword(regPassword);
+        setLoginMobile(data.mobile);
+        setLoginPassword(data.password);
         setActiveTab("login");
       }
+      
+      // Close payment modal if open
+      setShowPaymentModal(false);
+      setPendingRegistration(null);
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -153,6 +208,16 @@ export default function AuthPage() {
         description: err.message || "Failed to create account. Please try again.",
       });
     }
+  };
+
+  const handlePaymentConfirm = async () => {
+    if (!pendingRegistration) return;
+    await completeRegistration(pendingRegistration);
+  };
+
+  const handlePaymentCancel = () => {
+    setShowPaymentModal(false);
+    setPendingRegistration(null);
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -411,6 +476,91 @@ export default function AuthPage() {
           </p>
         </CardFooter>
       </Card>
+
+      {/* Payment Verification Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={(open) => !open && handlePaymentCancel()}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-payment-verification">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-primary" />
+              Payment Required
+            </DialogTitle>
+            <DialogDescription>
+              Please complete the payment to create your profile. Scan the QR code below with any UPI app.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center space-y-4 py-4">
+            {/* Registration Fee Amount */}
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Registration Fee</p>
+              <p className="text-3xl font-bold text-primary" data-testid="text-payment-amount">
+                ₹{settings?.registrationFee || 0}
+              </p>
+            </div>
+
+            {/* QR Code */}
+            {settings?.qrCodeUrl ? (
+              <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 bg-white">
+                <img 
+                  src={settings.qrCodeUrl} 
+                  alt="Payment QR Code" 
+                  className="w-48 h-48 object-contain"
+                  data-testid="img-payment-qr"
+                />
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 bg-muted/20 flex flex-col items-center justify-center">
+                <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground text-center">
+                  QR Code not available. Please contact administrator.
+                </p>
+              </div>
+            )}
+
+            {/* UPI ID */}
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">UPI ID</p>
+              <p className="font-mono text-sm bg-muted px-3 py-1 rounded" data-testid="text-upi-id">
+                pragatiinstiute@sbi
+              </p>
+            </div>
+
+            {/* Instructions */}
+            <div className="text-sm text-muted-foreground text-center space-y-1">
+              <p>1. Scan QR code or use UPI ID</p>
+              <p>2. Pay ₹{settings?.registrationFee || 0}</p>
+              <p>3. Click "I have paid" after payment</p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handlePaymentCancel}
+              disabled={isRegistering}
+              data-testid="button-payment-cancel"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handlePaymentConfirm}
+              disabled={isRegistering}
+              className="bg-gradient-to-r from-green-600 to-green-500"
+              data-testid="button-payment-confirm"
+            >
+              {isRegistering ? (
+                <>Creating Profile...</>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  I have paid
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

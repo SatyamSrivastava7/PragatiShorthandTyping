@@ -377,6 +377,15 @@ export default function AdminDashboard() {
                       data-testid="switch-show-qr-code"
                     />
                   </div>
+                  <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                    <Label htmlFor="require-payment" className="text-sm font-medium whitespace-nowrap">Require Payment Verification:</Label>
+                    <Switch 
+                      id="require-payment"
+                      checked={settings?.requirePaymentVerification ?? false}
+                      onCheckedChange={(checked) => updateSettings?.({ requirePaymentVerification: checked })}
+                      data-testid="switch-require-payment"
+                    />
+                  </div>
                 </div>
                 <div className="mt-4 flex gap-2">
                   <div className="relative flex-1">

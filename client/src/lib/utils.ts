@@ -1,12 +1,12 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { format } from "date-fns";
 import { Result } from "@shared/schema";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 // Special characters that can split words (user types them as spaces)
@@ -16,12 +16,12 @@ const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 // Handles: − (minus U+2212), – (en dash U+2013), — (em dash U+2014), ‐ (hyphen U+2010), etc.
 function normalizeForComparison(text: string): string {
   return text
-    .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, '-') // Normalize all dash-like characters to hyphen
+    .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-") // Normalize all dash-like characters to hyphen
     .toLowerCase();
 }
 
 // Alignment entry types: match, substitution, missing (skipped original), extra (typed but not in original)
-export type AlignmentStatus = 'match' | 'substitution' | 'missing' | 'extra';
+export type AlignmentStatus = "match" | "substitution" | "missing" | "extra";
 
 export interface AlignmentEntry {
   typed: string;
@@ -31,91 +31,122 @@ export interface AlignmentEntry {
 }
 
 // LCS-based word alignment that shows missing words in their correct positions
-export function alignWords(originalText: string, typedText: string): AlignmentEntry[] {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter(w => w);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter(w => w);
-  
+export function alignWords(
+  originalText: string,
+  typedText: string,
+): AlignmentEntry[] {
+  const originalWords = (originalText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w);
+  const typedWords = (typedText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w);
+
   if (originalWords.length === 0 && typedWords.length === 0) return [];
   if (originalWords.length === 0) {
-    return typedWords.map(w => ({ typed: w, original: "", status: 'extra' as AlignmentStatus, isError: true }));
+    return typedWords.map((w) => ({
+      typed: w,
+      original: "",
+      status: "extra" as AlignmentStatus,
+      isError: true,
+    }));
   }
   if (typedWords.length === 0) {
-    return originalWords.map(w => ({ typed: "", original: w, status: 'missing' as AlignmentStatus, isError: true }));
+    return originalWords.map((w) => ({
+      typed: "",
+      original: w,
+      status: "missing" as AlignmentStatus,
+      isError: true,
+    }));
   }
-  
+
   // Build LCS table for normalized comparison (case-insensitive, dash-normalized)
   const m = originalWords.length;
   const n = typedWords.length;
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-  
+  const dp: number[][] = Array(m + 1)
+    .fill(null)
+    .map(() => Array(n + 1).fill(0));
+
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      if (normalizeForComparison(originalWords[i - 1]) === normalizeForComparison(typedWords[j - 1])) {
+      if (
+        normalizeForComparison(originalWords[i - 1]) ===
+        normalizeForComparison(typedWords[j - 1])
+      ) {
         dp[i][j] = dp[i - 1][j - 1] + 1;
       } else {
         dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
       }
     }
   }
-  
+
   // Backtrack to build alignment
   const result: AlignmentEntry[] = [];
-  let i = m, j = n;
+  let i = m,
+    j = n;
   const tempResult: AlignmentEntry[] = [];
-  
+
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && normalizeForComparison(originalWords[i - 1]) === normalizeForComparison(typedWords[j - 1])) {
+    if (
+      i > 0 &&
+      j > 0 &&
+      normalizeForComparison(originalWords[i - 1]) ===
+        normalizeForComparison(typedWords[j - 1])
+    ) {
       // Match
-      tempResult.push({ 
-        typed: typedWords[j - 1], 
-        original: originalWords[i - 1], 
-        status: 'match', 
-        isError: false 
+      tempResult.push({
+        typed: typedWords[j - 1],
+        original: originalWords[i - 1],
+        status: "match",
+        isError: false,
       });
-      i--; j--;
+      i--;
+      j--;
     } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
       // Extra typed word (not in original) or substitution
-      tempResult.push({ 
-        typed: typedWords[j - 1], 
-        original: "", 
-        status: 'extra', 
-        isError: true 
+      tempResult.push({
+        typed: typedWords[j - 1],
+        original: "",
+        status: "extra",
+        isError: true,
       });
       j--;
     } else {
       // Missing original word
-      tempResult.push({ 
-        typed: "", 
-        original: originalWords[i - 1], 
-        status: 'missing', 
-        isError: true 
+      tempResult.push({
+        typed: "",
+        original: originalWords[i - 1],
+        status: "missing",
+        isError: true,
       });
       i--;
     }
   }
-  
+
   // Reverse to get correct order
   tempResult.reverse();
-  
+
   // Post-process: pair up adjacent extra and missing words into substitutions
   // Only pair when they are immediately adjacent (distance = 1)
   const extras: { index: number; entry: AlignmentEntry }[] = [];
   const missings: { index: number; entry: AlignmentEntry }[] = [];
-  
+
   for (let k = 0; k < tempResult.length; k++) {
-    if (tempResult[k].status === 'extra') {
+    if (tempResult[k].status === "extra") {
       extras.push({ index: k, entry: tempResult[k] });
-    } else if (tempResult[k].status === 'missing') {
+    } else if (tempResult[k].status === "missing") {
       missings.push({ index: k, entry: tempResult[k] });
     }
   }
-  
+
   // Pair extras with immediately adjacent missings (substitutions)
   const paired = new Set<number>();
   for (const missing of missings) {
     // Find an adjacent unpaired extra (immediately before or after)
     let bestExtra: { index: number; entry: AlignmentEntry } | null = null;
-    
+
     for (const extra of extras) {
       if (paired.has(extra.index)) continue;
       const distance = Math.abs(extra.index - missing.index);
@@ -124,7 +155,7 @@ export function alignWords(originalText: string, typedText: string): AlignmentEn
         break;
       }
     }
-    
+
     if (bestExtra) {
       paired.add(bestExtra.index);
       paired.add(missing.index);
@@ -132,46 +163,55 @@ export function alignWords(originalText: string, typedText: string): AlignmentEn
       tempResult[missing.index] = {
         typed: bestExtra.entry.typed,
         original: missing.entry.original,
-        status: 'substitution',
-        isError: true
+        status: "substitution",
+        isError: true,
       };
-      tempResult[bestExtra.index] = { typed: '', original: '', status: 'match', isError: false }; // Will be filtered out
+      tempResult[bestExtra.index] = {
+        typed: "",
+        original: "",
+        status: "match",
+        isError: false,
+      }; // Will be filtered out
     }
   }
-  
+
   // Build final result, filtering out empty placeholder entries
   for (const entry of tempResult) {
-    if (entry.typed === '' && entry.original === '' && entry.status === 'match') continue;
+    if (entry.typed === "" && entry.original === "" && entry.status === "match")
+      continue;
     result.push(entry);
   }
-  
+
   return result;
 }
 
 // Calculate mistakes using aligned words with status-based counting
-export function calculateAlignedMistakes(originalText: string, typedText: string): { mistakes: number; alignment: AlignmentEntry[] } {
+export function calculateAlignedMistakes(
+  originalText: string,
+  typedText: string,
+): { mistakes: number; alignment: AlignmentEntry[] } {
   const alignment = alignWords(originalText, typedText);
-  
+
   let mistakes = 0;
-  
+
   for (const item of alignment) {
     // Missing words count as 1 mistake each
-    if (item.status === 'missing') {
+    if (item.status === "missing") {
       mistakes += 1;
       continue;
     }
-    
+
     // Extra words count as 1 mistake each
-    if (item.status === 'extra') {
+    if (item.status === "extra") {
       mistakes += 1;
       continue;
     }
-    
+
     // Substitutions - check if it's just punctuation difference
-    if (item.status === 'substitution') {
-      const cleanOriginal = item.original.replace(/[.,]/g, '');
-      const cleanTyped = item.typed.replace(/[.,]/g, '');
-      
+    if (item.status === "substitution") {
+      const cleanOriginal = item.original.replace(/[.,]/g, "");
+      const cleanTyped = item.typed.replace(/[.,]/g, "");
+
       if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
         // Word itself is wrong
         mistakes += 1;
@@ -180,30 +220,41 @@ export function calculateAlignedMistakes(originalText: string, typedText: string
         const originalCommas = (item.original.match(/,/g) || []).length;
         const typedCommas = (item.typed.match(/,/g) || []).length;
         mistakes += Math.abs(originalCommas - typedCommas) * 0.25;
-        
+
         const originalPeriods = (item.original.match(/\./g) || []).length;
         const typedPeriods = (item.typed.match(/\./g) || []).length;
         mistakes += Math.abs(originalPeriods - typedPeriods) * 1;
       }
     }
   }
-  
+
   return { mistakes, alignment };
 }
 
-export function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
+export function calculateTypingMetrics(
+  originalText: string,
+  typedText: string,
+  timeInMinutes: number,
+  backspaces: number,
+) {
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes, alignment } = calculateAlignedMistakes(originalText, typedText);
-  const typedWords = typedText.trim().split(/\s+/).filter(w => w);
+  const { mistakes, alignment } = calculateAlignedMistakes(
+    originalText,
+    typedText,
+  );
+  const typedWords = typedText
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w);
 
   const totalWordsTyped = typedWords.length;
   // Use words count, not length of array if empty
-  const wordCount = typedText.trim() === '' ? 0 : totalWordsTyped;
-  
+  const wordCount = typedText.trim() === "" ? 0 : totalWordsTyped;
+
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
-  
+
   let netSpeed = 0;
-  
+
   if (mistakes > timeInMinutes) {
     // Formula: (Total words typed - (no. of Mistakes - Total time)* Total time)/Total time
     const penalty = (mistakes - timeInMinutes) * timeInMinutes;
@@ -212,12 +263,12 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
     // If No. of mistakes is less than or equal to Total time => Net Speed = Total words typed / Total time;
     netSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
   }
-  
+
   // Ensure net speed isn't negative
   netSpeed = Math.max(0, netSpeed);
 
   // Count missing words from alignment (words with status='missing')
-  const missingWords = alignment.filter(a => a.status === 'missing').length;
+  const missingWords = alignment.filter((a) => a.status === "missing").length;
 
   // Helper to format to 2 decimal places, removing trailing .00
   const formatSpeed = (speed: number) => {
@@ -231,71 +282,90 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
     grossSpeed: formatSpeed(grossSpeed),
     netSpeed: formatSpeed(netSpeed),
     backspaces,
-    missingWords
+    missingWords,
   };
 }
 
-export function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
+export function calculateShorthandMetrics(
+  originalText: string,
+  typedText: string,
+  timeInMinutes: number,
+) {
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes, alignment } = calculateAlignedMistakes(originalText, typedText);
-  const typedWords = typedText.trim().split(/\s+/).filter(w => w);
+  const { mistakes, alignment } = calculateAlignedMistakes(
+    originalText,
+    typedText,
+  );
+  const typedWords = typedText
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w);
 
-  const totalWordsTyped = typedText.trim() === '' ? 0 : typedWords.length;
+  const totalWordsTyped = typedText.trim() === "" ? 0 : typedWords.length;
   // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
-  const mistakePercentage = totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
+  const mistakePercentage =
+    totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
   const isPassed = mistakePercentage <= 5;
 
   // Count missing words from alignment (words with status='missing')
-  const missingWords = alignment.filter(a => a.status === 'missing').length;
+  const missingWords = alignment.filter((a) => a.status === "missing").length;
 
   return {
     words: totalWordsTyped,
     mistakes,
-    result: isPassed ? 'Pass' : 'Fail' as 'Pass' | 'Fail',
-    missingWords
+    result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
+    missingWords,
   };
 }
 
 export const generateResultPDF = async (result: Result) => {
   // Generate filename: StudentName_TypeOfResult_Date
-  const sanitizeName = (name: string) => name.replace(/[^a-zA-Z0-9]/g, '_');
+  const sanitizeName = (name: string) => name.replace(/[^a-zA-Z0-9]/g, "_");
   const studentName = sanitizeName(result.studentName);
-  const resultType = result.contentType.charAt(0).toUpperCase() + result.contentType.slice(1);
+  const resultType =
+    result.contentType.charAt(0).toUpperCase() + result.contentType.slice(1);
   const dateStr = format(new Date(result.submittedAt), "yyyy-MM-dd");
   const fileName = `${studentName}_${resultType}_${dateStr}`;
-  
+
   // Use a completely different approach: browser native print
   // Create a hidden iframe
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
   document.body.appendChild(iframe);
 
   // Font selection based on language
-  const contentFont = result.language === 'hindi' ? 
-    "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;" : 
-    "font-family: 'Times New Roman', Times, serif;";
+  const contentFont =
+    result.language === "hindi"
+      ? "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;"
+      : "font-family: 'Times New Roman', Times, serif;";
 
   // Use LCS-based alignment for accurate error detection with positional missing words
   const alignment = alignWords(result.originalText || "", result.typedText);
-  const originalWords = (result.originalText || "").trim().split(/\s+/).filter(w => w);
-  const typedWords = result.typedText.trim().split(/\s+/).filter(w => w);
-  
+  const originalWords = (result.originalText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w);
+  const typedWords = result.typedText
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w);
+
   let typedHtml = "";
-  
+
   for (const item of alignment) {
-    if (item.status === 'missing') {
+    if (item.status === "missing") {
       // Missing word - show in green brackets at correct position
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
-    } else if (item.status === 'substitution') {
+    } else if (item.status === "substitution") {
       // Wrong word - show underlined in red with correct word in green brackets
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span>`;
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
-    } else if (item.status === 'extra') {
+    } else if (item.status === "extra") {
       // Extra typed word - show underlined in red
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
     } else {
@@ -360,42 +430,41 @@ export const generateResultPDF = async (result: Result) => {
           <th>Metric</th><th>Value</th>
         </tr>
         <tr>
-          <td>Mistakes</td><td class="error">${result.mistakes}</td>
+          <td>Total Original Words</td><td>${originalWords.length}</td>
         </tr>
         <tr>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>
-          <td>Total Original Words</td><td>${originalWords.length}</td>
+          <td>Mistakes</td><td class="error">${result.mistakes}</td>
         </tr>
         <tr>
-          <td>Missing Words</td><td class="error">${alignment.filter(a => a.status === 'missing').length}</td>
+          <td>Missing Words</td><td class="error">${alignment.filter((a) => a.status === "missing").length}</td>
         </tr>
-        ${result.contentType === 'typing' ? `
+        ${
+          result.contentType === "typing"
+            ? `
+        <tr>
+          <td>Backspaces</td><td>${result.backspaces}</td>
+        </tr>
+        <tr>
+          <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
+        </tr>
           <tr>
             <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
           </tr>
+        `
+            : `
           <tr>
-            <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
+            <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
           </tr>
-          <tr>
-            <td>Backspaces</td><td>${result.backspaces}</td>
-          </tr>
-        ` : `
-          <tr>
-            <td>Result</td><td class="${result.result === 'Pass' ? 'success' : 'error'}">${result.result}</td>
-          </tr>
-        `}
+        `
+        }
       </table>
 
       <h3>Typed Content (Errors Underlined)</h3>
       <div class="content-box" style="${contentFont}">
         ${typedHtml}
-      </div>
-
-      <h3>Original Content</h3>
-      <div class="content-box" style="${contentFont}">
-        ${result.originalText}
       </div>
 
       <div class="footer">
@@ -411,19 +480,19 @@ export const generateResultPDF = async (result: Result) => {
     doc.open();
     doc.write(htmlContent);
     doc.close();
-    
+
     // Wait for images/fonts to load then print
     setTimeout(() => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-      
+
       // Cleanup after print dialog closes (approximate)
       // Note: We can't detect exactly when print cancels, so we just leave it or remove after long delay.
       // Better to remove immediately? No, some browsers need it there.
       // Let's remove after 1 minute or on next call.
       setTimeout(() => {
         if (document.body.contains(iframe)) {
-           document.body.removeChild(iframe);
+          document.body.removeChild(iframe);
         }
       }, 60000);
     }, 500);
