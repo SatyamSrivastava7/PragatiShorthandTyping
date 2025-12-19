@@ -97,6 +97,11 @@ export default function AdminDashboard() {
   // Analysis State
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
 
+  // Refresh Loading States
+  const [isRefreshingStudents, setIsRefreshingStudents] = useState(false);
+  const [isRefreshingContent, setIsRefreshingContent] = useState(false);
+  const [isRefreshingResults, setIsRefreshingResults] = useState(false);
+
   // Candidate State
   const [candidateName, setCandidateName] = useState("");
   const [candidateDesignation, setCandidateDesignation] = useState("");
@@ -376,8 +381,18 @@ export default function AdminDashboard() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search by name, ID, or mobile..." className="pl-10 bg-white shadow-sm" value={studentListSearch} onChange={e => setStudentListSearch(e.target.value)} />
                   </div>
-                  <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['users'] })} data-testid="button-refresh-students">
-                    <RefreshCw className="h-4 w-4" />
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    disabled={isRefreshingStudents}
+                    onClick={async () => {
+                      setIsRefreshingStudents(true);
+                      await queryClient.invalidateQueries({ queryKey: ['users'] });
+                      setIsRefreshingStudents(false);
+                    }} 
+                    data-testid="button-refresh-students"
+                  >
+                    <RefreshCw className={cn("h-4 w-4", isRefreshingStudents && "animate-spin")} />
                   </Button>
                 </div>
               </CardHeader>
@@ -670,8 +685,18 @@ export default function AdminDashboard() {
                               <CardDescription>{testCount} tests, {activeCount} active</CardDescription>
                             </div>
                           </div>
-                          <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['content'] })} data-testid={`button-refresh-${type}-tests`}>
-                            <RefreshCw className="h-4 w-4" />
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            disabled={isRefreshingContent}
+                            onClick={async () => {
+                              setIsRefreshingContent(true);
+                              await queryClient.invalidateQueries({ queryKey: ['content'] });
+                              setIsRefreshingContent(false);
+                            }} 
+                            data-testid={`button-refresh-${type}-tests`}
+                          >
+                            <RefreshCw className={cn("h-4 w-4", isRefreshingContent && "animate-spin")} />
                           </Button>
                         </div>
                       </CardHeader>
@@ -1031,8 +1056,18 @@ export default function AdminDashboard() {
                         <Mic className="h-4 w-4 mr-2" /> Shorthand Results
                       </TabsTrigger>
                     </TabsList>
-                    <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ['results'] })} data-testid="button-refresh-results">
-                      <RefreshCw className="h-4 w-4" />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      disabled={isRefreshingResults}
+                      onClick={async () => {
+                        setIsRefreshingResults(true);
+                        await queryClient.invalidateQueries({ queryKey: ['results'] });
+                        setIsRefreshingResults(false);
+                      }} 
+                      data-testid="button-refresh-results"
+                    >
+                      <RefreshCw className={cn("h-4 w-4", isRefreshingResults && "animate-spin")} />
                     </Button>
                   </div>
 
