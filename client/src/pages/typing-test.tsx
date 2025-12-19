@@ -257,13 +257,10 @@ export default function TypingTestPage() {
         e.preventDefault();
         return;
       }
-      // Calculate boundary based on text BEFORE what we're about to delete
-      // This allows deleting trailing spaces/newlines that were just typed
-      const textBeforeDelete = typedText.substring(0, cursorPos - 1);
-      const backspaceBoundary = getWordBoundary(textBeforeDelete);
       
-      // Block if the character we're deleting is at or before the boundary
-      if (cursorPos - 1 < backspaceBoundary) {
+      // Simple rule: can only backspace within current word (after the word boundary)
+      // Once you type a space/enter, the previous word is locked
+      if (cursorPos <= wordBoundary) {
         e.preventDefault();
         return;
       }
