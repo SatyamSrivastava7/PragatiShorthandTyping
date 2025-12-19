@@ -1,5 +1,4 @@
-import React from 'react';
-import { cn } from "@/lib/utils";
+import { cn, alignWords } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
@@ -8,32 +7,21 @@ interface ResultTextAnalysisProps {
 }
 
 export function ResultTextAnalysis({ originalText, typedText, language }: ResultTextAnalysisProps) {
-  const originalWords = (originalText || "").trim().split(/\s+/);
-  const typedWords = typedText.trim().split(/\s+/);
-  const maxLength = Math.max(originalWords.length, typedWords.length);
-
-  const fontClass = language === 'hindi' ? "font-family: 'Mangal', sans-serif;" : "";
+  // Use aligned word comparison to handle word splits/joins
+  const alignment = alignWords(originalText, typedText);
 
   return (
     <div className={cn("text-sm leading-relaxed flex flex-wrap gap-x-1", language === 'hindi' ? "font-mangal" : "")}>
-      {Array.from({ length: maxLength }).map((_, i) => {
-        const original = originalWords[i] || "";
-        const typed = typedWords[i] || "";
-        
-        // Case-insensitive comparison: 
-        // If words match case-insensitively, it's NOT an error (even if case differs).
-        // If they differ case-insensitively (including punctuation differences), it IS an error.
-        const isError = original.toLowerCase() !== typed.toLowerCase();
-
-        if (isError) {
+      {alignment.map((item, i) => {
+        if (item.isError) {
           return (
              <span key={i} className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
-               {typed}
+               {item.typed}
              </span>
           );
         }
         
-        return <span key={i}>{typed}</span>;
+        return <span key={i}>{item.typed}</span>;
       })}
     </div>
   );

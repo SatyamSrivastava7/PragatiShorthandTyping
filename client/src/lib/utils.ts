@@ -9,64 +9,122 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
-  // Normalize text: remove extra spaces, but keep structure mostly intact for word comparison
-  const originalWords = originalText.trim().split(/\s+/);
-  const typedWords = typedText.trim().split(/\s+/);
+// Align typed words with original words to handle word splits/joins
+// Returns an array of { typed, original, isError } for each typed word
+export function alignWords(originalText: string, typedText: string): Array<{ typed: string; original: string; isError: boolean }> {
+  const originalWords = (originalText || "").trim().split(/\s+/).filter(w => w);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter(w => w);
+  
+  const result: Array<{ typed: string; original: string; isError: boolean }> = [];
+  
+  let origIdx = 0;
+  let typedIdx = 0;
+  
+  while (typedIdx < typedWords.length) {
+    const typed = typedWords[typedIdx];
+    const original = originalWords[origIdx] || "";
+    
+    // Exact match (case-insensitive)
+    if (original && original.toLowerCase() === typed.toLowerCase()) {
+      result.push({ typed, original, isError: false });
+      origIdx++;
+      typedIdx++;
+      continue;
+    }
+    
+    // Check if typed word is part of the original (hyphenated word split)
+    // e.g., original "American-made" typed as "American"
+    if (original && original.toLowerCase().startsWith(typed.toLowerCase() + "-")) {
+      // This typed word is part of a hyphenated original
+      result.push({ typed, original, isError: true });
+      typedIdx++;
+      // Don't advance origIdx - check if next typed word completes it
+      continue;
+    }
+    
+    // Check if previous comparison was a partial match and this completes it
+    if (origIdx > 0 && typedIdx > 0) {
+      const prevOriginal = originalWords[origIdx - 1] || "";
+      const prevTyped = typedWords[typedIdx - 1] || "";
+      // If original was hyphenated and ends with current typed word
+      if (prevOriginal.toLowerCase().includes("-") && 
+          prevOriginal.toLowerCase().endsWith("-" + typed.toLowerCase())) {
+        // This typed word completes the hyphenated original, mark as error but don't double-count
+        result.push({ typed, original: "", isError: true });
+        typedIdx++;
+        continue;
+      }
+    }
+    
+    // Look ahead to see if we can realign
+    // Check if current typed word matches any upcoming original word
+    let foundAhead = false;
+    for (let lookAhead = 1; lookAhead <= 3 && origIdx + lookAhead < originalWords.length; lookAhead++) {
+      if (originalWords[origIdx + lookAhead].toLowerCase() === typed.toLowerCase()) {
+        // We found a match ahead - mark skipped originals and current as correct
+        // The current mismatch is likely due to word splits
+        result.push({ typed, original: originalWords[origIdx + lookAhead], isError: false });
+        origIdx = origIdx + lookAhead + 1;
+        typedIdx++;
+        foundAhead = true;
+        break;
+      }
+    }
+    
+    if (foundAhead) continue;
+    
+    // No match found - this is an error
+    result.push({ typed, original, isError: original.toLowerCase() !== typed.toLowerCase() });
+    if (original) origIdx++;
+    typedIdx++;
+  }
+  
+  return result;
+}
+
+// Calculate mistakes using aligned words
+export function calculateAlignedMistakes(originalText: string, typedText: string): { mistakes: number; alignment: Array<{ typed: string; original: string; isError: boolean }> } {
+  const originalWords = (originalText || "").trim().split(/\s+/).filter(w => w);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter(w => w);
+  const alignment = alignWords(originalText, typedText);
   
   let mistakes = 0;
   
-  // Prompt specific rules:
-  // 1 wrong word = 1 mistake
-  // 1 wrong ',' = 0.25 mistakes
-  // 1 wrong '.' = 1 mistake
-  // 1 skipped word = 1 mistake
-  // 1 extra word = 1 mistake
-  
-  const maxLength = Math.max(originalWords.length, typedWords.length);
-  
-  for (let i = 0; i < maxLength; i++) {
-    const original = originalWords[i] || "";
-    const typed = typedWords[i] || "";
+  for (const { typed, original, isError } of alignment) {
+    if (!isError) continue;
     
-    if (!original && typed) {
-      // Extra word
-      mistakes += 1;
-      continue;
-    }
-    
-    if (original && !typed) {
-      // Skipped word
-      mistakes += 1;
-      continue;
-    }
-    
-    // Case-insensitive comparison for word content
-    if (original.toLowerCase() === typed.toLowerCase()) {
-      continue;
-    }
-    
-    // Word mismatch logic
-    // check punctuation specific
+    // Clean words for comparison (remove punctuation)
     const cleanOriginal = original.replace(/[.,]/g, '');
     const cleanTyped = typed.replace(/[.,]/g, '');
     
     if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
-      // The word itself is wrong
+      // Word itself is wrong
       mistakes += 1;
     } else {
-      // Word is correct (case-insensitive), check punctuation
-      // Check commas
+      // Word matches, check punctuation
       const originalCommas = (original.match(/,/g) || []).length;
       const typedCommas = (typed.match(/,/g) || []).length;
       mistakes += Math.abs(originalCommas - typedCommas) * 0.25;
       
-      // Check periods
       const originalPeriods = (original.match(/\./g) || []).length;
       const typedPeriods = (typed.match(/\./g) || []).length;
-      mistakes += Math.abs(originalPeriods - typedPeriods) * 1; // 1 mistake per wrong period
+      mistakes += Math.abs(originalPeriods - typedPeriods) * 1;
     }
   }
+  
+  // Add mistakes for skipped words (original words not covered)
+  const coveredOriginals = alignment.filter(a => a.original).length;
+  const skippedWords = Math.max(0, originalWords.length - coveredOriginals);
+  mistakes += skippedWords;
+  
+  return { mistakes, alignment };
+}
+
+export function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
+  // Use aligned word comparison to handle word splits/joins
+  const { mistakes } = calculateAlignedMistakes(originalText, typedText);
+  const typedWords = typedText.trim().split(/\s+/).filter(w => w);
+  const originalWords = originalText.trim().split(/\s+/).filter(w => w);
 
   const totalWordsTyped = typedWords.length;
   // Use words count, not length of array if empty
@@ -108,57 +166,10 @@ export function calculateTypingMetrics(originalText: string, typedText: string, 
 }
 
 export function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
-  const originalWords = originalText.trim().split(/\s+/);
-  const typedWords = typedText.trim().split(/\s+/);
-  
-  let mistakes = 0;
-  
-  // Updated Logic: Count words while checking for mistakes, not character. 
-  // Match exact words and count 1 wrong word = 1 mistake; 
-  // 1 wrong /missed / extra ',' = 0.25 mistakes; 
-  // 1 wrong /missed / extra '.' = 1 mistake; 
-  // 1 skipped word = 1 mistake; 
-  // 1 extra word = 1 mistake; 
-
-  const maxLength = Math.max(originalWords.length, typedWords.length);
-  
-  for (let i = 0; i < maxLength; i++) {
-    const original = originalWords[i] || "";
-    const typed = typedWords[i] || "";
-    
-    if (!original && typed) {
-      // Extra word
-      mistakes += 1;
-      continue;
-    }
-    
-    if (original && !typed) {
-      // Skipped word
-      mistakes += 1;
-      continue;
-    }
-    
-    // Check main word content excluding punctuation
-    const cleanOriginal = original.replace(/[.,]/g, '');
-    const cleanTyped = typed.replace(/[.,]/g, '');
-    
-    // Case-insensitive comparison
-    if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
-       // Wrong word
-       mistakes += 1;
-    } else {
-       // Word matches, check punctuation penalties
-       // Check commas (0.25 per mismatch)
-       const originalCommas = (original.match(/,/g) || []).length;
-       const typedCommas = (typed.match(/,/g) || []).length;
-       mistakes += Math.abs(originalCommas - typedCommas) * 0.25;
-       
-       // Check periods (1 per mismatch)
-       const originalPeriods = (original.match(/\./g) || []).length;
-       const typedPeriods = (typed.match(/\./g) || []).length;
-       mistakes += Math.abs(originalPeriods - typedPeriods) * 1;
-    }
-  }
+  // Use aligned word comparison to handle word splits/joins
+  const { mistakes } = calculateAlignedMistakes(originalText, typedText);
+  const originalWords = originalText.trim().split(/\s+/).filter(w => w);
+  const typedWords = typedText.trim().split(/\s+/).filter(w => w);
 
   const totalWordsTyped = typedText.trim() === '' ? 0 : typedWords.length;
   // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
