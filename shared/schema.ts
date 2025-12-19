@@ -8,7 +8,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   mobile: varchar("mobile", { length: 15 }).notNull().unique(),
-  batch: text("batch"),
+  batch: text("batch").notNull(),
   studentId: varchar("student_id", { length: 50 }).unique(),
   email: text("email"),
   role: varchar("role", { length: 10 }).notNull(), // 'admin' | 'student'
