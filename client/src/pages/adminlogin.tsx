@@ -39,26 +39,20 @@ export default function AdminLoginPage() {
         throw new Error(errorMessage);
       }
       
-      // Invalidate and refetch session to get updated user data
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/session"] });
+      // Invalidate session cache and update with new session data
+      await queryClient.invalidateQueries({ queryKey: ['session'] });
       
-      // Wait for session to be confirmed before navigating
-      const sessionData = await queryClient.fetchQuery<{ user: { id: number; role: string } | null }>({
-        queryKey: ["/api/auth/session"],
-        staleTime: 0,
+      // Set session data directly from the login response
+      const loginData = await response.json();
+      queryClient.setQueryData(['session'], { user: loginData.user });
+      
+      toast({
+        title: "Welcome, Admin!",
+        description: "Successfully logged in to admin panel.",
       });
       
-      if (sessionData?.user) {
-        toast({
-          title: "Welcome, Admin!",
-          description: "Successfully logged in to admin panel.",
-        });
-        
-        // Navigate immediately after session is confirmed
-        setLocation("/admin");
-      } else {
-        throw new Error("Session not established. Please try again.");
-      }
+      // Navigate immediately after session is set
+      setLocation("/admin");
     } catch (error: any) {
       toast({
         variant: "destructive",
