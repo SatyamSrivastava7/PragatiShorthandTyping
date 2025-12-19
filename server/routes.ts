@@ -44,31 +44,55 @@ export async function registerRoutes(
       // Hash password
       const hashedPassword = await bcrypt.hash(validatedData.password, 10);
       
-      // Generate student ID (PIPS + year + sequential number)
-      const year = new Date().getFullYear().toString().slice(-2);
-      const allUsers = await storage.getAllUsers();
-      const prefix = `PIPS${year}`;
+      // Retry logic for handling concurrent registrations
+      const maxRetries = 5;
+      let user = null;
+      let lastError = null;
       
-      // Find the highest existing student ID number for this year
-      let maxNum = 0;
-      for (const u of allUsers) {
-        if (u.studentId && u.studentId.startsWith(prefix)) {
-          const numStr = u.studentId.slice(prefix.length);
-          const num = parseInt(numStr, 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          // Generate student ID (PIPS + year + sequential number)
+          const year = new Date().getFullYear().toString().slice(-2);
+          const allUsers = await storage.getAllUsers();
+          const prefix = `PIPS${year}`;
+          
+          // Find the highest existing student ID number for this year
+          let maxNum = 0;
+          for (const u of allUsers) {
+            if (u.studentId && u.studentId.startsWith(prefix)) {
+              const numStr = u.studentId.slice(prefix.length);
+              const num = parseInt(numStr, 10);
+              if (!isNaN(num) && num > maxNum) {
+                maxNum = num;
+              }
+            }
           }
+          const studentId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+          
+          // Create user with isPaymentCompleted = false (requires admin approval)
+          user = await storage.createUser({
+            ...validatedData,
+            password: hashedPassword,
+            studentId,
+            isPaymentCompleted: false,
+          });
+          break; // Success, exit retry loop
+        } catch (error: any) {
+          lastError = error;
+          // Check if it's a duplicate key error on student_id (code 23505)
+          if (error?.code === '23505' && error?.constraint === 'users_student_id_unique') {
+            // Retry with a new student ID
+            continue;
+          }
+          // For other errors, throw immediately
+          throw error;
         }
       }
-      const studentId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
       
-      // Create user with isPaymentCompleted = false (requires admin approval)
-      const user = await storage.createUser({
-        ...validatedData,
-        password: hashedPassword,
-        studentId,
-        isPaymentCompleted: false,
-      });
+      if (!user) {
+        console.error("Registration failed after retries:", lastError);
+        return res.status(500).json({ message: "Registration failed due to high traffic. Please try again." });
+      }
       
       // Don't auto-login students - they need admin approval first
       // Return success with pending approval message
