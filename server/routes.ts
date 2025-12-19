@@ -47,8 +47,20 @@ export async function registerRoutes(
       // Generate student ID (PIPS + year + sequential number)
       const year = new Date().getFullYear().toString().slice(-2);
       const allUsers = await storage.getAllUsers();
-      const studentCount = allUsers.filter(u => u.role === 'student').length + 1;
-      const studentId = `PIPS${year}${studentCount.toString().padStart(4, '0')}`;
+      const prefix = `PIPS${year}`;
+      
+      // Find the highest existing student ID number for this year
+      let maxNum = 0;
+      for (const u of allUsers) {
+        if (u.studentId && u.studentId.startsWith(prefix)) {
+          const numStr = u.studentId.slice(prefix.length);
+          const num = parseInt(numStr, 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        }
+      }
+      const studentId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
       
       // Create user with isPaymentCompleted = false (requires admin approval)
       const user = await storage.createUser({
@@ -67,6 +79,7 @@ export async function registerRoutes(
         message: "Your profile has been created successfully! Please contact the administrator to activate your account before you can log in."
       });
     } catch (error) {
+      console.error("Registration error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
