@@ -12,6 +12,14 @@ export function cn(...inputs: ClassValue[]) {
 // Special characters that can split words (user types them as spaces)
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
+// Normalize dashes/hyphens to standard hyphen for comparison
+// Handles: − (minus U+2212), – (en dash U+2013), — (em dash U+2014), ‐ (hyphen U+2010), etc.
+function normalizeForComparison(text: string): string {
+  return text
+    .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, '-') // Normalize all dash-like characters to hyphen
+    .toLowerCase();
+}
+
 // Alignment entry types: match, substitution, missing (skipped original), extra (typed but not in original)
 export type AlignmentStatus = 'match' | 'substitution' | 'missing' | 'extra';
 
@@ -35,14 +43,14 @@ export function alignWords(originalText: string, typedText: string): AlignmentEn
     return originalWords.map(w => ({ typed: "", original: w, status: 'missing' as AlignmentStatus, isError: true }));
   }
   
-  // Build LCS table for case-insensitive matching
+  // Build LCS table for normalized comparison (case-insensitive, dash-normalized)
   const m = originalWords.length;
   const n = typedWords.length;
   const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
   
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      if (originalWords[i - 1].toLowerCase() === typedWords[j - 1].toLowerCase()) {
+      if (normalizeForComparison(originalWords[i - 1]) === normalizeForComparison(typedWords[j - 1])) {
         dp[i][j] = dp[i - 1][j - 1] + 1;
       } else {
         dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
@@ -56,7 +64,7 @@ export function alignWords(originalText: string, typedText: string): AlignmentEn
   const tempResult: AlignmentEntry[] = [];
   
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && originalWords[i - 1].toLowerCase() === typedWords[j - 1].toLowerCase()) {
+    if (i > 0 && j > 0 && normalizeForComparison(originalWords[i - 1]) === normalizeForComparison(typedWords[j - 1])) {
       // Match
       tempResult.push({ 
         typed: typedWords[j - 1], 
