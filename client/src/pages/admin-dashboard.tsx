@@ -20,7 +20,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic, Loader2, Keyboard } from "lucide-react";
+import { Download, Search, FileUp, Eye, FolderPlus, Upload, Music, CheckCircle, Image as ImageIcon, LayoutList, Users, BarChart, Trash2, QrCode, Mic, Loader2, Keyboard, Menu } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
@@ -1244,7 +1245,11 @@ export default function AdminDashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {selectedCandidates.map((candidate) => (
+                            {[...selectedCandidates].sort((a, b) => {
+                              const yearA = parseInt(a.year) || 0;
+                              const yearB = parseInt(b.year) || 0;
+                              return yearB - yearA;
+                            }).map((candidate) => (
                               <TableRow key={candidate.id} className="hover:bg-slate-50/50">
                                 <TableCell>
                                   <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
@@ -1297,57 +1302,85 @@ export default function AdminDashboard() {
     { id: "gallery", label: "Gallery", icon: ImageIcon, color: "text-pink-600", bg: "bg-pink-100" },
   ];
 
-  return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Sidebar */}
-      <aside className="w-72 border-r bg-gradient-to-b from-slate-50 to-white flex flex-col shrink-0 overflow-y-auto">
-        <div className="p-5 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
-          <h2 className="text-xl font-bold text-white drop-shadow-sm">Admin Panel</h2>
-          <p className="text-sm text-blue-100 mt-1">Manage your institute</p>
-        </div>
-        <div className="p-3 space-y-1 flex-1">
-          <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</p>
-          {menuItems.map(item => (
-            <button
-              key={item.id}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left",
-                activeTab === item.id 
-                  ? "bg-white shadow-md border border-slate-200" 
-                  : "hover:bg-white/60"
-              )}
-              onClick={() => setActiveTab(item.id)}
-            >
-              <div className={cn(
-                "p-2 rounded-lg transition-colors",
-                activeTab === item.id ? item.bg : "bg-slate-100"
-              )}>
-                <item.icon size={18} className={activeTab === item.id ? item.color : "text-slate-500"} />
-              </div>
-              <span className={cn(
-                "font-medium text-sm",
-                activeTab === item.id ? "text-gray-900" : "text-gray-600"
-              )}>
-                {item.label}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="p-4 border-t bg-slate-50/50">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white text-sm font-bold">
-              A
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const SidebarContent = () => (
+    <>
+      <div className="p-5 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
+        <h2 className="text-xl font-bold text-white drop-shadow-sm">Admin Panel</h2>
+        <p className="text-sm text-blue-100 mt-1">Manage your institute</p>
+      </div>
+      <div className="p-3 space-y-1 flex-1">
+        <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</p>
+        {menuItems.map(item => (
+          <button
+            key={item.id}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left",
+              activeTab === item.id 
+                ? "bg-white shadow-md border border-slate-200" 
+                : "hover:bg-white/60"
+            )}
+            onClick={() => {
+              setActiveTab(item.id);
+              setMobileMenuOpen(false);
+            }}
+          >
+            <div className={cn(
+              "p-2 rounded-lg transition-colors",
+              activeTab === item.id ? item.bg : "bg-slate-100"
+            )}>
+              <item.icon size={18} className={activeTab === item.id ? item.color : "text-slate-500"} />
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">Admin</p>
-              <p className="text-xs text-muted-foreground">Administrator</p>
-            </div>
+            <span className={cn(
+              "font-medium text-sm",
+              activeTab === item.id ? "text-gray-900" : "text-gray-600"
+            )}>
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="p-4 border-t bg-slate-50/50">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white text-sm font-bold">
+            A
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-900">Admin</p>
+            <p className="text-xs text-muted-foreground">Administrator</p>
           </div>
         </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between p-3 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
+        <h2 className="text-lg font-bold text-white">Admin Panel</h2>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-72">
+            <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 to-white">
+              <SidebarContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-72 border-r bg-gradient-to-b from-slate-50 to-white flex-col shrink-0 overflow-y-auto">
+        <SidebarContent />
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-slate-50 to-blue-50/30">
+      <main className="flex-1 p-3 md:p-6 overflow-auto bg-gradient-to-br from-slate-50 to-blue-50/30">
         {renderContent()}
       </main>
     </div>

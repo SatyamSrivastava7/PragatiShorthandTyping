@@ -2,7 +2,8 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap } from "lucide-react";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import logoImage from "@assets/WhatsApp_Image_2025-12-12_at_7.30.52_PM_(1)_1765980168956.jpeg";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -43,24 +44,49 @@ export default function LandingPage() {
       {/* Main Header/Navigation */}
       <header className="w-full bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white shrink-0">
               <img src={logoImage} alt="Pragati Logo" className="w-full h-full object-contain" />
             </div>
-            <div className="hidden sm:block">
-              <h1 className="font-bold text-lg text-gray-900 leading-tight">Pragati Institute</h1>
-              <p className="text-xs text-muted-foreground">Professional Studies, Prayagraj</p>
-            </div>
+            <h1 className="font-bold text-xs sm:text-sm md:text-lg text-gray-900 leading-tight">
+              <span className="hidden sm:inline">Pragati Institute of Professional Studies</span>
+              <span className="sm:hidden">Pragati Institute<br/>of Professional Studies</span>
+            </h1>
           </div>
           
-          <div className="flex items-center gap-6">
-            <nav className="hidden md:flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <nav className="hidden lg:flex items-center gap-6">
               <a href="#about" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">About</a>
               <a href="#candidates" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Candidates</a>
               <Link href="/gallery" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Gallery</Link>
               <Link href="/contact" className="text-sm font-medium text-gray-600 hover:text-primary transition-colors">Contact Us</Link>
             </nav>
-            <Link href={getStartedLink}>
+            
+            {/* Mobile Menu */}
+            <div className="lg:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-64">
+                  <div className="flex flex-col gap-4 mt-8">
+                    <a href="#about" className="text-lg font-medium text-gray-700 hover:text-primary transition-colors py-2 border-b">About</a>
+                    <a href="#candidates" className="text-lg font-medium text-gray-700 hover:text-primary transition-colors py-2 border-b">Candidates</a>
+                    <Link href="/gallery" className="text-lg font-medium text-gray-700 hover:text-primary transition-colors py-2 border-b">Gallery</Link>
+                    <Link href="/contact" className="text-lg font-medium text-gray-700 hover:text-primary transition-colors py-2 border-b">Contact Us</Link>
+                    <Link href={getStartedLink}>
+                      <Button className="w-full bg-gradient-to-r from-primary to-blue-600 mt-4">
+                        {currentUser ? "Dashboard" : "Login"}
+                      </Button>
+                    </Link>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+            
+            <Link href={getStartedLink} className="hidden lg:block">
               <Button className="bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all">
                 {currentUser ? "Dashboard" : "Login"}
               </Button>
@@ -89,7 +115,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10 hover:text-white" onClick={() => openLink('https://web.telegram.org/a/@pragatistenohublive')} title="Telegram">
+            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10 hover:text-white" onClick={() => openLink('https://t.me/pragatishorthand_2008')} title="Telegram">
               <Send className="h-3 w-3" />
             </Button>
             <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10 hover:text-white" onClick={() => openLink('https://instagram.com/pragati_shorthand?igsh=NXJidTkzYW9sYjI=')} title="Instagram">
@@ -377,10 +403,10 @@ export default function LandingPage() {
               <div className="flex flex-col gap-2 text-sm text-gray-400 text-center md:text-right">
                 <p>+91 9026212705</p>
                 <p>pragatiprofessionalstudies@gmail.com</p>
-                <p>Rajrooppur, Prayagraj</p>
+                <p>Kalindipuram, Prayagraj, 211011</p>
               </div>
               <div className="flex gap-3 mt-4">
-                <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/10" onClick={() => openLink('https://web.telegram.org/a/@pragatistenohublive')}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/10" onClick={() => openLink('https://t.me/pragatishorthand_2008')}>
                   <Send className="h-4 w-4" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/10" onClick={() => openLink('https://youtube.com/@pragatistenohublive')}>

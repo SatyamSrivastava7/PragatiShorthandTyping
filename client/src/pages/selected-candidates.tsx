@@ -7,6 +7,13 @@ import { ArrowLeft } from "lucide-react";
 export default function SelectedCandidatesPage() {
   const { candidates: selectedCandidates } = useSelectedCandidates();
 
+  // Sort candidates by batch year in descending order
+  const sortedCandidates = [...selectedCandidates].sort((a, b) => {
+    const yearA = parseInt(a.year) || 0;
+    const yearB = parseInt(b.year) || 0;
+    return yearB - yearA;
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
       <div className="container mx-auto px-4">
@@ -20,7 +27,7 @@ export default function SelectedCandidatesPage() {
         </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {selectedCandidates.map((student) => (
+          {sortedCandidates.map((student) => (
             <Card 
               key={student.id} 
               className="border-0 shadow-lg hover:shadow-xl transition-shadow bg-gradient-to-b from-white to-blue-50/50"
@@ -38,7 +45,7 @@ export default function SelectedCandidatesPage() {
           ))}
         </div>
 
-        {selectedCandidates.length === 0 && (
+        {sortedCandidates.length === 0 && (
           <div className="text-center py-16" data-testid="text-empty">
             <p className="text-muted-foreground text-lg">No selected candidates to display.</p>
           </div>

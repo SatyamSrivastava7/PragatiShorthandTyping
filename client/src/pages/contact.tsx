@@ -44,7 +44,7 @@ export default function ContactPage() {
               <div>
                 <h3 className="font-semibold">Address</h3>
                 <p className="text-sm text-muted-foreground">
-                  Kalindipuram, Rajrooppur, Prayagraj, Uttar Pradesh, India, 211011
+                  Kalindipuram, Prayagraj, 211011
                 </p>
               </div>
             </div>
@@ -59,7 +59,7 @@ export default function ContactPage() {
             <p className="text-muted-foreground">Follow us on social media for updates and study materials.</p>
             
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="w-full justify-start gap-2 h-12 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200" onClick={() => openLink('https://web.telegram.org/a/@pragatistenohublive')}>
+              <Button variant="outline" className="w-full justify-start gap-2 h-12 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200" onClick={() => openLink('https://t.me/pragatishorthand_2008')}>
                 <Send className="h-5 w-5 text-blue-500" /> Telegram
               </Button>
               <Button variant="outline" className="w-full justify-start gap-2 h-12 hover:bg-pink-50 hover:text-pink-600 hover:border-pink-200" onClick={() => openLink('https://instagram.com/pragati_shorthand?igsh=NXJidTkzYW9sYjI=')}>

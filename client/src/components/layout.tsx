@@ -96,14 +96,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Sheet>
             
             <Link href="/">
-              <div className="flex items-center gap-3 cursor-pointer">
-                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white hidden md:block">
+              <div className="flex items-center gap-2 sm:gap-3 cursor-pointer min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white shrink-0">
                   <img src={logoImage} alt="Pragati Logo" className="w-full h-full object-contain" />
                 </div>
-                <div className="hidden sm:block">
-                  <h1 className="font-bold text-lg text-gray-900 leading-tight">Pragati Institute</h1>
-                  <p className="text-xs text-muted-foreground">Professional Studies, Prayagraj</p>
-                </div>
+                <h1 className="font-bold text-xs sm:text-sm md:text-lg text-gray-900 leading-tight">
+                  <span className="hidden sm:inline">Pragati Institute of Professional Studies</span>
+                  <span className="sm:hidden">Pragati Institute<br/>of Professional Studies</span>
+                </h1>
               </div>
             </Link>
           </div>
@@ -189,8 +189,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                          <MapPin size={16} className="text-primary" />
                        </div>
                        <p className="leading-relaxed">
-                         Kalindipuram, Rajrooppur, Prayagraj,<br/> 
-                         Uttar Pradesh, India, 211011
+                         Kalindipuram, Prayagraj, 211011
                        </p>
                      </div>
                    </div>
