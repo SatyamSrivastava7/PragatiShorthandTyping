@@ -156,7 +156,7 @@ export default function AdminDashboard() {
         language,
         mediaUrl,
         autoScroll: contentType === 'typing' ? autoScroll : true,
-      });
+      } as any);
 
       toast({ variant: "success", title: "Success", description: "Content uploaded successfully" });
       setTitle("");
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <Switch checked={student.isPaymentCompleted} onCheckedChange={() => handleStudentPaymentToggle(student)} />
+                              <Switch checked={student.isPaymentCompleted ?? false} onCheckedChange={() => handleStudentPaymentToggle(student)} />
                               <span className={cn("text-xs font-medium", student.isPaymentCompleted ? "text-green-600" : "text-gray-400")}>{student.isPaymentCompleted ? 'Active' : 'Inactive'}</span>
                             </div>
                           </TableCell>
@@ -750,8 +750,8 @@ export default function AdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
-                                      <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(parseInt(item.id))} />
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-red-50" onClick={() => handleDeleteContent(parseInt(item.id))}>
+                                      <Switch checked={item.isEnabled} onCheckedChange={() => toggleContent(item.id)} />
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-red-50" onClick={() => handleDeleteContent(item.id)}>
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </div>
@@ -834,22 +834,22 @@ export default function AdminDashboard() {
                           key={f.id} 
                           className={cn(
                             "p-3 flex items-center justify-between cursor-pointer transition-colors",
-                            selectedFolderId === parseInt(f.id) 
+                            selectedFolderId === f.id 
                               ? "bg-orange-50 border-l-4 border-l-orange-500" 
                               : "hover:bg-slate-50"
                           )}
-                          onClick={() => setSelectedFolderId(parseInt(f.id))}
+                          onClick={() => setSelectedFolderId(f.id)}
                         >
                           <div className="flex items-center gap-3">
                             <div className={cn(
                               "p-2 rounded-lg",
-                              selectedFolderId === parseInt(f.id) ? "bg-orange-100" : "bg-slate-100"
+                              selectedFolderId === f.id ? "bg-orange-100" : "bg-slate-100"
                             )}>
-                              <FolderPlus size={16} className={selectedFolderId === parseInt(f.id) ? "text-orange-600" : "text-slate-500"} />
+                              <FolderPlus size={16} className={selectedFolderId === f.id ? "text-orange-600" : "text-slate-500"} />
                             </div>
                             <span className={cn(
                               "font-medium",
-                              selectedFolderId === parseInt(f.id) ? "text-orange-700" : "text-gray-700"
+                              selectedFolderId === f.id ? "text-orange-700" : "text-gray-700"
                             )}>
                               {f.name}
                             </span>
@@ -865,8 +865,8 @@ export default function AdminDashboard() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (confirm(`Delete folder "${f.name}"? All files inside will also be deleted.`)) {
-                                  deletePdfFolder(parseInt(f.id));
-                                  if (selectedFolderId === parseInt(f.id)) {
+                                  deletePdfFolder(f.id);
+                                  if (selectedFolderId === f.id) {
                                     setSelectedFolderId(null);
                                   }
                                   toast({ variant: "success", title: "Deleted", description: "Folder deleted successfully" });
@@ -913,7 +913,7 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                           <p className="text-xs text-orange-600 font-medium">Selected Folder</p>
-                          <p className="font-semibold text-orange-800">{pdfFolders.find(f => parseInt(f.id) === selectedFolderId)?.name}</p>
+                          <p className="font-semibold text-orange-800">{pdfFolders.find(f => f.id === selectedFolderId)?.name}</p>
                         </div>
                       </div>
                       
@@ -940,10 +940,10 @@ export default function AdminDashboard() {
                       <div className="border-t pt-5">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="font-semibold text-sm">Files in Folder</h4>
-                          <span className="text-xs text-muted-foreground">{pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).length} items</span>
+                          <span className="text-xs text-muted-foreground">{pdfResources.filter(p => p.folderId === selectedFolderId).length} items</span>
                         </div>
                         <div className="space-y-2 max-h-[200px] overflow-auto">
-                          {pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).map(pdf => (
+                          {pdfResources.filter(p => p.folderId === selectedFolderId).map(pdf => (
                             <div key={pdf.id} className="flex items-center justify-between p-3 bg-slate-50 border rounded-lg hover:bg-slate-100 transition-colors">
                               <div className="flex items-center gap-3 overflow-hidden">
                                 <div className="p-2 bg-red-100 rounded-lg shrink-0">
@@ -954,12 +954,12 @@ export default function AdminDashboard() {
                                   <p className="text-xs text-muted-foreground">{pdf.pageCount} pages &middot; ₹{pdf.price}</p>
                                 </div>
                               </div>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-red-50 shrink-0" onClick={() => handleDeletePdf(parseInt(pdf.id))}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-red-50 shrink-0" onClick={() => handleDeletePdf(pdf.id)}>
                                 <Trash2 size={14} />
                               </Button>
                             </div>
                           ))}
-                          {pdfResources.filter(p => parseInt(p.folderId) === selectedFolderId).length === 0 && (
+                          {pdfResources.filter(p => p.folderId === selectedFolderId).length === 0 && (
                             <div className="p-6 text-center border-2 border-dashed rounded-lg text-muted-foreground">
                               <FileUp className="h-8 w-8 mx-auto mb-2 opacity-30" />
                               <p className="text-sm">No files in this folder</p>
@@ -1175,7 +1175,7 @@ export default function AdminDashboard() {
                                           <ResultTextAnalysis 
                                             originalText={result.originalText || ""} 
                                             typedText={result.typedText} 
-                                            language={result.language}
+                                            language={(result.language as "english" | "hindi") || "english"}
                                           />
                                         </div>
 
