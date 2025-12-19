@@ -65,12 +65,21 @@ export default function AuthPage() {
       return;
     }
 
+    if (!regBatch.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Batch Required",
+        description: "Please enter your batch (e.g., 2024-25).",
+      });
+      return;
+    }
+
     try {
       const result = await register({
         name: regName,
         mobile: regMobile,
         password: regPassword,
-        batch: regBatch || undefined,
+        batch: regBatch.trim(),
         email: regEmail || undefined,
         city: regCity || undefined,
         state: regState || undefined,
@@ -296,8 +305,8 @@ export default function AuthPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="regBatch">Batch (Optional)</Label>
-                    <Input id="regBatch" value={regBatch} onChange={e => setRegBatch(e.target.value)} data-testid="input-register-batch" />
+                    <Label htmlFor="regBatch">Batch <span className="text-destructive">*</span></Label>
+                    <Input id="regBatch" value={regBatch} onChange={e => setRegBatch(e.target.value)} placeholder="e.g., 2024-25" required data-testid="input-register-batch" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="regEmail">Email (Optional)</Label>
