@@ -39,14 +39,18 @@ export default function AdminLoginPage() {
         throw new Error(errorMessage);
       }
       
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/session"] });
+      // Refetch session to get updated user data before navigating
+      await queryClient.refetchQueries({ queryKey: ["/api/auth/session"] });
       
       toast({
         title: "Welcome, Admin!",
         description: "Successfully logged in to admin panel.",
       });
       
-      setLocation("/admin");
+      // Small delay to ensure session state is propagated
+      setTimeout(() => {
+        setLocation("/admin");
+      }, 100);
     } catch (error: any) {
       toast({
         variant: "destructive",
