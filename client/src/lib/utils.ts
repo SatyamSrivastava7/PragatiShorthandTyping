@@ -42,18 +42,15 @@ export function alignWords(originalText: string, typedText: string): Array<{ typ
       continue;
     }
     
-    // Check if previous comparison was a partial match and this completes it
-    if (origIdx > 0 && typedIdx > 0) {
-      const prevOriginal = originalWords[origIdx - 1] || "";
-      const prevTyped = typedWords[typedIdx - 1] || "";
-      // If original was hyphenated and ends with current typed word
-      if (prevOriginal.toLowerCase().includes("-") && 
-          prevOriginal.toLowerCase().endsWith("-" + typed.toLowerCase())) {
-        // This typed word completes the hyphenated original, mark as error but don't double-count
-        result.push({ typed, original: "", isError: true });
-        typedIdx++;
-        continue;
-      }
+    // Check if this typed word completes a hyphenated original word
+    // (when origIdx hasn't advanced because we matched the first part)
+    if (original && original.toLowerCase().includes("-") && 
+        original.toLowerCase().endsWith("-" + typed.toLowerCase())) {
+      // This typed word completes the hyphenated original, mark as error
+      result.push({ typed, original: "", isError: true });
+      origIdx++; // Now advance past the hyphenated original
+      typedIdx++;
+      continue;
     }
     
     // Look ahead to see if we can realign
