@@ -134,6 +134,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: number): Promise<boolean> {
+    // First delete all results associated with this user
+    await db.delete(results).where(eq(results.studentId, id));
+    // Then delete the user
     const result = await db.delete(users).where(eq(users.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
@@ -159,6 +162,7 @@ export class DatabaseStorage implements IStorage {
       duration: content.duration,
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
+      autoScroll: content.autoScroll,
       mediaUrl: content.mediaUrl,
       language: content.language,
       createdAt: content.createdAt,
@@ -177,6 +181,7 @@ export class DatabaseStorage implements IStorage {
       duration: content.duration,
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
+      autoScroll: content.autoScroll,
       mediaUrl: content.mediaUrl,
       language: content.language,
       createdAt: content.createdAt,

@@ -153,10 +153,25 @@ export default function AuthPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">New Student</TabsTrigger>
-              <TabsTrigger value="reset">Reset</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 mb-4 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+              <TabsTrigger 
+                value="login"
+                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+              >
+                Login
+              </TabsTrigger>
+              <TabsTrigger 
+                value="register"
+                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+              >
+                New Student
+              </TabsTrigger>
+              <TabsTrigger 
+                value="reset"
+                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+              >
+                Reset
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="login">
