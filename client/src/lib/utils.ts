@@ -10,177 +10,154 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Special characters that can split words (user types them as spaces)
-// Includes: hyphen, en-dash, em-dash, forward slash, backslash, underscore, 
-// colon, semicolon, pipe, plus, ampersand, tilde, etc.
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
-// Split a word by special characters and return parts
-function splitBySpecialChars(word: string): string[] {
-  return word.split(SPLIT_CHAR_PATTERN).filter(p => p);
+// Alignment entry types: match, substitution, missing (skipped original), extra (typed but not in original)
+export type AlignmentStatus = 'match' | 'substitution' | 'missing' | 'extra';
+
+export interface AlignmentEntry {
+  typed: string;
+  original: string;
+  status: AlignmentStatus;
+  isError: boolean;
 }
 
-// Check if word contains any special split characters
-function hasSplitChars(word: string): boolean {
-  return SPLIT_CHAR_PATTERN.test(word);
-}
-
-// Align typed words with original words to handle word splits/joins
-// Returns an array of { typed, original, isError } for each typed word
-export function alignWords(originalText: string, typedText: string): Array<{ typed: string; original: string; isError: boolean }> {
+// LCS-based word alignment that shows missing words in their correct positions
+export function alignWords(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter(w => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter(w => w);
   
-  const result: Array<{ typed: string; original: string; isError: boolean }> = [];
+  if (originalWords.length === 0 && typedWords.length === 0) return [];
+  if (originalWords.length === 0) {
+    return typedWords.map(w => ({ typed: w, original: "", status: 'extra' as AlignmentStatus, isError: true }));
+  }
+  if (typedWords.length === 0) {
+    return originalWords.map(w => ({ typed: "", original: w, status: 'missing' as AlignmentStatus, isError: true }));
+  }
   
-  let origIdx = 0;
-  let typedIdx = 0;
-  let partIdx = 0; // Track which part of a compound word we're matching
-  let currentParts: string[] = []; // Parts of current compound word being matched
+  // Build LCS table for case-insensitive matching
+  const m = originalWords.length;
+  const n = typedWords.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
   
-  while (typedIdx < typedWords.length) {
-    const typed = typedWords[typedIdx];
-    const original = originalWords[origIdx] || "";
-    
-    // Exact match (case-insensitive)
-    if (original && original.toLowerCase() === typed.toLowerCase()) {
-      result.push({ typed, original, isError: false });
-      origIdx++;
-      typedIdx++;
-      partIdx = 0;
-      currentParts = [];
-      continue;
-    }
-    
-    // Check if we're in the middle of matching a compound word
-    if (currentParts.length > 0 && partIdx < currentParts.length) {
-      const expectedPart = currentParts[partIdx];
-      if (expectedPart.toLowerCase() === typed.toLowerCase()) {
-        // This typed word matches the next part of the compound
-        const isLastPart = partIdx === currentParts.length - 1;
-        result.push({ typed, original: "", isError: true });
-        typedIdx++;
-        partIdx++;
-        
-        if (isLastPart) {
-          // Finished matching all parts of compound word
-          origIdx++;
-          partIdx = 0;
-          currentParts = [];
-        }
-        continue;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (originalWords[i - 1].toLowerCase() === typedWords[j - 1].toLowerCase()) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
       }
     }
-    
-    // Check if original contains special characters (compound word)
-    if (hasSplitChars(original)) {
-      const parts = splitBySpecialChars(original);
-      const typedLower = typed.toLowerCase();
-      
-      // Check if typed word matches the first part
-      if (parts.length > 0 && parts[0].toLowerCase() === typedLower) {
-        // Start matching a compound word
-        currentParts = parts;
-        partIdx = 1; // Already matched first part, expect second next
-        result.push({ typed, original, isError: true });
-        typedIdx++;
-        
-        // If only one part, we're done with this compound word
-        if (parts.length === 1) {
-          origIdx++;
-          partIdx = 0;
-          currentParts = [];
-        }
-        continue;
-      }
-      
-      // Check if typed word matches any part (for realignment)
-      const matchedPartIndex = parts.findIndex(p => p.toLowerCase() === typedLower);
-      if (matchedPartIndex !== -1) {
-        currentParts = parts;
-        partIdx = matchedPartIndex + 1;
-        
-        if (matchedPartIndex === 0) {
-          result.push({ typed, original, isError: true });
-        } else {
-          result.push({ typed, original: "", isError: true });
-        }
-        
-        typedIdx++;
-        
-        // If matched last part, advance to next original word
-        if (matchedPartIndex === parts.length - 1) {
-          origIdx++;
-          partIdx = 0;
-          currentParts = [];
-        }
-        continue;
-      }
+  }
+  
+  // Backtrack to build alignment
+  const result: AlignmentEntry[] = [];
+  let i = m, j = n;
+  const tempResult: AlignmentEntry[] = [];
+  
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && originalWords[i - 1].toLowerCase() === typedWords[j - 1].toLowerCase()) {
+      // Match
+      tempResult.push({ 
+        typed: typedWords[j - 1], 
+        original: originalWords[i - 1], 
+        status: 'match', 
+        isError: false 
+      });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      // Extra typed word (not in original) or substitution
+      tempResult.push({ 
+        typed: typedWords[j - 1], 
+        original: "", 
+        status: 'extra', 
+        isError: true 
+      });
+      j--;
+    } else {
+      // Missing original word
+      tempResult.push({ 
+        typed: "", 
+        original: originalWords[i - 1], 
+        status: 'missing', 
+        isError: true 
+      });
+      i--;
     }
+  }
+  
+  // Reverse to get correct order
+  tempResult.reverse();
+  
+  // Post-process: merge adjacent extra+missing into substitutions when they're consecutive
+  for (let k = 0; k < tempResult.length; k++) {
+    const curr = tempResult[k];
+    const next = tempResult[k + 1];
     
-    // Look ahead to see if we can realign
-    // Check if current typed word matches any upcoming original word
-    let foundAhead = false;
-    for (let lookAhead = 1; lookAhead <= 3 && origIdx + lookAhead < originalWords.length; lookAhead++) {
-      if (originalWords[origIdx + lookAhead].toLowerCase() === typed.toLowerCase()) {
-        // We found a match ahead - mark skipped originals and current as correct
-        // The current mismatch is likely due to word splits
-        result.push({ typed, original: originalWords[origIdx + lookAhead], isError: false });
-        origIdx = origIdx + lookAhead + 1;
-        typedIdx++;
-        foundAhead = true;
-        partIdx = 0;
-        currentParts = [];
-        break;
-      }
+    // Check if this is an extra followed by missing (or vice versa) - likely a substitution
+    if (curr.status === 'extra' && next && next.status === 'missing') {
+      result.push({
+        typed: curr.typed,
+        original: next.original,
+        status: 'substitution',
+        isError: true
+      });
+      k++; // Skip the next entry
+    } else if (curr.status === 'missing' && next && next.status === 'extra') {
+      result.push({
+        typed: next.typed,
+        original: curr.original,
+        status: 'substitution',
+        isError: true
+      });
+      k++; // Skip the next entry
+    } else {
+      result.push(curr);
     }
-    
-    if (foundAhead) continue;
-    
-    // No match found - this is an error
-    result.push({ typed, original, isError: original.toLowerCase() !== typed.toLowerCase() });
-    if (original) origIdx++;
-    typedIdx++;
-    partIdx = 0;
-    currentParts = [];
   }
   
   return result;
 }
 
-// Calculate mistakes using aligned words
-export function calculateAlignedMistakes(originalText: string, typedText: string): { mistakes: number; alignment: Array<{ typed: string; original: string; isError: boolean }> } {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter(w => w);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter(w => w);
+// Calculate mistakes using aligned words with status-based counting
+export function calculateAlignedMistakes(originalText: string, typedText: string): { mistakes: number; alignment: AlignmentEntry[] } {
   const alignment = alignWords(originalText, typedText);
   
   let mistakes = 0;
   
-  for (const { typed, original, isError } of alignment) {
-    if (!isError) continue;
-    
-    // Clean words for comparison (remove punctuation)
-    const cleanOriginal = original.replace(/[.,]/g, '');
-    const cleanTyped = typed.replace(/[.,]/g, '');
-    
-    if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
-      // Word itself is wrong
+  for (const item of alignment) {
+    // Missing words count as 1 mistake each
+    if (item.status === 'missing') {
       mistakes += 1;
-    } else {
-      // Word matches, check punctuation
-      const originalCommas = (original.match(/,/g) || []).length;
-      const typedCommas = (typed.match(/,/g) || []).length;
-      mistakes += Math.abs(originalCommas - typedCommas) * 0.25;
+      continue;
+    }
+    
+    // Extra words count as 1 mistake each
+    if (item.status === 'extra') {
+      mistakes += 1;
+      continue;
+    }
+    
+    // Substitutions - check if it's just punctuation difference
+    if (item.status === 'substitution') {
+      const cleanOriginal = item.original.replace(/[.,]/g, '');
+      const cleanTyped = item.typed.replace(/[.,]/g, '');
       
-      const originalPeriods = (original.match(/\./g) || []).length;
-      const typedPeriods = (typed.match(/\./g) || []).length;
-      mistakes += Math.abs(originalPeriods - typedPeriods) * 1;
+      if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
+        // Word itself is wrong
+        mistakes += 1;
+      } else {
+        // Word matches, check punctuation differences
+        const originalCommas = (item.original.match(/,/g) || []).length;
+        const typedCommas = (item.typed.match(/,/g) || []).length;
+        mistakes += Math.abs(originalCommas - typedCommas) * 0.25;
+        
+        const originalPeriods = (item.original.match(/\./g) || []).length;
+        const typedPeriods = (item.typed.match(/\./g) || []).length;
+        mistakes += Math.abs(originalPeriods - typedPeriods) * 1;
+      }
     }
   }
-  
-  // Add mistakes for skipped words (original words not covered)
-  const coveredOriginals = alignment.filter(a => a.original).length;
-  const skippedWords = Math.max(0, originalWords.length - coveredOriginals);
-  mistakes += skippedWords;
   
   return { mistakes, alignment };
 }
@@ -276,31 +253,28 @@ export const generateResultPDF = async (result: Result) => {
     "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;" : 
     "font-family: 'Times New Roman', Times, serif;";
 
-  // Use aligned word comparison for accurate error detection
+  // Use LCS-based alignment for accurate error detection with positional missing words
   const alignment = alignWords(result.originalText || "", result.typedText);
   const originalWords = (result.originalText || "").trim().split(/\s+/).filter(w => w);
   const typedWords = result.typedText.trim().split(/\s+/).filter(w => w);
-  const missingWordsCount = Math.max(0, originalWords.length - typedWords.length);
-  const missingWords = missingWordsCount > 0 ? originalWords.slice(-missingWordsCount) : [];
   
   let typedHtml = "";
   
   for (const item of alignment) {
-    if (item.isError) {
+    if (item.status === 'missing') {
+      // Missing word - show in green brackets at correct position
+      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
+    } else if (item.status === 'substitution') {
+      // Wrong word - show underlined in red with correct word in green brackets
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span>`;
-      if (item.original) {
-        typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
-      } else {
-        typedHtml += ` `;
-      }
+      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
+    } else if (item.status === 'extra') {
+      // Extra typed word - show underlined in red
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
     } else {
+      // Match - show normally
       typedHtml += `<span>${item.typed}</span> `;
     }
-  }
-  
-  // Add missing words at the end in green brackets
-  for (const word of missingWords) {
-    typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${word}]</span> `;
   }
 
   const htmlContent = `
