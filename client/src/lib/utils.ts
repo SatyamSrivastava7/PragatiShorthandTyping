@@ -403,6 +403,7 @@ export const generateResultPDF = async (result: Result) => {
     <body>
       <h1>Pragati Institute of Professional Studies</h1>
       <p class="subtitle">Kalindipuram, Prayagraj, 211011</p>
+      <p class="subtitle">Contact No: 9026212705</p>
       <h2>Test Result Report</h2>
 
       <table>
