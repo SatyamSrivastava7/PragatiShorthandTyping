@@ -228,6 +228,16 @@ export default function TypingTestPage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
+    // Shorthand tests allow free editing - no restrictions
+    if (testContent?.type === 'shorthand') {
+      // Only track backspaces for shorthand
+      if (e.key === 'Backspace') {
+        setBackspaceCount(prev => prev + 1);
+      }
+      return;
+    }
+    
+    // Typing test restrictions below
     const textarea = e.currentTarget;
     const cursorPos = textarea.selectionStart;
     const wordBoundary = getWordBoundary(typedText);
@@ -302,6 +312,9 @@ export default function TypingTestPage() {
   const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
+    // Shorthand tests allow free selection - no restrictions
+    if (testContent?.type === 'shorthand') return;
+    
     const textarea = e.currentTarget;
     const wordBoundary = getWordBoundary(typedText);
     
@@ -313,6 +326,9 @@ export default function TypingTestPage() {
 
   const handleClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
+    
+    // Shorthand tests allow free cursor movement - no restrictions
+    if (testContent?.type === 'shorthand') return;
     
     const textarea = e.currentTarget;
     const wordBoundary = getWordBoundary(typedText);
