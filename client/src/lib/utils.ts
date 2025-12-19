@@ -89,31 +89,53 @@ export function alignWords(originalText: string, typedText: string): AlignmentEn
   // Reverse to get correct order
   tempResult.reverse();
   
-  // Post-process: merge adjacent extra+missing into substitutions when they're consecutive
+  // Post-process: pair up extra and missing words into substitutions
+  // First, collect all unpaired extras and missings, then pair them
+  const extras: { index: number; entry: AlignmentEntry }[] = [];
+  const missings: { index: number; entry: AlignmentEntry }[] = [];
+  
   for (let k = 0; k < tempResult.length; k++) {
-    const curr = tempResult[k];
-    const next = tempResult[k + 1];
-    
-    // Check if this is an extra followed by missing (or vice versa) - likely a substitution
-    if (curr.status === 'extra' && next && next.status === 'missing') {
-      result.push({
-        typed: curr.typed,
-        original: next.original,
-        status: 'substitution',
-        isError: true
-      });
-      k++; // Skip the next entry
-    } else if (curr.status === 'missing' && next && next.status === 'extra') {
-      result.push({
-        typed: next.typed,
-        original: curr.original,
-        status: 'substitution',
-        isError: true
-      });
-      k++; // Skip the next entry
-    } else {
-      result.push(curr);
+    if (tempResult[k].status === 'extra') {
+      extras.push({ index: k, entry: tempResult[k] });
+    } else if (tempResult[k].status === 'missing') {
+      missings.push({ index: k, entry: tempResult[k] });
     }
+  }
+  
+  // Pair extras with missings (substitutions) - pair closest ones first
+  const paired = new Set<number>();
+  for (const extra of extras) {
+    // Find the closest unpaired missing
+    let bestMissing: { index: number; entry: AlignmentEntry } | null = null;
+    let bestDistance = Infinity;
+    
+    for (const missing of missings) {
+      if (paired.has(missing.index)) continue;
+      const distance = Math.abs(extra.index - missing.index);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestMissing = missing;
+      }
+    }
+    
+    if (bestMissing && bestDistance <= 3) { // Within 3 positions = likely substitution
+      paired.add(extra.index);
+      paired.add(bestMissing.index);
+      // Mark them for merging
+      tempResult[extra.index] = {
+        typed: extra.entry.typed,
+        original: bestMissing.entry.original,
+        status: 'substitution',
+        isError: true
+      };
+      tempResult[bestMissing.index] = { typed: '', original: '', status: 'match', isError: false }; // Will be filtered out
+    }
+  }
+  
+  // Build final result, filtering out empty placeholder entries
+  for (const entry of tempResult) {
+    if (entry.typed === '' && entry.original === '' && entry.status === 'match') continue;
+    result.push(entry);
   }
   
   return result;
