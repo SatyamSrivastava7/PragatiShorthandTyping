@@ -213,11 +213,116 @@ export default function TypingTestPage() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const getWordBoundary = (text: string) => {
+    // Find the last word separator (space or newline)
+    let lastSeparatorIndex = -1;
+    for (let i = text.length - 1; i >= 0; i--) {
+      if (text[i] === ' ' || text[i] === '\n') {
+        lastSeparatorIndex = i;
+        break;
+      }
+    }
+    return lastSeparatorIndex >= 0 ? lastSeparatorIndex + 1 : 0;
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
+    
+    const textarea = e.currentTarget;
+    const cursorPos = textarea.selectionStart;
+    const wordBoundary = getWordBoundary(typedText);
+    const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
+    
+    // Block Delete key when cursor is before word boundary
+    if (e.key === 'Delete') {
+      if (cursorPos < wordBoundary) {
+        e.preventDefault();
+        return;
+      }
+    }
+    
     if (e.key === 'Backspace') {
+      // Block any modifier+backspace (Ctrl+Backspace deletes whole word)
+      if (hasModifier) {
+        e.preventDefault();
+        return;
+      }
+      // Calculate boundary based on text BEFORE what we're about to delete
+      // This allows deleting trailing spaces/newlines that were just typed
+      const textBeforeDelete = typedText.substring(0, cursorPos - 1);
+      const backspaceBoundary = getWordBoundary(textBeforeDelete);
+      
+      // Block if the character we're deleting is at or before the boundary
+      if (cursorPos - 1 < backspaceBoundary) {
+        e.preventDefault();
+        return;
+      }
       setBackspaceCount(prev => prev + 1);
     }
+    
+    // Block modifier+Delete (Ctrl+Delete deletes word forward)
+    if (e.key === 'Delete' && hasModifier) {
+      e.preventDefault();
+      return;
+    }
+    
+    if (e.key === 'ArrowLeft') {
+      // Block if at boundary or if using modifier (which could jump words)
+      if (cursorPos <= wordBoundary || hasModifier) {
+        e.preventDefault();
+        if (hasModifier) {
+          textarea.setSelectionRange(wordBoundary, wordBoundary);
+        }
+      }
+    }
+    
+    // Block Home key - would jump to start of line/text
+    if (e.key === 'Home') {
+      e.preventDefault();
+      textarea.setSelectionRange(wordBoundary, wordBoundary);
+    }
+    
+    // Block ArrowUp - would move to previous line
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+    }
+    
+    // Block Ctrl+A (select all) to prevent selecting previous words
+    if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      textarea.setSelectionRange(wordBoundary, typedText.length);
+    }
+    
+    // Block Ctrl+Z (undo) to prevent restoring previous state
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    if (!isActive) return;
+    
+    const textarea = e.currentTarget;
+    const wordBoundary = getWordBoundary(typedText);
+    
+    // If selection starts before word boundary, adjust it
+    if (textarea.selectionStart < wordBoundary) {
+      textarea.setSelectionRange(wordBoundary, Math.max(wordBoundary, textarea.selectionEnd));
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    if (!isActive) return;
+    
+    const textarea = e.currentTarget;
+    const wordBoundary = getWordBoundary(typedText);
+    
+    // If clicked before word boundary, move cursor to boundary
+    setTimeout(() => {
+      if (textarea.selectionStart < wordBoundary) {
+        textarea.setSelectionRange(wordBoundary, wordBoundary);
+      }
+    }, 0);
   };
 
   const toggleFullScreen = () => {
@@ -364,6 +469,8 @@ export default function TypingTestPage() {
               value={typedText}
               onChange={(e) => setTypedText(e.target.value)}
               onKeyDown={handleKeyDown}
+              onSelect={handleSelect}
+              onClick={handleClick}
               disabled={!isActive}
               className={cn(
                 "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none bg-transparent leading-relaxed", 
