@@ -9,6 +9,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Special characters that can split words (user types them as spaces)
+// Includes: hyphen, en-dash, em-dash, forward slash, backslash, underscore, 
+// colon, semicolon, pipe, plus, ampersand, tilde, etc.
+const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
+
+// Split a word by special characters and return parts
+function splitBySpecialChars(word: string): string[] {
+  return word.split(SPLIT_CHAR_PATTERN).filter(p => p);
+}
+
+// Check if word contains any special split characters
+function hasSplitChars(word: string): boolean {
+  return SPLIT_CHAR_PATTERN.test(word);
+}
+
 // Align typed words with original words to handle word splits/joins
 // Returns an array of { typed, original, isError } for each typed word
 export function alignWords(originalText: string, typedText: string): Array<{ typed: string; original: string; isError: boolean }> {
@@ -19,6 +34,8 @@ export function alignWords(originalText: string, typedText: string): Array<{ typ
   
   let origIdx = 0;
   let typedIdx = 0;
+  let partIdx = 0; // Track which part of a compound word we're matching
+  let currentParts: string[] = []; // Parts of current compound word being matched
   
   while (typedIdx < typedWords.length) {
     const typed = typedWords[typedIdx];
@@ -29,28 +46,75 @@ export function alignWords(originalText: string, typedText: string): Array<{ typ
       result.push({ typed, original, isError: false });
       origIdx++;
       typedIdx++;
+      partIdx = 0;
+      currentParts = [];
       continue;
     }
     
-    // Check if typed word is part of the original (hyphenated word split)
-    // e.g., original "American-made" typed as "American"
-    if (original && original.toLowerCase().startsWith(typed.toLowerCase() + "-")) {
-      // This typed word is part of a hyphenated original
-      result.push({ typed, original, isError: true });
-      typedIdx++;
-      // Don't advance origIdx - check if next typed word completes it
-      continue;
+    // Check if we're in the middle of matching a compound word
+    if (currentParts.length > 0 && partIdx < currentParts.length) {
+      const expectedPart = currentParts[partIdx];
+      if (expectedPart.toLowerCase() === typed.toLowerCase()) {
+        // This typed word matches the next part of the compound
+        const isLastPart = partIdx === currentParts.length - 1;
+        result.push({ typed, original: "", isError: true });
+        typedIdx++;
+        partIdx++;
+        
+        if (isLastPart) {
+          // Finished matching all parts of compound word
+          origIdx++;
+          partIdx = 0;
+          currentParts = [];
+        }
+        continue;
+      }
     }
     
-    // Check if this typed word completes a hyphenated original word
-    // (when origIdx hasn't advanced because we matched the first part)
-    if (original && original.toLowerCase().includes("-") && 
-        original.toLowerCase().endsWith("-" + typed.toLowerCase())) {
-      // This typed word completes the hyphenated original, mark as error
-      result.push({ typed, original: "", isError: true });
-      origIdx++; // Now advance past the hyphenated original
-      typedIdx++;
-      continue;
+    // Check if original contains special characters (compound word)
+    if (hasSplitChars(original)) {
+      const parts = splitBySpecialChars(original);
+      const typedLower = typed.toLowerCase();
+      
+      // Check if typed word matches the first part
+      if (parts.length > 0 && parts[0].toLowerCase() === typedLower) {
+        // Start matching a compound word
+        currentParts = parts;
+        partIdx = 1; // Already matched first part, expect second next
+        result.push({ typed, original, isError: true });
+        typedIdx++;
+        
+        // If only one part, we're done with this compound word
+        if (parts.length === 1) {
+          origIdx++;
+          partIdx = 0;
+          currentParts = [];
+        }
+        continue;
+      }
+      
+      // Check if typed word matches any part (for realignment)
+      const matchedPartIndex = parts.findIndex(p => p.toLowerCase() === typedLower);
+      if (matchedPartIndex !== -1) {
+        currentParts = parts;
+        partIdx = matchedPartIndex + 1;
+        
+        if (matchedPartIndex === 0) {
+          result.push({ typed, original, isError: true });
+        } else {
+          result.push({ typed, original: "", isError: true });
+        }
+        
+        typedIdx++;
+        
+        // If matched last part, advance to next original word
+        if (matchedPartIndex === parts.length - 1) {
+          origIdx++;
+          partIdx = 0;
+          currentParts = [];
+        }
+        continue;
+      }
     }
     
     // Look ahead to see if we can realign
@@ -64,6 +128,8 @@ export function alignWords(originalText: string, typedText: string): Array<{ typ
         origIdx = origIdx + lookAhead + 1;
         typedIdx++;
         foundAhead = true;
+        partIdx = 0;
+        currentParts = [];
         break;
       }
     }
@@ -74,6 +140,8 @@ export function alignWords(originalText: string, typedText: string): Array<{ typ
     result.push({ typed, original, isError: original.toLowerCase() !== typed.toLowerCase() });
     if (original) origIdx++;
     typedIdx++;
+    partIdx = 0;
+    currentParts = [];
   }
   
   return result;
