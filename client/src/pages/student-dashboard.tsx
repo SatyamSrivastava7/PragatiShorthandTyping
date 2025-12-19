@@ -98,7 +98,10 @@ export default function StudentDashboard() {
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !currentUser?.id) {
+    if (!file) {
+      return;
+    }
+    if (!currentUser?.id) {
       toast({ variant: "destructive", title: "Error", description: "Please log in again to upload a profile picture." });
       return;
     }
