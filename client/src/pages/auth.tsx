@@ -155,7 +155,7 @@ export default function AuthPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">New Student Signup</TabsTrigger>
+              <TabsTrigger value="register">New Student</TabsTrigger>
               <TabsTrigger value="reset">Reset</TabsTrigger>
             </TabsList>
             

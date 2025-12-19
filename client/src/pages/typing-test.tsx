@@ -91,9 +91,9 @@ export default function TypingTestPage() {
     };
   }, [isActive, timeLeft]);
   
-  // Auto-scroll logic (controlled by admin setting)
+  // Auto-scroll logic (controlled by per-test setting)
   useEffect(() => {
-    const autoScrollEnabled = settings?.autoScrollEnabled ?? true;
+    const autoScrollEnabled = testContent?.autoScroll ?? true;
     if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current) {
       // Very basic sync: Scroll original text based on progress
       const totalLength = testContent.text.length;
@@ -106,7 +106,7 @@ export default function TypingTestPage() {
       // Scroll proportional to progress
       originalTextRef.current.scrollTop = (scrollHeight - clientHeight) * progress;
     }
-  }, [typedText, testContent, settings?.autoScrollEnabled]);
+  }, [typedText, testContent]);
 
   const startTest = () => {
     // Check cooldown before starting

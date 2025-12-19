@@ -74,6 +74,7 @@ export default function AdminDashboard() {
   const [dateFor, setDateFor] = useState(format(new Date(), "yyyy-MM-dd"));
   const [language, setLanguage] = useState<'english' | 'hindi'>('english');
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
 
   // Filter State
   const [studentFilter, setStudentFilter] = useState("");
@@ -148,7 +149,8 @@ export default function AdminDashboard() {
         duration: parseInt(duration),
         dateFor,
         language,
-        mediaUrl, // Attach audio URL
+        mediaUrl,
+        autoScroll: contentType === 'typing' ? autoScroll : true,
       });
 
       toast({ variant: "success", title: "Success", description: "Content uploaded successfully" });
@@ -368,15 +370,6 @@ export default function AdminDashboard() {
                       data-testid="switch-show-qr-code"
                     />
                   </div>
-                  <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
-                    <Label htmlFor="auto-scroll" className="text-sm font-medium whitespace-nowrap">Auto-scroll in Typing Test:</Label>
-                    <Switch 
-                      id="auto-scroll"
-                      checked={settings?.autoScrollEnabled ?? true}
-                      onCheckedChange={(checked) => updateSettings?.({ autoScrollEnabled: checked })}
-                      data-testid="switch-auto-scroll"
-                    />
-                  </div>
                 </div>
                 <div className="mt-4 flex gap-2">
                   <div className="relative flex-1">
@@ -555,6 +548,22 @@ export default function AdminDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {contentType === 'typing' && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Auto-scroll</Label>
+                        <div className="flex items-center gap-2 h-9">
+                          <Switch 
+                            id="auto-scroll" 
+                            checked={autoScroll} 
+                            onCheckedChange={setAutoScroll}
+                            data-testid="switch-auto-scroll"
+                          />
+                          <Label htmlFor="auto-scroll" className="text-sm text-muted-foreground">
+                            {autoScroll ? 'Enabled' : 'Disabled'}
+                          </Label>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   {contentType === 'shorthand' && (
