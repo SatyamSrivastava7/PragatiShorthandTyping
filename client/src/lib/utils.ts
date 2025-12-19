@@ -276,34 +276,31 @@ export const generateResultPDF = async (result: Result) => {
     "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;" : 
     "font-family: 'Times New Roman', Times, serif;";
 
-  // Compare text to find errors for highlighting
-  const originalWords = (result.originalText || "").trim().split(/\s+/);
-  const typedWords = result.typedText.trim().split(/\s+/);
-  const maxLength = Math.max(originalWords.length, typedWords.length);
+  // Use aligned word comparison for accurate error detection
+  const alignment = alignWords(result.originalText || "", result.typedText);
+  const originalWords = (result.originalText || "").trim().split(/\s+/).filter(w => w);
+  const typedWords = result.typedText.trim().split(/\s+/).filter(w => w);
+  const missingWordsCount = Math.max(0, originalWords.length - typedWords.length);
+  const missingWords = missingWordsCount > 0 ? originalWords.slice(-missingWordsCount) : [];
   
   let typedHtml = "";
   
-  for (let i = 0; i < maxLength; i++) {
-    const original = originalWords[i] || "";
-    const typed = typedWords[i] || "";
-    
-    let isError = false;
-    
-    if (original.toLowerCase() !== typed.toLowerCase()) {
-      isError = true;
-      const cleanOriginal = original.replace(/[.,]/g, '');
-      const cleanTyped = typed.replace(/[.,]/g, '');
-      
-      if (cleanOriginal.toLowerCase() === cleanTyped.toLowerCase()) {
-         isError = true;
+  for (const item of alignment) {
+    if (item.isError) {
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span>`;
+      if (item.original) {
+        typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
+      } else {
+        typedHtml += ` `;
       }
-    }
-    
-    if (isError) {
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${typed}</span> `;
     } else {
-      typedHtml += `<span>${typed}</span> `;
+      typedHtml += `<span>${item.typed}</span> `;
     }
+  }
+  
+  // Add missing words at the end in green brackets
+  for (const word of missingWords) {
+    typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${word}]</span> `;
   }
 
   const htmlContent = `
