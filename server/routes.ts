@@ -149,6 +149,7 @@ export async function registerRoutes(
       const { password: _, ...userWithoutPassword } = user;
       res.json({ user: userWithoutPassword });
     } catch (error) {
+      console.error("Admin login error:", error);
       res.status(500).json({ message: "Failed to login" });
     }
   });
