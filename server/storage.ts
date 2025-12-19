@@ -401,8 +401,20 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     } else {
-      const [created] = await db.insert(settings).values(insertSetting).returning();
-      return created;
+      try {
+        const [created] = await db.insert(settings).values(insertSetting).returning();
+        return created;
+      } catch (error: any) {
+        // Handle race condition - if another request inserted the same key, update instead
+        if (error?.code === '23505') {
+          const [updated] = await db.update(settings)
+            .set({ value: insertSetting.value, updatedAt: new Date() })
+            .where(eq(settings.key, insertSetting.key))
+            .returning();
+          return updated;
+        }
+        throw error;
+      }
     }
   }
 }
