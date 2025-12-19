@@ -159,7 +159,7 @@ export default function LandingPage() {
                     Since 2008
                   </span>
                   <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-semibold">
-                    1000+ Students
+                    5000+ Students
                   </span>
                 </div>
               </div>
@@ -197,7 +197,7 @@ export default function LandingPage() {
               <div className="p-3 bg-white/10 rounded-full mb-3">
                 <Users className="h-8 w-8" />
               </div>
-              <div className="text-3xl md:text-4xl font-bold">1000+</div>
+              <div className="text-3xl md:text-4xl font-bold">5000+</div>
               <div className="text-sm opacity-90">Students Trained</div>
             </div>
             <div className="flex flex-col items-center text-center">
