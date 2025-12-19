@@ -254,7 +254,7 @@ export default function AdminDashboard() {
   const filteredResults = results
     .filter(r => 
       r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) || 
-      r.studentId.toLowerCase().includes(studentFilter.toLowerCase())
+      (r.studentDisplayId?.toLowerCase() || '').includes(studentFilter.toLowerCase())
     )
     .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 

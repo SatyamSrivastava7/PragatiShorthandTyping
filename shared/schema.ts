@@ -130,6 +130,8 @@ export const insertContentSchema = createInsertSchema(content).omit({
   id: true,
   createdAt: true,
   isEnabled: true,
+}).extend({
+  autoScroll: z.boolean().optional(),
 });
 
 export const insertResultSchema = createInsertSchema(results).omit({
