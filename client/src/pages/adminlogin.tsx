@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Router, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,7 +68,7 @@ export default function AdminLoginPage() {
           <div>
             <CardTitle className="text-2xl font-bold text-white">Admin Login</CardTitle>
             <CardDescription className="text-slate-400">
-              Pragati Shorthand & Typing - Administration Panel
+              Administration Panel
             </CardDescription>
           </div>
         </CardHeader>
@@ -121,7 +121,7 @@ export default function AdminLoginPage() {
               disabled={isLoading}
               data-testid="button-admin-login"
             >
-              {isLoading ? "Signing in..." : "Sign In as Admin"}
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
         </CardContent>
