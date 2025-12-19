@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth";
+import AdminLoginPage from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import StudentDashboard from "@/pages/student-dashboard";
 import TypingTestPage from "@/pages/typing-test";
@@ -23,7 +24,9 @@ function PrivateRoute({ component: Component, allowedRoles }: { component: React
   }
 
   if (!user) {
-    return <Redirect to="/auth" />;
+    // Redirect to appropriate login page based on required role
+    const isAdminRoute = allowedRoles.includes('admin') && !allowedRoles.includes('student');
+    return <Redirect to={isAdminRoute ? "/admin-login" : "/auth"} />;
   }
 
   if (!allowedRoles.includes(user.role)) {
@@ -45,6 +48,7 @@ function Router() {
           <Switch>
             {/* Public Routes */}
             <Route path="/auth" component={AuthPage} />
+            <Route path="/admin-login" component={AdminLoginPage} />
             <Route path="/contact" component={ContactPage} />
             <Route path="/gallery" component={GalleryPage} />
             <Route path="/selected-candidates" component={SelectedCandidatesPage} />

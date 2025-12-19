@@ -204,7 +204,7 @@ export default function LandingPage() {
               <div className="p-3 bg-white/10 rounded-full mb-3">
                 <Trophy className="h-8 w-8" />
               </div>
-              <div className="text-3xl md:text-4xl font-bold">500+</div>
+              <div className="text-3xl md:text-4xl font-bold">1000+</div>
               <div className="text-sm opacity-90">Govt. Job Selections</div>
             </div>
             <div className="flex flex-col items-center text-center">

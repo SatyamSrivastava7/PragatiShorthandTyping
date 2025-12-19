@@ -74,7 +74,7 @@ export async function registerRoutes(
     }
   });
   
-  // Login
+  // Login (Students only - admins must use /api/auth/admin-login)
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { mobile, password } = req.body;
@@ -89,6 +89,11 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
+      // Block admin login on student login page
+      if (user.role === 'admin') {
+        return res.status(403).json({ message: "Admin accounts must use the admin login page." });
+      }
+      
       // Verify password
       const isValid = await bcrypt.compare(password, user.password);
       if (!isValid) {
@@ -98,6 +103,43 @@ export async function registerRoutes(
       // Check if student access is disabled (payment not completed)
       if (user.role === 'student' && !user.isPaymentCompleted) {
         return res.status(403).json({ message: "Your access has been disabled. Please contact the administrator." });
+      }
+      
+      // Set session
+      req.session.userId = user.id;
+      
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to login" });
+    }
+  });
+  
+  // Admin Login (Admin only)
+  app.post("/api/auth/admin-login", async (req, res) => {
+    try {
+      const { mobile, password } = req.body;
+      
+      if (!mobile || !password) {
+        return res.status(400).json({ message: "Mobile and password are required" });
+      }
+      
+      // Find user
+      const user = await storage.getUserByMobile(mobile);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid admin credentials" });
+      }
+      
+      // Only allow admin users
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "This login is for administrators only." });
+      }
+      
+      // Verify password
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid admin credentials" });
       }
       
       // Set session
