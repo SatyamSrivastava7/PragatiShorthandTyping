@@ -168,9 +168,9 @@ export default function AuthPage() {
     email?: string;
     city: string;
     state: string;
-  }) => {
+  }, paymentConfirmed: boolean = false) => {
     try {
-      const result = await register(data);
+      const result = await register({ ...data, paymentConfirmed });
       
       // Show success message for pending approval
       if (result.pendingApproval) {
@@ -212,7 +212,7 @@ export default function AuthPage() {
 
   const handlePaymentConfirm = async () => {
     if (!pendingRegistration) return;
-    await completeRegistration(pendingRegistration);
+    await completeRegistration(pendingRegistration, true);
   };
 
   const handlePaymentCancel = () => {

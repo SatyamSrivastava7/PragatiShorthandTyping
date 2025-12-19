@@ -43,6 +43,7 @@ export const authApi = {
     email?: string;
     city?: string;
     state?: string;
+    paymentConfirmed?: boolean;
   }) =>
     fetchApi<{ 
       user?: User;

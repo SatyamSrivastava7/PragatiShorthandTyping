@@ -30,10 +30,24 @@ export async function registerRoutes(
   
   // ==================== AUTH ROUTES ====================
   
+  // Helper function to validate parsed IDs
+  const validateId = (id: number): boolean => !isNaN(id) && id > 0;
+
   // Register
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const validatedData = insertUserSchema.parse({ ...req.body, role: 'student' });
+      const { paymentConfirmed, ...userData } = req.body;
+      const validatedData = insertUserSchema.parse({ ...userData, role: 'student' });
+      
+      // Check if payment verification is required
+      const paymentVerificationSetting = await storage.getSetting('requirePaymentVerification');
+      const requirePaymentVerification = paymentVerificationSetting?.value === 'true';
+      
+      if (requirePaymentVerification && !paymentConfirmed) {
+        return res.status(403).json({ 
+          message: "Payment verification required. Please complete payment and confirm before registering." 
+        });
+      }
       
       // Check if user already exists
       const existingUser = await storage.getUserByMobile(validatedData.mobile);
@@ -321,6 +335,9 @@ export async function registerRoutes(
   app.get("/api/users/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
       const user = await storage.getUser(id);
       
       if (!user) {
@@ -338,6 +355,9 @@ export async function registerRoutes(
   app.patch("/api/users/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
       const updates = req.body;
       
       // If password is being updated, hash it
@@ -379,6 +399,9 @@ export async function registerRoutes(
   app.delete("/api/users/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
       const success = await storage.deleteUser(id);
       
       if (!success) {
@@ -528,6 +551,9 @@ export async function registerRoutes(
   app.delete("/api/content/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid content ID" });
+      }
       const success = await storage.deleteContent(id);
       
       if (!success) {
