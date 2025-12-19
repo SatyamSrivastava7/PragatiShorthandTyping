@@ -115,7 +115,7 @@ export default function StudentDashboard() {
       reader.onload = async () => {
         try {
           const base64 = reader.result as string;
-          await updateUser(userId, { profilePicture: base64 });
+          await updateUser({ id: userId, data: { profilePicture: base64 } });
           await queryClient.invalidateQueries({ queryKey: ['session'] });
           toast({ title: "Profile picture updated!" });
         } catch (err) {
