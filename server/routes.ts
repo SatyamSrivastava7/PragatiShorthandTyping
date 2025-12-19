@@ -142,8 +142,16 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid admin credentials" });
       }
       
-      // Set session
+      // Set session and save it before responding
       req.session.userId = user.id;
+      
+      // Explicitly save session to ensure it's persisted before response
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
       
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;
