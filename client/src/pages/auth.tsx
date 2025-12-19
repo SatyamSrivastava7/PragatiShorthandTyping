@@ -340,7 +340,7 @@ export default function AuthPage() {
                    </Button>
                 </div>
                 <div className="text-xs text-center text-muted-foreground mt-2 space-y-1">
-                  <p>Demo Admin: Mobile: <strong>9876543210</strong> / Password: <strong>demo123</strong></p>
+                  <p>Demo User: Mobile: <strong>9876543210</strong> / Password: <strong>demo123</strong></p>
                 </div>
               </form>
             </TabsContent>
