@@ -194,10 +194,22 @@ export function calculateAlignedMistakes(
 
   let mistakes = 0;
 
-  for (const item of alignment) {
+  for (let idx = 0; idx < alignment.length; idx++) {
+    const item = alignment[idx];
+    
     // Missing words count as 1 mistake each
     if (item.status === "missing") {
-      mistakes += 1;
+      // Check if the next item (in next iteration context) can help determine if there's punctuation
+      // For now, check the original word itself for trailing punctuation
+      const hasTrailingComma = item.original.endsWith(',');
+      
+      if (hasTrailingComma) {
+        // Word with comma both missing = 1.25
+        mistakes += 1.25;
+      } else {
+        // Just word missing = 1
+        mistakes += 1;
+      }
       continue;
     }
 
@@ -217,13 +229,24 @@ export function calculateAlignedMistakes(
         mistakes += 1;
       } else {
         // Word matches, check punctuation differences
-        const originalCommas = (item.original.match(/,/g) || []).length;
-        const typedCommas = (item.typed.match(/,/g) || []).length;
-        mistakes += Math.abs(originalCommas - typedCommas) * 0.25;
+        // Extract trailing punctuation
+        const origTrailingComma = item.original.endsWith(',') ? 1 : 0;
+        const typedTrailingComma = item.typed.endsWith(',') ? 1 : 0;
+        
+        // If word is present but trailing comma differs
+        if (origTrailingComma !== typedTrailingComma) {
+          // Comma missing = 0.25
+          mistakes += 0.25;
+        }
 
-        const originalPeriods = (item.original.match(/\./g) || []).length;
-        const typedPeriods = (item.typed.match(/\./g) || []).length;
-        mistakes += Math.abs(originalPeriods - typedPeriods) * 1;
+        // Handle periods
+        const origTrailingPeriod = item.original.endsWith('.') ? 1 : 0;
+        const typedTrailingPeriod = item.typed.endsWith('.') ? 1 : 0;
+        
+        if (origTrailingPeriod !== typedTrailingPeriod) {
+          // Period missing = 1
+          mistakes += 1;
+        }
       }
     }
   }
