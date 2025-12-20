@@ -128,8 +128,8 @@ export function alignWords(
   // Reverse to get correct order
   tempResult.reverse();
 
-  // Post-process: pair up adjacent extra and missing words into substitutions
-  // Only pair when they are immediately adjacent (distance = 1)
+  // Post-process: pair up extra and missing words into substitutions
+  // Each missing word should try to pair with the closest unpaired extra word
   const extras: { index: number; entry: AlignmentEntry }[] = [];
   const missings: { index: number; entry: AlignmentEntry }[] = [];
 
@@ -141,18 +141,21 @@ export function alignWords(
     }
   }
 
-  // Pair extras with immediately adjacent missings (substitutions)
+  // Pair extras with missings as substitutions - find closest unpaired extra for each missing
   const paired = new Set<number>();
   for (const missing of missings) {
-    // Find an adjacent unpaired extra (immediately before or after)
+    // Find the closest unpaired extra (prefer before, then after)
     let bestExtra: { index: number; entry: AlignmentEntry } | null = null;
+    let bestDistance = Infinity;
 
     for (const extra of extras) {
       if (paired.has(extra.index)) continue;
       const distance = Math.abs(extra.index - missing.index);
-      if (distance === 1) {
+      // Only consider extras that are reasonably close (within 3 positions)
+      // and prefer extras that come before the missing word
+      if (distance < bestDistance && distance <= 3) {
+        bestDistance = distance;
         bestExtra = extra;
-        break;
       }
     }
 
