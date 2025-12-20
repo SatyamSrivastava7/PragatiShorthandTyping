@@ -1894,9 +1894,9 @@ export default function AdminDashboard() {
                                               "typing" ? (
                                                 <span>
                                                   <span className="font-semibold">
-                                                    Net Speed:
+                                                    Gross Speed:
                                                   </span>{" "}
-                                                  {result.netSpeed} WPM
+                                                  {result.grossSpeed} WPM
                                                 </span>
                                               ) : (
                                                 <span>
