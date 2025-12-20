@@ -556,8 +556,7 @@ export default function StudentDashboard() {
                       {results
                         .filter(
                           (r) =>
-                            (r.studentId === currentUser?.studentId ||
-                              r.studentId === currentUser?.id) &&
+                            r.studentId === currentUser?.id &&
                             r.contentType === type,
                         )
                         .sort(
@@ -583,7 +582,7 @@ export default function StudentDashboard() {
                               {result.contentType === "typing" ? (
                                 <div className="flex items-center gap-3">
                                   <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                                    {result.netSpeed} WPM
+                                    {result.grossSpeed} WPM
                                   </span>
                                   <span className="text-sm text-muted-foreground">
                                     {result.mistakes} mistakes
@@ -667,9 +666,9 @@ export default function StudentDashboard() {
                                       {result.contentType === "typing" ? (
                                         <span>
                                           <span className="font-semibold">
-                                            Net Speed:
+                                            Gross Speed:
                                           </span>{" "}
-                                          {result.netSpeed} WPM
+                                          {result.grossSpeed} WPM
                                         </span>
                                       ) : (
                                         <span>

@@ -1801,7 +1801,7 @@ export default function AdminDashboard() {
                                         <>
                                           <div className="flex items-center gap-2">
                                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
-                                              {result.netSpeed} WPM
+                                              {result.grossSpeed} WPM
                                             </span>
                                           </div>
                                           <div className="text-xs text-muted-foreground">
