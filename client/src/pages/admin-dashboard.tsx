@@ -850,10 +850,20 @@ export default function AdminDashboard() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="2">2 Minutes</SelectItem>
+                          <SelectItem value="4">4 Minutes</SelectItem>
                           <SelectItem value="5">5 Minutes</SelectItem>
                           <SelectItem value="10">10 Minutes</SelectItem>
                           <SelectItem value="15">15 Minutes</SelectItem>
+                          <SelectItem value="20">20 Minutes</SelectItem>
+                          <SelectItem value="25">25 Minutes</SelectItem>
                           <SelectItem value="30">30 Minutes</SelectItem>
+                          <SelectItem value="35">35 Minutes</SelectItem>
+                          <SelectItem value="40">40 Minutes</SelectItem>
+                          <SelectItem value="45">45 Minutes</SelectItem>
+                          <SelectItem value="60">60 Minutes</SelectItem>
+                          <SelectItem value="70">70 Minutes</SelectItem>
+                          <SelectItem value="80">80 Minutes</SelectItem>
+                          <SelectItem value="90">90 Minutes</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

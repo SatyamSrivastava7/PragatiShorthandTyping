@@ -189,28 +189,42 @@ export function alignWords(
 }
 
 // Calculate mistakes using aligned words with status-based counting
+// Only considers the portion of text the student attempted to type
+// Trailing missing words (untyped portion) are NOT counted as mistakes
 export function calculateAlignedMistakes(
   originalText: string,
   typedText: string,
-): { mistakes: number; alignment: AlignmentEntry[] } {
+): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[] } {
   const alignment = alignWords(originalText, typedText);
+
+  // Find the last position where student typed something (match, substitution, or extra)
+  // This determines the "attempted portion" - we ignore trailing missing words
+  let lastTypedIndex = -1;
+  for (let i = alignment.length - 1; i >= 0; i--) {
+    if (alignment[i].typed !== "") {
+      lastTypedIndex = i;
+      break;
+    }
+  }
+
+  // Only consider alignment up to the last typed word
+  // This excludes trailing missing words that the student didn't get to
+  const attemptedAlignment = lastTypedIndex >= 0 
+    ? alignment.slice(0, lastTypedIndex + 1)
+    : [];
 
   let mistakes = 0;
 
-  for (let idx = 0; idx < alignment.length; idx++) {
-    const item = alignment[idx];
+  for (let idx = 0; idx < attemptedAlignment.length; idx++) {
+    const item = attemptedAlignment[idx];
     
-    // Missing words count as 1 mistake each
+    // Missing words count as 1 mistake each (only within attempted portion)
     if (item.status === "missing") {
-      // Check if the next item (in next iteration context) can help determine if there's punctuation
-      // For now, check the original word itself for trailing punctuation
       const hasTrailingComma = item.original.endsWith(',');
       
       if (hasTrailingComma) {
-        // Word with comma both missing = 1.25
         mistakes += 1.25;
       } else {
-        // Just word missing = 1
         mistakes += 1;
       }
       continue;
@@ -228,33 +242,26 @@ export function calculateAlignedMistakes(
       const cleanTyped = item.typed.replace(/[.,]/g, "");
 
       if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
-        // Word itself is wrong
         mistakes += 1;
       } else {
-        // Word matches, check punctuation differences
-        // Extract trailing punctuation
         const origTrailingComma = item.original.endsWith(',') ? 1 : 0;
         const typedTrailingComma = item.typed.endsWith(',') ? 1 : 0;
         
-        // If word is present but trailing comma differs
         if (origTrailingComma !== typedTrailingComma) {
-          // Comma missing = 0.25
           mistakes += 0.25;
         }
 
-        // Handle periods
         const origTrailingPeriod = item.original.endsWith('.') ? 1 : 0;
         const typedTrailingPeriod = item.typed.endsWith('.') ? 1 : 0;
         
         if (origTrailingPeriod !== typedTrailingPeriod) {
-          // Period missing = 1
           mistakes += 1;
         }
       }
     }
   }
 
-  return { mistakes, alignment };
+  return { mistakes, alignment, attemptedAlignment };
 }
 
 export function calculateTypingMetrics(
@@ -264,7 +271,8 @@ export function calculateTypingMetrics(
   backspaces: number,
 ) {
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes, alignment } = calculateAlignedMistakes(
+  // Only considers the attempted portion (excludes trailing untyped words)
+  const { mistakes, attemptedAlignment } = calculateAlignedMistakes(
     originalText,
     typedText,
   );
@@ -293,8 +301,8 @@ export function calculateTypingMetrics(
   // Ensure net speed isn't negative
   netSpeed = Math.max(0, netSpeed);
 
-  // Count missing words from alignment (words with status='missing')
-  const missingWords = alignment.filter((a) => a.status === "missing").length;
+  // Count missing words only from attempted portion (not trailing untyped words)
+  const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
 
   // Helper to format to 2 decimal places, removing trailing .00
   const formatSpeed = (speed: number) => {
@@ -318,7 +326,8 @@ export function calculateShorthandMetrics(
   timeInMinutes: number,
 ) {
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes, alignment } = calculateAlignedMistakes(
+  // Only considers the attempted portion (excludes trailing untyped words)
+  const { mistakes, attemptedAlignment } = calculateAlignedMistakes(
     originalText,
     typedText,
   );
@@ -333,8 +342,8 @@ export function calculateShorthandMetrics(
     totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
   const isPassed = mistakePercentage <= 5;
 
-  // Count missing words from alignment (words with status='missing')
-  const missingWords = alignment.filter((a) => a.status === "missing").length;
+  // Count missing words only from attempted portion (not trailing untyped words)
+  const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
 
   return {
     words: totalWordsTyped,
