@@ -380,7 +380,8 @@ export const generateResultPDF = async (result: Result) => {
       : "font-family: 'Times New Roman', Times, serif;";
 
   // Use LCS-based alignment for accurate error detection with positional missing words
-  const alignment = alignWords(result.originalText || "", result.typedText);
+  // Only show the attempted portion (excludes trailing untyped words)
+  const { attemptedAlignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
   const originalWords = (result.originalText || "")
     .trim()
     .split(/\s+/)
@@ -392,7 +393,7 @@ export const generateResultPDF = async (result: Result) => {
 
   let typedHtml = "";
 
-  for (const item of alignment) {
+  for (const item of attemptedAlignment) {
     if (item.status === "missing") {
       // Missing word - show in green brackets at correct position
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
@@ -475,7 +476,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Mistakes</td><td class="error">${result.mistakes}</td>
         </tr>
         <tr>
-          <td>Missing Words</td><td class="error">${alignment.filter((a) => a.status === "missing").length}</td>
+          <td>Missing Words</td><td class="error">${attemptedAlignment.filter((a) => a.status === "missing").length}</td>
         </tr>
         ${
           result.contentType === "typing"
