@@ -472,6 +472,7 @@ export const generateResultPDF = async (result: Result) => {
         <tr>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
+        
         <tr>
           <td>Mistakes</td><td class="error">${result.mistakes}</td>
         </tr>
@@ -485,7 +486,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Backspaces</td><td>${result.backspaces}</td>
         </tr>
         <tr>
-          <td>Accuracy</td><td class="success">${(result.words - parseInt(result.mistakes))*100/result.words} WPM</td>
+          <td>Accuracy</td><td class="success">${(result.words - parseInt(result.mistakes))*100/result.words}%</td>
         </tr>
         <tr>
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
@@ -497,6 +498,9 @@ export const generateResultPDF = async (result: Result) => {
             : `
           <tr>
             <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
+          </tr>
+          <tr>
+            <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${(parseInt(result.mistakes)*100)/originalWords.length}</td>
           </tr>
         `
         }
