@@ -148,7 +148,7 @@ export default function StudentDashboard() {
 
   const getResultForContent = (contentId: string) => {
     return results.find(
-      (r) => r.contentId.toString() === contentId && r.studentId.toString() === currentUser?.id,
+      (r) => r.contentId.toString() === contentId && r.studentId === currentUser?.id,
     );
   };
 
@@ -332,7 +332,7 @@ export default function StudentDashboard() {
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {typingTests.length > 0 ? (
               typingTests.map((test) => {
-                const result = getResultForContent(test.id);
+                const result = getResultForContent(test.id?.toString());
                 const isCompleted = !!result;
 
                 return (
@@ -421,7 +421,7 @@ export default function StudentDashboard() {
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {shorthandTests.length > 0 ? (
               shorthandTests.map((test) => {
-                const result = getResultForContent(test.id);
+                const result = getResultForContent(test.id?.toString());
                 const isCompleted = !!result;
 
                 return (
@@ -556,7 +556,8 @@ export default function StudentDashboard() {
                       {results
                         .filter(
                           (r) =>
-                            r.studentId === currentUser?.id &&
+                            (r.studentId?.toString() === currentUser?.studentId?.toString() ||
+                              r.studentId === currentUser?.id) &&
                             r.contentType === type,
                         )
                         .sort(
@@ -729,8 +730,8 @@ export default function StudentDashboard() {
                         ))}
                       {results.filter(
                         (r) =>
-                          (r.studentId === parseInt(currentUser?.studentId) ||
-                            r.studentId === parseInt(currentUser?.id)) &&
+                          (r.studentId?.toString() === currentUser?.studentId?.toString() ||
+                            r.studentId === currentUser?.id) &&
                           r.contentType === type,
                       ).length === 0 && (
                         <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${
@@ -766,7 +767,7 @@ export default function StudentDashboard() {
                 )}
                 <CardTitle>
                   {currentFolder
-                    ? pdfFolders.find((f) => f.id === currentFolder)?.name
+                    ? pdfFolders.find((f) => f.id === parseInt(currentFolder))?.name
                     : "PDF Store"}
                 </CardTitle>
               </div>
@@ -783,7 +784,7 @@ export default function StudentDashboard() {
                   {pdfFolders.map((folder) => (
                     <div
                       key={folder.id}
-                      onClick={() => setCurrentFolder(folder.id)}
+                      onClick={() => setCurrentFolder(folder.id.toString())}
                       className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
                     >
                       <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
@@ -802,7 +803,7 @@ export default function StudentDashboard() {
                 // PDF List View
                 <div className="space-y-4">
                   {pdfResources
-                    .filter((p) => p.folderId === currentFolder)
+                    .filter((p) => p.folderId?.toString() === currentFolder)
                     .map((pdf) => {
                       const isPurchased = currentUser?.purchasedPdfs?.includes(
                         pdf.id.toString(),
@@ -837,7 +838,7 @@ export default function StudentDashboard() {
                             ) : (
                               <Button
                                 onClick={() =>
-                                  initiateBuyPdf(pdf.id.toString(), pdf.price)
+                                  initiateBuyPdf(pdf.id.toString(), parseInt(pdf.price))
                                 }
                                 disabled={processingPdf === pdf.id.toString()}
                               >
@@ -853,7 +854,7 @@ export default function StudentDashboard() {
                         </div>
                       );
                     })}
-                  {pdfResources.filter((p) => p.folderId === currentFolder)
+                  {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
                     .length === 0 && (
                     <p className="text-center text-muted-foreground">
                       No PDFs in this folder.

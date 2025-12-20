@@ -417,7 +417,7 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1.3; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
+        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
