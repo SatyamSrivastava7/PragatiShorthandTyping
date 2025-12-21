@@ -511,7 +511,7 @@ export const generateResultPDF = async (result: Result) => {
             <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
           </tr>
           <tr>
-            <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${(parseInt(result.mistakes)*100)/originalWords.length}</td>
+            <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${(parseInt(result.mistakes)*100)/originalWords.length}%</td>
           </tr>
         `
         }

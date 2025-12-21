@@ -562,6 +562,7 @@ export async function registerRoutes(
       
       res.json({ message: "Content deleted successfully" });
     } catch (error) {
+      console.error("Delete content error:", error);
       res.status(500).json({ message: "Failed to delete content" });
     }
   });
