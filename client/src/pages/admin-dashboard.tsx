@@ -850,7 +850,7 @@ export default function AdminDashboard() {
                         <SelectTrigger className="bg-white">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[300px]">
                           <SelectItem value="2">2 Minutes</SelectItem>
                           <SelectItem value="4">4 Minutes</SelectItem>
                           <SelectItem value="5">5 Minutes</SelectItem>
