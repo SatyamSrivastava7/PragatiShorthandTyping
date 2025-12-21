@@ -48,7 +48,7 @@ export const results = pgTable("results", {
   studentId: integer("student_id").notNull().references(() => users.id),
   studentDisplayId: varchar("student_display_id", { length: 50 }), // PIPS format ID for display
   studentName: text("student_name").notNull(),
-  contentId: integer("content_id").notNull().references(() => content.id),
+  contentId: integer("content_id").references(() => content.id, { onDelete: "set null" }),
   contentTitle: text("content_title").notNull(),
   contentType: varchar("content_type", { length: 20 }).notNull(),
   typedText: text("typed_text").notNull(),
