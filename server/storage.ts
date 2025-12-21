@@ -210,17 +210,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteContent(id: number): Promise<boolean> {
-    try {
-      // First, delete all results associated with this content
-      await db.delete(results).where(eq(results.contentId, id));
-      
-      // Then delete the content itself
-      const result = await db.delete(content).where(eq(content.id, id));
-      return result.rowCount ? result.rowCount > 0 : false;
-    } catch (error) {
-      console.error("Error deleting content:", error);
-      throw error;
-    }
+    const result = await db.delete(content).where(eq(content.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   async toggleContent(id: number): Promise<Content | undefined> {
