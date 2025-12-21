@@ -12,11 +12,15 @@ export function cn(...inputs: ClassValue[]) {
 // Special characters that can split words (user types them as spaces)
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
-// Normalize dashes/hyphens to standard hyphen for comparison
-// Handles: − (minus U+2212), – (en dash U+2013), — (em dash U+2014), ‐ (hyphen U+2010), etc.
+// Normalize characters for comparison
+// Handles:
+// - Dashes: − (minus U+2212), – (en dash U+2013), — (em dash U+2014), ‐ (hyphen U+2010), etc.
+// - Quotes: " (left double U+201C), " (right double U+201D), ' (left single U+2018), ' (right single U+2019), etc.
 function normalizeForComparison(text: string): string {
   return text
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-") // Normalize all dash-like characters to hyphen
+    .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"') // Normalize curved/smart double quotes to straight quote
+    .replace(/[\u2018\u2019\u2032\u2033]/g, "'") // Normalize curved/smart single quotes to straight quote
     .toLowerCase();
 }
 
