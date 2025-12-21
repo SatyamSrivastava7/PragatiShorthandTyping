@@ -843,7 +843,9 @@ export default function AdminDashboard() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Duration</Label>
+                      <Label className="text-sm font-medium">
+                        Duration {contentType === "typing" ? "(2-60 min)" : "(2-90 min)"}
+                      </Label>
                       <Select value={duration} onValueChange={setDuration}>
                         <SelectTrigger className="bg-white">
                           <SelectValue />
@@ -861,9 +863,13 @@ export default function AdminDashboard() {
                           <SelectItem value="40">40 Minutes</SelectItem>
                           <SelectItem value="45">45 Minutes</SelectItem>
                           <SelectItem value="60">60 Minutes</SelectItem>
-                          <SelectItem value="70">70 Minutes</SelectItem>
-                          <SelectItem value="80">80 Minutes</SelectItem>
-                          <SelectItem value="90">90 Minutes</SelectItem>
+                          {contentType === "shorthand" && (
+                            <>
+                              <SelectItem value="70">70 Minutes</SelectItem>
+                              <SelectItem value="80">80 Minutes</SelectItem>
+                              <SelectItem value="90">90 Minutes</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
