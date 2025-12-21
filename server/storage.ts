@@ -210,6 +210,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteContent(id: number): Promise<boolean> {
+    // Delete only the test/content - intentionally preserve associated results
+    // Results remain in the database even after test is deleted
     const result = await db.delete(content).where(eq(content.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
