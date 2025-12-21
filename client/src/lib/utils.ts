@@ -220,13 +220,20 @@ export function calculateAlignedMistakes(
     
     // Missing words count as 1 mistake each (only within attempted portion)
     if (item.status === "missing") {
+      mistakes += 1; // Base mistake for missing word
+      
+      // Add punctuation penalties for missing words
       const hasTrailingComma = item.original.endsWith(',');
+      const hasTrailingPeriod = item.original.endsWith('.');
       
       if (hasTrailingComma) {
-        mistakes += 1.25;
-      } else {
-        mistakes += 1;
+        mistakes += 0.25; // Comma penalty
       }
+      
+      if (hasTrailingPeriod) {
+        mistakes += 1; // Period penalty
+      }
+      
       continue;
     }
 
