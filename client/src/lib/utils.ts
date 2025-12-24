@@ -192,30 +192,64 @@ export function alignWords(
   return result;
 }
 
-// Calculate mistakes using aligned words with status-based counting
-// Only considers the portion of text the student attempted to type
+// Calculate mistakes using SEQUENTIAL word comparison
+// Only considers the portion of text the student attempted to type (based on word count)
 // Trailing missing words (untyped portion) are NOT counted as mistakes
 export function calculateAlignedMistakes(
   originalText: string,
   typedText: string,
 ): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[] } {
-  const alignment = alignWords(originalText, typedText);
-
-  // Find the last position where student typed something (match, substitution, or extra)
-  // This determines the "attempted portion" - we ignore trailing missing words
-  let lastTypedIndex = -1;
-  for (let i = alignment.length - 1; i >= 0; i--) {
-    if (alignment[i].typed !== "") {
-      lastTypedIndex = i;
-      break;
+  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
+  
+  // The attempted portion is determined by how many words the student typed
+  // We compare sequentially - first typed word vs first original word, etc.
+  const attemptedLength = typedWords.length;
+  
+  // Build sequential alignment for the attempted portion only
+  const attemptedAlignment: AlignmentEntry[] = [];
+  
+  for (let i = 0; i < attemptedLength; i++) {
+    const typed = typedWords[i];
+    const original = i < originalWords.length ? originalWords[i] : "";
+    
+    if (original === "") {
+      // Extra word - student typed more than original
+      attemptedAlignment.push({
+        typed,
+        original: "",
+        status: "extra",
+        isError: true,
+      });
+    } else if (normalizeForComparison(typed) === normalizeForComparison(original)) {
+      // Match (case-insensitive, dash-normalized)
+      attemptedAlignment.push({
+        typed,
+        original,
+        status: "match",
+        isError: false,
+      });
+    } else {
+      // Substitution - wrong word
+      attemptedAlignment.push({
+        typed,
+        original,
+        status: "substitution",
+        isError: true,
+      });
     }
   }
-
-  // Only consider alignment up to the last typed word
-  // This excludes trailing missing words that the student didn't get to
-  const attemptedAlignment = lastTypedIndex >= 0 
-    ? alignment.slice(0, lastTypedIndex + 1)
-    : [];
+  
+  // Full alignment includes trailing missing words (for display purposes)
+  const alignment: AlignmentEntry[] = [...attemptedAlignment];
+  for (let i = attemptedLength; i < originalWords.length; i++) {
+    alignment.push({
+      typed: "",
+      original: originalWords[i],
+      status: "missing",
+      isError: true,
+    });
+  }
 
   let mistakes = 0;
 
