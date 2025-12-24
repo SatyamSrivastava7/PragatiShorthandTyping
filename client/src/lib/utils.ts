@@ -192,9 +192,9 @@ export function alignWords(
   return result;
 }
 
-// Calculate mistakes using SEQUENTIAL word comparison
-// Only considers the portion of text the student attempted to type (based on word count)
-// Trailing missing words (untyped portion) are NOT counted as mistakes
+// Calculate mistakes using BOUNDED ALIGNMENT with lookahead
+// Handles skipped words and extra words within a reasonable buffer
+// Only considers the "attempted portion" - trailing untyped words are NOT counted
 export function calculateAlignedMistakes(
   originalText: string,
   typedText: string,
@@ -202,47 +202,124 @@ export function calculateAlignedMistakes(
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
-  // The attempted portion is determined by how many words the student typed
-  // We compare sequentially - first typed word vs first original word, etc.
-  const attemptedLength = typedWords.length;
+  if (typedWords.length === 0) {
+    // No typed words - no attempted portion
+    const alignment: AlignmentEntry[] = originalWords.map(w => ({
+      typed: "",
+      original: w,
+      status: "missing" as AlignmentStatus,
+      isError: true,
+    }));
+    return { mistakes: 0, alignment, attemptedAlignment: [] };
+  }
   
-  // Build sequential alignment for the attempted portion only
+  // Lookahead buffer - how many positions ahead to check for matches
+  const LOOKAHEAD = 3;
+  
   const attemptedAlignment: AlignmentEntry[] = [];
+  let origIdx = 0; // Current position in original words
+  let typedIdx = 0; // Current position in typed words
   
-  for (let i = 0; i < attemptedLength; i++) {
-    const typed = typedWords[i];
-    const original = i < originalWords.length ? originalWords[i] : "";
+  while (typedIdx < typedWords.length) {
+    const typed = typedWords[typedIdx];
     
-    if (original === "") {
-      // Extra word - student typed more than original
+    // Check if we've run out of original words
+    if (origIdx >= originalWords.length) {
+      // All remaining typed words are extras
       attemptedAlignment.push({
         typed,
         original: "",
         status: "extra",
         isError: true,
       });
-    } else if (normalizeForComparison(typed) === normalizeForComparison(original)) {
-      // Match (case-insensitive, dash-normalized)
+      typedIdx++;
+      continue;
+    }
+    
+    const original = originalWords[origIdx];
+    
+    // Check for direct match at current position
+    if (normalizeForComparison(typed) === normalizeForComparison(original)) {
       attemptedAlignment.push({
         typed,
         original,
         status: "match",
         isError: false,
       });
-    } else {
-      // Substitution - wrong word
+      origIdx++;
+      typedIdx++;
+      continue;
+    }
+    
+    // No direct match - look ahead in original to see if typed word appears later
+    // This handles the case where student skipped words
+    let foundAhead = -1;
+    for (let look = 1; look <= LOOKAHEAD && origIdx + look < originalWords.length; look++) {
+      if (normalizeForComparison(typed) === normalizeForComparison(originalWords[origIdx + look])) {
+        foundAhead = look;
+        break;
+      }
+    }
+    
+    if (foundAhead > 0) {
+      // Student skipped some words - mark them as missing
+      for (let skip = 0; skip < foundAhead; skip++) {
+        attemptedAlignment.push({
+          typed: "",
+          original: originalWords[origIdx + skip],
+          status: "missing",
+          isError: true,
+        });
+      }
+      // Now add the match
       attemptedAlignment.push({
         typed,
-        original,
-        status: "substitution",
+        original: originalWords[origIdx + foundAhead],
+        status: "match",
+        isError: false,
+      });
+      origIdx += foundAhead + 1;
+      typedIdx++;
+      continue;
+    }
+    
+    // Look ahead in typed to see if current original word appears later
+    // This handles the case where student added extra words
+    let foundTypedAhead = -1;
+    for (let look = 1; look <= LOOKAHEAD && typedIdx + look < typedWords.length; look++) {
+      if (normalizeForComparison(typedWords[typedIdx + look]) === normalizeForComparison(original)) {
+        foundTypedAhead = look;
+        break;
+      }
+    }
+    
+    if (foundTypedAhead > 0) {
+      // Student typed extra words - mark current typed as extra
+      attemptedAlignment.push({
+        typed,
+        original: "",
+        status: "extra",
         isError: true,
       });
+      typedIdx++;
+      continue;
     }
+    
+    // No match found in lookahead - treat as substitution
+    attemptedAlignment.push({
+      typed,
+      original,
+      status: "substitution",
+      isError: true,
+    });
+    origIdx++;
+    typedIdx++;
   }
   
-  // Full alignment includes trailing missing words (for display purposes)
+  // Full alignment includes trailing missing words (for display purposes only)
+  // These are NOT counted as mistakes since they're beyond the attempted portion
   const alignment: AlignmentEntry[] = [...attemptedAlignment];
-  for (let i = attemptedLength; i < originalWords.length; i++) {
+  for (let i = origIdx; i < originalWords.length; i++) {
     alignment.push({
       typed: "",
       original: originalWords[i],
