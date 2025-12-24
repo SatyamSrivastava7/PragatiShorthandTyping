@@ -148,7 +148,7 @@ export default function StudentDashboard() {
 
   const getResultForContent = (contentId: string) => {
     return results.find(
-      (r) => r.contentId.toString() === contentId && r.studentId === currentUser?.id,
+      (r) => r.contentId !== null && r.contentId.toString() === contentId && r.studentId === currentUser?.id,
     );
   };
 
