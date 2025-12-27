@@ -862,6 +862,8 @@ export default function AdminDashboard() {
                           <SelectItem value="35">35 Minutes</SelectItem>
                           <SelectItem value="40">40 Minutes</SelectItem>
                           <SelectItem value="45">45 Minutes</SelectItem>
+                          <SelectItem value="50">50 Minutes</SelectItem>
+                          <SelectItem value="55">55 Minutes</SelectItem>
                           <SelectItem value="60">60 Minutes</SelectItem>
                           {contentType === "shorthand" && (
                             <>
