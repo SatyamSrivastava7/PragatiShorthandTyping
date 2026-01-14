@@ -49,6 +49,7 @@ export interface IStorage {
   updateContent(id: number, updates: Partial<InsertContent>): Promise<Content | undefined>;
   deleteContent(id: number): Promise<boolean>;
   toggleContent(id: number): Promise<Content | undefined>;
+  toggleContentLightweight(id: number): Promise<{ id: number; isEnabled: boolean } | undefined>;
   
   // Results methods
   getResult(id: number): Promise<Result | undefined>;
@@ -224,6 +225,20 @@ export class DatabaseStorage implements IStorage {
       .set({ isEnabled: !item.isEnabled })
       .where(eq(content.id, id))
       .returning();
+    return updated || undefined;
+  }
+
+  // Lightweight toggle - only returns id and isEnabled (no text/mediaUrl)
+  async toggleContentLightweight(id: number): Promise<{ id: number; isEnabled: boolean } | undefined> {
+    const [item] = await db.select({ id: content.id, isEnabled: content.isEnabled })
+      .from(content)
+      .where(eq(content.id, id));
+    if (!item) return undefined;
+    
+    const [updated] = await db.update(content)
+      .set({ isEnabled: !item.isEnabled })
+      .where(eq(content.id, id))
+      .returning({ id: content.id, isEnabled: content.isEnabled });
     return updated || undefined;
   }
 

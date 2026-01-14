@@ -87,11 +87,13 @@ import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
 
 // Preview Dialog Component - Loads full content on-demand (including text and mediaUrl)
+// Only fetches when dialog is actually opened to avoid loading all audio files
 function PreviewDialog({ contentId, title }: { contentId: number; title: string }) {
-  const { data: fullContent, isLoading } = useContentById(contentId);
+  const [isOpen, setIsOpen] = useState(false);
+  const { data: fullContent, isLoading } = useContentById(isOpen ? contentId : undefined);
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm">
           <Eye className="h-4 w-4" />
@@ -102,12 +104,12 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
-          {/* {isLoading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               <span className="ml-2 text-sm text-muted-foreground">Loading content...</span>
             </div>
-          ) : ( */}
+          ) : (
             <>
               <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
               {fullContent?.mediaUrl && (
@@ -116,7 +118,7 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
                 </div>
               )}
             </>
-          {/* )} */}
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -630,17 +630,19 @@ export async function registerRoutes(
     }
   });
   
-  // Toggle content (supports both POST and PATCH)
+  // Toggle content (lightweight - only returns id and isEnabled, no text/mediaUrl)
+  // Supports both POST and PATCH
   app.post("/api/content/:id/toggle", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const content = await storage.toggleContent(id);
+      const result = await storage.toggleContentLightweight(id);
       
-      if (!content) {
+      if (!result) {
         return res.status(404).json({ message: "Content not found" });
       }
       
-      res.json(content);
+      // Return only id and isEnabled (no large fields)
+      res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to toggle content" });
     }
@@ -649,13 +651,14 @@ export async function registerRoutes(
   app.patch("/api/content/:id/toggle", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const content = await storage.toggleContent(id);
+      const result = await storage.toggleContentLightweight(id);
       
-      if (!content) {
+      if (!result) {
         return res.status(404).json({ message: "Content not found" });
       }
       
-      res.json(content);
+      // Return only id and isEnabled (no large fields)
+      res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to toggle content" });
     }

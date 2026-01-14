@@ -147,7 +147,7 @@ export const contentApi = {
     fetchApiFormData<Content>('/api/content/upload', formData),
 
   toggle: (id: number) =>
-    fetchApi<Content>(`/api/content/${id}/toggle`, {
+    fetchApi<{ id: number; isEnabled: boolean }>(`/api/content/${id}/toggle`, {
       method: 'PATCH',
     }),
 
