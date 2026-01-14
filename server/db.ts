@@ -10,12 +10,16 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
-  max: 3,
-  idleTimeoutMillis: 60000,
-  connectionTimeoutMillis: 10000,
-});
+if (!global.pgPool) {
+  global.pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 3,
+    idleTimeoutMillis: 60000,
+    connectionTimeoutMillis: 10000,
+  });
+}
+
+export const pool = global.pgPool;
 
 pool.on('error', (err) => {
   console.error('Unexpected database pool error:', err);
