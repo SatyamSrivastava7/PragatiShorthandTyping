@@ -132,6 +132,7 @@ export default function AdminDashboard() {
     toggleContent,
     deleteContent,
     isLoading: isContentLoading,
+    error: contentError,
   } = useContent();
   const { results, deleteResult } = useResults();
   const { users, updateUser, deleteUser } = useUsers();
@@ -1162,6 +1163,24 @@ export default function AdminDashboard() {
                   <span className="ml-3 text-muted-foreground">
                     Loading tests...
                   </span>
+                </CardContent>
+              </Card>
+            ) : contentError ? (
+              <Card className="shadow-lg border-0">
+                <CardContent className="flex flex-col items-center justify-center p-12">
+                  <p className="text-destructive mb-2">Failed to load tests</p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {contentError instanceof Error ? contentError.message : 'Unknown error'}
+                  </p>
+                  <Button
+                    onClick={() => {
+                      window.location.reload();
+                    }}
+                    variant="outline"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
                 </CardContent>
               </Card>
             ) : (

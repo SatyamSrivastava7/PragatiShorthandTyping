@@ -10,7 +10,9 @@ export function usePrefetchContent() {
     // Prefetch lightweight content list (excludes text and mediaUrl) for faster initial load
     queryClient.prefetchQuery({
       queryKey: ['content', 'list'],
-      queryFn: contentApi.getAllList,
+      queryFn: async () => {
+        return await contentApi.getAllList();
+      },
       staleTime: 60000,
     });
   }, [queryClient]);
@@ -31,18 +33,33 @@ export function useContent() {
 
   // Use lightweight endpoint (excludes text field) for faster initial loading
   // Full content is loaded on-demand when needed (e.g., preview dialogs)
-  const { data: content = [], isLoading } = useQuery({
+  const { data: content = [], isLoading, error } = useQuery({
     queryKey: ['content', 'list'],
-    queryFn: contentApi.getAllList,
+    queryFn: async () => {
+      try {
+        return await contentApi.getAllList();
+      } catch (err) {
+        console.error('Error fetching content list:', err);
+        throw err;
+      }
+    },
     staleTime: 60000,
     gcTime: 300000,
+    retry: 2,
   });
 
   // Use lightweight endpoint (excludes text field) for faster initial loading
   // Full content is loaded on-demand when user starts a test via useContentById
   const { data: enabledContent = [], isLoading: isEnabledLoading } = useQuery({
     queryKey: ['content', 'enabled', 'list'],
-    queryFn: contentApi.getEnabledList,
+    queryFn: async () => {
+      try {
+        return await contentApi.getEnabledList();
+      } catch (err) {
+        console.error('Error fetching enabled content list:', err);
+        throw err;
+      }
+    },
     staleTime: 60000,
     gcTime: 300000,
   });
@@ -193,6 +210,7 @@ export function useContent() {
     enabledContent,
     isLoading,
     isEnabledLoading,
+    error,
     createContent: createMutation.mutateAsync,
     createContentWithFile: createWithFileMutation.mutateAsync,
     toggleContent: toggleMutation.mutateAsync,
