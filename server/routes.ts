@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
-import multer from "multer";
+import busboy from "busboy";
 import { 
   insertUserSchema, 
   insertContentSchema, 
@@ -487,41 +487,116 @@ export async function registerRoutes(
     }
   });
   
-  // Configure multer for file uploads (memory storage for base64 conversion)
-  const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
-  });
-
-  // Create content (with FormData for faster file uploads - no client-side base64 conversion)
-  app.post("/api/content/upload", upload.single('audioFile'), async (req, res) => {
+  // Create content (with FormData using busboy for streaming file uploads)
+  app.post("/api/content/upload", async (req, res) => {
     try {
-      // Convert audio file to base64 on server (more efficient than client-side)
-      let mediaUrl = undefined;
-      if (req.file) {
-        const fileBuffer = req.file.buffer;
-        const base64 = fileBuffer.toString('base64');
-        mediaUrl = `data:${req.file.mimetype || 'audio/mpeg'};base64,${base64}`;
-      }
-      
-      const validatedData = insertContentSchema.parse({
-        title: req.body.title,
-        type: req.body.type,
-        text: req.body.text,
-        duration: parseInt(req.body.duration),
-        dateFor: req.body.dateFor,
-        language: req.body.language || 'english',
-        mediaUrl,
-        autoScroll: req.body.autoScroll === 'true',
+      const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
+      const formData: Record<string, string> = {};
+      let audioFileBuffer: Buffer | null = null;
+      let audioMimeType: string | null = null;
+      let fileSize = 0;
+
+      return new Promise<void>((resolve, reject) => {
+        const bb = busboy({ 
+          headers: req.headers,
+          limits: {
+            fileSize: MAX_FILE_SIZE,
+          }
+        });
+
+        // Handle file field
+        bb.on('file', (name: string, file: any, info: { filename: string; encoding: string; mimeType: string }) => {
+          const { mimeType } = info;
+          
+          if (name === 'audioFile') {
+            audioMimeType = mimeType || 'audio/mpeg';
+            const chunks: Buffer[] = [];
+
+            file.on('data', (chunk: Buffer) => {
+              fileSize += chunk.length;
+              if (fileSize > MAX_FILE_SIZE) {
+                file.destroy();
+                if (!res.headersSent) {
+                  res.status(400).json({ message: 'File size exceeds 100MB limit' });
+                }
+                reject(new Error('File size exceeds 100MB limit'));
+                return;
+              }
+              chunks.push(chunk);
+            });
+
+            file.on('end', () => {
+              audioFileBuffer = Buffer.concat(chunks);
+            });
+
+            file.on('error', (err: Error) => {
+              reject(new Error(`File upload error: ${err.message}`));
+            });
+          } else {
+            // Ignore other files
+            file.resume();
+          }
+        });
+
+        // Handle form fields
+        bb.on('field', (name: string, value: string) => {
+          formData[name] = value;
+        });
+
+        // Handle form completion
+        bb.on('finish', async () => {
+          try {
+            // Convert audio file to base64 if present
+            let mediaUrl: string | null = null;
+            if (audioFileBuffer) {
+              const base64 = audioFileBuffer.toString('base64');
+              mediaUrl = `data:${audioMimeType || 'audio/mpeg'};base64,${base64}`;
+            }
+
+            const validatedData = insertContentSchema.parse({
+              title: formData.title,
+              type: formData.type,
+              text: formData.text,
+              duration: parseInt(formData.duration),
+              dateFor: formData.dateFor,
+              language: formData.language || 'english',
+              mediaUrl,
+              autoScroll: formData.autoScroll === 'true',
+            });
+
+            const content = await storage.createContent(validatedData);
+            res.status(201).json(content);
+            resolve();
+          } catch (error) {
+            if (!res.headersSent) {
+              if (error instanceof z.ZodError) {
+                res.status(400).json({ message: fromZodError(error).message });
+              } else {
+                res.status(500).json({ message: "Failed to create content" });
+              }
+            }
+            reject(error);
+          }
+        });
+
+        // Handle errors
+        bb.on('error', (err: Error) => {
+          if (!res.headersSent) {
+            res.status(400).json({ message: `Upload error: ${err.message}` });
+          }
+          reject(err);
+        });
+
+        // Pipe request to busboy
+        req.pipe(bb);
       });
-      
-      const content = await storage.createContent(validatedData);
-      res.status(201).json(content);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).message });
+      if (!res.headersSent) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ message: fromZodError(error).message });
+        }
+        res.status(500).json({ message: "Failed to create content" });
       }
-      res.status(500).json({ message: "Failed to create content" });
     }
   });
 
