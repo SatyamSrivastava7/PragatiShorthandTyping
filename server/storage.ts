@@ -154,7 +154,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(content).orderBy(desc(content.createdAt));
   }
 
-  async getAllContentList(type?: string): Promise<Omit<Content, 'text'>[]> {
+  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
     const columns = {
       id: content.id,
       title: content.title,
@@ -163,7 +163,7 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      mediaUrl: content.mediaUrl,
+      // Exclude mediaUrl to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     };
@@ -173,7 +173,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select(columns).from(content).orderBy(desc(content.createdAt));
   }
 
-  async getEnabledContentList(): Promise<Omit<Content, 'text'>[]> {
+  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
     return await db.select({
       id: content.id,
       title: content.title,
@@ -182,7 +182,7 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      mediaUrl: content.mediaUrl,
+      // Exclude mediaUrl to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));

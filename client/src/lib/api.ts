@@ -23,6 +23,26 @@ async function fetchApi<T>(
   return response.json();
 }
 
+// FormData upload function (for file uploads - no JSON header)
+async function fetchApiFormData<T>(
+  endpoint: string,
+  formData: FormData
+): Promise<T> {
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+    // Don't set Content-Type header - browser will set it with boundary
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export const authApi = {
   login: (mobile: string, password: string) =>
     fetchApi<{ user: User }>('/api/auth/login', {
@@ -97,9 +117,13 @@ export const contentApi = {
   getEnabled: () =>
     fetchApi<Content[]>('/api/content/enabled'),
 
-  // Lightweight endpoint - excludes text field for faster loading
+  // Lightweight endpoint - excludes text and mediaUrl fields for faster loading (all content)
+  getAllList: () =>
+    fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>('/api/content/list'),
+
+  // Lightweight endpoint - excludes text and mediaUrl fields for faster loading (enabled only)
   getEnabledList: () =>
-    fetchApi<Omit<Content, 'text'>[]>('/api/content/enabled/list'),
+    fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>('/api/content/enabled/list'),
 
   getById: (id: number) =>
     fetchApi<Content>(`/api/content/${id}`),
@@ -117,6 +141,10 @@ export const contentApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Faster upload using FormData (no client-side base64 conversion)
+  createWithFile: (formData: FormData) =>
+    fetchApiFormData<Content>('/api/content/upload', formData),
 
   toggle: (id: number) =>
     fetchApi<Content>(`/api/content/${id}/toggle`, {

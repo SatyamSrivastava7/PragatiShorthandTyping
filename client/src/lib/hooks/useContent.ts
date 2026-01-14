@@ -7,9 +7,10 @@ export function usePrefetchContent() {
   const queryClient = useQueryClient();
   
   useEffect(() => {
+    // Prefetch lightweight content list (excludes text and mediaUrl) for faster initial load
     queryClient.prefetchQuery({
-      queryKey: ['content'],
-      queryFn: contentApi.getAll,
+      queryKey: ['content', 'list'],
+      queryFn: contentApi.getAllList,
       staleTime: 60000,
     });
   }, [queryClient]);
@@ -28,9 +29,11 @@ export function useContentById(id: number | undefined) {
 export function useContent() {
   const queryClient = useQueryClient();
 
+  // Use lightweight endpoint (excludes text field) for faster initial loading
+  // Full content is loaded on-demand when needed (e.g., preview dialogs)
   const { data: content = [], isLoading } = useQuery({
-    queryKey: ['content'],
-    queryFn: contentApi.getAll,
+    queryKey: ['content', 'list'],
+    queryFn: contentApi.getAllList,
     staleTime: 60000,
     gcTime: 300000,
   });
@@ -47,10 +50,10 @@ export function useContent() {
   const createMutation = useMutation({
     mutationFn: contentApi.create,
     onMutate: async (newContent) => {
-      await queryClient.cancelQueries({ queryKey: ['content'] });
-      const previousContent = queryClient.getQueryData<Content[]>(['content']);
+      await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list']);
       
-      const optimisticContent: Content = {
+      const { text, mediaUrl, ...optimisticContent } = {
         id: -Math.floor(Math.random() * 1000000),
         title: newContent.title,
         type: newContent.type,
@@ -64,17 +67,30 @@ export function useContent() {
         createdAt: new Date(),
       };
       
-      queryClient.setQueryData<Content[]>(['content'], (old = []) => [optimisticContent, ...old]);
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
       
       return { previousContent };
     },
     onError: (err, newContent, context) => {
       if (context?.previousContent) {
-        queryClient.setQueryData(['content'], context.previousContent);
+        queryClient.setQueryData(['content', 'list'], context.previousContent);
       }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['content'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
+    },
+  });
+
+  // Mutation for FormData uploads (faster, no client-side base64 conversion)
+  const createWithFileMutation = useMutation({
+    mutationFn: contentApi.createWithFile,
+    onSettled: () => {
+      // Invalidate all content queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['content'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
     },
@@ -89,27 +105,26 @@ export function useContent() {
     },
     onMutate: async (id) => {
       if (id < 0) return;
-      await queryClient.cancelQueries({ queryKey: ['content'] });
+      await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled', 'list'] });
       
-      const previousContent = queryClient.getQueryData<Content[]>(['content']);
-      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list']);
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list']);
+      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list']);
       
-      queryClient.setQueryData<Content[]>(['content'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) =>
         old.map((item) =>
           item.id === id ? { ...item, isEnabled: !item.isEnabled } : item
         )
       );
       
-      queryClient.setQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list'], (old = []) => {
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list'], (old = []) => {
         const item = previousContent?.find(c => c.id === id);
         if (!item) return old;
-        const { text, ...itemWithoutText } = item;
         if (item.isEnabled) {
           return old.filter(c => c.id !== id);
         } else {
-          return [...old, { ...itemWithoutText, isEnabled: true }];
+          return [...old, { ...item, isEnabled: true }];
         }
       });
       
@@ -117,7 +132,7 @@ export function useContent() {
     },
     onError: (err, id, context) => {
       if (context?.previousContent) {
-        queryClient.setQueryData(['content'], context.previousContent);
+        queryClient.setQueryData(['content', 'list'], context.previousContent);
       }
       if (context?.previousEnabled) {
         queryClient.setQueryData(['content', 'enabled', 'list'], context.previousEnabled);
@@ -125,6 +140,7 @@ export function useContent() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['content'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
     },
@@ -139,18 +155,18 @@ export function useContent() {
     },
     onMutate: async (id) => {
       if (id < 0) return;
-      await queryClient.cancelQueries({ queryKey: ['content'] });
+      await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled', 'list'] });
       
-      const previousContent = queryClient.getQueryData<Content[]>(['content']);
-      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list']);
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list']);
+      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list']);
       
-      queryClient.setQueryData<Content[]>(['content'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) =>
         old.filter((item) => item.id !== id)
       );
       
-      queryClient.setQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list'], (old = []) =>
         old.filter((item) => item.id !== id)
       );
       
@@ -158,7 +174,7 @@ export function useContent() {
     },
     onError: (err, id, context) => {
       if (context?.previousContent) {
-        queryClient.setQueryData(['content'], context.previousContent);
+        queryClient.setQueryData(['content', 'list'], context.previousContent);
       }
       if (context?.previousEnabled) {
         queryClient.setQueryData(['content', 'enabled', 'list'], context.previousEnabled);
@@ -166,6 +182,7 @@ export function useContent() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['content'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'list'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
     },
@@ -177,6 +194,7 @@ export function useContent() {
     isLoading,
     isEnabledLoading,
     createContent: createMutation.mutateAsync,
+    createContentWithFile: createWithFileMutation.mutateAsync,
     toggleContent: toggleMutation.mutateAsync,
     deleteContent: deleteMutation.mutateAsync,
   };

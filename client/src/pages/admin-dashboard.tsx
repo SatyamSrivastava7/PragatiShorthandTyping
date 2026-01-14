@@ -11,6 +11,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 import {
   useAuth,
   useContent,
+  useContentById,
   usePrefetchContent,
   useResults,
   useUsers,
@@ -85,11 +86,49 @@ import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
 
+// Preview Dialog Component - Loads full content on-demand (including text and mediaUrl)
+function PreviewDialog({ contentId, title }: { contentId: number; title: string }) {
+  const { data: fullContent, isLoading } = useContentById(contentId);
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm">
+          <Eye className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Loading content...</span>
+            </div>
+          ) : (
+            <>
+              <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
+              {fullContent?.mediaUrl && (
+                <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
+                  <Music size={12} /> Audio Attached
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminDashboard() {
   usePrefetchContent();
   const {
     content,
     createContent,
+    createContentWithFile,
     toggleContent,
     deleteContent,
     isLoading: isContentLoading,
@@ -141,6 +180,118 @@ export default function AdminDashboard() {
   }, [localRegFee]);
 
   const [activeTab, setActiveTab] = useState("students");
+
+  // Lazy Loading State for Manage Tests
+  const ITEMS_PER_BATCH = 10; // Initial batch size for admin table
+  const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
+  const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const typingObserverRef = useRef<HTMLTableRowElement | null>(null);
+  const shorthandObserverRef = useRef<HTMLTableRowElement | null>(null);
+
+  // Reset visible count when tab changes or content changes
+  useEffect(() => {
+    if (activeTab === "manage") {
+      setVisibleTypingCount(ITEMS_PER_BATCH);
+      setVisibleShorthandCount(ITEMS_PER_BATCH);
+    }
+  }, [activeTab, content.length]);
+
+  // Get filtered and sorted content for each type
+  const getTypingTests = () => {
+    return content
+      .filter((c) => c.type === "typing")
+      .sort((a, b) => {
+        if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  };
+
+  const getShorthandTests = () => {
+    return content
+      .filter((c) => c.type === "shorthand")
+      .sort((a, b) => {
+        if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  };
+
+  const typingTests = getTypingTests();
+  const shorthandTests = getShorthandTests();
+
+  // Get visible items for lazy loading
+  const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
+  const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
+  const hasMoreTyping = visibleTypingCount < typingTests.length;
+  const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
+
+  // Load more typing tests
+  const loadMoreTyping = useCallback(() => {
+    if (isLoadingMore || !hasMoreTyping) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleTypingCount(prev => Math.min(prev + ITEMS_PER_BATCH, typingTests.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, hasMoreTyping, typingTests.length]);
+
+  // Load more shorthand tests
+  const loadMoreShorthand = useCallback(() => {
+    if (isLoadingMore || !hasMoreShorthand) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleShorthandCount(prev => Math.min(prev + ITEMS_PER_BATCH, shorthandTests.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, hasMoreShorthand, shorthandTests.length]);
+
+  // Intersection Observer for typing tests
+  useEffect(() => {
+    if (activeTab !== "manage") return;
+    const currentRef = typingObserverRef.current;
+    if (!currentRef || !hasMoreTyping) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreTyping && !isLoadingMore) {
+          loadMoreTyping();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMoreTyping, isLoadingMore, typingTests.length, visibleTypingCount, activeTab, loadMoreTyping]);
+
+  // Intersection Observer for shorthand tests
+  useEffect(() => {
+    if (activeTab !== "manage") return;
+    const currentRef = shorthandObserverRef.current;
+    if (!currentRef || !hasMoreShorthand) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreShorthand && !isLoadingMore) {
+          loadMoreShorthand();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMoreShorthand, isLoadingMore, shorthandTests.length, visibleShorthandCount, activeTab, loadMoreShorthand]);
 
   // Upload State
   const [title, setTitle] = useState("");
@@ -236,22 +387,36 @@ export default function AdminDashboard() {
     });
 
     try {
-      // Create base64 URL for audio if shorthand
-      let mediaUrl = undefined;
-      if (contentType === "shorthand" && dictationFile) {
-        mediaUrl = await fileToBase64(dictationFile);
-      }
+      // Check if we have a file to upload
+      const hasFile = contentType === "shorthand" && dictationFile;
 
-      await createContent({
-        title,
-        type: contentType,
-        text: textContent,
-        duration: parseInt(duration),
-        dateFor,
-        language,
-        mediaUrl,
-        autoScroll: contentType === "typing" ? autoScroll : true,
-      } as any);
+      if (hasFile) {
+        // Use FormData for file uploads (faster - no client-side base64 conversion)
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('type', contentType);
+        formData.append('text', textContent);
+        formData.append('duration', duration);
+        formData.append('dateFor', dateFor);
+        formData.append('language', language || 'english');
+        // For shorthand with file, autoScroll is always true
+        formData.append('autoScroll', 'true');
+        formData.append('audioFile', dictationFile);
+
+        // Use FormData upload endpoint (server converts to base64)
+        await createContentWithFile(formData);
+      } else {
+        // Use JSON endpoint for uploads without files (more efficient)
+        await createContent({
+          title,
+          type: contentType,
+          text: textContent,
+          duration: parseInt(duration),
+          dateFor,
+          language: language || 'english',
+          autoScroll: contentType === "typing" ? autoScroll : true,
+        } as any);
+      }
 
       toast({
         variant: "success",
@@ -264,6 +429,12 @@ export default function AdminDashboard() {
       if (dictationFileInputRef.current) {
         dictationFileInputRef.current.value = "";
       }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload content. Please try again.",
+      });
     } finally {
       setIsUploading(false);
     }
@@ -995,13 +1166,12 @@ export default function AdminDashboard() {
               </Card>
             ) : (
               <div className="space-y-6">
-                {["typing", "shorthand"].map((type) => {
-                  const testCount = content.filter(
-                    (c) => c.type === type,
-                  ).length;
-                  const activeCount = content.filter(
-                    (c) => c.type === type && c.isEnabled,
-                  ).length;
+                {[
+                  { type: "typing", tests: visibleTypingTests, allTests: typingTests, observerRef: typingObserverRef, hasMore: hasMoreTyping },
+                  { type: "shorthand", tests: visibleShorthandTests, allTests: shorthandTests, observerRef: shorthandObserverRef, hasMore: hasMoreShorthand },
+                ].map(({ type, tests: visibleTests, allTests, observerRef, hasMore }) => {
+                  const testCount = allTests.length;
+                  const activeCount = allTests.filter((c) => c.isEnabled).length;
                   return (
                     <Card
                       key={type}
@@ -1047,7 +1217,7 @@ export default function AdminDashboard() {
                             onClick={async () => {
                               setIsRefreshingContent(true);
                               await queryClient.invalidateQueries({
-                                queryKey: ["content"],
+                                queryKey: ["content", "list"],
                               });
                               setIsRefreshingContent(false);
                             }}
@@ -1091,96 +1261,77 @@ export default function AdminDashboard() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {content
-                                .filter((c) => c.type === type)
-                                .sort((a, b) => {
-                                  if (a.isEnabled !== b.isEnabled)
-                                    return b.isEnabled ? 1 : -1;
-                                  return (
-                                    new Date(b.createdAt).getTime() -
-                                    new Date(a.createdAt).getTime()
-                                  );
-                                })
-                                .map((item) => (
-                                  <TableRow
-                                    key={item.id}
-                                    className="hover:bg-slate-50/50"
+                              {visibleTests.map((item) => (
+                                <TableRow
+                                  key={item.id}
+                                  className="hover:bg-slate-50/50"
+                                >
+                                  <TableCell className="font-mono text-sm">
+                                    {format(new Date(item.dateFor), "MMM d")}
+                                  </TableCell>
+                                  <TableCell className="font-medium">
+                                    {item.title}
+                                  </TableCell>
+                                  <TableCell className="capitalize">
+                                    {item.language}
+                                  </TableCell>
+                                  <TableCell>{item.duration} min</TableCell>
+                                  <TableCell>
+                                    {item.isEnabled ? (
+                                      <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                                        Active
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-semibold">
+                                        Inactive
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                    <TableCell>
+                                      <PreviewDialog contentId={item.id} title={item.title} />
+                                    </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <Switch
+                                        checked={item.isEnabled}
+                                        onCheckedChange={() =>
+                                          toggleContent(item.id)
+                                        }
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:bg-red-50"
+                                        onClick={() =>
+                                          handleDeleteContent(item.id)
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              {/* Intersection Observer Target */}
+                              {hasMore && (
+                                <TableRow ref={observerRef}>
+                                  <TableCell
+                                    colSpan={8}
+                                    className="text-center py-4"
                                   >
-                                    <TableCell className="font-mono text-sm">
-                                      {format(new Date(item.dateFor), "MMM d")}
-                                    </TableCell>
-                                    <TableCell className="font-medium">
-                                      {item.title}
-                                    </TableCell>
-                                    <TableCell className="capitalize">
-                                      {item.language}
-                                    </TableCell>
-                                    <TableCell>{item.duration} min</TableCell>
-                                    <TableCell>
-                                      {item.isEnabled ? (
-                                        <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                                          Active
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-semibold">
-                                          Inactive
-                                        </span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Dialog>
-                                        <DialogTrigger asChild>
-                                          <Button variant="ghost" size="sm">
-                                            <Eye className="h-4 w-4" />
-                                          </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                          <DialogHeader>
-                                            <DialogTitle>
-                                              {item.title}
-                                            </DialogTitle>
-                                          </DialogHeader>
-                                          <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
-                                            <p className="whitespace-pre-wrap">
-                                              {item.text}
-                                            </p>
-                                            {item.mediaUrl && (
-                                              <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
-                                                <Music size={12} /> Audio
-                                                Attached
-                                              </div>
-                                            )}
-                                          </div>
-                                        </DialogContent>
-                                      </Dialog>
-                                    </TableCell>
-                                    <TableCell>
-                                      <div className="flex items-center gap-2">
-                                        <Switch
-                                          checked={item.isEnabled}
-                                          onCheckedChange={() =>
-                                            toggleContent(item.id)
-                                          }
-                                        />
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-destructive hover:bg-red-50"
-                                          onClick={() =>
-                                            handleDeleteContent(item.id)
-                                          }
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                    {isLoadingMore && (
+                                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span className="text-sm">Loading more tests...</span>
                                       </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              {content.filter((c) => c.type === type).length ===
-                                0 && (
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {allTests.length === 0 && (
                                 <TableRow>
                                   <TableCell
-                                    colSpan={7}
+                                    colSpan={8}
                                     className="text-center py-12 text-muted-foreground"
                                   >
                                     <LayoutList className="h-10 w-10 mx-auto mb-3 opacity-30" />
@@ -1594,11 +1745,11 @@ export default function AdminDashboard() {
                           {pdfResources.filter(
                             (p) => p.folderId === selectedFolderId,
                           ).length === 0 && (
-                            <div className="p-6 text-center border-2 border-dashed rounded-lg text-muted-foreground">
-                              <FileUp className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                              <p className="text-sm">No files in this folder</p>
-                            </div>
-                          )}
+                              <div className="p-6 text-center border-2 border-dashed rounded-lg text-muted-foreground">
+                                <FileUp className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                <p className="text-sm">No files in this folder</p>
+                              </div>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -1909,7 +2060,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div>
                                               {result.contentType ===
-                                              "typing" ? (
+                                                "typing" ? (
                                                 <span>
                                                   <span className="font-semibold">
                                                     Gross Speed:
@@ -2004,16 +2155,16 @@ export default function AdminDashboard() {
                             {filteredResults.filter(
                               (r) => r.contentType === type,
                             ).length === 0 && (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={6}
-                                  className="text-center py-12 text-muted-foreground"
-                                >
-                                  <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                  No {type} results found
-                                </TableCell>
-                              </TableRow>
-                            )}
+                                <TableRow>
+                                  <TableCell
+                                    colSpan={6}
+                                    className="text-center py-12 text-muted-foreground"
+                                  >
+                                    <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                    No {type} results found
+                                  </TableCell>
+                                </TableRow>
+                              )}
                           </TableBody>
                         </Table>
                       </div>
@@ -2409,7 +2560,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
-      {/* Mobile Header */}
+        {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-3 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
         <h2 className="text-lg font-bold text-white">Admin Panel</h2>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
