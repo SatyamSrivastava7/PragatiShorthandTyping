@@ -102,12 +102,12 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
-          {isLoading ? (
+          {/* {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               <span className="ml-2 text-sm text-muted-foreground">Loading content...</span>
             </div>
-          ) : (
+          ) : ( */}
             <>
               <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
               {fullContent?.mediaUrl && (
@@ -116,7 +116,7 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
                 </div>
               )}
             </>
-          )}
+          {/* )} */}
         </div>
       </DialogContent>
     </Dialog>
