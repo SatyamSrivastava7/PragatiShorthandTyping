@@ -1314,9 +1314,17 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-2">
                                       <Switch
                                         checked={item.isEnabled}
-                                        onCheckedChange={() =>
-                                          toggleContent(item.id)
-                                        }
+                                        onCheckedChange={async () => {
+                                          try {
+                                            await toggleContent(item.id);
+                                          } catch (error) {
+                                            toast({
+                                              variant: "destructive",
+                                              title: "Failed to toggle",
+                                              description: error instanceof Error ? error.message : "Could not toggle test status",
+                                            });
+                                          }
+                                        }}
                                       />
                                       <Button
                                         variant="ghost"

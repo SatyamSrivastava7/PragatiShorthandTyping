@@ -641,9 +641,11 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields)
+      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {
+      console.error("Error toggling content:", error);
       res.status(500).json({ message: "Failed to toggle content" });
     }
   });
@@ -657,9 +659,11 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields)
+      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {
+      console.error("Error toggling content:", error);
       res.status(500).json({ message: "Failed to toggle content" });
     }
   });
