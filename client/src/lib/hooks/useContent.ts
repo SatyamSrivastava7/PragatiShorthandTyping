@@ -35,9 +35,11 @@ export function useContent() {
     gcTime: 300000,
   });
 
+  // Use lightweight endpoint (excludes text field) for faster initial loading
+  // Full content is loaded on-demand when user starts a test via useContentById
   const { data: enabledContent = [], isLoading: isEnabledLoading } = useQuery({
-    queryKey: ['content', 'enabled'],
-    queryFn: contentApi.getEnabled,
+    queryKey: ['content', 'enabled', 'list'],
+    queryFn: contentApi.getEnabledList,
     staleTime: 60000,
     gcTime: 300000,
   });
@@ -58,6 +60,7 @@ export function useContent() {
         language: newContent.language || 'english',
         mediaUrl: newContent.mediaUrl || null,
         isEnabled: false,
+        autoScroll: true,
         createdAt: new Date(),
       };
       
@@ -73,6 +76,7 @@ export function useContent() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['content'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
     },
   });
 
@@ -87,9 +91,10 @@ export function useContent() {
       if (id < 0) return;
       await queryClient.cancelQueries({ queryKey: ['content'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled'] });
+      await queryClient.cancelQueries({ queryKey: ['content', 'enabled', 'list'] });
       
       const previousContent = queryClient.getQueryData<Content[]>(['content']);
-      const previousEnabled = queryClient.getQueryData<Content[]>(['content', 'enabled']);
+      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list']);
       
       queryClient.setQueryData<Content[]>(['content'], (old = []) =>
         old.map((item) =>
@@ -97,13 +102,14 @@ export function useContent() {
         )
       );
       
-      queryClient.setQueryData<Content[]>(['content', 'enabled'], (old = []) => {
+      queryClient.setQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list'], (old = []) => {
         const item = previousContent?.find(c => c.id === id);
         if (!item) return old;
+        const { text, ...itemWithoutText } = item;
         if (item.isEnabled) {
           return old.filter(c => c.id !== id);
         } else {
-          return [...old, { ...item, isEnabled: true }];
+          return [...old, { ...itemWithoutText, isEnabled: true }];
         }
       });
       
@@ -114,12 +120,13 @@ export function useContent() {
         queryClient.setQueryData(['content'], context.previousContent);
       }
       if (context?.previousEnabled) {
-        queryClient.setQueryData(['content', 'enabled'], context.previousEnabled);
+        queryClient.setQueryData(['content', 'enabled', 'list'], context.previousEnabled);
       }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['content'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
     },
   });
 
@@ -134,15 +141,16 @@ export function useContent() {
       if (id < 0) return;
       await queryClient.cancelQueries({ queryKey: ['content'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled'] });
+      await queryClient.cancelQueries({ queryKey: ['content', 'enabled', 'list'] });
       
       const previousContent = queryClient.getQueryData<Content[]>(['content']);
-      const previousEnabled = queryClient.getQueryData<Content[]>(['content', 'enabled']);
+      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list']);
       
       queryClient.setQueryData<Content[]>(['content'], (old = []) =>
         old.filter((item) => item.id !== id)
       );
       
-      queryClient.setQueryData<Content[]>(['content', 'enabled'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text'>[]>(['content', 'enabled', 'list'], (old = []) =>
         old.filter((item) => item.id !== id)
       );
       
@@ -153,12 +161,13 @@ export function useContent() {
         queryClient.setQueryData(['content'], context.previousContent);
       }
       if (context?.previousEnabled) {
-        queryClient.setQueryData(['content', 'enabled'], context.previousEnabled);
+        queryClient.setQueryData(['content', 'enabled', 'list'], context.previousEnabled);
       }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['content'] });
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
     },
   });
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   useAuth,
   useContent,
@@ -75,6 +75,24 @@ export default function StudentDashboard() {
   const { toast } = useToast();
   const profilePicInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingProfilePic, setIsUploadingProfilePic] = useState(false);
+  const isMountedRef = useRef(true);
+  const fileReaderRef = useRef<FileReader | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Abort FileReader if component unmounts during read
+      if (fileReaderRef.current) {
+        try {
+          fileReaderRef.current.abort();
+        } catch (e) {
+          // FileReader.abort() may not be available in all browsers
+        }
+        fileReaderRef.current = null;
+      }
+    };
+  }, []);
 
   const qrCodeUrl = settings?.qrCodeUrl || "";
 
@@ -96,6 +114,14 @@ export default function StudentDashboard() {
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
 
+  // Lazy Loading State
+  const ITEMS_PER_BATCH = 6; // Initial batch size
+  const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
+  const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const typingObserverRef = useRef<HTMLDivElement | null>(null);
+  const shorthandObserverRef = useRef<HTMLDivElement | null>(null);
+
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
@@ -115,21 +141,31 @@ export default function StudentDashboard() {
     setIsUploadingProfilePic(true);
     try {
       const reader = new FileReader();
+      fileReaderRef.current = reader;
       reader.onload = async () => {
+        if (!isMountedRef.current) return;
         try {
           const base64 = reader.result as string;
           await updateUser({ id: userId, data: { profilePicture: base64 } });
+          if (!isMountedRef.current) return;
           await queryClient.invalidateQueries({ queryKey: ['session'] });
+          if (!isMountedRef.current) return;
           toast({ title: "Profile picture updated!" });
         } catch (err) {
+          if (!isMountedRef.current) return;
           toast({ variant: "destructive", title: "Upload failed", description: "Could not update profile picture." });
         } finally {
-          setIsUploadingProfilePic(false);
+          if (isMountedRef.current) {
+            setIsUploadingProfilePic(false);
+          }
+          fileReaderRef.current = null;
         }
       };
       reader.onerror = () => {
+        if (!isMountedRef.current) return;
         toast({ variant: "destructive", title: "Failed to read file" });
         setIsUploadingProfilePic(false);
+        fileReaderRef.current = null;
       };
       reader.readAsDataURL(file);
     } catch (error) {
@@ -145,6 +181,86 @@ export default function StudentDashboard() {
     c.title.toLowerCase().includes(typingSearch.toLowerCase()));
   const shorthandTests = availableTests.filter((c) => c.type === "shorthand" && 
     c.title.toLowerCase().includes(shorthandSearch.toLowerCase()));
+
+  // Reset visible count when search changes
+  useEffect(() => {
+    setVisibleTypingCount(ITEMS_PER_BATCH);
+    setVisibleShorthandCount(ITEMS_PER_BATCH);
+  }, [typingSearch, shorthandSearch]);
+
+  // Get visible items for lazy loading
+  const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
+  const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
+  const hasMoreTyping = visibleTypingCount < typingTests.length;
+  const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
+
+  // Load more typing tests
+  const loadMoreTyping = () => {
+    if (isLoadingMore || !hasMoreTyping) return;
+    setIsLoadingMore(true);
+    // Simulate loading delay for smooth UX
+    setTimeout(() => {
+      setVisibleTypingCount(prev => Math.min(prev + ITEMS_PER_BATCH, typingTests.length));
+      setIsLoadingMore(false);
+    }, 300);
+  };
+
+  // Load more shorthand tests
+  const loadMoreShorthand = () => {
+    if (isLoadingMore || !hasMoreShorthand) return;
+    setIsLoadingMore(true);
+    // Simulate loading delay for smooth UX
+    setTimeout(() => {
+      setVisibleShorthandCount(prev => Math.min(prev + ITEMS_PER_BATCH, shorthandTests.length));
+      setIsLoadingMore(false);
+    }, 300);
+  };
+
+  // Intersection Observer for typing tests
+  useEffect(() => {
+    const currentRef = typingObserverRef.current;
+    if (!currentRef || !hasMoreTyping) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreTyping && !isLoadingMore) {
+          loadMoreTyping();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMoreTyping, isLoadingMore, typingTests.length, visibleTypingCount]);
+
+  // Intersection Observer for shorthand tests
+  useEffect(() => {
+    const currentRef = shorthandObserverRef.current;
+    if (!currentRef || !hasMoreShorthand) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreShorthand && !isLoadingMore) {
+          loadMoreShorthand();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMoreShorthand, isLoadingMore, shorthandTests.length, visibleShorthandCount]);
 
   const getResultForContent = (contentId: string) => {
     return results.find(
@@ -330,8 +446,9 @@ export default function StudentDashboard() {
             </div>
           ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {typingTests.length > 0 ? (
-              typingTests.map((test) => {
+            {visibleTypingTests.length > 0 ? (
+              <>
+                {visibleTypingTests.map((test) => {
                 const result = getResultForContent(test.id?.toString());
                 const isCompleted = !!result;
 
@@ -374,7 +491,19 @@ export default function StudentDashboard() {
                     </CardFooter>
                   </Card>
                 );
-              })
+              })}
+                {/* Intersection Observer Target */}
+                {hasMoreTyping && (
+                  <div ref={typingObserverRef} className="col-span-full flex justify-center py-4">
+                    {isLoadingMore && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Loading more tests...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-blue-200 rounded-xl bg-blue-50/50">
                 <div className="bg-blue-100 rounded-full p-4 mb-4">
@@ -419,8 +548,9 @@ export default function StudentDashboard() {
             </div>
           ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {shorthandTests.length > 0 ? (
-              shorthandTests.map((test) => {
+            {visibleShorthandTests.length > 0 ? (
+              <>
+                {visibleShorthandTests.map((test) => {
                 const result = getResultForContent(test.id?.toString());
                 const isCompleted = !!result;
 
@@ -466,7 +596,19 @@ export default function StudentDashboard() {
                     </CardFooter>
                   </Card>
                 );
-              })
+              })}
+                {/* Intersection Observer Target */}
+                {hasMoreShorthand && (
+                  <div ref={shorthandObserverRef} className="col-span-full flex justify-center py-4">
+                    {isLoadingMore && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Loading more tests...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/50">
                 <div className="bg-orange-100 rounded-full p-4 mb-4">
@@ -698,7 +840,7 @@ export default function StudentDashboard() {
                                     <ResultTextAnalysis
                                       originalText={result.originalText || ""}
                                       typedText={result.typedText}
-                                      language={result.language}
+                                      language={(result.language as 'english' | 'hindi') || undefined}
                                     />
                                   </div>
 

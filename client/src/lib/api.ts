@@ -97,6 +97,10 @@ export const contentApi = {
   getEnabled: () =>
     fetchApi<Content[]>('/api/content/enabled'),
 
+  // Lightweight endpoint - excludes text field for faster loading
+  getEnabledList: () =>
+    fetchApi<Omit<Content, 'text'>[]>('/api/content/enabled/list'),
+
   getById: (id: number) =>
     fetchApi<Content>(`/api/content/${id}`),
 
