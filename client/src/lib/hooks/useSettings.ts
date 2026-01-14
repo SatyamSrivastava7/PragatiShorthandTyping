@@ -55,10 +55,20 @@ export function useSettings() {
 export function useGallery() {
   const queryClient = useQueryClient();
 
-  const { data: images = [], isLoading } = useQuery({
+  const { data: images = [], isLoading, error } = useQuery({
     queryKey: ['gallery'],
-    queryFn: galleryApi.getImages,
+    queryFn: async () => {
+      try {
+        return await galleryApi.getImages();
+      } catch (err) {
+        console.error('Error fetching gallery images:', err);
+        // Return empty array on error so page can still render
+        return [] as { url: string }[];
+      }
+    },
     staleTime: 30000,
+    retry: 1,
+    gcTime: 300000,
   });
 
   const addMutation = useMutation({
@@ -106,6 +116,7 @@ export function useGallery() {
   return {
     images: images.map(img => img.url),
     isLoading,
+    error,
     addImage: addMutation.mutateAsync,
     deleteImage: deleteMutation.mutateAsync,
   };
@@ -114,10 +125,20 @@ export function useGallery() {
 export function useSelectedCandidates() {
   const queryClient = useQueryClient();
 
-  const { data: candidates = [], isLoading } = useQuery({
+  const { data: candidates = [], isLoading, error } = useQuery({
     queryKey: ['selected-candidates'],
-    queryFn: selectedCandidatesApi.getAll,
+    queryFn: async () => {
+      try {
+        return await selectedCandidatesApi.getAll();
+      } catch (err) {
+        console.error('Error fetching selected candidates:', err);
+        // Return empty array on error so page can still render
+        return [] as { id: number; name: string; designation: string; year: string; imageUrl: string }[];
+      }
+    },
     staleTime: 30000,
+    retry: 1,
+    gcTime: 300000,
   });
 
   const createMutation = useMutation({
@@ -173,6 +194,7 @@ export function useSelectedCandidates() {
   return {
     candidates,
     isLoading,
+    error,
     addCandidate: createMutation.mutateAsync,
     deleteCandidate: deleteMutation.mutateAsync,
   };

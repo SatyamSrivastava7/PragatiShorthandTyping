@@ -133,6 +133,8 @@ export default function AdminDashboard() {
     deleteContent,
     isLoading: isContentLoading,
     error: contentError,
+    isCreating,
+    isCreatingWithFile,
   } = useContent();
   const { results, deleteResult } = useResults();
   const { users, updateUser, deleteUser } = useUsers();
@@ -322,8 +324,8 @@ export default function AdminDashboard() {
   const [dictationFile, setDictationFile] = useState<File | null>(null);
   const dictationFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Upload Loading State
-  const [isUploading, setIsUploading] = useState(false);
+  // Upload Loading State - use mutation state instead of local state
+  const isUploading = isCreating || isCreatingWithFile;
 
   // Analysis State
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
@@ -380,7 +382,6 @@ export default function AdminDashboard() {
       return;
     }
 
-    setIsUploading(true);
     toast({
       variant: "info",
       title: "Uploading...",
@@ -436,8 +437,6 @@ export default function AdminDashboard() {
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "Failed to upload content. Please try again.",
       });
-    } finally {
-      setIsUploading(false);
     }
   };
 

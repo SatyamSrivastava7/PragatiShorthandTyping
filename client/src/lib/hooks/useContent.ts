@@ -215,5 +215,7 @@ export function useContent() {
     createContentWithFile: createWithFileMutation.mutateAsync,
     toggleContent: toggleMutation.mutateAsync,
     deleteContent: deleteMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    isCreatingWithFile: createWithFileMutation.isPending,
   };
 }
