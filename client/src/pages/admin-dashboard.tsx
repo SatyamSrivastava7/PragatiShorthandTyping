@@ -187,7 +187,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("students");
 
   // Lazy Loading State for Manage Tests
-  const ITEMS_PER_BATCH = 10; // Initial batch size for admin table
+  const ITEMS_PER_BATCH = 100; // Initial batch size for admin table
   const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
   const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
   const [isLoadingMore, setIsLoadingMore] = useState(false);

@@ -115,7 +115,7 @@ export default function StudentDashboard() {
   const [shorthandSearch, setShorthandSearch] = useState("");
 
   // Lazy Loading State
-  const ITEMS_PER_BATCH = 6; // Initial batch size
+  const ITEMS_PER_BATCH = 100; // Initial batch size
   const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
   const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
