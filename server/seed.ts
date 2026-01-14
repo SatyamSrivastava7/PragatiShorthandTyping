@@ -23,9 +23,9 @@ async function seed() {
     });
     
     console.log("Admin user created successfully:");
-    console.log("Mobile: 9876543210");
-    console.log("Password: admin123");
-    console.log("Role:", admin.role);
+    // console.log("Mobile: 9876543210");
+    // console.log("Password: admin123");
+    // console.log("Role:", admin.role);
     
     // Create some initial settings
     await storage.upsertSetting({
