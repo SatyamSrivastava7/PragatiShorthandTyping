@@ -23,9 +23,13 @@ declare module "http" {
 }
 
 // Create PostgreSQL pool for sessions
-const pgPool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+export const sessionDbPool =
+  global.sessionDbPool ??
+  (global.sessionDbPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 1,                     
+    idleTimeoutMillis: 30000,
+  }));
 
 // Session store configuration
 const PgStore = pgSession(session);
@@ -34,7 +38,7 @@ const PgStore = pgSession(session);
 app.use(
   session({
     store: new PgStore({
-      pool: pgPool,
+      pool: sessionDbPool,
       tableName: "session",
       createTableIfMissing: true,
     }),
