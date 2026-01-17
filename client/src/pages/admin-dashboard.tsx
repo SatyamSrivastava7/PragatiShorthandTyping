@@ -351,8 +351,11 @@ export default function AdminDashboard() {
   const [viewPdfId, setViewPdfId] = useState<number | null>(null);
 
   // Dictation State - Merged into Upload
-  const [dictationFile, setDictationFile] = useState<File | null>(null);
+  const [audio80wpmFile, setAudio80wpmFile] = useState<File | null>(null);
+  const [audio100wpmFile, setAudio100wpmFile] = useState<File | null>(null);
   const dictationFileInputRef = useRef<HTMLInputElement>(null);
+  const audio80wpmInputRef = useRef<HTMLInputElement>(null);
+  const audio100wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Upload Loading State - use mutation state instead of local state
   const isUploading = isCreating || isCreatingWithFile;
@@ -428,7 +431,7 @@ export default function AdminDashboard() {
 
     try {
       // Check if we have a file to upload
-      const hasFile = contentType === "shorthand" && dictationFile;
+      const hasFile = contentType === "shorthand" && (audio80wpmFile || audio100wpmFile);
 
       if (hasFile) {
         // Use FormData for file uploads (faster - no client-side base64 conversion)
@@ -441,7 +444,12 @@ export default function AdminDashboard() {
         formData.append('language', language || 'english');
         // For shorthand with file, autoScroll is always true
         formData.append('autoScroll', 'true');
-        formData.append('audioFile', dictationFile);
+        if (audio80wpmFile) {
+          formData.append('audio80wpm', audio80wpmFile);
+        }
+        if (audio100wpmFile) {
+          formData.append('audio100wpm', audio100wpmFile);
+        }
 
         // Use FormData upload endpoint (server converts to base64)
         await createContentWithFile(formData);
@@ -465,9 +473,16 @@ export default function AdminDashboard() {
       });
       setTitle("");
       setTextContent("");
-      setDictationFile(null);
+      setAudio80wpmFile(null);
+      setAudio100wpmFile(null);
       if (dictationFileInputRef.current) {
         dictationFileInputRef.current.value = "";
+      }
+      if (audio80wpmInputRef.current) {
+        audio80wpmInputRef.current.value = "";
+      }
+      if (audio100wpmInputRef.current) {
+        audio100wpmInputRef.current.value = "";
       }
     } catch (error) {
       toast({
@@ -1138,28 +1153,55 @@ export default function AdminDashboard() {
                   </div>
 
                   {contentType === "shorthand" && (
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Music className="h-5 w-5 text-orange-600" />
-                        <Label className="text-sm font-medium text-orange-800">
-                          Audio File (Optional)
-                        </Label>
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <Music className="h-5 w-5 text-orange-600" />
+                            <Label className="text-sm font-medium text-orange-800">
+                              Audio File (80 WPM)
+                            </Label>
+                          </div>
+                          <Input
+                            type="file"
+                            accept="audio/*"
+                            onChange={(e) =>
+                              setAudio80wpmFile(e.target.files?.[0] || null)
+                            }
+                            ref={audio80wpmInputRef}
+                            className="bg-white"
+                          />
+                          {audio80wpmFile && (
+                            <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                              <CheckCircle className="h-4 w-4" />{" "}
+                              {audio80wpmFile.name}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <Music className="h-5 w-5 text-orange-600" />
+                            <Label className="text-sm font-medium text-orange-800">
+                              Audio File (100 WPM)
+                            </Label>
+                          </div>
+                          <Input
+                            type="file"
+                            accept="audio/*"
+                            onChange={(e) =>
+                              setAudio100wpmFile(e.target.files?.[0] || null)
+                            }
+                            ref={audio100wpmInputRef}
+                            className="bg-white"
+                          />
+                          {audio100wpmFile && (
+                            <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                              <CheckCircle className="h-4 w-4" />{" "}
+                              {audio100wpmFile.name}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <Input
-                        type="file"
-                        accept="audio/*"
-                        onChange={(e) =>
-                          setDictationFile(e.target.files?.[0] || null)
-                        }
-                        ref={dictationFileInputRef}
-                        className="bg-white"
-                      />
-                      {dictationFile && (
-                        <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                          <CheckCircle className="h-4 w-4" />{" "}
-                          {dictationFile.name}
-                        </p>
-                      )}
                     </div>
                   )}
 

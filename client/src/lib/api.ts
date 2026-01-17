@@ -201,6 +201,7 @@ export const resultsApi = {
     words: number;
     time: number;
     mistakes: string;
+    halfMistakes?: string;
     backspaces: number;
     grossSpeed?: string;
     netSpeed?: string;

@@ -513,8 +513,7 @@ export async function registerRoutes(
     try {
       const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
       const formData: Record<string, string> = {};
-      let audioFileBuffer: Buffer | null = null;
-      let audioMimeType: string | null = null;
+      const audioFiles: Record<string, { buffer: Buffer; mimeType: string }> = {};
       let fileSize = 0;
 
       return new Promise<void>((resolve, reject) => {
@@ -525,12 +524,11 @@ export async function registerRoutes(
           }
         });
 
-        // Handle file field
+        // Handle file field - supports audioFile, audio80wpm, audio100wpm
         bb.on('file', (name: string, file: any, info: { filename: string; encoding: string; mimeType: string }) => {
           const { mimeType } = info;
           
-          if (name === 'audioFile') {
-            audioMimeType = mimeType || 'audio/mpeg';
+          if (name === 'audioFile' || name === 'audio80wpm' || name === 'audio100wpm') {
             const chunks: Buffer[] = [];
 
             file.on('data', (chunk: Buffer) => {
@@ -547,7 +545,10 @@ export async function registerRoutes(
             });
 
             file.on('end', () => {
-              audioFileBuffer = Buffer.concat(chunks);
+              audioFiles[name] = {
+                buffer: Buffer.concat(chunks),
+                mimeType: mimeType || 'audio/mpeg',
+              };
             });
 
             file.on('error', (err: Error) => {
@@ -567,11 +568,27 @@ export async function registerRoutes(
         // Handle form completion
         bb.on('finish', async () => {
           try {
-            // Convert audio file to base64 if present
+            // Convert audio files to base64 if present
             let mediaUrl: string | null = null;
-            if (audioFileBuffer) {
-              const base64 = audioFileBuffer.toString('base64');
-              mediaUrl = `data:${audioMimeType || 'audio/mpeg'};base64,${base64}`;
+            let audio80wpm: string | null = null;
+            let audio100wpm: string | null = null;
+
+            if (audioFiles['audioFile']) {
+              const { buffer, mimeType } = audioFiles['audioFile'];
+              const base64 = buffer.toString('base64');
+              mediaUrl = `data:${mimeType};base64,${base64}`;
+            }
+
+            if (audioFiles['audio80wpm']) {
+              const { buffer, mimeType } = audioFiles['audio80wpm'];
+              const base64 = buffer.toString('base64');
+              audio80wpm = `data:${mimeType};base64,${base64}`;
+            }
+
+            if (audioFiles['audio100wpm']) {
+              const { buffer, mimeType } = audioFiles['audio100wpm'];
+              const base64 = buffer.toString('base64');
+              audio100wpm = `data:${mimeType};base64,${base64}`;
             }
 
             const validatedData = insertContentSchema.parse({
@@ -582,6 +599,8 @@ export async function registerRoutes(
               dateFor: formData.dateFor,
               language: formData.language || 'english',
               mediaUrl,
+              audio80wpm,
+              audio100wpm,
               autoScroll: formData.autoScroll === 'true',
             });
 

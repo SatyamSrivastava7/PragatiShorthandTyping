@@ -38,6 +38,8 @@ export const content = pgTable("content", {
   isEnabled: boolean("is_enabled").default(false).notNull(),
   autoScroll: boolean("auto_scroll").default(true).notNull(), // enable auto-scroll for typing tests
   mediaUrl: text("media_url"),
+  audio80wpm: text("audio_80wpm"), // Optional 80 WPM audio for shorthand
+  audio100wpm: text("audio_100wpm"), // Optional 100 WPM audio for shorthand
   language: varchar("language", { length: 10 }).default('english'), // 'english' | 'hindi'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -59,6 +61,7 @@ export const results = pgTable("results", {
   words: integer("words").notNull(),
   time: integer("time").notNull(),
   mistakes: numeric("mistakes").notNull(),
+  halfMistakes: numeric("half_mistakes"), // Comma errors for shorthand (missing or extra commas)
   backspaces: integer("backspaces").default(0),
   grossSpeed: text("gross_speed"),
   netSpeed: text("net_speed"),
