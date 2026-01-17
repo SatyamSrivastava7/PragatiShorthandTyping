@@ -122,8 +122,16 @@ export const contentApi = {
     fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>('/api/content/list'),
 
   // Lightweight endpoint - excludes text and mediaUrl fields for faster loading (enabled only)
-  getEnabledList: () =>
-    fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>('/api/content/enabled/list'),
+  // Optional params: { type, language, limit, offset }
+  getEnabledList: (params?: { type?: string; language?: string; limit?: number; offset?: number }) => {
+    const qs = params
+      ? '?' + new URLSearchParams(Object.entries(params).reduce<Record<string,string>>((acc, [k, v]) => {
+          if (v !== undefined && v !== null) acc[k] = String(v);
+          return acc;
+        }, {})).toString()
+      : '';
+    return fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>(`/api/content/enabled/list${qs}`);
+  },
 
   getById: (id: number) =>
     fetchApi<Content>(`/api/content/${id}`),

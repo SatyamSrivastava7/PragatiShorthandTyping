@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useInfiniteQuery } from '@tanstack/react-query';
 import {
   useAuth,
   useContent,
@@ -117,14 +118,43 @@ export default function StudentDashboard() {
   // Selected language folders for each tab (null = show folders)
   const [selectedTypingLanguage, setSelectedTypingLanguage] = useState<string | null>(null);
   const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
+  // Active main tab
+  const [activeTab, setActiveTab] = useState<string>('typing_tests');
+  // Pagination settings
+  const PAGE_SIZE = 6;
 
-  // Lazy Loading State
-  const ITEMS_PER_BATCH = 100; // Initial batch size
-  const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
-  const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const typingObserverRef = useRef<HTMLDivElement | null>(null);
-  const shorthandObserverRef = useRef<HTMLDivElement | null>(null);
+  // Typing: useInfiniteQuery per language (cached by react-query)
+  const typingQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'typing', selectedTypingLanguage],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ type: 'typing', language: selectedTypingLanguage || 'english', limit: PAGE_SIZE, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'typing_tests' && !!selectedTypingLanguage,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Shorthand: useInfiniteQuery per language (cached by react-query)
+  const shorthandQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'shorthand', selectedShorthandLanguage],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ type: 'shorthand', language: selectedShorthandLanguage || 'english', limit: PAGE_SIZE, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'shorthand_tests' && !!selectedShorthandLanguage,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // paging is handled by react-query `useInfiniteQuery` (typingQuery, shorthandQuery)
+
+  // When selection or active tab changes, react-query handles fetching (enabled flag)
+  useEffect(() => {
+    // no-op: selection and activeTab drive `useInfiniteQuery` enabled state
+  }, [selectedTypingLanguage, selectedShorthandLanguage, activeTab]);
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -320,7 +350,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="typing_tests" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
           <TabsTrigger
             value="typing_tests"
@@ -401,8 +431,10 @@ export default function StudentDashboard() {
                     <h4 className="text-sm font-semibold capitalize">{selectedTypingLanguage} Typing Tests</h4>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {typingTests
-                      .filter((t) => ((t.language || 'English').toString().toLowerCase()) === selectedTypingLanguage)
+                    {((typingQuery.data?.pages ?? []) as any[])
+                      .flat()
+                      .filter((t: any) => ((t.language || 'english').toString().toLowerCase()) === (selectedTypingLanguage || 'english'))
+                      .filter((t: any) => t.title.toLowerCase().includes(typingSearch.toLowerCase()))
                       .map((test: any) => {
                         const result = getResultForContent(test.id?.toString());
                         const isCompleted = !!result;
@@ -448,6 +480,13 @@ export default function StudentDashboard() {
                         );
                       })}
                   </div>
+                  {typingQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button onClick={() => typingQuery.fetchNextPage()} disabled={typingQuery.isFetchingNextPage}>
+                        {typingQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -508,8 +547,10 @@ export default function StudentDashboard() {
                     <h4 className="text-sm font-semibold capitalize">{selectedShorthandLanguage} Shorthand Tests</h4>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {shorthandTests
-                      .filter((t) => ((t.language || 'English').toString().toLowerCase()) === selectedShorthandLanguage)
+                    {((shorthandQuery.data?.pages ?? []) as any[])
+                      .flat()
+                      .filter((t: any) => ((t.language || 'english').toString().toLowerCase()) === (selectedShorthandLanguage || 'english'))
+                      .filter((t: any) => t.title.toLowerCase().includes(shorthandSearch.toLowerCase()))
                       .map((test: any) => {
                         const result = getResultForContent(test.id?.toString());
                         const isCompleted = !!result;
@@ -558,6 +599,13 @@ export default function StudentDashboard() {
                         );
                       })}
                   </div>
+                  {shorthandQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button onClick={() => shorthandQuery.fetchNextPage()} disabled={shorthandQuery.isFetchingNextPage}>
+                        {shorthandQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -432,6 +432,17 @@ export async function registerRoutes(
   // Get enabled content list (lightweight - excludes text field)
   app.get("/api/content/enabled/list", async (req, res) => {
     try {
+      const type = req.query.type as string | undefined;
+      const language = req.query.language as string | undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+
+      // If pagination or filters provided, use paged method
+      if (type || language || typeof limit === 'number' || typeof offset === 'number') {
+        const content = await storage.getEnabledContentListPaged(type, language, limit, offset);
+        return res.json(content);
+      }
+
       const content = await storage.getEnabledContentList();
       res.json(content);
     } catch (error) {

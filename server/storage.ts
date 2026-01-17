@@ -189,6 +189,39 @@ export class DatabaseStorage implements IStorage {
     }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
   }
 
+  async getEnabledContentListPaged(type?: string, language?: string, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
+    const columns = {
+      id: content.id,
+      title: content.title,
+      type: content.type,
+      duration: content.duration,
+      dateFor: content.dateFor,
+      isEnabled: content.isEnabled,
+      autoScroll: content.autoScroll,
+      // Exclude mediaUrl to avoid loading large audio files
+      language: content.language,
+      createdAt: content.createdAt,
+    };
+
+    // Build conditions array and apply as a single where clause to satisfy Drizzle's types
+    const conditions = [eq(content.isEnabled, true)];
+    if (type) conditions.push(eq(content.type, type));
+    if (language) conditions.push(eq(content.language, language));
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+    let q = db.select(columns).from(content).where(whereClause).orderBy(desc(content.createdAt));
+
+    if (typeof limit === 'number') {
+      q = (q as any).limit(limit);
+    }
+    if (typeof offset === 'number') {
+      q = (q as any).offset(offset);
+    }
+
+    return await q;
+  }
+
   async getEnabledContent(): Promise<Content[]> {
     return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
   }
