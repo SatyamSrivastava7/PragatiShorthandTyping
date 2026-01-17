@@ -6,10 +6,21 @@ export function useAuth() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const { data: sessionData, isLoading } = useQuery({
+  const { data: sessionData, isLoading, error } = useQuery({
     queryKey: ['session'],
-    queryFn: authApi.getSession,
+    queryFn: async () => {
+      try {
+        return await authApi.getSession();
+      } catch (err) {
+        console.error('Error fetching session:', err);
+        // Don't throw for session errors - user might not be logged in
+        // Return null user so page can still render
+        return { user: null };
+      }
+    },
     retry: false,
+    staleTime: 30000,
+    gcTime: 300000,
   });
 
   const loginMutation = useMutation({

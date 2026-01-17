@@ -178,6 +178,11 @@ function useToast() {
       if (index > -1) {
         listeners.splice(index, 1)
       }
+      // Cleanup any pending timeouts when component unmounts
+      toastTimeouts.forEach((timeout) => {
+        clearTimeout(timeout)
+      })
+      toastTimeouts.clear()
     }
   }, [state])
 

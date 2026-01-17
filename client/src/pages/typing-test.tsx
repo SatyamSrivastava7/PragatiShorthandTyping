@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, useLocation, Link } from "wouter";
 import { useAuth, useContentById, useResults, useSettings } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
@@ -40,8 +40,10 @@ export default function TypingTestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   
-  // Timer Reference
+  // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,19 +79,128 @@ export default function TypingTestPage() {
     return () => clearInterval(interval);
   }, [testContent, currentUser]);
 
-  useEffect(() => {
-    if (isActive && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && isActive) {
-      // Time's up!
-      finishTest();
+  const handleSubmit = useCallback(async () => {
+    console.log("handleSubmit called", { testContent, currentUser });
+    
+    if (!testContent) {
+      console.error("No test content available");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Test content not found.",
+      });
+      return;
     }
+    
+    if (!currentUser) {
+      console.error("No current user - session may have expired");
+      toast({
+        variant: "destructive",
+        title: "Session Expired",
+        description: "Please log in again to submit your test.",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmissionFailed(false);
+
+    let metrics;
+    let result: 'Pass' | 'Fail';
+    let grossSpeed: string | undefined;
+    let netSpeed: string | undefined;
+
+    if (testContent.type === 'typing') {
+      metrics = calculateTypingMetrics(testContent.text, typedText, testContent.duration, backspaces);
+      // Determine Pass/Fail based on 5% mistake rule
+      const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
+      result = mistakePercentage > 5 ? 'Fail' : 'Pass';
+      grossSpeed = String(metrics.grossSpeed);
+      netSpeed = String(metrics.netSpeed);
+    } else {
+      metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
+      result = metrics.result;
+      grossSpeed = undefined;
+      netSpeed = undefined;
+    }
+
+    try {
+      await createResult({
+        contentId: testContent.id,
+        typedText: typedText,
+        words: metrics.words,
+        time: testContent.duration,
+        mistakes: String(metrics.mistakes),
+        backspaces: backspaces,
+        grossSpeed: grossSpeed,
+        netSpeed: netSpeed,
+        result: result,
+      });
+
+      toast({
+        title: "Test Submitted!",
+        description: "Your results have been recorded.",
+      });
+
+      setSubmissionFailed(false);
+      setShowResultModal(true);
+    } catch (error) {
+      console.error("Test submission error:", error);
+      setSubmissionFailed(true);
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: error instanceof Error ? error.message : "Failed to submit your test results. Please use the retry button.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [testContent, currentUser, typedText, backspaces, createResult, toast]);
+
+  const finishTest = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsActive(false);
+    setIsFinished(true);
+    
+    // Auto submit logic
+    handleSubmit();
+  }, [handleSubmit]);
+
+  useEffect(() => {
+    if (isActive) {
+      // Initialize start time when test becomes active
+      if (startTimeRef.current === null) {
+        startTimeRef.current = Date.now();
+        totalDurationRef.current = timeLeft;
+      }
+      
+      // Use a single interval that calculates remaining time from elapsed
+      intervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+        const remaining = Math.max(0, totalDurationRef.current - elapsed);
+        setTimeLeft(remaining);
+        
+        if (remaining === 0) {
+          // Time's up - clear interval and finish
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          finishTest();
+        }
+      }, 100); // Check more frequently for accuracy
+    }
+    
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
-  }, [isActive, timeLeft]);
+  }, [isActive, finishTest]);
   
   // Auto-scroll logic (controlled by per-test setting)
   useEffect(() => {
@@ -131,86 +242,6 @@ export default function TypingTestPage() {
     // Focus textarea
     const textarea = document.getElementById("typing-area");
     if (textarea) textarea.focus();
-  };
-
-  const finishTest = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setIsActive(false);
-    setIsFinished(true);
-    
-    // Auto submit logic
-    handleSubmit();
-  };
-
-  const handleSubmit = async () => {
-    console.log("handleSubmit called", { testContent, currentUser });
-    
-    if (!testContent) {
-      console.error("No test content available");
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Test content not found.",
-      });
-      return;
-    }
-    
-    if (!currentUser) {
-      console.error("No current user - session may have expired");
-      toast({
-        variant: "destructive",
-        title: "Session Expired",
-        description: "Please log in again to submit your test.",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmissionFailed(false);
-
-    let metrics;
-    if (testContent.type === 'typing') {
-      metrics = calculateTypingMetrics(testContent.text, typedText, testContent.duration, backspaces);
-    } else {
-      metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
-    }
-
-    // Determine Pass/Fail based on 5% mistake rule
-    // More than 5% mistakes = Fail, 5% or less = Pass
-    const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
-    const result: 'Pass' | 'Fail' = mistakePercentage > 5 ? 'Fail' : 'Pass';
-
-    try {
-      await createResult({
-        contentId: testContent.id,
-        typedText: typedText,
-        words: metrics.words,
-        time: testContent.duration,
-        mistakes: String(metrics.mistakes),
-        backspaces: backspaces,
-        grossSpeed: String(metrics.grossSpeed),
-        netSpeed: String(metrics.netSpeed),
-        result: result,
-      });
-
-      toast({
-        title: "Test Submitted!",
-        description: "Your results have been recorded.",
-      });
-
-      setSubmissionFailed(false);
-      setShowResultModal(true);
-    } catch (error) {
-      console.error("Test submission error:", error);
-      setSubmissionFailed(true);
-      toast({
-        variant: "destructive",
-        title: "Submission Failed",
-        description: error instanceof Error ? error.message : "Failed to submit your test results. Please use the retry button.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const getWordBoundary = (text: string) => {
