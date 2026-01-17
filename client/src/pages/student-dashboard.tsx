@@ -58,14 +58,15 @@ import { queryClient } from "@/lib/queryClient";
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
   const { results } = useResults(currentUser?.id);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const {
     folders: pdfFolders,
     resources: pdfResources,
     purchasePdf: buyPdf,
     consumePdfPurchase,
-  } = usePdf();
+  } = usePdf(currentFolder); // Only fetch resources when folder is selected
   const { settings } = useSettings();
-  const { updateUser } = useUsers();
+  const { updateUser } = useUsers(false, true); // Skip query, only need mutations
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const profilePicInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +95,6 @@ export default function StudentDashboard() {
   const today = new Date();
 
   // PDF Store State
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [processingPdf, setProcessingPdf] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPdfForPurchase, setSelectedPdfForPurchase] = useState<{

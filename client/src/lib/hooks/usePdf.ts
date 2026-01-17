@@ -2,19 +2,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { pdfApi } from '../api';
 import type { PdfFolder, PdfResource } from '@shared/schema';
 
-export function usePdf() {
+export function usePdf(selectedFolderId?: string | null) {
   const queryClient = useQueryClient();
 
+  // Always fetch folders (needed to show folder list)
   const { data: folders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ['pdf', 'folders'],
     queryFn: pdfApi.getFolders,
     staleTime: 30000,
   });
 
+  // Only fetch resources when a folder is selected (lazy loading)
   const { data: resources = [], isLoading: resourcesLoading } = useQuery({
     queryKey: ['pdf', 'resources'],
     queryFn: pdfApi.getResources,
     staleTime: 30000,
+    enabled: !!selectedFolderId, // Only fetch when folder is selected
   });
 
   const createFolderMutation = useMutation({
@@ -87,7 +90,7 @@ export function usePdf() {
         name: data.name,
         url: data.url,
         pageCount: data.pageCount,
-        price: data.price,
+        price: data.price.toString(),
         folderId: data.folderId,
         createdAt: new Date(),
       };

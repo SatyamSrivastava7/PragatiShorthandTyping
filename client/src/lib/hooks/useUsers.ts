@@ -3,14 +3,15 @@ import { usersApi } from '../api';
 import { useAuth } from './useAuth';
 import type { User } from '@shared/schema';
 
-export function useUsers(fetchAllUsers = false) {
+export function useUsers(fetchAllUsers = false, skipQuery = false) {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
   // Optimized: Fetch only the current logged-in user by default (lightweight).
   // Pass fetchAllUsers=true (admin views) to fetch all users instead.
+  // Pass skipQuery=true to only get mutations without fetching user data.
   const { data: users = [], isLoading } = useQuery({
-    queryKey: fetchAllUsers ? ['users', 'all'] : ['users', 'current', currentUser?.id],
+    queryKey: fetchAllUsers ? ['users', 'all'] : ['users', 'current'],
     queryFn: () => {
       if (fetchAllUsers) {
         return usersApi.getAll();
@@ -18,7 +19,7 @@ export function useUsers(fetchAllUsers = false) {
       // Fetch only current user if authenticated
       return currentUser?.id ? usersApi.getById(currentUser.id).then(u => [u]) : Promise.resolve([]);
     },
-    enabled: fetchAllUsers || !!currentUser?.id,
+    enabled: !skipQuery && (fetchAllUsers || !!currentUser?.id),
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 15, // 15 minutes - keep in cache longer
   });
