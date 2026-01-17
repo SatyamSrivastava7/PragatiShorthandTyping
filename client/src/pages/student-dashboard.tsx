@@ -5,7 +5,6 @@ import {
   useResults,
   usePdf,
   useSettings,
-  useDictations,
   useUsers,
 } from "@/lib/hooks";
 import type { Result } from "@shared/schema";
@@ -66,7 +65,6 @@ export default function StudentDashboard() {
     consumePdfPurchase,
   } = usePdf();
   const { settings } = useSettings();
-  const { dictations } = useDictations();
   const { updateUser } = useUsers();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -118,6 +116,7 @@ export default function StudentDashboard() {
   const [activeTab, setActiveTab] = useState<string>('typing_tests');
   // Pagination settings
   const PAGE_SIZE = 6;
+  const PAGE_SIZE_RESULTS = 5;
 
   // Typing: useInfiniteQuery per language (cached by react-query)
   const typingQuery = useInfiniteQuery({
@@ -146,6 +145,44 @@ export default function StudentDashboard() {
   });
 
   // paging is handled by react-query `useInfiniteQuery` (typingQuery, shorthandQuery)
+
+  // Results: counts and paged lists (5 per page) for typing and shorthand
+  // With proper caching: staleTime = when to fetch fresh, gcTime = when to discard from memory
+  const resultsCountsQuery = useQuery({
+    queryKey: ['results', 'counts', currentUser?.id],
+    queryFn: async () => {
+      return await (await import('@/lib/api')).resultsApi.getCounts({ studentId: currentUser?.id });
+    },
+    enabled: !!currentUser?.id,
+    staleTime: 1000 * 60 * 3, // 3 minutes - refetch if older
+    gcTime: 1000 * 60 * 10, // 10 minutes - keep in memory
+  });
+
+  const typingResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'typing', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'typing', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // 15 minutes
+  });
+
+  const shorthandResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'shorthand', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'shorthand', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // 15 minutes
+  });
 
   // When selection or active tab changes, react-query handles fetching (enabled flag)
   useEffect(() => {
@@ -279,8 +316,8 @@ export default function StudentDashboard() {
     consumePdfPurchase(parseInt(pdfId));
   };
 
-  const typingResultsCount = results.filter(r => r.contentType === 'typing').length;
-  const shorthandResultsCount = results.filter(r => r.contentType === 'shorthand').length;
+  const typingResultsCount = (resultsCountsQuery.data?.typing) ?? 0;
+  const shorthandResultsCount = resultsCountsQuery.data?.shorthand ?? 0;
 
   // Fetch lightweight counts for UI (avoid fetching full lists just for counts)
   const countsQuery = useQuery({
@@ -341,7 +378,7 @@ export default function StudentDashboard() {
               <p className="text-xs text-blue-100">Shorthand</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{results.length}</p>
+              <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount)}</p>
               <p className="text-xs text-blue-100">Results</p>
             </div>
           </div>
@@ -618,7 +655,7 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-lg">My Results</h3>
-                <p className="text-sm text-muted-foreground">{results.length} total results</p>
+                <p className="text-sm text-muted-foreground">{(typingResultsCount + shorthandResultsCount)} total results</p>
               </div>
             </div>
           </div>
@@ -656,7 +693,7 @@ export default function StudentDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-100">Total Results</p>
-                    <p className="text-2xl font-bold mt-1">{results.length}</p>
+                    <p className="text-2xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount)}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
                     <Award className="h-5 w-5" />
@@ -680,22 +717,15 @@ export default function StudentDashboard() {
                   </TabsList>
                 </div>
 
-                {["typing", "shorthand"].map((type) => (
+                {["typing", "shorthand"].map((type) => {
+                  const resultsQuery = type === 'typing' ? typingResultsQuery : shorthandResultsQuery;
+                  const pages = resultsQuery.data?.pages ?? [];
+                  const flatResults = pages.flat();
+
+                  return (
                   <TabsContent key={type} value={`${type}_results`} className="p-6">
                     <div className="space-y-3">
-                      {results
-                        .filter(
-                          (r) =>
-                            (r.studentId?.toString() === currentUser?.studentId?.toString() ||
-                              r.studentId === currentUser?.id) &&
-                            r.contentType === type,
-                        )
-                        .sort(
-                          (a, b) =>
-                            new Date(b.submittedAt).getTime() -
-                            new Date(a.submittedAt).getTime(),
-                        )
-                        .map((result) => (
+                      {flatResults.length > 0 ? flatResults.map((result: any) => (
                           <div
                             key={result.id}
                             className="p-4 rounded-xl border bg-white hover:shadow-md transition-shadow flex items-center justify-between"
@@ -856,15 +886,9 @@ export default function StudentDashboard() {
                               </div>
                             </div>
                           </div>
-                        ))}
-                      {results.filter(
-                        (r) =>
-                          (r.studentId?.toString() === currentUser?.studentId?.toString() ||
-                            r.studentId === currentUser?.id) &&
-                          r.contentType === type,
-                      ).length === 0 && (
-                          <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${type === 'typing' ? 'border-blue-200 bg-blue-50/50' : 'border-orange-200 bg-orange-50/50'
-                            }`}>
+                        )
+                      ) : (
+                          <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${type === 'typing' ? 'border-blue-200 bg-blue-50/50' : 'border-orange-200 bg-orange-50/50'}`}>
                             <div className={`p-3 rounded-full mb-3 ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
                               {type === 'typing' ? <Keyboard className="h-6 w-6 text-blue-400" /> : <Mic className="h-6 w-6 text-orange-400" />}
                             </div>
@@ -872,9 +896,18 @@ export default function StudentDashboard() {
                             <p className="text-sm text-muted-foreground mt-1">Complete a test to see your results here</p>
                           </div>
                         )}
+                      {/* Load more button */}
+                      {resultsQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button onClick={() => resultsQuery.fetchNextPage()} disabled={resultsQuery.isFetchingNextPage}>
+                            {resultsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
-                ))}
+                  );
+                })}
               </Tabs>
             </CardContent>
           </Card>

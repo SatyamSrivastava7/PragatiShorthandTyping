@@ -139,7 +139,7 @@ export default function AdminDashboard() {
     isCreatingWithFile,
   } = useContent();
   const { results, deleteResult } = useResults();
-  const { users, updateUser, deleteUser } = useUsers();
+  const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
     folders: pdfFolders,
     resources: pdfResources,
@@ -732,6 +732,7 @@ export default function AdminDashboard() {
                     disabled={isRefreshingStudents}
                     onClick={async () => {
                       setIsRefreshingStudents(true);
+                      // Invalidate all user-related caches
                       await queryClient.invalidateQueries({
                         queryKey: ["users"],
                       });

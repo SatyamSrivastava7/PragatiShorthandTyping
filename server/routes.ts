@@ -9,7 +9,6 @@ import {
   insertResultSchema,
   insertPdfFolderSchema,
   insertPdfResourceSchema,
-  insertDictationSchema,
   insertSelectedCandidateSchema,
   insertGalleryImageSchema,
   insertSettingSchema,
@@ -721,19 +720,44 @@ export async function registerRoutes(
     try {
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
       const contentId = req.query.contentId ? parseInt(req.query.contentId as string) : undefined;
-      
-      let results;
-      if (studentId) {
-        results = await storage.getResultsByStudent(studentId);
-      } else if (contentId) {
-        results = await storage.getResultsByContent(contentId);
-      } else {
-        results = await storage.getAllResults();
+      const type = req.query.type as string | undefined;
+      let limit = req.query.limit ? Number(req.query.limit as string) : undefined;
+      let offset = req.query.offset ? Number(req.query.offset as string) : undefined;
+      if (!Number.isFinite(limit as number)) limit = undefined;
+      if (!Number.isFinite(offset as number)) offset = undefined;
+
+      // If filters or pagination provided, use paged method
+      if (type || typeof limit === 'number' || typeof offset === 'number' || typeof studentId === 'number') {
+        const paged = await storage.getResultsPaged(type, studentId, limit, offset);
+        return res.json(paged);
       }
-      
-      res.json(results);
+
+      // Backwards-compatible behavior
+      if (studentId) {
+        const r = await storage.getResultsByStudent(studentId);
+        return res.json(r);
+      }
+      if (contentId) {
+        const r = await storage.getResultsByContent(contentId);
+        return res.json(r);
+      }
+
+      const all = await storage.getAllResults();
+      res.json(all);
     } catch (error) {
       res.status(500).json({ message: "Failed to get results" });
+    }
+  });
+
+  // Get results counts (grouped by content type) - optional studentId
+  app.get("/api/results/counts", async (req, res) => {
+    try {
+      const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
+      const counts = await storage.getResultCounts(studentId);
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching result counts:", error);
+      res.status(500).json({ message: "Failed to get result counts", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -1069,74 +1093,7 @@ export async function registerRoutes(
     }
   });
   
-  // ==================== DICTATION ROUTES ====================
   
-  app.get("/api/dictations", async (req, res) => {
-    try {
-      const dictations = await storage.getAllDictations();
-      res.json(dictations);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get dictations" });
-    }
-  });
-  
-  app.post("/api/dictations", async (req, res) => {
-    try {
-      const validatedData = insertDictationSchema.parse(req.body);
-      const dictation = await storage.createDictation(validatedData);
-      res.status(201).json(dictation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).message });
-      }
-      res.status(500).json({ message: "Failed to create dictation" });
-    }
-  });
-  
-  app.patch("/api/dictations/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const dictation = await storage.updateDictation(id, req.body);
-      
-      if (!dictation) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json(dictation);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update dictation" });
-    }
-  });
-  
-  app.post("/api/dictations/:id/toggle", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const dictation = await storage.toggleDictation(id);
-      
-      if (!dictation) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json(dictation);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to toggle dictation" });
-    }
-  });
-  
-  app.delete("/api/dictations/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteDictation(id);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json({ message: "Dictation deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete dictation" });
-    }
-  });
   
   // ==================== SELECTED CANDIDATES ROUTES ====================
   

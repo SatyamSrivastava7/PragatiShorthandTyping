@@ -178,6 +178,23 @@ export const resultsApi = {
   getByStudent: (studentId: number) =>
     fetchApi<Result[]>(`/api/results/student/${studentId}`),
 
+  // Paged results: optional params { studentId, type, limit, offset }
+  getPaged: (params?: { studentId?: number; type?: string; limit?: number; offset?: number }) => {
+    const qs = params
+      ? '?' + new URLSearchParams(Object.entries(params).reduce<Record<string,string>>((acc, [k, v]) => {
+          if (v !== undefined && v !== null) acc[k] = String(v);
+          return acc;
+        }, {})).toString()
+      : '';
+    return fetchApi<Result[]>(`/api/results${qs}`);
+  },
+
+  // Lightweight counts grouped by content type. Optional params: { studentId }
+  getCounts: (params?: { studentId?: number }) => {
+    const qs = params && params.studentId !== undefined ? `?studentId=${params.studentId}` : '';
+    return fetchApi<Record<string, number>>(`/api/results/counts${qs}`);
+  },
+
   create: (data: {
     contentId: number;
     typedText: string;
@@ -323,27 +340,3 @@ export interface Dictation {
   createdAt: Date;
 }
 
-export const dictationsApi = {
-  getAll: () =>
-    fetchApi<Dictation[]>('/api/dictations'),
-
-  create: (data: {
-    title: string;
-    mediaUrl: string;
-    language?: 'english' | 'hindi';
-  }) =>
-    fetchApi<Dictation>('/api/dictations', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  toggle: (id: number) =>
-    fetchApi<Dictation>(`/api/dictations/${id}/toggle`, {
-      method: 'POST',
-    }),
-
-  delete: (id: number) =>
-    fetchApi<void>(`/api/dictations/${id}`, {
-      method: 'DELETE',
-    }),
-};

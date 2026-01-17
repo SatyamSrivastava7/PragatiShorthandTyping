@@ -4,7 +4,7 @@ import {
   results, 
   pdfFolders, 
   pdfResources, 
-  dictations, 
+  
   selectedCandidates, 
   galleryImages,
   settings,
@@ -18,8 +18,7 @@ import {
   type InsertPdfFolder,
   type PdfResource,
   type InsertPdfResource,
-  type Dictation,
-  type InsertDictation,
+  
   type SelectedCandidate,
   type InsertSelectedCandidate,
   type GalleryImage,
@@ -74,13 +73,9 @@ export interface IStorage {
   updatePdfResource(id: number, updates: Partial<InsertPdfResource>): Promise<PdfResource | undefined>;
   deletePdfResource(id: number): Promise<boolean>;
   
-  // Dictation methods
-  getAllDictations(): Promise<Dictation[]>;
-  getDictation(id: number): Promise<Dictation | undefined>;
-  createDictation(dictation: InsertDictation): Promise<Dictation>;
-  updateDictation(id: number, updates: Partial<InsertDictation>): Promise<Dictation | undefined>;
-  deleteDictation(id: number): Promise<boolean>;
-  toggleDictation(id: number): Promise<Dictation | undefined>;
+  // Results paging + counts
+  getResultsPaged(type?: string, studentId?: number, limit?: number, offset?: number): Promise<Result[]>;
+  getResultCounts(studentId?: number): Promise<Record<string, number>>;
   
   // Selected Candidates methods
   getAllSelectedCandidates(): Promise<SelectedCandidate[]>;
@@ -229,6 +224,38 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
   }
 
+  async getResultsPaged(type?: string, studentId?: number, limit?: number, offset?: number): Promise<Result[]> {
+    const conditions: any[] = [];
+    if (type) conditions.push(eq(results.contentType, type));
+    if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
+
+    let q: any = db.select().from(results).orderBy(desc(results.submittedAt));
+    if (conditions.length === 1) q = db.select().from(results).where(conditions[0]).orderBy(desc(results.submittedAt));
+    else if (conditions.length > 1) q = db.select().from(results).where(and(...conditions)).orderBy(desc(results.submittedAt));
+
+    if (Number.isFinite(limit as number)) q = q.limit(Number(limit));
+    if (Number.isFinite(offset as number)) q = q.offset(Number(offset));
+
+    return await q;
+  }
+
+  async getResultCounts(studentId?: number): Promise<Record<string, number>> {
+    const types = ['typing', 'shorthand'];
+    const resultObj: Record<string, number> = {};
+
+    for (const t of types) {
+      const conditions: any[] = [eq(results.contentType, t)];
+      if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(results).where(whereClause);
+      const [row] = await q;
+      resultObj[t] = Number(row?.cnt ?? 0);
+    }
+
+    return resultObj;
+  }
+
   async getContentCounts(enabled?: boolean): Promise<Record<string, number>> {
     const types = ['typing', 'shorthand'];
     const result: Record<string, number> = {};
@@ -375,41 +402,7 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  // Dictation methods
-  async getAllDictations(): Promise<Dictation[]> {
-    return await db.select().from(dictations).orderBy(desc(dictations.createdAt));
-  }
-
-  async getDictation(id: number): Promise<Dictation | undefined> {
-    const [dictation] = await db.select().from(dictations).where(eq(dictations.id, id));
-    return dictation || undefined;
-  }
-
-  async createDictation(insertDictation: InsertDictation): Promise<Dictation> {
-    const [dictation] = await db.insert(dictations).values(insertDictation).returning();
-    return dictation;
-  }
-
-  async updateDictation(id: number, updates: Partial<InsertDictation>): Promise<Dictation | undefined> {
-    const [dictation] = await db.update(dictations).set(updates).where(eq(dictations.id, id)).returning();
-    return dictation || undefined;
-  }
-
-  async deleteDictation(id: number): Promise<boolean> {
-    const result = await db.delete(dictations).where(eq(dictations.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
-  }
-
-  async toggleDictation(id: number): Promise<Dictation | undefined> {
-    const [item] = await db.select().from(dictations).where(eq(dictations.id, id));
-    if (!item) return undefined;
-    
-    const [updated] = await db.update(dictations)
-      .set({ isEnabled: !item.isEnabled })
-      .where(eq(dictations.id, id))
-      .returning();
-    return updated || undefined;
-  }
+  
 
   // Selected Candidates methods
   async getAllSelectedCandidates(): Promise<SelectedCandidate[]> {
