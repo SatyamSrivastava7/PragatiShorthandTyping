@@ -40,8 +40,10 @@ export default function TypingTestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   
-  // Timer Reference
+  // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -168,21 +170,37 @@ export default function TypingTestPage() {
   }, [handleSubmit]);
 
   useEffect(() => {
-    if (isActive && timeLeft > 0) {
+    if (isActive) {
+      // Initialize start time when test becomes active
+      if (startTimeRef.current === null) {
+        startTimeRef.current = Date.now();
+        totalDurationRef.current = timeLeft;
+      }
+      
+      // Use a single interval that calculates remaining time from elapsed
       intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && isActive) {
-      // Time's up!
-      finishTest();
+        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+        const remaining = Math.max(0, totalDurationRef.current - elapsed);
+        setTimeLeft(remaining);
+        
+        if (remaining === 0) {
+          // Time's up - clear interval and finish
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          finishTest();
+        }
+      }, 100); // Check more frequently for accuracy
     }
+    
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     };
-  }, [isActive, timeLeft, finishTest]);
+  }, [isActive, finishTest]);
   
   // Auto-scroll logic (controlled by per-test setting)
   useEffect(() => {
