@@ -114,6 +114,10 @@ export default function StudentDashboard() {
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
 
+  // Selected language folders for each tab (null = show folders)
+  const [selectedTypingLanguage, setSelectedTypingLanguage] = useState<string | null>(null);
+  const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
+
   // Lazy Loading State
   const ITEMS_PER_BATCH = 100; // Initial batch size
   const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
@@ -177,9 +181,9 @@ export default function StudentDashboard() {
   // Filter content: Enabled (Date filter removed as requested)
   const availableTests = content.filter((c) => c.isEnabled);
 
-  const typingTests = availableTests.filter((c) => c.type === "typing" && 
+  const typingTests = availableTests.filter((c) => c.type === "typing" &&
     c.title.toLowerCase().includes(typingSearch.toLowerCase()));
-  const shorthandTests = availableTests.filter((c) => c.type === "shorthand" && 
+  const shorthandTests = availableTests.filter((c) => c.type === "shorthand" &&
     c.title.toLowerCase().includes(shorthandSearch.toLowerCase()));
 
   const groupTestsByLanguage = (tests: any[]) => {
@@ -228,7 +232,7 @@ export default function StudentDashboard() {
     setSelectedPdfForPurchase(null);
     setShowPaymentModal(false);
     setIsVerifyingPayment(false);
-    
+
 
     toast({
       variant: "success",
@@ -374,69 +378,80 @@ export default function StudentDashboard() {
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div>
-            {typingTests.length > 0 ? (
-              Object.entries(groupTestsByLanguage(typingTests)).map(([lang, tests]) => (
-                <div key={lang} className="space-y-4">
-                  <h4 className="text-sm font-semibold capitalize">{lang} Typing Tests</h4>
+            <div>
+              {!selectedTypingLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => setSelectedTypingLanguage(lang)}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
+                      <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedTypingLanguage(null)}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedTypingLanguage} Typing Tests</h4>
+                  </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {tests.map((test: any) => {
-                      const result = getResultForContent(test.id?.toString());
-                      const isCompleted = !!result;
+                    {typingTests
+                      .filter((t) => ((t.language || 'English').toString().toLowerCase()) === selectedTypingLanguage)
+                      .map((test: any) => {
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
 
-                      return (
-                        <Card
-                          key={test.id}
-                          className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
-                        >
-                          <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
-                                {test.language || "English"}
-                              </span>
-                            </div>
-                            <CardDescription className="text-xs text-muted-foreground mt-2">
-                              {format(new Date(test.dateFor), "PPP")}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="flex-1 pb-4">
-                            <div className="flex items-center gap-4 text-sm">
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                <span className="font-medium text-foreground">{test.duration} min</span>
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Keyboard className="h-4 w-4" />
-                                <span>Typing</span>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="font-medium text-foreground">{test.duration} min</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Keyboard className="h-4 w-4" />
+                                  <span>Typing</span>
+                                </div>
                               </div>
-                            </div>
-                          </CardContent>
-                          <CardFooter className="pt-4 border-t bg-slate-50">
-                            <Button
-                              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
-                              onClick={() => setLocation(`/test/${test.id}`)}
-                            >
-                              <PlayCircle className="mr-2 h-4 w-4" /> Start Test
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      );
-                    })}
+                            </CardContent>
+                            <CardFooter className="pt-4 border-t bg-slate-50">
+                              <Button
+                                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                              >
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-blue-200 rounded-xl bg-blue-50/50">
-                <div className="bg-blue-100 rounded-full p-4 mb-4">
-                  <Keyboard className="h-8 w-8 text-blue-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-700">No typing tests available</h3>
-                <p className="text-sm text-muted-foreground mt-1">Check back later for new tests</p>
-              </div>
-            )}
-          </div>
+              )}
+
+            </div>
           )}
         </TabsContent>
 
@@ -470,72 +485,82 @@ export default function StudentDashboard() {
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div>
-            {shorthandTests.length > 0 ? (
-              Object.entries(groupTestsByLanguage(shorthandTests)).map(([lang, tests]) => (
-                <div key={lang} className="space-y-4">
-                  <h4 className="text-sm font-semibold capitalize">{lang} Shorthand Tests</h4>
+            <div>
+              {!selectedShorthandLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => setSelectedShorthandLanguage(lang)}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-orange-500 fill-orange-100" />
+                      <span className="font-medium text-center capitalize">{lang}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedShorthandLanguage(null)}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedShorthandLanguage} Shorthand Tests</h4>
+                  </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {tests.map((test: any) => {
-                      const result = getResultForContent(test.id?.toString());
-                      const isCompleted = !!result;
+                    {shorthandTests
+                      .filter((t) => ((t.language || 'English').toString().toLowerCase()) === selectedShorthandLanguage)
+                      .map((test: any) => {
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
 
-                      return (
-                        <Card
-                          key={test.id}
-                          className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
-                        >
-                          <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
-                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0 capitalize">
-                                {test.language || "English"}
-                              </span>
-                            </div>
-                            <CardDescription className="text-xs text-muted-foreground mt-2">
-                              {format(new Date(test.dateFor), "PPP")}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="flex-1 pb-4">
-                            <div className="flex items-center gap-4 text-sm mb-3">
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                <span className="font-medium text-foreground">{test.duration} min</span>
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Mic className="h-4 w-4" />
-                                <span>Shorthand</span>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="flex items-center gap-4 text-sm mb-3">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="font-medium text-foreground">{test.duration} min</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Mic className="h-4 w-4" />
+                                  <span>Shorthand</span>
+                                </div>
                               </div>
-                            </div>
-                            <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
-                              Listen to Audio, Write on Paper, Type Here
-                            </p>
-                          </CardContent>
-                          <CardFooter className="pt-4 border-t bg-slate-50">
-                            <Button
-                              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-md group-hover:shadow-lg transition-shadow"
-                              onClick={() => setLocation(`/test/${test.id}`)}
-                            >
-                              <PlayCircle className="mr-2 h-4 w-4" /> Start Test
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      );
-                    })}
+                              <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
+                                Listen to Audio, Write on Paper, Type Here
+                              </p>
+                            </CardContent>
+                            <CardFooter className="pt-4 border-t bg-slate-50">
+                              <Button
+                                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-md group-hover:shadow-lg transition-shadow"
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                              >
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/50">
-                <div className="bg-orange-100 rounded-full p-4 mb-4">
-                  <Mic className="h-8 w-8 text-orange-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-700">No shorthand tests available</h3>
-                <p className="text-sm text-muted-foreground mt-1">Check back later for new tests</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           )}
         </TabsContent>
 
@@ -650,9 +675,8 @@ export default function StudentDashboard() {
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-3">
-                                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                                    result.result === "Pass" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                                  }`}>
+                                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${result.result === "Pass" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                                    }`}>
                                     {result.result}
                                   </span>
                                   <span className="text-sm text-muted-foreground">
@@ -669,120 +693,120 @@ export default function StudentDashboard() {
                                   <Download className="h-4 w-4 mr-1" /> PDF
                                 </Button>
 
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-1" /> View
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-                                <DialogHeader>
-                                  <DialogTitle>Result Analysis</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                      <span className="font-semibold">
-                                        Test:
-                                      </span>{" "}
-                                      {result.contentTitle}
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Date:
-                                      </span>{" "}
-                                      {format(
-                                        new Date(result.submittedAt),
-                                        "PPP",
-                                      )}
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Duration:
-                                      </span>{" "}
-                                      {result.time} minutes
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Mistakes:
-                                      </span>{" "}
-                                      <span className="text-red-600 font-bold">
-                                        {result.mistakes}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Total Original Words:
-                                      </span>{" "}
-                                      <span>
-                                        {
-                                          (result.originalText || "")
-                                            .trim()
-                                            .split(/\s+/).length
-                                        }
-                                      </span>
-                                    </div>
-                                    <div>
-                                      {result.contentType === "typing" ? (
-                                        <span>
-                                          <span className="font-semibold">
-                                            Gross Speed:
-                                          </span>{" "}
-                                          {result.grossSpeed} WPM
-                                        </span>
-                                      ) : (
-                                        <span>
-                                          <span className="font-semibold">
-                                            Result:
-                                          </span>{" "}
-                                          <span
-                                            className={
-                                              result.result === "Pass"
-                                                ? "text-green-600 font-bold"
-                                                : "text-red-600 font-bold"
-                                            }
-                                          >
-                                            {" "}
-                                            {result.result}
-                                          </span>{" "}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="border rounded p-4 bg-muted/30">
-                                    <h4 className="font-semibold mb-2">
-                                      Your Input
-                                    </h4>
-                                    <ResultTextAnalysis
-                                      originalText={result.originalText || ""}
-                                      typedText={result.typedText}
-                                      language={(result.language as 'english' | 'hindi') || undefined}
-                                    />
-                                  </div>
-
-                                  <div className="border rounded p-4 bg-muted/30">
-                                    <h4 className="font-semibold mb-2">
-                                      Original Text
-                                    </h4>
-                                    <p className="text-sm whitespace-pre-wrap">
-                                      {result.originalText}
-                                    </p>
-                                  </div>
-
-                                  <div className="flex justify-end pt-4">
-                                    <Button
-                                      onClick={() =>
-                                        handleDownloadResult(result)
-                                      }
-                                    >
-                                      <Download className="mr-2 h-4 w-4" />{" "}
-                                      Download PDF Report
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-1" /> View
                                     </Button>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                    <DialogHeader>
+                                      <DialogTitle>Result Analysis</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                          <span className="font-semibold">
+                                            Test:
+                                          </span>{" "}
+                                          {result.contentTitle}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Date:
+                                          </span>{" "}
+                                          {format(
+                                            new Date(result.submittedAt),
+                                            "PPP",
+                                          )}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Duration:
+                                          </span>{" "}
+                                          {result.time} minutes
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Mistakes:
+                                          </span>{" "}
+                                          <span className="text-red-600 font-bold">
+                                            {result.mistakes}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Total Original Words:
+                                          </span>{" "}
+                                          <span>
+                                            {
+                                              (result.originalText || "")
+                                                .trim()
+                                                .split(/\s+/).length
+                                            }
+                                          </span>
+                                        </div>
+                                        <div>
+                                          {result.contentType === "typing" ? (
+                                            <span>
+                                              <span className="font-semibold">
+                                                Gross Speed:
+                                              </span>{" "}
+                                              {result.grossSpeed} WPM
+                                            </span>
+                                          ) : (
+                                            <span>
+                                              <span className="font-semibold">
+                                                Result:
+                                              </span>{" "}
+                                              <span
+                                                className={
+                                                  result.result === "Pass"
+                                                    ? "text-green-600 font-bold"
+                                                    : "text-red-600 font-bold"
+                                                }
+                                              >
+                                                {" "}
+                                                {result.result}
+                                              </span>{" "}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="border rounded p-4 bg-muted/30">
+                                        <h4 className="font-semibold mb-2">
+                                          Your Input
+                                        </h4>
+                                        <ResultTextAnalysis
+                                          originalText={result.originalText || ""}
+                                          typedText={result.typedText}
+                                          language={(result.language as 'english' | 'hindi') || undefined}
+                                        />
+                                      </div>
+
+                                      <div className="border rounded p-4 bg-muted/30">
+                                        <h4 className="font-semibold mb-2">
+                                          Original Text
+                                        </h4>
+                                        <p className="text-sm whitespace-pre-wrap">
+                                          {result.originalText}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex justify-end pt-4">
+                                        <Button
+                                          onClick={() =>
+                                            handleDownloadResult(result)
+                                          }
+                                        >
+                                          <Download className="mr-2 h-4 w-4" />{" "}
+                                          Download PDF Report
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
                               </div>
                             </div>
                           </div>
@@ -793,16 +817,15 @@ export default function StudentDashboard() {
                             r.studentId === currentUser?.id) &&
                           r.contentType === type,
                       ).length === 0 && (
-                        <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${
-                          type === 'typing' ? 'border-blue-200 bg-blue-50/50' : 'border-orange-200 bg-orange-50/50'
-                        }`}>
-                          <div className={`p-3 rounded-full mb-3 ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                            {type === 'typing' ? <Keyboard className="h-6 w-6 text-blue-400" /> : <Mic className="h-6 w-6 text-orange-400" />}
+                          <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${type === 'typing' ? 'border-blue-200 bg-blue-50/50' : 'border-orange-200 bg-orange-50/50'
+                            }`}>
+                            <div className={`p-3 rounded-full mb-3 ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                              {type === 'typing' ? <Keyboard className="h-6 w-6 text-blue-400" /> : <Mic className="h-6 w-6 text-orange-400" />}
+                            </div>
+                            <p className="text-gray-600 font-medium">No {type} results yet</p>
+                            <p className="text-sm text-muted-foreground mt-1">Complete a test to see your results here</p>
                           </div>
-                          <p className="text-gray-600 font-medium">No {type} results yet</p>
-                          <p className="text-sm text-muted-foreground mt-1">Complete a test to see your results here</p>
-                        </div>
-                      )}
+                        )}
                     </div>
                   </TabsContent>
                 ))}
@@ -915,10 +938,10 @@ export default function StudentDashboard() {
                     })}
                   {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
                     .length === 0 && (
-                    <p className="text-center text-muted-foreground">
-                      No PDFs in this folder.
-                    </p>
-                  )}
+                      <p className="text-center text-muted-foreground">
+                        No PDFs in this folder.
+                      </p>
+                    )}
                 </div>
               )}
             </CardContent>
