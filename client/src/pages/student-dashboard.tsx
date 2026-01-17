@@ -148,7 +148,7 @@ export default function StudentDashboard() {
     queryFn: async () => {
       return await (await import('@/lib/api')).resultsApi.getCounts({ studentId: currentUser?.id });
     },
-    enabled: activeTab === 'results' && !!currentUser?.id, // Only fetch when results tab is active
+    enabled: !!currentUser?.id, // Fetch on page load for header display
     staleTime: 1000 * 60 * 3, // 3 minutes - refetch if older
     gcTime: 1000 * 60 * 10, // 10 minutes - keep in memory
   });

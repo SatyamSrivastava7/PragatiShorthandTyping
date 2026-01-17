@@ -251,8 +251,16 @@ export class DatabaseStorage implements IStorage {
 
   async getResultsPaged(type?: string, studentId?: number, limit?: number, offset?: number): Promise<Result[]> {
     const conditions: any[] = [];
-    if (type) conditions.push(eq(results.contentType, type));
-    if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
+    
+    // Ensure type is properly trimmed and normalized
+    if (type && typeof type === 'string') {
+      const normalizedType = type.trim().toLowerCase();
+      conditions.push(eq(results.contentType, normalizedType));
+    }
+    
+    if (typeof studentId === 'number') {
+      conditions.push(eq(results.studentId, studentId));
+    }
 
     let q: any = db.select().from(results);
     

@@ -722,9 +722,13 @@ export async function registerRoutes(
       if (!Number.isFinite(limit as number)) limit = undefined;
       if (!Number.isFinite(offset as number)) offset = undefined;
 
+      // Debug logging
+      console.log('[Results API] Query params:', { type, studentId, limit, offset });
+
       // If filters or pagination provided, use paged method
       if (type || typeof limit === 'number' || typeof offset === 'number' || typeof studentId === 'number') {
         const paged = await storage.getResultsPaged(type, studentId, limit, offset);
+        console.log('[Results API] Paged results count:', paged.length, 'Type:', type);
         return res.json(paged);
       }
 
