@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { resultsApi } from '../api';
 
-export function useResults(studentId?: number) {
+export function useResults(studentId?: number, enableQuery: boolean = true) {
   const queryClient = useQueryClient();
 
   const { data: results = [], isLoading } = useQuery({
     queryKey: studentId ? ['results', 'student', studentId] : ['results'],
     queryFn: studentId ? () => resultsApi.getByStudent(studentId) : resultsApi.getAll,
+    enabled: enableQuery && (!!studentId || false), // Only run if enabled AND studentId exists, or if enableQuery and no studentId
   });
 
   const createMutation = useMutation({

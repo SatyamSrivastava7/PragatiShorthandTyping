@@ -21,7 +21,7 @@ export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
   const { user: currentUser } = useAuth();
   const { data: testContent, isLoading: isContentLoading } = useContentById(params?.id ? Number(params.id) : undefined);
-  const { createResult } = useResults();
+  const { createResult } = useResults(undefined, false); // Only use POST, disable GET query
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
