@@ -186,7 +186,9 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      // Exclude mediaUrl to avoid loading large audio files
+      audio80wpm: content.audio80wpm,
+      audio100wpm: content.audio100wpm,
+      // Exclude mediaUrl and text to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     };
@@ -205,7 +207,9 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      // Exclude mediaUrl to avoid loading large audio files
+      audio80wpm: content.audio80wpm,
+      audio100wpm: content.audio100wpm,
+      // Exclude mediaUrl and text to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
@@ -220,7 +224,9 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      // Exclude mediaUrl to avoid loading large audio files
+      audio80wpm: content.audio80wpm,
+      audio100wpm: content.audio100wpm,
+      // Exclude mediaUrl and text to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     };
