@@ -132,10 +132,6 @@ export default function AdminDashboard() {
   // Declare activeTab first so it can be used in hooks
   const [activeTab, setActiveTab] = useState("students");
   const [gallerySubTab, setGallerySubTab] = useState("gallery_images");
-  
-  // Results Pagination State - declare early for use in hooks
-  const [typingOffset, setTypingOffset] = useState(0);
-  const [shorthandOffset, setShorthandOffset] = useState(0);
 
   const {
     content,
@@ -148,15 +144,15 @@ export default function AdminDashboard() {
     isCreating,
     isCreatingWithFile,
   } = useContent();
-  const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults } = useResults(
+  const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults, fetchNextPage: fetchNextTyping, isFetchingNextPage: isFetchingNextTyping } = useResults(
     undefined,
     activeTab === "results",
-    { type: 'typing', limit: 50, offset: typingOffset }
+    { type: 'typing', limit: 50 }
   );
-  const { results: shorthandResults } = useResults(
+  const { results: shorthandResults, fetchNextPage: fetchNextShorthand, isFetchingNextPage: isFetchingNextShorthand } = useResults(
     undefined,
     activeTab === "results",
-    { type: 'shorthand', limit: 50, offset: shorthandOffset }
+    { type: 'shorthand', limit: 50 }
   );
   const { deleteResult } = useResults();
   const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
@@ -2255,12 +2251,10 @@ export default function AdminDashboard() {
                         <div className="flex justify-center py-4">
                           <Button
                             variant="outline"
-                            onClick={() =>
-                              setTypingOffset(typingOffset + 50)
-                            }
-                            disabled={isResultsLoading}
+                            onClick={() => fetchNextTyping()}
+                            disabled={isFetchingNextTyping}
                           >
-                            {isResultsLoading ? (
+                            {isFetchingNextTyping ? (
                               <>
                                 <Spinner className="h-4 w-4 mr-2" />
                                 Loading...
@@ -2278,12 +2272,10 @@ export default function AdminDashboard() {
                         <div className="flex justify-center py-4">
                           <Button
                             variant="outline"
-                            onClick={() =>
-                              setShorthandOffset(shorthandOffset + 50)
-                            }
-                            disabled={isResultsLoading}
+                            onClick={() => fetchNextShorthand()}
+                            disabled={isFetchingNextShorthand}
                           >
-                            {isResultsLoading ? (
+                            {isFetchingNextShorthand ? (
                               <>
                                 <Spinner className="h-4 w-4 mr-2" />
                                 Loading...
