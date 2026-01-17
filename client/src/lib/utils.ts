@@ -552,7 +552,7 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
+        .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
@@ -586,19 +586,14 @@ export const generateResultPDF = async (result: Result) => {
       <h3>Performance Metrics</h3>
       <table class="metrics-table">
         <tr>
-          <th>Metric</th><th>Value</th>
+          <th>Metric</th><th>Value</th><th>Metric</th><th>Value</th>
         </tr>
         <tr>
           <td>Total Original Words</td><td>${originalWords.length}</td>
-        </tr>
-        <tr>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
-        
         <tr>
           <td>Mistakes</td><td class="error">${result.mistakes}</td>
-        </tr>
-        <tr>
           <td>Missing Words</td><td class="error">${attemptedAlignment.filter((a) => a.status === "missing").length}</td>
         </tr>
         ${
@@ -606,24 +601,18 @@ export const generateResultPDF = async (result: Result) => {
             ? `
         <tr>
           <td>Backspaces</td><td>${result.backspaces}</td>
-        </tr>
-        <tr>
           <td>Accuracy</td><td class="success">${result.words > 0 && parseFloat(String(result.mistakes)) < result.words ? ((parseFloat(String(result.mistakes)) * 100) / result.words).toFixed(2) : "0.00"}%</td>
         </tr>
         <tr>
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
+          <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
         </tr>
-          <tr>
-            <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
-          </tr>
         `
             : `
-          <tr>
-            <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          </tr>
-          <tr>
-            <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${(parseInt(result.mistakes)*100)/originalWords.length}%</td>
-          </tr>
+        <tr>
+          <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
+          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${(parseInt(result.mistakes)*100)/originalWords.length}%</td>
+        </tr>
         `
         }
       </table>
