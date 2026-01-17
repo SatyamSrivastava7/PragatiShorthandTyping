@@ -5,7 +5,6 @@ import {
   useResults,
   usePdf,
   useSettings,
-  useUsers,
 } from "@/lib/hooks";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
@@ -66,7 +65,6 @@ export default function StudentDashboard() {
     consumePdfPurchase,
   } = usePdf(currentFolder); // Only fetch resources when folder is selected
   const { settings } = useSettings();
-  const { updateUser } = useUsers(false, true); // Skip query, only need mutations
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const profilePicInputRef = useRef<HTMLInputElement>(null);
@@ -213,7 +211,8 @@ export default function StudentDashboard() {
         if (!isMountedRef.current) return;
         try {
           const base64 = reader.result as string;
-          await updateUser({ id: userId, data: { profilePicture: base64 } });
+          const { usersApi } = await import('@/lib/api');
+          await usersApi.update(userId, { profilePicture: base64 });
           if (!isMountedRef.current) return;
           await queryClient.invalidateQueries({ queryKey: ['session'] });
           if (!isMountedRef.current) return;

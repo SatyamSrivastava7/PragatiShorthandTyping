@@ -3,15 +3,14 @@ import { usersApi } from '../api';
 import { useAuth } from './useAuth';
 import type { User } from '@shared/schema';
 
-export function useUsers(fetchAllUsers = false, skipQuery = false) {
+export function useUsers(fetchAllUsers = false) {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
 
   // Optimized: Fetch only the current logged-in user by default (lightweight).
   // Pass fetchAllUsers=true (admin views) to fetch all users instead.
-  // Pass skipQuery=true to only get mutations without fetching user data.
   const { data: users = [], isLoading } = useQuery({
-    queryKey: fetchAllUsers ? ['users', 'all'] : ['users', 'current'],
+    queryKey: fetchAllUsers ? ['users', 'all'] : ['users', 'current', currentUser?.id],
     queryFn: () => {
       if (fetchAllUsers) {
         return usersApi.getAll();
@@ -19,7 +18,7 @@ export function useUsers(fetchAllUsers = false, skipQuery = false) {
       // Fetch only current user if authenticated
       return currentUser?.id ? usersApi.getById(currentUser.id).then(u => [u]) : Promise.resolve([]);
     },
-    enabled: !skipQuery && (fetchAllUsers || !!currentUser?.id),
+    enabled: fetchAllUsers || !!currentUser?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 15, // 15 minutes - keep in cache longer
   });
@@ -65,15 +64,15 @@ export function useUsers(fetchAllUsers = false, skipQuery = false) {
       }
     },
     onSettled: (data, error, variables, context) => {
-      // Only invalidate the specific cache affected by this mutation
-      // If updating current user, only refetch current user cache
-      // If updating admin view, only refetch all users cache
-      if (context?.previousCurrentUser) {
-        // Current user was in cache, so invalidate only that
+      // Only invalidate if we actually have cached data to refresh
+      // Don't invalidate if the cache is empty (query was skipped or not yet run)
+      const hasCurrentUserCache = !!context?.previousCurrentUser && context.previousCurrentUser.length > 0;
+      const hasAllUsersCache = !!context?.previousAllUsers && context.previousAllUsers.length > 0;
+      
+      if (hasCurrentUserCache) {
         queryClient.invalidateQueries({ queryKey: ['users', 'current'] });
       }
-      if (context?.previousAllUsers) {
-        // All users was in cache, so invalidate only that
+      if (hasAllUsersCache) {
         queryClient.invalidateQueries({ queryKey: ['users', 'all'] });
       }
     },
@@ -115,13 +114,15 @@ export function useUsers(fetchAllUsers = false, skipQuery = false) {
       }
     },
     onSettled: (data, error, deletedId, context) => {
-      // Only invalidate the specific cache affected by this deletion
-      if (context?.previousCurrentUser) {
-        // Current user was in cache, so invalidate only that
+      // Only invalidate if we actually have cached data to refresh
+      // Don't invalidate if the cache is empty (query was skipped or not yet run)
+      const hasCurrentUserCache = !!context?.previousCurrentUser && context.previousCurrentUser.length > 0;
+      const hasAllUsersCache = !!context?.previousAllUsers && context.previousAllUsers.length > 0;
+      
+      if (hasCurrentUserCache) {
         queryClient.invalidateQueries({ queryKey: ['users', 'current'] });
       }
-      if (context?.previousAllUsers) {
-        // All users was in cache, so invalidate only that
+      if (hasAllUsersCache) {
         queryClient.invalidateQueries({ queryKey: ['users', 'all'] });
       }
     },
