@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   useAuth,
-  useResults,
   usePdf,
 } from "@/lib/hooks";
 import type { Result } from "@shared/schema";
@@ -55,7 +54,6 @@ import { queryClient } from "@/lib/queryClient";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
-  const { results } = useResults(currentUser?.id);
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const {
     folders: pdfFolders,
@@ -150,7 +148,7 @@ export default function StudentDashboard() {
     queryFn: async () => {
       return await (await import('@/lib/api')).resultsApi.getCounts({ studentId: currentUser?.id });
     },
-    enabled: !!currentUser?.id,
+    enabled: activeTab === 'results' && !!currentUser?.id, // Only fetch when results tab is active
     staleTime: 1000 * 60 * 3, // 3 minutes - refetch if older
     gcTime: 1000 * 60 * 10, // 10 minutes - keep in memory
   });
@@ -250,9 +248,15 @@ export default function StudentDashboard() {
   };
 
   const getResultForContent = (contentId: string) => {
-    return results.find(
-      (r) => r.contentId !== null && r.contentId.toString() === contentId && r.studentId === currentUser?.id,
-    );
+    // Get all results from typing query
+    const typingPages = typingResultsQuery.data?.pages ?? [];
+    const typingResult = typingPages.flat().find((r: any) => r.contentId !== null && r.contentId.toString() === contentId);
+    if (typingResult) return typingResult;
+    
+    // Get all results from shorthand query
+    const shorthandPages = shorthandResultsQuery.data?.pages ?? [];
+    const shorthandResult = shorthandPages.flat().find((r: any) => r.contentId !== null && r.contentId.toString() === contentId);
+    return shorthandResult;
   };
 
   const handleDownloadResult = (result: Result) => {

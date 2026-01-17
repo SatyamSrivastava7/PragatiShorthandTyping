@@ -254,12 +254,24 @@ export class DatabaseStorage implements IStorage {
     if (type) conditions.push(eq(results.contentType, type));
     if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
 
-    let q: any = db.select().from(results).orderBy(desc(results.submittedAt));
-    if (conditions.length === 1) q = db.select().from(results).where(conditions[0]).orderBy(desc(results.submittedAt));
-    else if (conditions.length > 1) q = db.select().from(results).where(and(...conditions)).orderBy(desc(results.submittedAt));
-
-    if (Number.isFinite(limit as number)) q = q.limit(Number(limit));
-    if (Number.isFinite(offset as number)) q = q.offset(Number(offset));
+    let q: any = db.select().from(results);
+    
+    // Apply WHERE clause if conditions exist
+    if (conditions.length > 0) {
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+      q = q.where(whereClause);
+    }
+    
+    // Apply ORDER BY
+    q = q.orderBy(desc(results.submittedAt));
+    
+    // Apply LIMIT and OFFSET
+    if (Number.isFinite(limit as number)) {
+      q = q.limit(Number(limit));
+    }
+    if (Number.isFinite(offset as number)) {
+      q = q.offset(Number(offset));
+    }
 
     return await q;
   }
