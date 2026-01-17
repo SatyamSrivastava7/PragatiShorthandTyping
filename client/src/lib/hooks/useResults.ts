@@ -7,7 +7,12 @@ export function useResults(studentId?: number, enableQuery: boolean = true) {
   const { data: results = [], isLoading } = useQuery({
     queryKey: studentId ? ['results', 'student', studentId] : ['results'],
     queryFn: studentId ? () => resultsApi.getByStudent(studentId) : resultsApi.getAll,
-    enabled: enableQuery && (!!studentId || false), // Only run if enabled AND studentId exists, or if enableQuery and no studentId
+    enabled: enableQuery, // Query enabled based on enableQuery flag
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: 1,
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const createMutation = useMutation({

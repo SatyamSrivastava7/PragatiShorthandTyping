@@ -142,7 +142,7 @@ export default function AdminDashboard() {
     isCreating,
     isCreatingWithFile,
   } = useContent();
-  const { results, deleteResult } = useResults();
+  const { results, deleteResult } = useResults(undefined, activeTab === "results");
   const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
     folders: pdfFolders,
