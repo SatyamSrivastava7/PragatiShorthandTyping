@@ -135,6 +135,9 @@ export default function AdminDashboard() {
 
   // PDF Store State - declare early for usePdf hook
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  
+  // Track if results tab has been visited to prevent initial load
+  const [hasVisitedResults, setHasVisitedResults] = useState(false);
 
   const {
     content,
@@ -149,15 +152,15 @@ export default function AdminDashboard() {
   } = useContent();
   const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults, fetchNextPage: fetchNextTyping, isFetchingNextPage: isFetchingNextTyping, hasNextPage: hasNextTyping } = useResults(
     undefined,
-    activeTab === "results",
+    activeTab === "results" && hasVisitedResults,
     { type: 'typing', limit: 50 }
   );
   const { results: shorthandResults, fetchNextPage: fetchNextShorthand, isFetchingNextPage: isFetchingNextShorthand, hasNextPage: hasNextShorthand } = useResults(
     undefined,
-    activeTab === "results",
+    activeTab === "results" && hasVisitedResults,
     { type: 'shorthand', limit: 50 }
   );
-  const { deleteResult } = useResults();
+  const { deleteResult } = useResults(undefined, false);
   const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
     folders: pdfFolders,
@@ -221,6 +224,13 @@ export default function AdminDashboard() {
       setVisibleShorthandCount(ITEMS_PER_BATCH);
     }
   }, [activeTab, content.length]);
+
+  // Track when user visits results tab to enable API calls
+  useEffect(() => {
+    if (activeTab === "results" && !hasVisitedResults) {
+      setHasVisitedResults(true);
+    }
+  }, [activeTab, hasVisitedResults]);
 
   // Get filtered and sorted content for each type
   const getTypingTests = () => {
@@ -1542,13 +1552,13 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 bg-white border rounded-full text-muted-foreground">
+                            {/* <span className="text-xs px-2 py-1 bg-white border rounded-full text-muted-foreground">
                               {
                                 pdfResources.filter((p) => p.folderId === f.id)
                                   .length
                               }{" "}
                               files
-                            </span>
+                            </span> */}
                             <Button
                               variant="ghost"
                               size="icon"
