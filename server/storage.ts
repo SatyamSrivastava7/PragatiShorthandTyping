@@ -230,21 +230,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getContentCounts(enabled?: boolean): Promise<Record<string, number>> {
-    const conditions: any[] = [];
-    if (typeof enabled === 'boolean') conditions.push(eq(content.isEnabled, !!enabled));
-
-    const whereClause = conditions.length === 0 ? undefined : (conditions.length === 1 ? conditions[0] : and(...conditions));
-
-    let q: any = db.select({ type: content.type, cnt: sql`count(*)`.as('cnt') }).from(content);
-    if (whereClause) q = q.where(whereClause);
-    q = q.groupBy(content.type);
-
-    const rows: any[] = await q;
+    const types = ['typing', 'shorthand'];
     const result: Record<string, number> = {};
-    for (const r of rows) {
-      const t = (r.type || '').toString().toLowerCase();
-      result[t] = Number(r.cnt || 0);
+
+    for (const t of types) {
+      const conditions: any[] = [eq(content.type, t)];
+      if (typeof enabled === 'boolean') conditions.push(eq(content.isEnabled, !!enabled));
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(content).where(whereClause);
+      const [row] = await q;
+      result[t] = Number(row?.cnt ?? 0);
     }
+
     return result;
   }
 
