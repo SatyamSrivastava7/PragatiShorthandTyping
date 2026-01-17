@@ -70,6 +70,7 @@ import {
   Keyboard,
   Menu,
   RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -80,6 +81,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
 import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
@@ -130,6 +132,10 @@ export default function AdminDashboard() {
   // Declare activeTab first so it can be used in hooks
   const [activeTab, setActiveTab] = useState("students");
   const [gallerySubTab, setGallerySubTab] = useState("gallery_images");
+  
+  // Results Pagination State - declare early for use in hooks
+  const [typingOffset, setTypingOffset] = useState(0);
+  const [shorthandOffset, setShorthandOffset] = useState(0);
 
   const {
     content,
@@ -142,7 +148,17 @@ export default function AdminDashboard() {
     isCreating,
     isCreatingWithFile,
   } = useContent();
-  const { results, deleteResult } = useResults(undefined, activeTab === "results");
+  const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults } = useResults(
+    undefined,
+    activeTab === "results",
+    { type: 'typing', limit: 50, offset: typingOffset }
+  );
+  const { results: shorthandResults } = useResults(
+    undefined,
+    activeTab === "results",
+    { type: 'shorthand', limit: 50, offset: shorthandOffset }
+  );
+  const { deleteResult } = useResults();
   const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
     folders: pdfFolders,
@@ -586,18 +602,24 @@ export default function AdminDashboard() {
     generateResultPDF(result);
   };
 
-  const filteredResults = results
-    .filter(
-      (r) =>
-        r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
-        (r.studentDisplayId?.toLowerCase() || "").includes(
-          studentFilter.toLowerCase(),
-        ),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
-    );
+  // Filter results by student name/ID for display
+  const filterResultsByStudent = (results: typeof typingResults) =>
+    results
+      .filter(
+        (r) =>
+          r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
+          (r.studentDisplayId?.toLowerCase() || "").includes(
+            studentFilter.toLowerCase(),
+          ),
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.submittedAt).getTime() -
+          new Date(a.submittedAt).getTime(),
+      );
+
+  const displayTypingResults = filterResultsByStudent(typingResults);
+  const displayShorthandResults = filterResultsByStudent(shorthandResults);
 
   const filteredStudents = users
     .filter(
@@ -1873,7 +1895,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-indigo-100">Total Results</p>
                       <p className="text-3xl font-bold mt-1">
-                        {results.length}
+                        {(counts.typing || 0) + (counts.shorthand || 0)}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1888,10 +1910,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-blue-100">Typing Tests</p>
                       <p className="text-3xl font-bold mt-1">
-                        {
-                          results.filter((r) => r.contentType === "typing")
-                            .length
-                        }
+                        {counts.typing || 0}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1906,10 +1925,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-orange-100">Shorthand Tests</p>
                       <p className="text-3xl font-bold mt-1">
-                        {
-                          results.filter((r) => r.contentType === "shorthand")
-                            .length
-                        }
+                        {counts.shorthand || 0}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1992,9 +2008,8 @@ export default function AdminDashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredResults
-                              .filter((r) => r.contentType === type)
-                              .map((result) => (
+                            {(type === "typing" ? displayTypingResults : displayShorthandResults)?.map(
+                              (result) => (
                                 <TableRow
                                   key={result.id}
                                   className="hover:bg-slate-50/50"
@@ -2216,23 +2231,72 @@ export default function AdminDashboard() {
                                     </Button>
                                   </TableCell>
                                 </TableRow>
-                              ))}
-                            {filteredResults.filter(
-                              (r) => r.contentType === type,
+                              )
+                            )}
+                            {(type === "typing"
+                              ? displayTypingResults
+                              : displayShorthandResults
                             ).length === 0 && (
-                                <TableRow>
-                                  <TableCell
-                                    colSpan={6}
-                                    className="text-center py-12 text-muted-foreground"
-                                  >
-                                    <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                    No {type} results found
-                                  </TableCell>
-                                </TableRow>
-                              )}
+                              <TableRow>
+                                <TableCell
+                                  colSpan={6}
+                                  className="text-center py-12 text-muted-foreground"
+                                >
+                                  <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                  No {type} results found
+                                </TableCell>
+                              </TableRow>
+                            )}
                           </TableBody>
                         </Table>
                       </div>
+                      {/* Load More Button */}
+                      {type === "typing" && displayTypingResults.length >= 50 && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              setTypingOffset(typingOffset + 50)
+                            }
+                            disabled={isResultsLoading}
+                          >
+                            {isResultsLoading ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Typing Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      {type === "shorthand" && displayShorthandResults.length >= 50 && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              setShorthandOffset(shorthandOffset + 50)
+                            }
+                            disabled={isResultsLoading}
+                          >
+                            {isResultsLoading ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Shorthand Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </TabsContent>
                   ))}
                 </Tabs>

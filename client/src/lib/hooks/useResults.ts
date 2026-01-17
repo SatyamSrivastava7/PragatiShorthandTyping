@@ -1,13 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { resultsApi } from '../api';
 
-export function useResults(studentId?: number, enableQuery: boolean = true) {
+export interface ResultsParams {
+  type?: 'typing' | 'shorthand';
+  limit?: number;
+  offset?: number;
+}
+
+export function useResults(studentId?: number, enableQuery: boolean = true, params?: ResultsParams) {
   const queryClient = useQueryClient();
 
-  const { data: results = [], isLoading } = useQuery({
-    queryKey: studentId ? ['results', 'student', studentId] : ['results'],
-    queryFn: studentId ? () => resultsApi.getByStudent(studentId) : resultsApi.getAll,
-    enabled: enableQuery, // Query enabled based on enableQuery flag
+  // Fetch paged results
+  const { data: results = [], isLoading, refetch: refetchResults } = useQuery({
+    queryKey: ['results', 'paged', { studentId, ...params }],
+    queryFn: () => resultsApi.getPaged({ studentId, ...params }),
+    enabled: enableQuery,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: 1,
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  // Fetch result counts
+  const { data: counts = {} } = useQuery({
+    queryKey: ['results', 'counts', { studentId }],
+    queryFn: () => resultsApi.getCounts({ studentId }),
+    enabled: enableQuery,
     staleTime: 10 * 60 * 1000, // 10 minutes
     retry: 1,
     gcTime: 30 * 60 * 1000, // 30 minutes
@@ -31,7 +50,9 @@ export function useResults(studentId?: number, enableQuery: boolean = true) {
 
   return {
     results,
+    counts: counts as Record<string, number>,
     isLoading,
+    refetchResults,
     createResult: createMutation.mutateAsync,
     deleteResult: deleteMutation.mutateAsync,
   };
