@@ -133,6 +133,12 @@ export const contentApi = {
     return fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>(`/api/content/enabled/list${qs}`);
   },
 
+  // Get counts grouped by type. Optional params: { enabled }
+  getCounts: (params?: { enabled?: boolean }) => {
+    const qs = params && params.enabled !== undefined ? `?enabled=${params.enabled}` : '';
+    return fetchApi<Record<string, number>>(`/api/content/counts${qs}`);
+  },
+
   getById: (id: number) =>
     fetchApi<Content>(`/api/content/${id}`),
 

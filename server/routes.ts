@@ -453,6 +453,19 @@ export async function registerRoutes(
     }
   });
 
+  // Get content counts grouped by type (optionally only enabled)
+  app.get("/api/content/counts", async (req, res) => {
+    try {
+      const enabledParam = req.query.enabled as string | undefined;
+      const enabled = enabledParam === undefined ? undefined : (enabledParam === 'true');
+      const counts = await storage.getContentCounts(enabled as any);
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching content counts:", error);
+      res.status(500).json({ message: "Failed to get content counts", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
   // Get all content (full data including text)
   app.get("/api/content", async (req, res) => {
     try {

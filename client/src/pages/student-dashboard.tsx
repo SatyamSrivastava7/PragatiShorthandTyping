@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   useAuth,
-  useContent,
   useResults,
   usePdf,
   useSettings,
@@ -21,10 +20,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import {
   PlayCircle,
-  CheckCircle,
   Download,
   FileText,
   ShoppingCart,
@@ -55,13 +53,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
-  const { enabledContent: content, isLoading: isContentLoading } = useContent();
   const { results } = useResults(currentUser?.id);
   const {
     folders: pdfFolders,
@@ -208,13 +204,6 @@ export default function StudentDashboard() {
     }
   };
 
-  // Filter content: Enabled (Date filter removed as requested)
-  const availableTests = content.filter((c) => c.isEnabled);
-
-  const typingTests = availableTests.filter((c) => c.type === "typing" &&
-    c.title.toLowerCase().includes(typingSearch.toLowerCase()));
-  const shorthandTests = availableTests.filter((c) => c.type === "shorthand" &&
-    c.title.toLowerCase().includes(shorthandSearch.toLowerCase()));
 
   const groupTestsByLanguage = (tests: any[]) => {
     return tests.reduce<Record<string, any[]>>((acc, t) => {
@@ -293,6 +282,15 @@ export default function StudentDashboard() {
   const typingResultsCount = results.filter(r => r.contentType === 'typing').length;
   const shorthandResultsCount = results.filter(r => r.contentType === 'shorthand').length;
 
+  // Fetch lightweight counts for UI (avoid fetching full lists just for counts)
+  const countsQuery = useQuery({
+    queryKey: ['content', 'counts', 'enabled'],
+    queryFn: async () => {
+      return await (await import('@/lib/api')).contentApi.getCounts({ enabled: true });
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Enhanced Header */}
@@ -335,11 +333,11 @@ export default function StudentDashboard() {
           </div>
           <div className="flex gap-3">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{typingTests.length}</p>
+              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" /> : (countsQuery.data?.typing ?? 0)}</p>
               <p className="text-xs text-blue-100">Typing Tests</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{shorthandTests.length}</p>
+              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-500" /> : (countsQuery.data?.shorthand ?? 0)}</p>
               <p className="text-xs text-blue-100">Shorthand</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
@@ -387,7 +385,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Typing Tests</h3>
-                  <p className="text-sm text-muted-foreground">{typingTests.length} tests available</p>
+                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
@@ -402,7 +400,7 @@ export default function StudentDashboard() {
               </div>
             </div>
           </div>
-          {isContentLoading ? (
+          {typingQuery?.isLoading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
@@ -503,7 +501,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Shorthand Tests</h3>
-                  <p className="text-sm text-muted-foreground">{shorthandTests.length} tests available</p>
+                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.shorthand ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
@@ -518,7 +516,7 @@ export default function StudentDashboard() {
               </div>
             </div>
           </div>
-          {isContentLoading ? (
+          {shorthandQuery?.isLoading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
               <span className="ml-3 text-muted-foreground">Loading tests...</span>

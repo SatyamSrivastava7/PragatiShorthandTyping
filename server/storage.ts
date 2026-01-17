@@ -28,7 +28,7 @@ import {
   type InsertSetting,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -44,6 +44,7 @@ export interface IStorage {
   getContent(id: number): Promise<Content | undefined>;
   getAllContent(type?: string): Promise<Content[]>;
   getEnabledContent(): Promise<Content[]>;
+  getContentCounts(enabled?: boolean): Promise<Record<string, number>>;
   getContentByDate(dateFor: string, type?: string): Promise<Content[]>;
   createContent(content: InsertContent): Promise<Content>;
   updateContent(id: number, updates: Partial<InsertContent>): Promise<Content | undefined>;
@@ -226,6 +227,25 @@ export class DatabaseStorage implements IStorage {
 
   async getEnabledContent(): Promise<Content[]> {
     return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
+  }
+
+  async getContentCounts(enabled?: boolean): Promise<Record<string, number>> {
+    const conditions: any[] = [];
+    if (typeof enabled === 'boolean') conditions.push(eq(content.isEnabled, !!enabled));
+
+    const whereClause = conditions.length === 0 ? undefined : (conditions.length === 1 ? conditions[0] : and(...conditions));
+
+    let q: any = db.select({ type: content.type, cnt: sql`count(*)`.as('cnt') }).from(content);
+    if (whereClause) q = q.where(whereClause);
+    q = q.groupBy(content.type);
+
+    const rows: any[] = await q;
+    const result: Record<string, number> = {};
+    for (const r of rows) {
+      const t = (r.type || '').toString().toLowerCase();
+      result[t] = Number(r.cnt || 0);
+    }
+    return result;
   }
 
   async getContentByDate(dateFor: string, type?: string): Promise<Content[]> {
