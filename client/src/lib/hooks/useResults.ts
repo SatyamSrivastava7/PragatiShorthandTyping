@@ -70,6 +70,7 @@ export function useResults(studentId?: number, enableQuery: boolean = true, para
     counts: counts as Record<string, number>,
     isLoading,
     isFetchingNextPage,
+    hasNextPage,
     refetchResults,
     fetchNextPage,
     createResult: createMutation.mutateAsync,

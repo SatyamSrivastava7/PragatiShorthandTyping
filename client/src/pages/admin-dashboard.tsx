@@ -144,12 +144,12 @@ export default function AdminDashboard() {
     isCreating,
     isCreatingWithFile,
   } = useContent();
-  const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults, fetchNextPage: fetchNextTyping, isFetchingNextPage: isFetchingNextTyping } = useResults(
+  const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults, fetchNextPage: fetchNextTyping, isFetchingNextPage: isFetchingNextTyping, hasNextPage: hasNextTyping } = useResults(
     undefined,
     activeTab === "results",
     { type: 'typing', limit: 50 }
   );
-  const { results: shorthandResults, fetchNextPage: fetchNextShorthand, isFetchingNextPage: isFetchingNextShorthand } = useResults(
+  const { results: shorthandResults, fetchNextPage: fetchNextShorthand, isFetchingNextPage: isFetchingNextShorthand, hasNextPage: hasNextShorthand } = useResults(
     undefined,
     activeTab === "results",
     { type: 'shorthand', limit: 50 }
@@ -2246,8 +2246,8 @@ export default function AdminDashboard() {
                           </TableBody>
                         </Table>
                       </div>
-                      {/* Load More Button */}
-                      {type === "typing" && displayTypingResults.length >= 50 && (
+                      {/* Load More Button - Only show if more data available */}
+                      {type === "typing" && hasNextTyping && (
                         <div className="flex justify-center py-4">
                           <Button
                             variant="outline"
@@ -2268,7 +2268,7 @@ export default function AdminDashboard() {
                           </Button>
                         </div>
                       )}
-                      {type === "shorthand" && displayShorthandResults.length >= 50 && (
+                      {type === "shorthand" && hasNextShorthand && (
                         <div className="flex justify-center py-4">
                           <Button
                             variant="outline"
