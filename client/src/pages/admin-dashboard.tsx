@@ -522,15 +522,40 @@ export default function AdminDashboard() {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     if (e.target.files) {
+      let successCount = 0;
+      let errorCount = 0;
+      
       for (const file of Array.from(e.target.files)) {
-        const url = await fileToBase64(file);
-        addGalleryImage(url);
+        try {
+          const url = await fileToBase64(file);
+          await addGalleryImage(url);
+          successCount++;
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          errorCount++;
+        }
       }
-      toast({
-        variant: "success",
-        title: "Success",
-        description: "Images uploaded to gallery",
-      });
+      
+      if (successCount > 0) {
+        toast({
+          variant: "success",
+          title: "Success",
+          description: `${successCount} image(s) uploaded to gallery`,
+        });
+      }
+      
+      if (errorCount > 0) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to upload ${errorCount} image(s)`,
+        });
+      }
+      
+      // Reset file input
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 

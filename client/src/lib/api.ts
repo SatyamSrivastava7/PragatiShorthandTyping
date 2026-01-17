@@ -265,11 +265,11 @@ export const pdfApi = {
 
 export const galleryApi = {
   getImages: () =>
-    fetchApi<{ url: string }[]>('/api/gallery'),
+    fetchApi<{ url: string; id: number; createdAt: string }[]>('/api/gallery'),
 
   getImagesPaged: (limit: number = 18, offset: number = 0) => {
     const qs = `?limit=${limit}&offset=${offset}`;
-    return fetchApi<{ url: string }[]>(`/api/gallery${qs}`);
+    return fetchApi<{ url: string; id: number; createdAt: string }[]>(`/api/gallery${qs}`);
   },
 
   addImage: (url: string) =>

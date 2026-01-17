@@ -1149,7 +1149,7 @@ export async function registerRoutes(
     try {
       const validatedData = insertGalleryImageSchema.parse(req.body);
       const image = await storage.createGalleryImage(validatedData);
-      res.status(201).json(image);
+      res.status(201).json({ url: image.url });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });

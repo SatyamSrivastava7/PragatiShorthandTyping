@@ -80,15 +80,24 @@ export function useGallery(enabled: boolean = false) {
     mutationFn: galleryApi.addImage,
     onMutate: async (url) => {
       await queryClient.cancelQueries({ queryKey: ['gallery'] });
-      const previousImages = queryClient.getQueryData<GalleryImage[]>(['gallery']);
+      const previousData = queryClient.getQueryData(['gallery']);
       
-      queryClient.setQueryData<GalleryImage[]>(['gallery'], (old = []) => [...old, { url }]);
+      queryClient.setQueryData(['gallery'], (old: any) => {
+        if (!old) return { pages: [[{ url }]], pageParams: [0] };
+        const newPages = old.pages ? [...old.pages] : [[]];
+        if (newPages[0]) {
+          newPages[0] = [{ url }, ...newPages[0]];
+        } else {
+          newPages[0] = [{ url }];
+        }
+        return { ...old, pages: newPages };
+      });
       
-      return { previousImages };
+      return { previousData };
     },
     onError: (err, url, context) => {
-      if (context?.previousImages) {
-        queryClient.setQueryData(['gallery'], context.previousImages);
+      if (context?.previousData) {
+        queryClient.setQueryData(['gallery'], context.previousData);
       }
     },
     onSettled: () => {
@@ -100,17 +109,21 @@ export function useGallery(enabled: boolean = false) {
     mutationFn: galleryApi.deleteImage,
     onMutate: async (url) => {
       await queryClient.cancelQueries({ queryKey: ['gallery'] });
-      const previousImages = queryClient.getQueryData<GalleryImage[]>(['gallery']);
+      const previousData = queryClient.getQueryData(['gallery']);
       
-      queryClient.setQueryData<GalleryImage[]>(['gallery'], (old = []) =>
-        old.filter((img) => img.url !== url)
-      );
+      queryClient.setQueryData(['gallery'], (old: any) => {
+        if (!old || !old.pages) return old;
+        const newPages = old.pages.map((page: any[]) =>
+          page.filter((img: any) => img.url !== url)
+        );
+        return { ...old, pages: newPages };
+      });
       
-      return { previousImages };
+      return { previousData };
     },
     onError: (err, url, context) => {
-      if (context?.previousImages) {
-        queryClient.setQueryData(['gallery'], context.previousImages);
+      if (context?.previousData) {
+        queryClient.setQueryData(['gallery'], context.previousData);
       }
     },
     onSettled: () => {
