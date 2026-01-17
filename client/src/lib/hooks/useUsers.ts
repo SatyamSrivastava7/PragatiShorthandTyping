@@ -10,7 +10,7 @@ export function useUsers(fetchAllUsers = false) {
   // Optimized: Fetch only the current logged-in user by default (lightweight).
   // Pass fetchAllUsers=true (admin views) to fetch all users instead.
   const { data: users = [], isLoading } = useQuery({
-    queryKey: fetchAllUsers ? ['users', 'all'] : ['users', 'current', currentUser?.id],
+    queryKey: fetchAllUsers ? ['users', 'all'] : ['users', 'current'],
     queryFn: () => {
       if (fetchAllUsers) {
         return usersApi.getAll();

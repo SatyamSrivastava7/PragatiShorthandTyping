@@ -61,6 +61,7 @@ export default function StudentDashboard() {
   const {
     folders: pdfFolders,
     resources: pdfResources,
+    resourcesLoading,
     purchasePdf: buyPdf,
     consumePdfPurchase,
   } = usePdf(currentFolder); // Only fetch resources when folder is selected
@@ -962,64 +963,73 @@ export default function StudentDashboard() {
               ) : (
                 // PDF List View
                 <div className="space-y-4">
-                  {pdfResources
-                    .filter((p) => p.folderId?.toString() === currentFolder)
-                    .map((pdf) => {
-                      const isPurchased = currentUser?.purchasedPdfs?.includes(
-                        pdf.id.toString(),
-                      );
+                  {resourcesLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                      <span className="ml-3 text-muted-foreground">Loading PDFs...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {pdfResources
+                        .filter((p) => p.folderId?.toString() === currentFolder)
+                        .map((pdf) => {
+                          const isPurchased = currentUser?.purchasedPdfs?.includes(
+                            pdf.id.toString(),
+                          );
 
-                      return (
-                        <div
-                          key={pdf.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-red-500" />
-                            <div>
-                              <h4 className="font-medium">{pdf.name}</h4>
-                              <p className="text-xs text-muted-foreground">
-                                {pdf.pageCount} Pages
-                              </p>
-                            </div>
-                          </div>
+                          return (
+                            <div
+                              key={pdf.id}
+                              className="flex items-center justify-between p-4 border rounded-lg"
+                            >
+                              <div className="flex items-center gap-3">
+                                <FileText className="h-8 w-8 text-red-500" />
+                                <div>
+                                  <h4 className="font-medium">{pdf.name}</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    {pdf.pageCount} Pages
+                                  </p>
+                                </div>
+                              </div>
 
-                          <div>
-                            {isPurchased ? (
-                              <Button
-                                variant="outline"
-                                className="text-green-600 border-green-200 bg-green-50"
-                                onClick={() =>
-                                  handleDownloadPdf(pdf.id.toString(), pdf.url)
-                                }
-                              >
-                                <Download className="mr-2 h-4 w-4" /> Download
-                              </Button>
-                            ) : (
-                              <Button
-                                onClick={() =>
-                                  initiateBuyPdf(pdf.id.toString(), parseInt(pdf.price))
-                                }
-                                disabled={processingPdf === pdf.id.toString()}
-                              >
-                                {processingPdf === pdf.id.toString() ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <div>
+                                {isPurchased ? (
+                                  <Button
+                                    variant="outline"
+                                    className="text-green-600 border-green-200 bg-green-50"
+                                    onClick={() =>
+                                      handleDownloadPdf(pdf.id.toString(), pdf.url)
+                                    }
+                                  >
+                                    <Download className="mr-2 h-4 w-4" /> Download
+                                  </Button>
                                 ) : (
-                                  <ShoppingCart className="mr-2 h-4 w-4" />
+                                  <Button
+                                    onClick={() =>
+                                      initiateBuyPdf(pdf.id.toString(), parseInt(pdf.price))
+                                    }
+                                    disabled={processingPdf === pdf.id.toString()}
+                                  >
+                                    {processingPdf === pdf.id.toString() ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <ShoppingCart className="mr-2 h-4 w-4" />
+                                    )}
+                                    Buy for ₹{pdf.price}
+                                  </Button>
                                 )}
-                                Buy for ₹{pdf.price}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
-                    .length === 0 && (
-                      <p className="text-center text-muted-foreground">
-                        No PDFs in this folder.
-                      </p>
-                    )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
+                        .length === 0 && (
+                          <p className="text-center text-muted-foreground">
+                            No PDFs in this folder.
+                          </p>
+                        )}
+                    </>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -151,6 +151,7 @@ export function usePdf(selectedFolderId?: string | null) {
     folders,
     resources,
     isLoading: foldersLoading || resourcesLoading,
+    resourcesLoading,
     createFolder: createFolderMutation.mutateAsync,
     deleteFolder: deleteFolderMutation.mutateAsync,
     createResource: createResourceMutation.mutateAsync,
