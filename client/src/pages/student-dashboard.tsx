@@ -182,85 +182,14 @@ export default function StudentDashboard() {
   const shorthandTests = availableTests.filter((c) => c.type === "shorthand" && 
     c.title.toLowerCase().includes(shorthandSearch.toLowerCase()));
 
-  // Reset visible count when search changes
-  useEffect(() => {
-    setVisibleTypingCount(ITEMS_PER_BATCH);
-    setVisibleShorthandCount(ITEMS_PER_BATCH);
-  }, [typingSearch, shorthandSearch]);
-
-  // Get visible items for lazy loading
-  const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
-  const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
-  const hasMoreTyping = visibleTypingCount < typingTests.length;
-  const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
-
-  // Load more typing tests
-  const loadMoreTyping = () => {
-    if (isLoadingMore || !hasMoreTyping) return;
-    setIsLoadingMore(true);
-    // Simulate loading delay for smooth UX
-    setTimeout(() => {
-      setVisibleTypingCount(prev => Math.min(prev + ITEMS_PER_BATCH, typingTests.length));
-      setIsLoadingMore(false);
-    }, 300);
+  const groupTestsByLanguage = (tests: any[]) => {
+    return tests.reduce<Record<string, any[]>>((acc, t) => {
+      const lang = (t.language || "English").toString().toLowerCase();
+      if (!acc[lang]) acc[lang] = [];
+      acc[lang].push(t);
+      return acc;
+    }, {});
   };
-
-  // Load more shorthand tests
-  const loadMoreShorthand = () => {
-    if (isLoadingMore || !hasMoreShorthand) return;
-    setIsLoadingMore(true);
-    // Simulate loading delay for smooth UX
-    setTimeout(() => {
-      setVisibleShorthandCount(prev => Math.min(prev + ITEMS_PER_BATCH, shorthandTests.length));
-      setIsLoadingMore(false);
-    }, 300);
-  };
-
-  // Intersection Observer for typing tests
-  useEffect(() => {
-    const currentRef = typingObserverRef.current;
-    if (!currentRef || !hasMoreTyping) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMoreTyping && !isLoadingMore) {
-          loadMoreTyping();
-        }
-      },
-      { threshold: 0.1, rootMargin: '100px' }
-    );
-
-    observer.observe(currentRef);
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [hasMoreTyping, isLoadingMore, typingTests.length, visibleTypingCount]);
-
-  // Intersection Observer for shorthand tests
-  useEffect(() => {
-    const currentRef = shorthandObserverRef.current;
-    if (!currentRef || !hasMoreShorthand) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMoreShorthand && !isLoadingMore) {
-          loadMoreShorthand();
-        }
-      },
-      { threshold: 0.1, rootMargin: '100px' }
-    );
-
-    observer.observe(currentRef);
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [hasMoreShorthand, isLoadingMore, shorthandTests.length, visibleShorthandCount]);
 
   const getResultForContent = (contentId: string) => {
     return results.find(
@@ -445,65 +374,59 @@ export default function StudentDashboard() {
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {visibleTypingTests.length > 0 ? (
-              <>
-                {visibleTypingTests.map((test) => {
-                const result = getResultForContent(test.id?.toString());
-                const isCompleted = !!result;
+          <div>
+            {typingTests.length > 0 ? (
+              Object.entries(groupTestsByLanguage(typingTests)).map(([lang, tests]) => (
+                <div key={lang} className="space-y-4">
+                  <h4 className="text-sm font-semibold capitalize">{lang} Typing Tests</h4>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {tests.map((test: any) => {
+                      const result = getResultForContent(test.id?.toString());
+                      const isCompleted = !!result;
 
-                return (
-                  <Card
-                    key={test.id}
-                    className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
-                  >
-                    <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
-                          {test.language || "English"}
-                        </span>
-                      </div>
-                      <CardDescription className="text-xs text-muted-foreground mt-2">
-                        {format(new Date(test.dateFor), "PPP")}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 pb-4">
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span className="font-medium text-foreground">{test.duration} min</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Keyboard className="h-4 w-4" />
-                          <span>Typing</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="pt-4 border-t bg-slate-50">
-                      <Button
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
-                        onClick={() => setLocation(`/test/${test.id}`)}
-                      >
-                        <PlayCircle className="mr-2 h-4 w-4" /> Start Test
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-                {/* Intersection Observer Target */}
-                {hasMoreTyping && (
-                  <div ref={typingObserverRef} className="col-span-full flex justify-center py-4">
-                    {isLoadingMore && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Loading more tests...</span>
-                      </div>
-                    )}
+                      return (
+                        <Card
+                          key={test.id}
+                          className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                        >
+                          <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                {test.language || "English"}
+                              </span>
+                            </div>
+                            <CardDescription className="text-xs text-muted-foreground mt-2">
+                              {format(new Date(test.dateFor), "PPP")}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex-1 pb-4">
+                            <div className="flex items-center gap-4 text-sm">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span className="font-medium text-foreground">{test.duration} min</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Keyboard className="h-4 w-4" />
+                                <span>Typing</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                          <CardFooter className="pt-4 border-t bg-slate-50">
+                            <Button
+                              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
+                              onClick={() => setLocation(`/test/${test.id}`)}
+                            >
+                              <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      );
+                    })}
                   </div>
-                )}
-              </>
+                </div>
+              ))
             ) : (
               <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-blue-200 rounded-xl bg-blue-50/50">
                 <div className="bg-blue-100 rounded-full p-4 mb-4">
@@ -547,68 +470,62 @@ export default function StudentDashboard() {
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {visibleShorthandTests.length > 0 ? (
-              <>
-                {visibleShorthandTests.map((test) => {
-                const result = getResultForContent(test.id?.toString());
-                const isCompleted = !!result;
+          <div>
+            {shorthandTests.length > 0 ? (
+              Object.entries(groupTestsByLanguage(shorthandTests)).map(([lang, tests]) => (
+                <div key={lang} className="space-y-4">
+                  <h4 className="text-sm font-semibold capitalize">{lang} Shorthand Tests</h4>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {tests.map((test: any) => {
+                      const result = getResultForContent(test.id?.toString());
+                      const isCompleted = !!result;
 
-                return (
-                  <Card
-                    key={test.id}
-                    className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
-                  >
-                    <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
-                        <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0 capitalize">
-                          {test.language || "English"}
-                        </span>
-                      </div>
-                      <CardDescription className="text-xs text-muted-foreground mt-2">
-                        {format(new Date(test.dateFor), "PPP")}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 pb-4">
-                      <div className="flex items-center gap-4 text-sm mb-3">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span className="font-medium text-foreground">{test.duration} min</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Mic className="h-4 w-4" />
-                          <span>Shorthand</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
-                        Listen to Audio, Write on Paper, Type Here
-                      </p>
-                    </CardContent>
-                    <CardFooter className="pt-4 border-t bg-slate-50">
-                      <Button
-                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-md group-hover:shadow-lg transition-shadow"
-                        onClick={() => setLocation(`/test/${test.id}`)}
-                      >
-                        <PlayCircle className="mr-2 h-4 w-4" /> Start Test
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-                {/* Intersection Observer Target */}
-                {hasMoreShorthand && (
-                  <div ref={shorthandObserverRef} className="col-span-full flex justify-center py-4">
-                    {isLoadingMore && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Loading more tests...</span>
-                      </div>
-                    )}
+                      return (
+                        <Card
+                          key={test.id}
+                          className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                        >
+                          <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                              <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                {test.language || "English"}
+                              </span>
+                            </div>
+                            <CardDescription className="text-xs text-muted-foreground mt-2">
+                              {format(new Date(test.dateFor), "PPP")}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex-1 pb-4">
+                            <div className="flex items-center gap-4 text-sm mb-3">
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Clock className="h-4 w-4" />
+                                <span className="font-medium text-foreground">{test.duration} min</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Mic className="h-4 w-4" />
+                                <span>Shorthand</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
+                              Listen to Audio, Write on Paper, Type Here
+                            </p>
+                          </CardContent>
+                          <CardFooter className="pt-4 border-t bg-slate-50">
+                            <Button
+                              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-md group-hover:shadow-lg transition-shadow"
+                              onClick={() => setLocation(`/test/${test.id}`)}
+                            >
+                              <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      );
+                    })}
                   </div>
-                )}
-              </>
+                </div>
+              ))
             ) : (
               <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/50">
                 <div className="bg-orange-100 rounded-full p-4 mb-4">
