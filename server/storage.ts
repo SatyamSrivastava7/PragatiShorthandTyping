@@ -37,6 +37,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined>;
   getAllUsers(role?: string): Promise<User[]>;
+  getNextStudentId(year: string): Promise<string>;
   deleteUser(id: number): Promise<boolean>;
   
   // Content methods
@@ -128,6 +129,30 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(users).where(eq(users.role, role));
     }
     return await db.select().from(users);
+  }
+
+  async getNextStudentId(year: string): Promise<string> {
+    // Efficiently fetch only student IDs for the current year (instead of all users)
+    const prefix = `PIPS${year}`;
+    const likePattern = `${prefix}%`;
+    
+    const result = await db
+      .select({ studentId: users.studentId })
+      .from(users)
+      .where(sql`${users.studentId} LIKE ${likePattern}`)
+      .orderBy(desc(users.studentId))
+      .limit(1);
+    
+    let maxNum = 0;
+    if (result.length > 0 && result[0].studentId) {
+      const numStr = result[0].studentId.slice(prefix.length);
+      const num = parseInt(numStr, 10);
+      if (!isNaN(num)) {
+        maxNum = num;
+      }
+    }
+    
+    return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
   }
 
   async deleteUser(id: number): Promise<boolean> {

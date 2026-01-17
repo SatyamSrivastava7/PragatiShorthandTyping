@@ -4,7 +4,6 @@ import {
   useAuth,
   useResults,
   usePdf,
-  useSettings,
 } from "@/lib/hooks";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
@@ -65,7 +64,6 @@ export default function StudentDashboard() {
     purchasePdf: buyPdf,
     consumePdfPurchase,
   } = usePdf(currentFolder); // Only fetch resources when folder is selected
-  const { settings } = useSettings();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const profilePicInputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +87,7 @@ export default function StudentDashboard() {
     };
   }, []);
 
-  const qrCodeUrl = settings?.qrCodeUrl || "";
+  // const qrCodeUrl = settings?.qrCodeUrl || "";
 
   const today = new Date();
 

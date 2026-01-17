@@ -67,21 +67,7 @@ export async function registerRoutes(
         try {
           // Generate student ID (PIPS + year + sequential number)
           const year = new Date().getFullYear().toString().slice(-2);
-          const allUsers = await storage.getAllUsers();
-          const prefix = `PIPS${year}`;
-          
-          // Find the highest existing student ID number for this year
-          let maxNum = 0;
-          for (const u of allUsers) {
-            if (u.studentId && u.studentId.startsWith(prefix)) {
-              const numStr = u.studentId.slice(prefix.length);
-              const num = parseInt(numStr, 10);
-              if (!isNaN(num) && num > maxNum) {
-                maxNum = num;
-              }
-            }
-          }
-          const studentId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+          const studentId = await storage.getNextStudentId(year);
           
           // Create user with isPaymentCompleted = false (requires admin approval)
           user = await storage.createUser({
@@ -320,6 +306,16 @@ export async function registerRoutes(
   // Get all users (admin only)
   app.get("/api/users", async (req, res) => {
     try {
+      // Check if user is authenticated and is an admin
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+      
       const role = req.query.role as string | undefined;
       const users = await storage.getAllUsers(role);
       
