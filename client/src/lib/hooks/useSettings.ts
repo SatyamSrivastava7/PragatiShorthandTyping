@@ -170,7 +170,7 @@ export function useSelectedCandidates(enabled: boolean = false) {
     mutationFn: selectedCandidatesApi.create,
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['selected-candidates'] });
-      const previousCandidates = queryClient.getQueryData<SelectedCandidate[]>(['selected-candidates']);
+      const previousData = queryClient.getQueryData(['selected-candidates']);
       
       const optimisticCandidate: SelectedCandidate = {
         id: -Math.floor(Math.random() * 1000000),
@@ -180,13 +180,22 @@ export function useSelectedCandidates(enabled: boolean = false) {
         imageUrl: data.imageUrl,
       };
       
-      queryClient.setQueryData<SelectedCandidate[]>(['selected-candidates'], (old = []) => [...old, optimisticCandidate]);
+      queryClient.setQueryData(['selected-candidates'], (old: any) => {
+        if (!old) return { pages: [[optimisticCandidate]], pageParams: [0] };
+        const newPages = old.pages ? [...old.pages] : [[]];
+        if (newPages[0]) {
+          newPages[0] = [optimisticCandidate, ...newPages[0]];
+        } else {
+          newPages[0] = [optimisticCandidate];
+        }
+        return { ...old, pages: newPages };
+      });
       
-      return { previousCandidates };
+      return { previousData };
     },
     onError: (err, data, context) => {
-      if (context?.previousCandidates) {
-        queryClient.setQueryData(['selected-candidates'], context.previousCandidates);
+      if (context?.previousData) {
+        queryClient.setQueryData(['selected-candidates'], context.previousData);
       }
     },
     onSettled: () => {
@@ -198,17 +207,21 @@ export function useSelectedCandidates(enabled: boolean = false) {
     mutationFn: selectedCandidatesApi.delete,
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['selected-candidates'] });
-      const previousCandidates = queryClient.getQueryData<SelectedCandidate[]>(['selected-candidates']);
+      const previousData = queryClient.getQueryData(['selected-candidates']);
       
-      queryClient.setQueryData<SelectedCandidate[]>(['selected-candidates'], (old = []) =>
-        old.filter((candidate) => candidate.id !== id)
-      );
+      queryClient.setQueryData(['selected-candidates'], (old: any) => {
+        if (!old || !old.pages) return old;
+        const newPages = old.pages.map((page: SelectedCandidate[]) =>
+          page.filter((candidate: SelectedCandidate) => candidate.id !== id)
+        );
+        return { ...old, pages: newPages };
+      });
       
-      return { previousCandidates };
+      return { previousData };
     },
     onError: (err, id, context) => {
-      if (context?.previousCandidates) {
-        queryClient.setQueryData(['selected-candidates'], context.previousCandidates);
+      if (context?.previousData) {
+        queryClient.setQueryData(['selected-candidates'], context.previousData);
       }
     },
     onSettled: () => {

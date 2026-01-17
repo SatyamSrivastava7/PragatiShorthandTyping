@@ -359,23 +359,31 @@ export default function AdminDashboard() {
       return;
     }
 
-    const imageUrl = await fileToBase64(candidateImage);
-    addSelectedCandidate({
-      name: candidateName,
-      designation: candidateDesignation,
-      year: candidateYear,
-      imageUrl: imageUrl,
-    });
+    try {
+      const imageUrl = await fileToBase64(candidateImage);
+      await addSelectedCandidate({
+        name: candidateName,
+        designation: candidateDesignation,
+        year: candidateYear,
+        imageUrl: imageUrl,
+      });
 
-    toast({
-      variant: "success",
-      title: "Success",
-      description: "Candidate added",
-    });
-    setCandidateName("");
-    setCandidateDesignation("");
-    setCandidateYear("");
-    setCandidateImage(null);
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Candidate added",
+      });
+      setCandidateName("");
+      setCandidateDesignation("");
+      setCandidateYear("");
+      setCandidateImage(null);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add candidate",
+      });
+    }
   };
 
   const handleUpload = async (e: React.FormEvent) => {
