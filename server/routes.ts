@@ -1135,7 +1135,10 @@ export async function registerRoutes(
   
   app.get("/api/gallery", async (req, res) => {
     try {
-      const images = await storage.getAllGalleryImages();
+      const limit = req.query.limit ? Number(req.query.limit as string) : 18;
+      const offset = req.query.offset ? Number(req.query.offset as string) : 0;
+      
+      const images = await storage.getGalleryImagesPaged(limit, offset);
       res.json(images);
     } catch (error) {
       res.status(500).json({ message: "Failed to get images" });

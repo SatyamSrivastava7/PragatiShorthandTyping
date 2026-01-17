@@ -267,6 +267,11 @@ export const galleryApi = {
   getImages: () =>
     fetchApi<{ url: string }[]>('/api/gallery'),
 
+  getImagesPaged: (limit: number = 18, offset: number = 0) => {
+    const qs = `?limit=${limit}&offset=${offset}`;
+    return fetchApi<{ url: string }[]>(`/api/gallery${qs}`);
+  },
+
   addImage: (url: string) =>
     fetchApi<{ url: string }>('/api/gallery', {
       method: 'POST',
@@ -283,6 +288,11 @@ export const galleryApi = {
 export const selectedCandidatesApi = {
   getAll: () =>
     fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }[]>('/api/selected-candidates'),
+
+  getPaged: (limit: number = 10, offset: number = 0) => {
+    const qs = `?limit=${limit}&offset=${offset}`;
+    return fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }[]>(`/api/selected-candidates${qs}`);
+  },
 
   create: (data: { name: string; designation: string; year: string; imageUrl: string }) =>
     fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }>('/api/selected-candidates', {

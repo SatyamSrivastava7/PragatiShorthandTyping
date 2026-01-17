@@ -19,7 +19,6 @@ import {
   useSettings,
   useGallery,
   useSelectedCandidates,
-  useDictations,
 } from "@/lib/hooks";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -127,6 +126,11 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
 
 export default function AdminDashboard() {
   usePrefetchContent();
+
+  // Declare activeTab first so it can be used in hooks
+  const [activeTab, setActiveTab] = useState("students");
+  const [gallerySubTab, setGallerySubTab] = useState("gallery_images");
+
   const {
     content,
     createContent,
@@ -151,20 +155,23 @@ export default function AdminDashboard() {
   const { settings, updateSettings } = useSettings();
   const {
     images: galleryImages,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
     addImage: addGalleryImage,
+    isLoading: isGalleryLoading,
     deleteImage: removeGalleryImage,
-  } = useGallery();
+  } = useGallery(activeTab === "gallery");
   const {
     candidates: selectedCandidates,
+    hasNextPage: hasNextCandidate,
+    fetchNextPage: fetchNextCandidate,
+    isFetchingNextPage: isFetchingNextCandidate,
+    isLoading: isCandidatesLoading,
     addCandidate: addSelectedCandidate,
     deleteCandidate: removeSelectedCandidate,
-  } = useSelectedCandidates();
-  const {
-    dictations,
-    createDictation: addDictation,
-    toggleDictation,
-    deleteDictation,
-  } = useDictations();
+  } = useSelectedCandidates(activeTab === "gallery" && gallerySubTab === "selected_candidates");
+
   const { toast } = useToast();
 
   const registrationFee = settings?.registrationFee || 0;
@@ -183,8 +190,6 @@ export default function AdminDashboard() {
     }, 3000);
     return () => clearTimeout(timer);
   }, [localRegFee]);
-
-  const [activeTab, setActiveTab] = useState("students");
 
   // Lazy Loading State for Manage Tests
   const ITEMS_PER_BATCH = 100; // Initial batch size for admin table
@@ -581,8 +586,6 @@ export default function AdminDashboard() {
     (u) => u.role === "student" && u.isPaymentCompleted,
   ).length;
   const disabledStudents = totalStudents - enabledStudents;
-
-  console.log("content ****", content);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -1308,9 +1311,9 @@ export default function AdminDashboard() {
                                       </span>
                                     )}
                                   </TableCell>
-                                    <TableCell>
-                                      <PreviewDialog contentId={item.id} title={item.title} />
-                                    </TableCell>
+                                  <TableCell>
+                                    <PreviewDialog contentId={item.id} title={item.title} />
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
                                       <Switch
@@ -2224,7 +2227,7 @@ export default function AdminDashboard() {
 
             <Card className="shadow-lg border-0">
               <CardContent className="p-0">
-                <Tabs key="gallery-tabs" defaultValue="gallery_images">
+                <Tabs key="gallery-tabs" defaultValue="gallery_images" onValueChange={setGallerySubTab}>
                   <div className="px-6 pt-4 border-b bg-slate-50">
                     <TabsList className="bg-white shadow-sm">
                       <TabsTrigger
@@ -2269,42 +2272,62 @@ export default function AdminDashboard() {
                         />
                       </div>
 
-                      {galleryImages.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-3">
-                            {galleryImages.length} images uploaded
-                          </p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {galleryImages.map((url, idx) => (
-                              <div
-                                key={idx}
-                                className="relative group aspect-square rounded-xl overflow-hidden border-2 shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                <img
-                                  src={url}
-                                  alt="Gallery"
-                                  className="w-full h-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={() => removeGalleryImage(url)}
+                      {isGalleryLoading && activeTab === "gallery" && gallerySubTab === "gallery_images" ? (
+                        <div className="flex items-center justify-center p-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+                          <span className="ml-3 text-muted-foreground">Loading gallery...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {galleryImages.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground mb-3">
+                                {galleryImages.length} images uploaded
+                              </p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                {galleryImages.map((url: string, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className="relative group aspect-square rounded-xl overflow-hidden border-2 shadow-sm hover:shadow-md transition-shadow"
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <img
+                                      src={url}
+                                      alt="Gallery"
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => removeGalleryImage(url)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {hasNextPage && (
+                                <div className="flex justify-center mt-6">
+                                  <Button
+                                    onClick={() => fetchNextPage()}
+                                    disabled={isFetchingNextPage}
+                                    className="px-6"
+                                  >
+                                    {isFetchingNextPage ? 'Loading...' : 'Load More'}
                                   </Button>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                              )}
+                            </div>
+                          )}
 
-                      {galleryImages.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                          <p>No images uploaded yet</p>
-                        </div>
+                          {galleryImages.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                              <p>No images uploaded yet</p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </TabsContent>
@@ -2384,85 +2407,105 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="rounded-xl border overflow-hidden">
-                        <Table>
-                          <TableHeader className="bg-slate-50">
-                            <TableRow>
-                              <TableHead className="font-semibold">
-                                Photo
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Name
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Designation
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Year
-                              </TableHead>
-                              <TableHead className="font-semibold text-right">
-                                Action
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {[...selectedCandidates]
-                              .sort((a, b) => {
-                                const yearA = parseInt(a.year) || 0;
-                                const yearB = parseInt(b.year) || 0;
-                                return yearB - yearA;
-                              })
-                              .map((candidate) => (
-                                <TableRow
-                                  key={candidate.id}
-                                  className="hover:bg-slate-50/50"
-                                >
-                                  <TableCell>
-                                    <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
-                                      <img
-                                        src={candidate.imageUrl}
-                                        alt={candidate.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="font-medium">
-                                    {candidate.name}
-                                  </TableCell>
-                                  <TableCell className="text-muted-foreground">
-                                    {candidate.designation}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="inline-flex items-center px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                                      {candidate.year}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-destructive hover:bg-red-50"
-                                      onClick={() =>
-                                        removeSelectedCandidate(candidate.id)
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                        {isCandidatesLoading && activeTab === "gallery" && gallerySubTab === "selected_candidates" ? (
+                          <div className="flex items-center justify-center p-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                            <span className="ml-3 text-muted-foreground">Loading candidates...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Table>
+                              <TableHeader className="bg-slate-50">
+                                <TableRow>
+                                  <TableHead className="font-semibold">
+                                    Photo
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Designation
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Year
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-right">
+                                    Action
+                                  </TableHead>
                                 </TableRow>
-                              ))}
-                            {selectedCandidates.length === 0 && (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={5}
-                                  className="text-center py-12 text-muted-foreground"
+                              </TableHeader>
+                              <TableBody>
+                                {[...selectedCandidates]
+                                  .sort((a, b) => {
+                                    const yearA = parseInt(a.year) || 0;
+                                    const yearB = parseInt(b.year) || 0;
+                                    return yearB - yearA;
+                                  })
+                                  .map((candidate) => (
+                                    <TableRow
+                                      key={candidate.id}
+                                      className="hover:bg-slate-50/50"
+                                    >
+                                      <TableCell>
+                                        <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
+                                          <img
+                                            src={candidate.imageUrl}
+                                            alt={candidate.name}
+                                            className="h-full w-full object-cover"
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="font-medium">
+                                        {candidate.name}
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground">
+                                        {candidate.designation}
+                                      </TableCell>
+                                      <TableCell>
+                                        <span className="inline-flex items-center px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                          {candidate.year}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="text-destructive hover:bg-red-50"
+                                          onClick={() =>
+                                            removeSelectedCandidate(candidate.id)
+                                          }
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                {selectedCandidates.length === 0 && !isCandidatesLoading && (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={5}
+                                      className="text-center py-12 text-muted-foreground"
+                                    >
+                                      <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                      No candidates added yet
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                            {hasNextCandidate && (
+                              <div className="flex justify-center p-4 border-t">
+                                <Button
+                                  onClick={() => fetchNextCandidate()}
+                                  disabled={isFetchingNextCandidate}
+                                  className="px-6"
                                 >
-                                  <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                  No candidates added yet
-                                </TableCell>
-                              </TableRow>
+                                  {isFetchingNextCandidate ? 'Loading...' : 'Load More'}
+                                </Button>
+                              </div>
                             )}
-                          </TableBody>
-                        </Table>
+                          </>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
@@ -2589,7 +2632,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
-        {/* Mobile Header */}
+      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-3 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
         <h2 className="text-lg font-bold text-white">Admin Panel</h2>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>

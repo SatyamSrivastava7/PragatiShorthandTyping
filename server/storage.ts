@@ -86,6 +86,7 @@ export interface IStorage {
   
   // Gallery methods
   getAllGalleryImages(): Promise<GalleryImage[]>;
+  getGalleryImagesPaged(limit: number, offset: number): Promise<GalleryImage[]>;
   getGalleryImage(id: number): Promise<GalleryImage | undefined>;
   createGalleryImage(image: InsertGalleryImage): Promise<GalleryImage>;
   deleteGalleryImage(id: number): Promise<boolean>;
@@ -475,6 +476,10 @@ export class DatabaseStorage implements IStorage {
   // Gallery methods
   async getAllGalleryImages(): Promise<GalleryImage[]> {
     return await db.select().from(galleryImages).orderBy(desc(galleryImages.createdAt));
+  }
+
+  async getGalleryImagesPaged(limit: number, offset: number): Promise<GalleryImage[]> {
+    return await db.select().from(galleryImages).orderBy(desc(galleryImages.createdAt)).limit(limit).offset(offset);
   }
 
   async getGalleryImage(id: number): Promise<GalleryImage | undefined> {

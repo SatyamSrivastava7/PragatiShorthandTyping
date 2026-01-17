@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { settingsApi, galleryApi, selectedCandidatesApi } from '../api';
 
 interface GalleryImage {
@@ -52,20 +52,25 @@ export function useSettings() {
   };
 }
 
-export function useGallery() {
+export function useGallery(enabled: boolean = false) {
   const queryClient = useQueryClient();
 
-  const { data: images = [], isLoading, error } = useQuery({
+  const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['gallery'],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       try {
-        return await galleryApi.getImages();
+        return await galleryApi.getImagesPaged(18, pageParam);
       } catch (err) {
         console.error('Error fetching gallery images:', err);
-        // Return empty array on error so page can still render
         return [] as { url: string }[];
       }
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any[], allPages: any[][]) => {
+      // If we got 18 images, there might be more
+      return lastPage.length === 18 ? allPages.reduce((acc, p) => acc + p.length, 0) : undefined;
+    },
+    enabled: enabled,
     staleTime: 30000,
     retry: 1,
     gcTime: 300000,
@@ -114,28 +119,35 @@ export function useGallery() {
   });
 
   return {
-    images: images.map(img => img.url),
+    images: (data?.pages || []).flatMap((page: any[]) => page.map((img: any) => img.url)),
     isLoading,
     error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
     addImage: addMutation.mutateAsync,
     deleteImage: deleteMutation.mutateAsync,
   };
 }
 
-export function useSelectedCandidates() {
+export function useSelectedCandidates(enabled: boolean = false) {
   const queryClient = useQueryClient();
 
-  const { data: candidates = [], isLoading, error } = useQuery({
+  const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['selected-candidates'],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       try {
-        return await selectedCandidatesApi.getAll();
+        return await selectedCandidatesApi.getPaged(10, pageParam);
       } catch (err) {
         console.error('Error fetching selected candidates:', err);
-        // Return empty array on error so page can still render
         return [] as { id: number; name: string; designation: string; year: string; imageUrl: string }[];
       }
     },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any[], allPages: any[][]) => {
+      return lastPage.length === 10 ? allPages.reduce((acc, p) => acc + p.length, 0) : undefined;
+    },
+    enabled: enabled,
     staleTime: 30000,
     retry: 1,
     gcTime: 300000,
@@ -192,9 +204,12 @@ export function useSelectedCandidates() {
   });
 
   return {
-    candidates,
+    candidates: (data?.pages || []).flatMap((page: any[]) => page),
     isLoading,
     error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
     addCandidate: createMutation.mutateAsync,
     deleteCandidate: deleteMutation.mutateAsync,
   };
