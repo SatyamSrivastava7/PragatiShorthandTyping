@@ -52,7 +52,7 @@ export function useUsers(fetchAllUsers = false) {
         );
       }
       
-      return { previousAllUsers, previousCurrentUser };
+      return { previousAllUsers, previousCurrentUser, updatedUserId: id };
     },
     onError: (err, variables, context) => {
       // Rollback on error
@@ -63,9 +63,18 @@ export function useUsers(fetchAllUsers = false) {
         queryClient.setQueryData(['users', 'current'], context.previousCurrentUser);
       }
     },
-    onSettled: () => {
-      // Invalidate all user-related caches to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+    onSettled: (data, error, variables, context) => {
+      // Only invalidate the specific cache affected by this mutation
+      // If updating current user, only refetch current user cache
+      // If updating admin view, only refetch all users cache
+      if (context?.previousCurrentUser) {
+        // Current user was in cache, so invalidate only that
+        queryClient.invalidateQueries({ queryKey: ['users', 'current'] });
+      }
+      if (context?.previousAllUsers) {
+        // All users was in cache, so invalidate only that
+        queryClient.invalidateQueries({ queryKey: ['users', 'all'] });
+      }
     },
   });
 
@@ -104,9 +113,16 @@ export function useUsers(fetchAllUsers = false) {
         queryClient.setQueryData(['users', 'current'], context.previousCurrentUser);
       }
     },
-    onSettled: () => {
-      // Invalidate all user-related caches to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+    onSettled: (data, error, deletedId, context) => {
+      // Only invalidate the specific cache affected by this deletion
+      if (context?.previousCurrentUser) {
+        // Current user was in cache, so invalidate only that
+        queryClient.invalidateQueries({ queryKey: ['users', 'current'] });
+      }
+      if (context?.previousAllUsers) {
+        // All users was in cache, so invalidate only that
+        queryClient.invalidateQueries({ queryKey: ['users', 'all'] });
+      }
     },
   });
 
