@@ -8,6 +8,8 @@ export interface ResultsParams {
 
 export function useResults(studentId?: number, enableQuery: boolean = true, params?: ResultsParams) {
   const queryClient = useQueryClient();
+  const resultType = params?.type || 'all';
+  const limit = params?.limit || 50;
 
   // Fetch paged results using infinite query for proper pagination accumulation
   const { 
@@ -18,13 +20,13 @@ export function useResults(studentId?: number, enableQuery: boolean = true, para
     fetchNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['results', 'paged', { studentId, type: params?.type }],
+    queryKey: ['results', 'paged', studentId, resultType],
     queryFn: ({ pageParam = 0 }) => 
-      resultsApi.getPaged({ studentId, type: params?.type, limit: params?.limit || 50, offset: pageParam }),
+      resultsApi.getPaged({ studentId, type: params?.type, limit: limit, offset: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (lastPage: any[], pages: any[][]) => {
       const totalFetched = pages.reduce((acc: number, p: any[]) => acc + p.length, 0);
-      return lastPage.length === (params?.limit || 50) ? totalFetched : undefined;
+      return lastPage.length === limit ? totalFetched : undefined;
     },
     enabled: enableQuery,
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -39,7 +41,7 @@ export function useResults(studentId?: number, enableQuery: boolean = true, para
 
   // Fetch result counts
   const { data: counts = {} } = useQuery({
-    queryKey: ['results', 'counts', { studentId }],
+    queryKey: ['results', 'counts', studentId],
     queryFn: () => resultsApi.getCounts({ studentId }),
     enabled: enableQuery,
     staleTime: 10 * 60 * 1000, // 10 minutes
