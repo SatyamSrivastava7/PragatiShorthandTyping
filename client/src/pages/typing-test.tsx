@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRoute, useLocation, Link } from "wouter";
-import { useAuth, useContentById, useResults, useSettings } from "@/lib/hooks";
+import { useRoute, Link } from "wouter";
+import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Timer, EyeOff, Save, CheckCircle, Music, ArrowLeft, Settings, Maximize, Minimize, Type, RefreshCw, Loader2 } from "lucide-react";
+import { Timer, Save, CheckCircle, Music, ArrowLeft, Maximize, Minimize, Type, RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -21,11 +19,9 @@ import { Slider } from "@/components/ui/slider";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
-  const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
   const { data: testContent, isLoading: isContentLoading } = useContentById(params?.id ? Number(params.id) : undefined);
   const { createResult } = useResults();
-  const { settings } = useSettings();
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
