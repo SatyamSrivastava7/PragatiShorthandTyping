@@ -1154,7 +1154,7 @@ export default function AdminDashboard() {
 
                   {contentType === "shorthand" && (
                     <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <div className="flex items-center gap-3 mb-3">
                             <Music className="h-5 w-5 text-orange-600" />
