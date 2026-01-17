@@ -19,8 +19,8 @@ import {
 
 export default function LandingPage() {
   const { user: currentUser } = useAuth();
-  const { images: galleryImages } = useGallery();
-  const { candidates: selectedCandidates } = useSelectedCandidates();
+  const { images: galleryImages } = useGallery(true); // Landing page always displays gallery
+  const { candidates: selectedCandidates } = useSelectedCandidates(true); // Landing page always displays candidates
   const { toast } = useToast();
   
   const openLink = (url: string) => {

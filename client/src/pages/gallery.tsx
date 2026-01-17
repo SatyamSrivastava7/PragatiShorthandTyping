@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 export default function GalleryPage() {
-  const { images: galleryImages } = useGallery();
+  const { images: galleryImages } = useGallery(true); // Gallery page always enabled
 
   return (
     <div className="container px-4 md:px-6 py-12 mx-auto">

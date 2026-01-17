@@ -151,7 +151,7 @@ export default function AdminDashboard() {
     createResource: addPdfResource,
     deleteResource: deletePdfResource,
     deleteFolder: deletePdfFolder,
-  } = usePdf();
+  } = usePdf(activeTab === "pdfstore");
   const { settings, updateSettings } = useSettings();
   const {
     images: galleryImages,

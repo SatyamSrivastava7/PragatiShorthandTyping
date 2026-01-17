@@ -71,9 +71,11 @@ export function useGallery(enabled: boolean = false) {
       return lastPage.length === 18 ? allPages.reduce((acc, p) => acc + p.length, 0) : undefined;
     },
     enabled: enabled,
-    staleTime: 30000,
+    staleTime: 10 * 60 * 1000, // 10 minutes - data stays fresh for user navigation
     retry: 1,
-    gcTime: 300000,
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for extended session
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false, // Don't refetch when reconnecting to internet
   });
 
   const addMutation = useMutation({
@@ -161,9 +163,11 @@ export function useSelectedCandidates(enabled: boolean = false) {
       return lastPage.length === 10 ? allPages.reduce((acc, p) => acc + p.length, 0) : undefined;
     },
     enabled: enabled,
-    staleTime: 30000,
+    staleTime: 10 * 60 * 1000, // 10 minutes - data stays fresh for user navigation
     retry: 1,
-    gcTime: 300000,
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for extended session
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false, // Don't refetch when reconnecting to internet
   });
 
   const createMutation = useMutation({
