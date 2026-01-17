@@ -133,6 +133,9 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("students");
   const [gallerySubTab, setGallerySubTab] = useState("gallery_images");
 
+  // PDF Store State - declare early for usePdf hook
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+
   const {
     content,
     createContent,
@@ -163,7 +166,7 @@ export default function AdminDashboard() {
     createResource: addPdfResource,
     deleteResource: deletePdfResource,
     deleteFolder: deletePdfFolder,
-  } = usePdf(activeTab === "pdfstore");
+  } = usePdf(activeTab === "pdfstore", selectedFolderId?.toString());
   const { settings, updateSettings } = useSettings();
   const {
     images: galleryImages,
@@ -330,10 +333,8 @@ export default function AdminDashboard() {
   // Filter State
   const [studentFilter, setStudentFilter] = useState("");
   const [studentListSearch, setStudentListSearch] = useState("");
-
   // PDF Store State
   const [newFolderName, setNewFolderName] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [pdfName, setPdfName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
