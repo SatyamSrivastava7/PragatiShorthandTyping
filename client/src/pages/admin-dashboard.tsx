@@ -113,7 +113,7 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           ) : (
             <>
               <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
-              {fullContent?.mediaUrl && (
+              {(fullContent?.audio80wpm || fullContent?.audio100wpm || fullContent?.mediaUrl) && (
                 <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
                   <Music size={12} /> Audio Attached
                 </div>
