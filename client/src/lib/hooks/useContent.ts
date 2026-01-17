@@ -51,21 +51,27 @@ export function useContent() {
     retry: 2,
   });
 
-  // Use lightweight endpoint (excludes text field) for faster initial loading
-  // Full content is loaded on-demand when user starts a test via useContentById
-  const { data: enabledContent = [], isLoading: isEnabledLoading } = useQuery({
-    queryKey: ['content', 'enabled', 'list'],
-    queryFn: async () => {
-      try {
-        return await contentApi.getEnabledList();
-      } catch (err) {
-        console.error('Error fetching enabled content list:', err);
-        throw err;
-      }
-    },
-    staleTime: 60000,
-    gcTime: 300000,
-  });
+  // Derive enabled content from the main lightweight content list to avoid
+  // an extra network request. Specific paged queries should use
+  // `contentApi.getEnabledList` directly (e.g., via react-query useInfiniteQuery).
+  const enabledContent = (content || []).filter((c: any) => c.isEnabled);
+  const isEnabledLoading = isLoading;
+
+  //   // Use lightweight endpoint (excludes text field) for faster initial loading
+  // // Full content is loaded on-demand when user starts a test via useContentById
+  // const { data: enabledContent = [], isLoading: isEnabledLoading } = useQuery({
+  //   queryKey: ['content', 'enabled', 'list'],
+  //   queryFn: async () => {
+  //     try {
+  //       return await contentApi.getEnabledList();
+  //     } catch (err) {
+  //       console.error('Error fetching enabled content list:', err);
+  //       throw err;
+  //     }
+  //   },
+  //   staleTime: 60000,
+  //   gcTime: 300000,
+  // });
 
   const createMutation = useMutation({
     mutationFn: contentApi.create,

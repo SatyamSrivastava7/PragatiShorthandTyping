@@ -434,8 +434,10 @@ export async function registerRoutes(
     try {
       const type = req.query.type as string | undefined;
       const language = req.query.language as string | undefined;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
-      const offset = req.query.offset ? parseInt(req.query.offset as string) : undefined;
+      let limit = req.query.limit ? Number(req.query.limit as string) : undefined;
+      let offset = req.query.offset ? Number(req.query.offset as string) : undefined;
+      if (!Number.isFinite(limit as number)) limit = undefined;
+      if (!Number.isFinite(offset as number)) offset = undefined;
 
       // If pagination or filters provided, use paged method
       if (type || language || typeof limit === 'number' || typeof offset === 'number') {

@@ -210,13 +210,15 @@ export class DatabaseStorage implements IStorage {
 
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
-    let q = db.select(columns).from(content).where(whereClause).orderBy(desc(content.createdAt));
+    // Build base query
+    let q: any = db.select(columns).from(content).where(whereClause).orderBy(desc(content.createdAt));
 
-    if (typeof limit === 'number') {
-      q = (q as any).limit(limit);
+    // Only apply limit/offset when they are finite numbers
+    if (Number.isFinite(limit as number)) {
+      q = q.limit(Number(limit));
     }
-    if (typeof offset === 'number') {
-      q = (q as any).offset(offset);
+    if (Number.isFinite(offset as number)) {
+      q = q.offset(Number(offset));
     }
 
     return await q;
