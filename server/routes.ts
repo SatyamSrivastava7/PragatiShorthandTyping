@@ -734,7 +734,7 @@ export async function registerRoutes(
 
       // Backwards-compatible behavior
       if (studentId) {
-        const r = await storage.getResultsByStudent(studentId);
+        const r = await storage.getResultsByStudent(studentId, type);
         return res.json(r);
       }
       if (contentId) {
@@ -761,11 +761,12 @@ export async function registerRoutes(
     }
   });
 
-  // Get results by student ID (URL pattern)
+  // Get results by student ID (URL pattern) - supports ?type=typing or ?type=shorthand
   app.get("/api/results/student/:studentId", async (req, res) => {
     try {
       const studentId = parseInt(req.params.studentId);
-      const results = await storage.getResultsByStudent(studentId);
+      const contentType = req.query.type as string | undefined;
+      const results = await storage.getResultsByStudent(studentId, contentType);
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to get results" });

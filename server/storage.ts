@@ -54,7 +54,7 @@ export interface IStorage {
   
   // Results methods
   getResult(id: number): Promise<Result | undefined>;
-  getResultsByStudent(studentId: number): Promise<Result[]>;
+  getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]>;
   getResultsByContent(contentId: number): Promise<Result[]>;
   getAllResults(): Promise<Result[]>;
   createResult(result: InsertResult): Promise<Result>;
@@ -373,7 +373,10 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async getResultsByStudent(studentId: number): Promise<Result[]> {
+  async getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]> {
+    if (contentType) {
+      return await db.select().from(results).where(and(eq(results.studentId, studentId), eq(results.contentType, contentType))).orderBy(desc(results.submittedAt));
+    }
     return await db.select().from(results).where(eq(results.studentId, studentId)).orderBy(desc(results.submittedAt));
   }
 
