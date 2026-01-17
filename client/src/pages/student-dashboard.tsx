@@ -61,7 +61,7 @@ export default function StudentDashboard() {
     resourcesLoading,
     purchasePdf: buyPdf,
     consumePdfPurchase,
-  } = usePdf(currentFolder); // Only fetch resources when folder is selected
+  } = usePdf(!!currentFolder, currentFolder); // Only fetch resources when folder is selected
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const profilePicInputRef = useRef<HTMLInputElement>(null);
