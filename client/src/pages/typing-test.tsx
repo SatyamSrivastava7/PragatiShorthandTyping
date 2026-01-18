@@ -501,7 +501,7 @@ export default function TypingTestPage() {
       <div className="flex-1 flex flex-col gap-6 min-h-0">
         
         {/* Shorthand Audio Player - Prominent at top */}
-        {testContent.type === 'shorthand' && (audio80Available || audio100Available || testContent.mediaUrl) && (
+        {testContent.type === 'shorthand' && (audio80Available || audio100Available) && (
            <Card className="bg-muted/30 border-2 border-orange-200 shrink-0">
              <CardContent className="p-4 flex flex-col gap-4">
                <div className="flex items-center gap-3">
@@ -550,14 +550,6 @@ export default function TypingTestPage() {
                    key={selectedAudioUrl}
                    id="shorthand-audio" 
                    src={selectedAudioUrl} 
-                   controls 
-                   className="w-full"
-                   controlsList="nodownload" 
-                 />
-               ) : testContent.mediaUrl ? (
-                 <audio 
-                   id="shorthand-audio" 
-                   src={testContent.mediaUrl} 
                    controls 
                    className="w-full"
                    controlsList="nodownload" 

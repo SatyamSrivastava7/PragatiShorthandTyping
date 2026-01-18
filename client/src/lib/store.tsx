@@ -46,7 +46,8 @@ export interface Content {
   dateFor: string;
   isEnabled: boolean;
   createdAt: string;
-  mediaUrl?: string;
+  audio80wpm?: string;
+  audio100wpm?: string;
   language?: 'english' | 'hindi';
 }
 

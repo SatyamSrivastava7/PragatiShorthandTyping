@@ -87,7 +87,7 @@ import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
 
-// Preview Dialog Component - Loads full content on-demand (including text and mediaUrl)
+// Preview Dialog Component - Loads full content on-demand (including text and audioUrl)
 // Only fetches when dialog is actually opened to avoid loading all audio files
 function PreviewDialog({ contentId, title }: { contentId: number; title: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -113,7 +113,7 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           ) : (
             <>
               <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
-              {(fullContent?.audio80wpm || fullContent?.audio100wpm || fullContent?.mediaUrl) && (
+              {(fullContent?.audio80wpm || fullContent?.audio100wpm) && (
                 <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
                   <Music size={12} /> Audio Attached
                 </div>

@@ -117,11 +117,11 @@ export const contentApi = {
   getEnabled: () =>
     fetchApi<Content[]>('/api/content/enabled'),
 
-  // Lightweight endpoint - excludes text and mediaUrl fields for faster loading (all content)
+  // Lightweight endpoint - excludes text and audioUrl fields for faster loading (all content)
   getAllList: () =>
-    fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>('/api/content/list'),
+    fetchApi<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>('/api/content/list'),
 
-  // Lightweight endpoint - excludes text and mediaUrl fields for faster loading (enabled only)
+  // Lightweight endpoint - excludes text and audioUrl fields for faster loading (enabled only)
   // Optional params: { type, language, limit, offset }
   getEnabledList: (params?: { type?: string; language?: string; limit?: number; offset?: number }) => {
     const qs = params
@@ -130,7 +130,7 @@ export const contentApi = {
           return acc;
         }, {})).toString()
       : '';
-    return fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>(`/api/content/enabled/list${qs}`);
+    return fetchApi<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(`/api/content/enabled/list${qs}`);
   },
 
   // Get counts grouped by type. Optional params: { enabled }
@@ -149,7 +149,8 @@ export const contentApi = {
     duration: number;
     dateFor: string;
     language?: 'english' | 'hindi';
-    mediaUrl?: string;
+    audio80wpm?: string;
+    audio100wpm?: string;
   }) =>
     fetchApi<Content>('/api/content', {
       method: 'POST',
@@ -341,13 +342,3 @@ export const settingsApi = {
       body: JSON.stringify(data),
     }),
 };
-
-export interface Dictation {
-  id: number;
-  title: string;
-  mediaUrl: string;
-  language: string;
-  isEnabled: boolean;
-  createdAt: Date;
-}
-

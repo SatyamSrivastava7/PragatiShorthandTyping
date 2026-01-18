@@ -37,7 +37,7 @@ export const content = pgTable("content", {
   dateFor: varchar("date_for", { length: 20 }).notNull(), // ISO date string
   isEnabled: boolean("is_enabled").default(false).notNull(),
   autoScroll: boolean("auto_scroll").default(true).notNull(), // enable auto-scroll for typing tests
-  mediaUrl: text("media_url"),
+  mediaUrl: text("media_url"), // Original audio URL for shorthand
   audio80wpm: text("audio_80wpm"), // Optional 80 WPM audio for shorthand
   audio100wpm: text("audio_100wpm"), // Optional 100 WPM audio for shorthand
   language: varchar("language", { length: 10 }).default('english'), // 'english' | 'hindi'

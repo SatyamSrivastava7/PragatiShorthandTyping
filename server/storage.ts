@@ -177,7 +177,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(content).orderBy(desc(content.createdAt));
   }
 
-  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
+  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
     const columns = {
       id: content.id,
       title: content.title,
@@ -186,9 +186,6 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      audio80wpm: content.audio80wpm,
-      audio100wpm: content.audio100wpm,
-      // Exclude mediaUrl and text to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     };
@@ -198,7 +195,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select(columns).from(content).orderBy(desc(content.createdAt));
   }
 
-  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
+  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
     return await db.select({
       id: content.id,
       title: content.title,
@@ -207,15 +204,12 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      audio80wpm: content.audio80wpm,
-      audio100wpm: content.audio100wpm,
-      // Exclude mediaUrl and text to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
   }
 
-  async getEnabledContentListPaged(type?: string, language?: string, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
+  async getEnabledContentListPaged(type?: string, language?: string, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
     const columns = {
       id: content.id,
       title: content.title,
@@ -226,7 +220,6 @@ export class DatabaseStorage implements IStorage {
       autoScroll: content.autoScroll,
       audio80wpm: content.audio80wpm,
       audio100wpm: content.audio100wpm,
-      // Exclude mediaUrl and text to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     };
@@ -360,7 +353,7 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
-  // Lightweight toggle - only returns id and isEnabled (no text/mediaUrl)
+  // Lightweight toggle - only returns id and isEnabled (no text/audio fields)
   async toggleContentLightweight(id: number): Promise<{ id: number; isEnabled: boolean } | undefined> {
     const [item] = await db.select({ id: content.id, isEnabled: content.isEnabled })
       .from(content)

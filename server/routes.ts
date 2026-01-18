@@ -569,15 +569,8 @@ export async function registerRoutes(
         bb.on('finish', async () => {
           try {
             // Convert audio files to base64 if present
-            let mediaUrl: string | null = null;
             let audio80wpm: string | null = null;
             let audio100wpm: string | null = null;
-
-            if (audioFiles['audioFile']) {
-              const { buffer, mimeType } = audioFiles['audioFile'];
-              const base64 = buffer.toString('base64');
-              mediaUrl = `data:${mimeType};base64,${base64}`;
-            }
 
             if (audioFiles['audio80wpm']) {
               const { buffer, mimeType } = audioFiles['audio80wpm'];
@@ -598,7 +591,6 @@ export async function registerRoutes(
               duration: parseInt(formData.duration),
               dateFor: formData.dateFor,
               language: formData.language || 'english',
-              mediaUrl,
               audio80wpm,
               audio100wpm,
               autoScroll: formData.autoScroll === 'true',
@@ -670,7 +662,7 @@ export async function registerRoutes(
     }
   });
   
-  // Toggle content (lightweight - only returns id and isEnabled, no text/mediaUrl)
+  // Toggle content (lightweight - only returns id and isEnabled, no text/audioUrl)
   // Supports both POST and PATCH
   app.post("/api/content/:id/toggle", async (req, res) => {
     try {
@@ -681,7 +673,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // Return only id and isEnabled (no large fields like text/audioUrl)
       // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {
@@ -699,7 +691,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // Return only id and isEnabled (no large fields like text/audioUrl)
       // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {

@@ -7,7 +7,7 @@ export function usePrefetchContent() {
   const queryClient = useQueryClient();
   
   useEffect(() => {
-    // Prefetch lightweight content list (excludes text and mediaUrl) for faster initial load
+    // Prefetch lightweight content list (excludes text and audioUrl) for faster initial load
     queryClient.prefetchQuery({
       queryKey: ['content', 'list'],
       queryFn: async () => {
@@ -77,9 +77,9 @@ export function useContent() {
     mutationFn: contentApi.create,
     onMutate: async (newContent) => {
       await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
-      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list']);
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list']);
       
-      const { text, mediaUrl, ...optimisticContent } = {
+      const { text, audio80wpm, audio100wpm, ...optimisticContent } = {
         id: -Math.floor(Math.random() * 1000000),
         title: newContent.title,
         type: newContent.type,
@@ -87,14 +87,15 @@ export function useContent() {
         duration: newContent.duration,
         dateFor: newContent.dateFor,
         language: newContent.language || 'english',
-        mediaUrl: newContent.mediaUrl || null,
+        audio80wpm: newContent.audio80wpm || null,
+        audio100wpm: newContent.audio100wpm || null,
         isEnabled: false,
         autoScroll: true,
         createdAt: new Date(),
       };
-      
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
-      
+
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
+
       return { previousContent };
     },
     onError: (err, newContent, context) => {
@@ -104,8 +105,8 @@ export function useContent() {
     },
     onSuccess: (newContent) => {
       // Update with real data from server (without refetching entire list)
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) => {
-        const { text, mediaUrl, ...contentWithoutLargeFields } = newContent;
+      queryClient.setQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => {
+        const { text, audio80wpm, audio100wpm, ...contentWithoutLargeFields } = newContent;
         return old.map(item => 
           item.id < 0 ? contentWithoutLargeFields : item
         );
@@ -124,7 +125,7 @@ export function useContent() {
     onMutate: async (formData) => {
       // Cancel outgoing queries to avoid race conditions
       await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
-      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list']);
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list']);
       
       // Extract title from FormData for optimistic update
       const title = formData.get('title') as string;
@@ -134,8 +135,8 @@ export function useContent() {
       const language = (formData.get('language') as string) || 'english';
       const autoScroll = formData.get('autoScroll') === 'true';
       
-      // Optimistic update - add new content without mediaUrl/text
-      const optimisticContent: Omit<Content, 'text' | 'mediaUrl'> = {
+      // Optimistic update - add new content without mediaUrl/audio80wpm/audio100wpm/text
+      const optimisticContent: Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'> = {
         id: -Math.floor(Math.random() * 1000000),
         title,
         type,
@@ -146,9 +147,9 @@ export function useContent() {
         autoScroll,
         createdAt: new Date(),
       };
-      
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
-      
+
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
+
       return { previousContent };
     },
     onError: (err, formData, context) => {
@@ -159,8 +160,8 @@ export function useContent() {
     },
     onSuccess: (newContent) => {
       // Update with real data from server (without refetching entire list)
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) => {
-        const { text, mediaUrl, ...contentWithoutLargeFields } = newContent;
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => {
+        const { text, mediaUrl, audio80wpm, audio100wpm, ...contentWithoutLargeFields } = newContent;
         return old.map(item => 
           item.id < 0 ? contentWithoutLargeFields : item
         );
@@ -185,18 +186,18 @@ export function useContent() {
       await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled', 'list'] });
       
-      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list']);
-      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list']);
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list']);
+      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'enabled', 'list']);
       
       // Optimistically update the list
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) =>
         old.map((item) =>
           item.id === id ? { ...item, isEnabled: !item.isEnabled } : item
         )
       );
       
       // Optimistically update enabled list
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list'], (old = []) => {
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'enabled', 'list'], (old = []) => {
         const item = previousContent?.find(c => c.id === id);
         if (!item) return old;
         const newIsEnabled = !item.isEnabled;
@@ -213,18 +214,18 @@ export function useContent() {
     },
     onSuccess: (result, id) => {
       // Update with server response (lightweight - only id and isEnabled)
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) =>
         old.map((item) =>
           item.id === id ? { ...item, isEnabled: result.isEnabled } : item
         )
       );
-      
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list'], (old = []) => {
+
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'enabled', 'list'], (old = []) => {
         if (result.isEnabled) {
           // Add to enabled list if not already there
           const exists = old.some(c => c.id === id);
           if (!exists) {
-            const item = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'])?.find(c => c.id === id);
+            const item = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'])?.find(c => c.id === id);
             if (item) {
               return [...old, { ...item, isEnabled: true }];
             }
@@ -262,14 +263,14 @@ export function useContent() {
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled'] });
       await queryClient.cancelQueries({ queryKey: ['content', 'enabled', 'list'] });
       
-      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list']);
-      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list']);
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list']);
+      const previousEnabled = queryClient.getQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'enabled', 'list']);
       
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'list'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) =>
         old.filter((item) => item.id !== id)
       );
       
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl'>[]>(['content', 'enabled', 'list'], (old = []) =>
+      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'enabled', 'list'], (old = []) =>
         old.filter((item) => item.id !== id)
       );
       
