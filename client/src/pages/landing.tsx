@@ -464,13 +464,13 @@ function LatestNoticeCard() {
   const current = cachedNotices[index];
   const initialHeight = 60 * VISIBLE_COUNT;
 
-  // Auto-advance every 4s, pause on hover
+  // Auto-advance every 3s, pause on hover
   useEffect(() => {
     if (paused || !cachedNotices || cachedNotices.length <= 1) return;
 
     const id = setInterval(() => {
       setIndex((prev) => (prev + 1) % cachedNotices.length);
-    }, 4000);
+    }, 3000);
 
     return () => clearInterval(id);
   }, [paused, cachedNotices.length]);

@@ -12,6 +12,7 @@ export default function NoticesPage() {
   const [offset, setOffset] = useState(0);
   const [pages, setPages] = useState<any[]>([]); // aggregated pages
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [expandedNotices, setExpandedNotices] = useState<Set<string>>(new Set());
 
   const { notices: pageNotices, isLoading } = useNotices({ enabled: true, limit: PAGE_LIMIT, offset });
 
@@ -37,6 +38,37 @@ export default function NoticesPage() {
   const hasMore = pageNotices && pageNotices.length === PAGE_LIMIT;
 
   const notices = pages;
+
+  const toggleExpanded = (noticeId: string) => {
+    const newExpanded = new Set(expandedNotices);
+    if (newExpanded.has(noticeId)) {
+      newExpanded.delete(noticeId);
+    } else {
+      newExpanded.add(noticeId);
+    }
+    setExpandedNotices(newExpanded);
+  };
+
+  const getDisplayContent = (content: string, noticeId: string) => {
+    const isExpanded = expandedNotices.has(noticeId);
+    const lines = content.split('\n');
+    
+    if (isExpanded) {
+      return content;
+    }
+    
+    // Show only first 2 lines if not expanded
+    if (lines.length > 2) {
+      return lines.slice(0, 2).join('\n');
+    }
+    
+    return content;
+  };
+
+  const shouldShowReadMore = (content: string) => {
+    const lines = content.split('\n');
+    return lines.length > 2;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-50">
@@ -100,7 +132,15 @@ export default function NoticesPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap leading-relaxed">{notice.content}</p>
+                  <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap leading-relaxed">{getDisplayContent(notice.content, notice.id)}</p>
+                  {shouldShowReadMore(notice.content) && (
+                    <button
+                      onClick={() => toggleExpanded(notice.id)}
+                      className="mt-3 text-sm font-semibold text-yellow-600 hover:text-yellow-700 transition-colors"
+                    >
+                      {expandedNotices.has(notice.id) ? "Read Less" : "Read More"}
+                    </button>
+                  )}
                 </CardContent>
               </Card>
             ))}
