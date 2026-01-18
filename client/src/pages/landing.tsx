@@ -137,6 +137,42 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Gallery Hero Section - Now at Top */}
+      {galleryImages.length > 0 && (
+        <section className="w-full bg-black relative">
+          <Carousel
+            plugins={[
+              Autoplay({
+                delay: 4000,
+              }),
+            ]}
+            className="w-full"
+          >
+            <CarouselContent className="m-0">
+              {galleryImages.map((url, idx) => (
+                <CarouselItem key={idx} className="pl-0">
+                  <div className="relative w-full aspect-video overflow-hidden">
+                    <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/30" />
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
+            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
+          </Carousel>
+          {galleryImages.length > 0 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+              <Link href="/gallery">
+                <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-8 py-3">
+                  View All Gallery →
+                </Button>
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Hero Section */}
       <section className="w-full py-16 md:py-24 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex justify-center text-center relative overflow-hidden">
         {/* Decorative elements */}
@@ -277,61 +313,6 @@ export default function LandingPage() {
                </div>
              )}
            </div>
-        </div>
-      </section>
-
-      {/* Gallery Section */}
-      <section className="w-full py-16 md:py-24 bg-gradient-to-b from-white to-slate-50">
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-primary font-semibold text-sm uppercase tracking-wider">Our Moments</span>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Photo Gallery</h2>
-          </div>
-          {galleryImages.length > 0 ? (
-            <div className="w-full max-w-5xl mx-auto px-12">
-              <Carousel
-                plugins={[
-                  Autoplay({
-                    delay: 2000,
-                  }),
-                ]}
-                className="w-full"
-              >
-                <CarouselContent>
-                  {galleryImages.map((url, idx) => (
-                    <CarouselItem key={idx} className="md:basis-1/2 lg:basis-1/3">
-                      <div className="p-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <div className="relative group aspect-square rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] bg-white p-1">
-                              <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover rounded-lg" />
-                              <div className="absolute inset-1 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg" />
-                            </div>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
-                            <img src={url} alt={`Gallery ${idx}`} className="w-full h-auto max-h-[90vh] object-contain rounded-md" />
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="border-2" />
-                <CarouselNext className="border-2" />
-              </Carousel>
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-muted/30 rounded-lg border-2 border-dashed">
-              <p className="text-muted-foreground">No images uploaded yet.</p>
-            </div>
-          )}
-          {galleryImages.length > 0 && (
-            <div className="mt-10 text-center">
-              <Link href="/gallery">
-                 <Button variant="outline" size="lg" className="border-2">View All Images</Button>
-              </Link>
-            </div>
-          )}
         </div>
       </section>
 
