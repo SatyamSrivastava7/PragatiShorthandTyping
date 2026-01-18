@@ -411,17 +411,17 @@ function HeroSection({ currentUser, getStartedLink }: any) {
   const hasNotices = notices.length > 0;
 
   return (
-    <div className={`flex flex-col ${hasNotices ? 'lg:flex-row' : ''} items-stretch gap-8 lg:gap-12 ${!hasNotices ? 'mx-auto max-w-2xl' : ''}`}>
-      {/* Main Hero Content - Left Side */}
-      <div className={`flex flex-col items-start lg:items-start space-y-4 ${hasNotices ? 'flex-1' : ''}`}>
+    <div className={`flex flex-col ${hasNotices ? 'lg:flex-row items-stretch' : 'items-center'} gap-8 lg:gap-12 ${!hasNotices ? 'mx-auto max-w-2xl' : ''}`}>
+      {/* Main Hero Content - Left Side or Center */}
+      <div className={`flex flex-col ${hasNotices ? 'items-start lg:items-start' : 'items-center text-center'} space-y-4 ${hasNotices ? 'flex-1' : ''}`}>
         <div className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
             Master Shorthand & Typing with Pragati
           </h1>
-          <p className="max-w-[700px] text-muted-foreground md:text-xl leading-relaxed">
+          <p className={`${!hasNotices ? 'mx-auto' : ''} max-w-[700px] text-muted-foreground md:text-xl leading-relaxed`}>
             Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
           </p>
-          <div className="flex items-center gap-3 pt-2">
+          <div className={`flex items-center gap-3 pt-2 ${!hasNotices ? 'justify-center' : ''}`}>
             <span className="bg-gradient-to-r from-primary to-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide shadow-md">
               Since 2008
             </span>
@@ -430,7 +430,7 @@ function HeroSection({ currentUser, getStartedLink }: any) {
             </span>
           </div>
         </div>
-        <div className="flex flex-col gap-3 min-[400px]:flex-row pt-6">
+        <div className={`flex flex-col gap-3 min-[400px]:flex-row pt-6 ${!hasNotices ? 'justify-center' : ''}`}>
           <Link href={getStartedLink}>
             <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0">
               {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
