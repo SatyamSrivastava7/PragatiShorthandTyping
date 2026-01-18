@@ -184,7 +184,7 @@ export default function LandingPage() {
 
       {/* Gallery Hero Section - Featured Images Only */}
       {featuredImages.length > 0 ? (
-        <section className="w-full bg-black relative h-[700px] overflow-hidden">
+        <section className="w-full bg-black relative h-[550px] overflow-hidden">
           <Carousel
             plugins={[
               Autoplay({
@@ -230,7 +230,7 @@ export default function LandingPage() {
       )}
 
       {/* Hero Section */}
-      <section className="w-full py-16 md:py-24 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex justify-center text-center relative overflow-hidden">
+      <section className="w-full py-12 md:py-16 lg:py-20 bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex justify-center text-center relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl" />
@@ -244,7 +244,7 @@ export default function LandingPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="w-full py-12 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-white">
+      <section className="w-full py-8 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-white">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="flex flex-col items-center text-center">
@@ -280,7 +280,7 @@ export default function LandingPage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="w-full py-16 md:py-24 bg-gradient-to-b from-white to-slate-50">
+      <section id="about" className="w-full py-12 md:py-16 bg-gradient-to-b from-white to-slate-50">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <span className="text-primary font-semibold text-sm uppercase tracking-wider">What We Offer</span>
@@ -290,7 +290,7 @@ export default function LandingPage() {
               Our platform offers realistic test environments, detailed performance analytics, and comprehensive study materials.
             </p>
           </div>
-          <div className="mx-auto grid max-w-5xl items-stretch gap-8 py-12 lg:grid-cols-3">
+          <div className="mx-auto grid max-w-5xl items-stretch gap-8 py-8 lg:grid-cols-3">
             <Card className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white group">
               <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
                 <div className="p-5 bg-gradient-to-br from-orange-100 to-orange-50 rounded-2xl group-hover:scale-110 transition-transform duration-300">
@@ -329,7 +329,7 @@ export default function LandingPage() {
       </section>
 
       {/* Selected Candidates Section */}
-      <section id="candidates" className="w-full py-16 md:py-24 bg-gradient-to-b from-slate-50 to-white">
+      <section id="candidates" className="w-full py-12 md:py-16 bg-gradient-to-b from-slate-50 to-white">
         <div className="container px-4 md:px-6 mx-auto">
            <div className="text-center mb-12">
              <span className="text-primary font-semibold text-sm uppercase tracking-wider">Success Stories</span>
@@ -373,7 +373,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer id="contact" className="w-full py-12 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
+      <footer id="contact" className="w-full py-8 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col items-center md:items-start">
