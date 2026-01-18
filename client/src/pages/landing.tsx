@@ -401,54 +401,70 @@ function HeroSection({ currentUser, getStartedLink }: any) {
   const hasNotices = notices.length > 0;
 
   return (
-    <div className={`flex flex-col ${hasNotices ? 'lg:flex-row items-start' : 'items-center'} gap-8 lg:gap-6 ${!hasNotices ? 'mx-auto max-w-2xl' : ''}`}>
-      {/* Left Side - Hero Content and Image */}
-      <div className={`flex flex-col ${hasNotices ? 'lg:flex-1 lg:max-w-2xl' : 'items-center text-center w-full'} space-y-6`}>
+    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+      {/* Left/Main Content - Takes 7/12 on large screens */}
+      <div className="lg:col-span-7 flex flex-col space-y-6">
         {/* Text Content */}
-        <div className="space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
-            Master Shorthand & Typing with Pragati
-          </h1>
-          <p className={`${!hasNotices ? 'mx-auto' : ''} max-w-[700px] text-muted-foreground md:text-xl leading-relaxed`}>
-            Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-tight bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
+              Master Shorthand & Typing
+            </h1>
+            <p className="text-xl lg:text-2xl font-semibold text-primary mt-2">with Pragati Institute</p>
+          </div>
+          <p className="text-base lg:text-lg text-gray-700 leading-relaxed max-w-2xl">
+            Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence since 2008.
           </p>
-          <div className={`flex items-center gap-3 pt-2 ${!hasNotices ? 'justify-center' : ''}`}>
-            <span className="bg-gradient-to-r from-primary to-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide shadow-md">
+          
+          {/* Stats Pills */}
+          <div className="flex flex-wrap gap-3 pt-2">
+            <div className="px-4 py-2 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full text-sm font-semibold shadow-md">
               Since 2008
-            </span>
-            <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-semibold">
+            </div>
+            <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
               5000+ Students
-            </span>
+            </div>
+            <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
+              1000+ Govt Jobs
+            </div>
           </div>
         </div>
 
         {/* Buttons */}
-        <div className={`flex flex-col gap-3 min-[400px]:flex-row pt-4 ${!hasNotices ? 'justify-center' : ''}`}>
+        <div className="flex flex-col sm:flex-row gap-4 pt-4">
           <Link href={getStartedLink}>
-            <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0">
-              {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
+            <Button size="lg" className="px-10 h-14 text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0 whitespace-nowrap">
+              {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-3 h-5 w-5" />
             </Button>
           </Link>
           <Link href="/gallery">
-            <Button variant="outline" size="lg" className="h-12 px-8 text-base border-2 hover:bg-primary/5">
+            <Button variant="outline" size="lg" className="px-10 h-14 text-base font-semibold border-2 hover:bg-primary/5 whitespace-nowrap">
               <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
             </Button>
           </Link>
         </div>
+      </div>
 
-        {/* Hero Image - Visible on all screens now, positioned below text on mobile/tablet */}
-        <div className={`relative w-full ${hasNotices ? 'lg:mt-4' : 'mt-8'}`}>
-          <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
+      {/* Hero Image - 5/12 on large screens */}
+      <div className="lg:col-span-5 w-full">
+        <div className="relative">
+          <div className="absolute -inset-6 bg-gradient-to-r from-primary/15 via-blue-400/15 to-indigo-400/15 rounded-3xl blur-2xl" />
           <img
             src={heroImage}
-            alt="Hero"
-            className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
+            alt="Professional Typing Institute Classroom"
+            className="relative w-full aspect-video overflow-hidden rounded-3xl object-cover shadow-2xl border-4 border-white"
           />
         </div>
       </div>
 
-      {/* Right Side - Latest Notice Card - Parallel to hero section */}
-      {hasNotices && <LatestNoticeCardWrapper />}
+      {/* Notice Card - Sticky on right side on large screens */}
+      {hasNotices && (
+        <div className="lg:col-span-12 flex justify-end">
+          <div className="w-full lg:w-96">
+            <LatestNoticeCard />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -464,65 +480,63 @@ function LatestNoticeCard() {
   const latestNotice = notices[0]; // Latest notice (already sorted by API)
 
   return (
-    <div className="w-full h-full">
-      <div className="sticky top-24">
-        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-xl h-fit max-h-[600px] overflow-y-auto">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="mt-1">
-              <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
-            </div>
-            <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
+    <div className="w-full">
+      <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="mt-0.5">
+            <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
           </div>
+          <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
+        </div>
 
-          <div className="space-y-3">
-            <div>
-              <h4 className="font-semibold text-gray-900 text-base break-words">
-                {latestNotice.heading}
-              </h4>
-              <p className="text-xs text-gray-500 mt-1">
-                {format(new Date(latestNotice.createdAt), "MMM d, yyyy")}
-              </p>
-            </div>
-
-            <p className="text-sm text-gray-700 leading-relaxed max-h-[200px] overflow-y-auto">
-              {latestNotice.content}
+        <div className="space-y-3">
+          <div>
+            <h4 className="font-semibold text-gray-900 text-base break-words">
+              {latestNotice.heading}
+            </h4>
+            <p className="text-xs text-gray-500 mt-1">
+              {format(new Date(latestNotice.createdAt), "MMM d, yyyy")}
             </p>
-
-            <div className="flex flex-col gap-2 pt-2">
-              {latestNotice.pdfUrl && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
-                  onClick={() => {
-                    const link = document.createElement("a");
-                    link.href = latestNotice.pdfUrl!;
-                    link.download = "notice.pdf";
-                    link.click();
-                  }}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download PDF
-                </Button>
-              )}
-              <Link href="/notice" className="w-full">
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
-                >
-                  View All Notices
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
-
-            {notices.length > 1 && (
-              <p className="text-xs text-gray-600 text-center pt-2 border-t border-yellow-200">
-                {notices.length} total announcements
-              </p>
-            )}
           </div>
+
+          <p className="text-sm text-gray-700 leading-relaxed line-clamp-4">
+            {latestNotice.content}
+          </p>
+
+          <div className="flex flex-col gap-2 pt-2">
+            {latestNotice.pdfUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                onClick={() => {
+                  const link = document.createElement("a");
+                  link.href = latestNotice.pdfUrl!;
+                  link.download = "notice.pdf";
+                  link.click();
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+            )}
+            <Link href="/notice" className="w-full">
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
+              >
+                View All Notices
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+
+          {notices.length > 1 && (
+            <p className="text-xs text-gray-600 text-center pt-2 border-t border-yellow-200">
+              {notices.length} total announcements
+            </p>
+          )}
         </div>
       </div>
     </div>
