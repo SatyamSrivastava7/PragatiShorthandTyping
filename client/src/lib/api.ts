@@ -1,4 +1,4 @@
-import type { User, Content, Result, PdfFolder, PdfResource } from '@shared/schema';
+import type { User, Content, Result, PdfFolder, PdfResource, Notice, InsertNotice } from '@shared/schema';
 
 const API_URL = '';
 
@@ -340,5 +340,33 @@ export const settingsApi = {
     }>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
+    }),
+};
+
+export const noticesApi = {
+  getPublic: () =>
+    fetchApi<Notice[]>('/api/notices'),
+
+  getAll: () =>
+    fetchApi<Notice[]>('/api/notices/all'),
+
+  create: (data: InsertNotice) =>
+    fetchApi<Notice>('/api/notices', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  createWithFile: (formData: FormData) =>
+    fetchApiFormData<Notice>('/api/notices', formData),
+
+  update: (id: number, data: Partial<InsertNotice> & { isActive?: boolean }) =>
+    fetchApi<Notice>(`/api/notices/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/api/notices/${id}`, {
+      method: 'DELETE',
     }),
 };

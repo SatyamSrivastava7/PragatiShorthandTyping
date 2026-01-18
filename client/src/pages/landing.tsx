@@ -1,14 +1,17 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
+import { useNotices } from "@/lib/hooks/useNotice";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu } from "lucide-react";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu, Bell, Download } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import logoImage from "@assets/WhatsApp_Image_2025-12-12_at_7.30.52_PM_(1)_1765980168956.jpeg";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import Autoplay from "embla-carousel-autoplay";
 import { useToast } from "@/hooks/use-toast";
+import { NoticeSlider } from "@/components/NoticeSlider";
+import { format } from "date-fns";
 import {
   Carousel,
   CarouselContent,
@@ -144,17 +147,17 @@ export default function LandingPage() {
         <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-green-400/40 rounded-full animate-pulse delay-500" />
         
         <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex flex-col items-center gap-8">
-            {/* Main Hero Content */}
-            <div className="flex-1 flex flex-col items-center space-y-4 max-w-4xl">
+          <div className="flex flex-col lg:flex-row items-stretch gap-8 lg:gap-12">
+            {/* Main Hero Content - Left Side */}
+            <div className="flex-1 flex flex-col items-start lg:items-start space-y-4">
               <div className="space-y-4">
                 <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
                   Master Shorthand & Typing with Pragati
                 </h1>
-                <p className="max-w-[700px] mx-auto text-muted-foreground md:text-xl leading-relaxed">
+                <p className="max-w-[700px] text-muted-foreground md:text-xl leading-relaxed">
                   Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
                 </p>
-                <div className="flex items-center justify-center gap-3 pt-2">
+                <div className="flex items-center gap-3 pt-2">
                   <span className="bg-gradient-to-r from-primary to-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide shadow-md">
                     Since 2008
                   </span>
@@ -163,7 +166,7 @@ export default function LandingPage() {
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 min-[400px]:flex-row justify-center pt-6">
+              <div className="flex flex-col gap-3 min-[400px]:flex-row pt-6">
                 <Link href={getStartedLink}>
                   <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0">
                     {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
@@ -175,16 +178,32 @@ export default function LandingPage() {
                   </Button>
                 </Link>
               </div>
+
+              {/* Image below content on small screens */}
+              <div className="relative mt-8 w-full lg:hidden">
+                <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
+                <img
+                  src={heroImage}
+                  alt="Hero"
+                  className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
+                />
+              </div>
             </div>
-            
-            <div className="relative mt-8 w-full max-w-5xl">
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
-              <img
-                src={heroImage}
-                alt="Hero"
-                className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
-              />
+
+            {/* Right Side - Latest Notice Card */}
+            <div className="flex-1 hidden lg:flex items-start">
+              <LatestNoticeCard />
             </div>
+          </div>
+
+          {/* Image on large screens - below both sections */}
+          <div className="relative mt-12 w-full max-w-5xl mx-auto hidden lg:block">
+            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
+            <img
+              src={heroImage}
+              alt="Hero"
+              className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
+            />
           </div>
         </div>
       </section>
@@ -427,6 +446,85 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Notice Slider - appears at bottom when notices exist */}
+      <NoticeSlider />
+    </div>
+  );
+}
+
+// Latest Notice Card Component for Hero Section
+function LatestNoticeCard() {
+  const { notices } = useNotices();
+
+  if (notices.length === 0) {
+    return null;
+  }
+
+  const latestNotice = notices[0]; // Latest notice (already sorted by API)
+
+  return (
+    <div className="w-full h-full">
+      <div className="sticky top-24 h-fit">
+        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-xl">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="mt-1">
+              <Bell className="h-6 w-6 text-yellow-600 animate-bounce" />
+            </div>
+            <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h4 className="font-semibold text-gray-900 text-base break-words">
+                {latestNotice.heading}
+              </h4>
+              <p className="text-xs text-gray-500 mt-1">
+                {format(new Date(latestNotice.createdAt), "MMM d, yyyy")}
+              </p>
+            </div>
+
+            <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
+              {latestNotice.content}
+            </p>
+
+            <div className="flex flex-col gap-2 pt-2">
+              {latestNotice.pdfUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                  onClick={() => {
+                    const link = document.createElement("a");
+                    link.href = latestNotice.pdfUrl!;
+                    link.download = "notice.pdf";
+                    link.click();
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download PDF
+                </Button>
+              )}
+              <Link href="/notice" className="w-full">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
+                >
+                  View All Notices
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+
+            {notices.length > 1 && (
+              <p className="text-xs text-gray-600 text-center pt-2 border-t border-yellow-200">
+                {notices.length} total announcements
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

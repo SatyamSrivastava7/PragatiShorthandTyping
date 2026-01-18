@@ -8,6 +8,7 @@ import {
   selectedCandidates, 
   galleryImages,
   settings,
+  notices,
   type User, 
   type InsertUser,
   type Content,
@@ -25,6 +26,8 @@ import {
   type InsertGalleryImage,
   type Setting,
   type InsertSetting,
+  type Notice,
+  type InsertNotice,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -95,6 +98,14 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   getAllSettings(): Promise<Setting[]>;
   upsertSetting(setting: InsertSetting): Promise<Setting>;
+  
+  // Notices methods
+  createNotice(notice: InsertNotice): Promise<Notice>;
+  getNotice(id: number): Promise<Notice | undefined>;
+  getActiveNotices(): Promise<Notice[]>;
+  getAllNotices(): Promise<Notice[]>;
+  updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined>;
+  deleteNotice(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -531,6 +542,38 @@ export class DatabaseStorage implements IStorage {
         throw error;
       }
     }
+  }
+
+  // Notices methods
+  async createNotice(notice: InsertNotice): Promise<Notice> {
+    const [created] = await db.insert(notices).values(notice).returning();
+    return created;
+  }
+
+  async getNotice(id: number): Promise<Notice | undefined> {
+    const [notice] = await db.select().from(notices).where(eq(notices.id, id));
+    return notice || undefined;
+  }
+
+  async getActiveNotices(): Promise<Notice[]> {
+    return await db.select().from(notices).where(eq(notices.isActive, true)).orderBy(desc(notices.createdAt));
+  }
+
+  async getAllNotices(): Promise<Notice[]> {
+    return await db.select().from(notices).orderBy(desc(notices.createdAt));
+  }
+
+  async updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined> {
+    const [updated] = await db.update(notices)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(notices.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteNotice(id: number): Promise<boolean> {
+    const result = await db.delete(notices).where(eq(notices.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 

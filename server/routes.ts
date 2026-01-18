@@ -12,6 +12,7 @@ import {
   insertSelectedCandidateSchema,
   insertGalleryImageSchema,
   insertSettingSchema,
+  insertNoticeSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1282,6 +1283,207 @@ export async function registerRoutes(
       res.json(settingsObj);
     } catch (error) {
       res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // ==================== NOTICES ROUTES ====================
+
+  // Get all active notices (public endpoint)
+  app.get("/api/notices", async (req, res) => {
+    try {
+      const notices = await storage.getActiveNotices();
+      res.json(notices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notices" });
+    }
+  });
+
+  // Get all notices (admin only)
+  app.get("/api/notices/all", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const notices = await storage.getAllNotices();
+      res.json(notices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notices" });
+    }
+  });
+
+  // Create notice (admin only)
+  app.post("/api/notices", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Handle both JSON and multipart/form-data (for PDF uploads)
+      let noticeData: any = {};
+
+      if (req.is('multipart/form-data')) {
+        // Parse multipart data
+        const bb = busboy({ headers: req.headers });
+        const fields: Record<string, string> = {};
+        let pdfFile: Buffer | null = null;
+        let pdfMimeType: string | null = null;
+
+        await new Promise((resolve, reject) => {
+          bb.on('file', (fieldname, file, info) => {
+            if (fieldname === 'pdf') {
+              const chunks: Buffer[] = [];
+              file.on('data', (data) => chunks.push(data));
+              file.on('end', () => {
+                pdfFile = Buffer.concat(chunks);
+                pdfMimeType = info.mimeType;
+              });
+            }
+          });
+
+          bb.on('field', (fieldname, val) => {
+            fields[fieldname] = val;
+          });
+
+          bb.on('close', resolve);
+          bb.on('error', reject);
+        });
+
+        req.pipe(bb);
+
+        noticeData = {
+          heading: fields.heading,
+          content: fields.content,
+          pdfUrl: pdfFile ? `data:${pdfMimeType};base64,${(pdfFile as Buffer).toString('base64')}` : null,
+        };
+      } else {
+        // JSON request
+        noticeData = {
+          heading: req.body.heading,
+          content: req.body.content,
+          pdfUrl: req.body.pdfUrl || null,
+        };
+      }
+
+      const validatedData = insertNoticeSchema.parse(noticeData);
+      const notice = await storage.createNotice(validatedData);
+      res.json(notice);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Failed to create notice" });
+    }
+  });
+
+  // Update notice (admin only)
+  app.patch("/api/notices/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid notice ID" });
+      }
+
+      // Handle both JSON and multipart/form-data (for PDF uploads)
+      let updates: any = {};
+
+      if (req.is('multipart/form-data')) {
+        // Parse multipart data
+        const bb = busboy({ headers: req.headers });
+        const fields: Record<string, string> = {};
+        let pdfFile: Buffer | null = null;
+        let pdfMimeType: string | null = null;
+
+        await new Promise((resolve, reject) => {
+          bb.on('file', (fieldname, file, info) => {
+            if (fieldname === 'pdf') {
+              const chunks: Buffer[] = [];
+              file.on('data', (data) => chunks.push(data));
+              file.on('end', () => {
+                pdfFile = Buffer.concat(chunks);
+                pdfMimeType = info.mimeType;
+              });
+            }
+          });
+
+          bb.on('field', (fieldname, val) => {
+            fields[fieldname] = val;
+          });
+
+          bb.on('close', resolve);
+          bb.on('error', reject);
+        });
+
+        req.pipe(bb);
+
+        if (fields.heading) updates.heading = fields.heading;
+        if (fields.content) updates.content = fields.content;
+        if (pdfFile) {
+          updates.pdfUrl = `data:${pdfMimeType};base64,${(pdfFile as Buffer).toString('base64')}`;
+        }
+      } else {
+        // JSON request
+        if (req.body.heading) updates.heading = req.body.heading;
+        if (req.body.content) updates.content = req.body.content;
+        if ('isActive' in req.body) updates.isActive = req.body.isActive;
+        if (req.body.pdfUrl) updates.pdfUrl = req.body.pdfUrl;
+      }
+
+      const notice = await storage.updateNotice(id, updates);
+      if (!notice) {
+        return res.status(404).json({ message: "Notice not found" });
+      }
+
+      res.json(notice);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update notice" });
+    }
+  });
+
+  // Delete notice (admin only)
+  app.delete("/api/notices/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid notice ID" });
+      }
+
+      const deleted = await storage.deleteNotice(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Notice not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete notice" });
     }
   });
 

@@ -20,6 +20,7 @@ import {
   useGallery,
   useSelectedCandidates,
 } from "@/lib/hooks";
+import { useNotices } from "@/lib/hooks/useNotice";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,7 @@ import {
   Menu,
   RefreshCw,
   ChevronDown,
+  Bell,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -189,6 +191,17 @@ export default function AdminDashboard() {
     addCandidate: addSelectedCandidate,
     deleteCandidate: removeSelectedCandidate,
   } = useSelectedCandidates(activeTab === "gallery" && gallerySubTab === "selected_candidates");
+  const {
+    allNotices,
+    isLoadingAll: isLoadingNotices,
+    refetchAll: refetchAllNotices,
+    createNoticeWithFile,
+    updateNoticeAsync,
+    deleteNoticeAsync,
+    isCreating: isCreatingNotice,
+    isUpdating: isUpdatingNotice,
+    isDeleting: isDeletingNotice,
+  } = useNotices();
 
   const { toast } = useToast();
 
@@ -373,6 +386,20 @@ export default function AdminDashboard() {
   const [candidateDesignation, setCandidateDesignation] = useState("");
   const [candidateYear, setCandidateYear] = useState("");
   const [candidateImage, setCandidateImage] = useState<File | null>(null);
+
+  // Notices State
+  const [noticeHeading, setNoticeHeading] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
+  const [noticePdfFile, setNoticePdfFile] = useState<File | null>(null);
+  const noticePdfInputRef = useRef<HTMLInputElement>(null);
+  const [visibleNoticesCount, setVisibleNoticesCount] = useState(10); // Show 10 at a time
+  const [isLoadingMoreNotices, setIsLoadingMoreNotices] = useState(false);
+  const [editingNotice, setEditingNotice] = useState<any>(null);
+  const [editHeading, setEditHeading] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editPdfFile, setEditPdfFile] = useState<File | null>(null);
+  const editPdfInputRef = useRef<HTMLInputElement>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleAddCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2656,6 +2683,543 @@ export default function AdminDashboard() {
             </Card>
           </div>
         );
+      case "notices":
+        return (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg">
+                <Bell className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Manage Notices
+                </h2>
+                <p className="text-muted-foreground">
+                  Create and manage notices for the landing page
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Form Section */}
+              <Card className="shadow-lg border-0 lg:col-span-1">
+                <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <Bell className="h-4 w-4 text-yellow-600" />
+                    </div>
+                    Create Notice
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!noticeHeading.trim() || !noticeContent.trim()) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Heading and content are required",
+                        });
+                        return;
+                      }
+
+                      try {
+                        await createNoticeWithFile(
+                          {
+                            heading: noticeHeading,
+                            content: noticeContent,
+                            pdfUrl: null,
+                          },
+                          noticePdfFile || undefined
+                        );
+
+                        toast({
+                          variant: "success",
+                          title: "Success",
+                          description: "Notice published successfully",
+                        });
+
+                        // Reset form
+                        setNoticeHeading("");
+                        setNoticeContent("");
+                        setNoticePdfFile(null);
+                        if (noticePdfInputRef.current) {
+                          noticePdfInputRef.current.value = "";
+                        }
+
+                        // Refresh notices
+                        await refetchAllNotices();
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to create notice",
+                        });
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Heading
+                      </Label>
+                      <Input
+                        value={noticeHeading}
+                        onChange={(e) => setNoticeHeading(e.target.value)}
+                        placeholder="e.g., System Maintenance"
+                        className="bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Content
+                      </Label>
+                      <Textarea
+                        value={noticeContent}
+                        onChange={(e) => setNoticeContent(e.target.value)}
+                        placeholder="Enter notice details here..."
+                        className="min-h-[150px] bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Attachment (Optional PDF)
+                      </Label>
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) =>
+                          setNoticePdfFile(e.target.files?.[0] || null)
+                        }
+                        ref={noticePdfInputRef}
+                        className="bg-white"
+                      />
+                      {noticePdfFile && (
+                        <p className="mt-2 text-sm text-yellow-700 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" />{" "}
+                          {noticePdfFile.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isCreatingNotice}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-md hover:shadow-lg transition-all"
+                    >
+                      {isCreatingNotice ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Publishing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" /> Publish Notice
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Notices List Section */}
+              <Card className="shadow-lg border-0 lg:col-span-2">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Bell className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          Active Notices
+                        </CardTitle>
+                        <CardDescription>
+                          {allNotices.length} total notices
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => refetchAllNotices()}
+                      disabled={isLoadingNotices}
+                    >
+                      <RefreshCw
+                        className={cn(
+                          "h-4 w-4",
+                          isLoadingNotices && "animate-spin"
+                        )}
+                      />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="max-h-[500px] overflow-auto">
+                    {isLoadingNotices ? (
+                      <div className="flex items-center justify-center p-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <span className="ml-3 text-muted-foreground">
+                          Loading notices...
+                        </span>
+                      </div>
+                    ) : allNotices.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-12 text-center">
+                        <Bell className="h-10 w-10 text-muted-foreground opacity-30 mb-3" />
+                        <p className="text-muted-foreground">
+                          No notices yet
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Create your first notice to get started
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {/* allNotices are already sorted by latest first from the API */}
+                        {allNotices.slice(0, visibleNoticesCount).map((notice) => (
+                          <div
+                            key={notice.id}
+                            className="p-4 hover:bg-amber-50/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 mb-1 break-words">
+                                  {notice.heading}
+                                </h4>
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {notice.content}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  {notice.pdfUrl && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                      📎 PDF Attached
+                                    </span>
+                                  )}
+                                  {notice.isActive ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                      ✓ Active
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                                      ○ Inactive
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-gray-500">
+                                    {format(
+                                      new Date(notice.createdAt),
+                                      "MMM d, yyyy h:mm a"
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingNotice(notice);
+                                    setEditHeading(notice.heading);
+                                    setEditContent(notice.content);
+                                    setEditPdfFile(null);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  className="text-xs hover:bg-blue-50"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      await updateNoticeAsync({
+                                        id: notice.id,
+                                        isActive: !notice.isActive,
+                                      });
+                                      toast({
+                                        title: "Updated",
+                                        description: `Notice ${
+                                          notice.isActive
+                                            ? "deactivated"
+                                            : "activated"
+                                        }`,
+                                      });
+                                    } catch (error) {
+                                      toast({
+                                        variant: "destructive",
+                                        title: "Error",
+                                        description: "Failed to update notice",
+                                      });
+                                    }
+                                  }}
+                                  disabled={isUpdatingNotice}
+                                  className="text-xs"
+                                >
+                                  {notice.isActive ? "Deactivate" : "Activate"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive hover:bg-red-50"
+                                  onClick={async () => {
+                                    if (
+                                      confirm(
+                                        "Are you sure you want to delete this notice?"
+                                      )
+                                    ) {
+                                      try {
+                                        await deleteNoticeAsync(notice.id);
+                                        toast({
+                                          title: "Deleted",
+                                          description: "Notice removed",
+                                        });
+                                      } catch (error) {
+                                        toast({
+                                          variant: "destructive",
+                                          title: "Error",
+                                          description: "Failed to delete notice",
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  disabled={isDeletingNotice}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Load More Button */}
+                        {visibleNoticesCount < allNotices.length && (
+                          <div className="p-4 flex justify-center border-t bg-gray-50">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setIsLoadingMoreNotices(true);
+                                setTimeout(() => {
+                                  setVisibleNoticesCount((prev) => prev + 10);
+                                  setIsLoadingMoreNotices(false);
+                                }, 300);
+                              }}
+                              disabled={isLoadingMoreNotices}
+                              className="min-w-48"
+                            >
+                              {isLoadingMoreNotices ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Loading...
+                                </>
+                              ) : (
+                                `Load More (${Math.min(10, allNotices.length - visibleNoticesCount)} more)`
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Edit Notice Modal */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Notice</DialogTitle>
+                </DialogHeader>
+                {editingNotice && (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!editHeading.trim() || !editContent.trim()) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Heading and content are required",
+                        });
+                        return;
+                      }
+
+                      try {
+                        // Build the update object
+                        const updateData: any = {
+                          heading: editHeading,
+                          content: editContent,
+                        };
+
+                        // If a new PDF was selected, we'll need to upload it
+                        if (editPdfFile) {
+                          const formData = new FormData();
+                          formData.append('heading', editHeading);
+                          formData.append('content', editContent);
+                          formData.append('pdf', editPdfFile);
+                          
+                          // Call the update with file
+                          await fetch(`/api/notices/${editingNotice.id}`, {
+                            method: 'PATCH',
+                            body: formData,
+                          }).then(res => {
+                            if (!res.ok) throw new Error('Failed to update notice');
+                            return res.json();
+                          });
+                        } else {
+                          // Just update the text fields
+                          await updateNoticeAsync({
+                            id: editingNotice.id,
+                            heading: editHeading,
+                            content: editContent,
+                          });
+                        }
+
+                        toast({
+                          variant: "success",
+                          title: "Success",
+                          description: "Notice updated successfully",
+                        });
+
+                        // Reset form and close modal
+                        setEditingNotice(null);
+                        setEditHeading("");
+                        setEditContent("");
+                        setEditPdfFile(null);
+                        if (editPdfInputRef.current) {
+                          editPdfInputRef.current.value = "";
+                        }
+                        setIsEditModalOpen(false);
+
+                        // Refresh notices
+                        await refetchAllNotices();
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to update notice",
+                        });
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Heading
+                      </Label>
+                      <Input
+                        value={editHeading}
+                        onChange={(e) => setEditHeading(e.target.value)}
+                        placeholder="e.g., System Maintenance"
+                        className="bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Content
+                      </Label>
+                      <Textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        placeholder="Enter notice details here..."
+                        className="min-h-[150px] bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Attachment (Optional PDF)
+                      </Label>
+                      {editingNotice.pdfUrl && !editPdfFile && (
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
+                          <span className="text-sm text-blue-700">
+                            📎 Current PDF attached
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              // Note: This would require a remove PDF endpoint
+                              toast({
+                                title: "Info",
+                                description: "Upload a new PDF to replace the existing one",
+                              });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) =>
+                          setEditPdfFile(e.target.files?.[0] || null)
+                        }
+                        ref={editPdfInputRef}
+                        className="bg-white"
+                      />
+                      {editPdfFile && (
+                        <p className="mt-2 text-sm text-yellow-700 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" /> {editPdfFile.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingNotice(null);
+                          setEditHeading("");
+                          setEditContent("");
+                          setEditPdfFile(null);
+                          if (editPdfInputRef.current) {
+                            editPdfInputRef.current.value = "";
+                          }
+                          setIsEditModalOpen(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={isUpdatingNotice}
+                        className="bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-md hover:shadow-lg transition-all"
+                      >
+                        {isUpdatingNotice ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
+        );
       default:
         return null;
     }
@@ -2703,6 +3267,13 @@ export default function AdminDashboard() {
       icon: ImageIcon,
       color: "text-pink-600",
       bg: "bg-pink-100",
+    },
+    {
+      id: "notices",
+      label: "Notices",
+      icon: Bell,
+      color: "text-yellow-600",
+      bg: "bg-yellow-100",
     },
   ];
 
