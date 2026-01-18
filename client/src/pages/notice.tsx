@@ -51,23 +51,23 @@ export default function NoticesPage() {
 
   const getDisplayContent = (content: string, noticeId: string) => {
     const isExpanded = expandedNotices.has(noticeId);
-    const lines = content.split('\n');
     
     if (isExpanded) {
       return content;
     }
     
-    // Show only first 2 lines if not expanded
-    if (lines.length > 2) {
-      return lines.slice(0, 2).join('\n');
+    // Show only first 2 lines worth of text (truncate at approximately 200 characters for 2 lines)
+    const charLimit = 200;
+    if (content.length > charLimit) {
+      return content.substring(0, charLimit) + '...';
     }
     
     return content;
   };
 
   const shouldShowReadMore = (content: string) => {
-    const lines = content.split('\n');
-    return lines.length > 2;
+    // Show Read More if content is longer than ~200 characters (roughly 2 lines)
+    return content.length > 200;
   };
 
   return (
