@@ -555,12 +555,18 @@ export class DatabaseStorage implements IStorage {
     return notice || undefined;
   }
 
-  async getActiveNotices(): Promise<Notice[]> {
-    return await db.select().from(notices).where(eq(notices.isActive, true)).orderBy(desc(notices.createdAt));
+  async getActiveNotices(limit?: number, offset?: number): Promise<Notice[]> {
+    let q: any = db.select().from(notices).where(eq(notices.isActive, true)).orderBy(desc(notices.createdAt));
+    if (typeof limit === 'number') q = q.limit(limit);
+    if (typeof offset === 'number') q = q.offset(offset);
+    return await q;
   }
 
-  async getAllNotices(): Promise<Notice[]> {
-    return await db.select().from(notices).orderBy(desc(notices.createdAt));
+  async getAllNotices(limit?: number, offset?: number): Promise<Notice[]> {
+    let q: any = db.select().from(notices).orderBy(desc(notices.createdAt));
+    if (typeof limit === 'number') q = q.limit(limit);
+    if (typeof offset === 'number') q = q.offset(offset);
+    return await q;
   }
 
   async updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined> {

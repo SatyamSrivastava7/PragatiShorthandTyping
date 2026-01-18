@@ -2,27 +2,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { noticesApi } from "../api";
 import type { Notice, InsertNotice } from "@shared/schema";
 
-export function useNotices() {
+// Hook for lazy loading notices (don't fetch on mount)
+export function useNotices(opts?: { enabled?: boolean; limit?: number; offset?: number; includeInactive?: boolean }) {
   const queryClient = useQueryClient();
 
-  // Fetch all active notices (for public view) - CACHED
-  const { data: notices = [], isLoading } = useQuery({
-    queryKey: ["notices"],
-    queryFn: async () => {
-      return await noticesApi.getPublic();
-    },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    refetchOnWindowFocus: false,
-  });
+  const { enabled = true, limit, offset, includeInactive } = opts || {};
 
-  // Fetch all notices including inactive (admin view) - CACHED
-  const { data: allNotices = [], isLoading: isLoadingAll, refetch: refetchAll } = useQuery({
-    queryKey: ["notices", "all"],
+  // Fetch notices with optional pagination and includeInactive flag.
+  const { data: notices = [], isLoading, refetch } = useQuery({
+    queryKey: ["notices", limit ?? null, offset ?? null, includeInactive ? 'inc' : 'pub'],
     queryFn: async () => {
-      return await noticesApi.getAll();
+      return await noticesApi.getPublic({ limit, offset, includeInactive });
     },
-    enabled: false, // Only fetch when explicitly requested
+    enabled,
     staleTime: 10 * 60 * 1000, // 10 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
@@ -34,9 +26,8 @@ export function useNotices() {
       return await noticesApi.create(notice);
     },
     onSuccess: () => {
-      // Invalidate both caches
+      // Invalidate notices queries so UI refreshes (public/admin variants)
       queryClient.invalidateQueries({ queryKey: ["notices"] });
-      queryClient.invalidateQueries({ queryKey: ["notices", "all"] });
     },
   });
 
@@ -56,9 +47,7 @@ export function useNotices() {
       return await noticesApi.createWithFile(formData);
     },
     onSuccess: () => {
-      // Invalidate both caches
       queryClient.invalidateQueries({ queryKey: ["notices"] });
-      queryClient.invalidateQueries({ queryKey: ["notices", "all"] });
     },
   });
 
@@ -70,43 +59,14 @@ export function useNotices() {
     return await createWithFileMutation.mutateAsync({ notice, pdfFile });
   };
 
-  // Update notice mutation with optimistic updates
+  // Update notice mutation
   const updateMutation = useMutation({
     mutationFn: async (updates: { id: number } & Record<string, any>) => {
       const { id, ...data } = updates;
       return await noticesApi.update(id, data);
     },
-    onMutate: async (updates) => {
-      // Cancel outgoing refetches to prevent overwrites
-      await queryClient.cancelQueries({ queryKey: ["notices", "all"] });
-
-      // Get previous data
-      const previousData = queryClient.getQueryData(["notices", "all"]) as Notice[];
-
-      // Optimistically update the cache
-      if (previousData) {
-        queryClient.setQueryData(
-          ["notices", "all"],
-          previousData.map((notice) =>
-            notice.id === updates.id
-              ? { ...notice, ...updates }
-              : notice
-          )
-        );
-      }
-
-      return { previousData };
-    },
-    onError: (err, updates, context) => {
-      // Revert to previous data on error
-      if (context?.previousData) {
-        queryClient.setQueryData(["notices", "all"], context.previousData);
-      }
-    },
     onSuccess: () => {
-      // Invalidate both caches to sync with server
       queryClient.invalidateQueries({ queryKey: ["notices"] });
-      queryClient.invalidateQueries({ queryKey: ["notices", "all"] });
     },
   });
 
@@ -116,21 +76,15 @@ export function useNotices() {
       await noticesApi.delete(id);
     },
     onSuccess: () => {
-      // Invalidate both caches
       queryClient.invalidateQueries({ queryKey: ["notices"] });
-      queryClient.invalidateQueries({ queryKey: ["notices", "all"] });
     },
   });
 
   return {
-    // Public notices
+    // Public/admin notices (paged)
     notices,
     isLoading,
-    
-    // Admin notices
-    allNotices,
-    isLoadingAll,
-    refetchAll,
+    refetch,
 
     // Mutations
     createNotice: createMutation.mutate,
@@ -141,7 +95,7 @@ export function useNotices() {
     deleteNotice: deleteMutation.mutate,
     deleteNoticeAsync: deleteMutation.mutateAsync,
 
-    // States - use createWithFileMutation for tracking createNoticeWithFile loading
+    // States
     isCreating: createMutation.isPending || createWithFileMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,

@@ -1,7 +1,8 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
-import { useNotices } from "@/lib/hooks/useNotice";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu, Bell, Download } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -378,8 +379,8 @@ export default function LandingPage() {
 }
 
 function HeroSection({ currentUser, getStartedLink }: any) {
-  const { notices } = useNotices();
-  const hasNotices = notices.length > 0;
+  // Don't fetch notices on landing page - only show latest notice if available from cache
+  // Notices will only be fetched when user navigates to the notice page
 
   return (
     <div className="w-full space-y-8">
@@ -428,12 +429,8 @@ function HeroSection({ currentUser, getStartedLink }: any) {
           </div>
         </div>
 
-        {/* Notice Card - Right side on large screens */}
-        {hasNotices && (
-          <div className="lg:col-span-4 w-full">
-            <LatestNoticeCard />
-          </div>
-        )}
+        {/* Notice Card - Only show if notices already cached */}
+        <LatestNoticeCard />
       </div>
 
       {/* Hero Image - Below, full width */}
@@ -453,17 +450,49 @@ function HeroSection({ currentUser, getStartedLink }: any) {
 
 // Latest Notice Card Component for Hero Section
 function LatestNoticeCard() {
-  const { notices } = useNotices();
+  const queryClient = useQueryClient();
+  // Get notices only if already cached (lazy loading - don't fetch on landing)
+  const cachedNotices = queryClient.getQueryData<any[]>(["notices"]) || [];
 
-  if (notices.length === 0) {
-    return null;
-  }
+  if (cachedNotices.length === 0) return null;
 
-  const latestNotice = notices[0]; // Latest notice (already sorted by API)
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [itemHeight, setItemHeight] = useState(0);
+
+  // Auto-advance every 3.5s, pause on hover
+  useEffect(() => {
+    if (cachedNotices.length <= 1) return;
+    if (paused) return;
+
+    const id = setInterval(() => {
+      setIndex((prev) => (prev + 1) % cachedNotices.length);
+    }, 3500);
+
+    return () => clearInterval(id);
+  }, [cachedNotices.length, paused]);
+
+  // measure container height for pixel-perfect translate
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setItemHeight(el.clientHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const current = cachedNotices[index];
 
   return (
-    <div className="w-full">
-      <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+    <div className="lg:col-span-4 w-full">
+      <div
+        className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
         <div className="flex items-start gap-3 mb-4">
           <div className="mt-0.5">
             <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
@@ -472,28 +501,40 @@ function LatestNoticeCard() {
         </div>
 
         <div className="space-y-3">
-          <div>
-            <h4 className="font-semibold text-gray-900 text-base break-words">
-              {latestNotice.heading}
-            </h4>
-            <p className="text-xs text-gray-500 mt-1">
-              {format(new Date(latestNotice.createdAt), "MMM d, yyyy")}
-            </p>
+          <div ref={containerRef} className="overflow-hidden h-28">{/* fixed-height viewport for the ticker */}
+            <div
+              aria-live="polite"
+              className="flex flex-col transform-gpu"
+              style={{
+                transform: `translateY(-${index * itemHeight}px)`,
+                transition: 'transform 600ms cubic-bezier(.2,.9,.2,1)'
+              }}
+            >
+              {cachedNotices.map((n) => (
+                <div key={n.id} className="h-28 flex-shrink-0">
+                  <h4 className="font-semibold text-gray-900 text-base break-words">
+                    {n.heading}
+                  </h4>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {format(new Date(n.createdAt), "MMM d, yyyy")}
+                  </p>
+                  <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 mt-2">
+                    {n.content}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <p className="text-sm text-gray-700 leading-relaxed line-clamp-4">
-            {latestNotice.content}
-          </p>
-
           <div className="flex flex-col gap-2 pt-2">
-            {latestNotice.pdfUrl && (
+            {current.pdfUrl && (
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
                 onClick={() => {
                   const link = document.createElement("a");
-                  link.href = latestNotice.pdfUrl!;
+                  link.href = current.pdfUrl!;
                   link.download = "notice.pdf";
                   link.click();
                 }}
@@ -514,9 +555,9 @@ function LatestNoticeCard() {
             </Link>
           </div>
 
-          {notices.length > 1 && (
+          {cachedNotices.length > 1 && (
             <p className="text-xs text-gray-600 text-center pt-2 border-t border-yellow-200">
-              {notices.length} total announcements
+              {cachedNotices.length} total announcements
             </p>
           )}
         </div>

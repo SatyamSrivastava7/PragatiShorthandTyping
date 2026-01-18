@@ -344,9 +344,16 @@ export const settingsApi = {
 };
 
 export const noticesApi = {
-  getPublic: () =>
-    fetchApi<Notice[]>('/api/notices'),
+  getPublic: (opts?: { limit?: number; offset?: number; includeInactive?: boolean }) => {
+    const params = new URLSearchParams();
+    if (opts?.limit != null) params.append('limit', String(opts.limit));
+    if (opts?.offset != null) params.append('offset', String(opts.offset));
+    if (opts?.includeInactive) params.append('include_inactive', 'true');
+    const url = params.toString() ? `/api/notices?${params.toString()}` : '/api/notices';
+    return fetchApi<Notice[]>(url);
+  },
 
+  // kept for backward compatibility but will not be used
   getAll: () =>
     fetchApi<Notice[]>('/api/notices/all'),
 

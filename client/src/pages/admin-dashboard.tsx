@@ -191,17 +191,7 @@ export default function AdminDashboard() {
     addCandidate: addSelectedCandidate,
     deleteCandidate: removeSelectedCandidate,
   } = useSelectedCandidates(activeTab === "gallery" && gallerySubTab === "selected_candidates");
-  const {
-    allNotices,
-    isLoadingAll: isLoadingNotices,
-    refetchAll: refetchAllNotices,
-    createNoticeWithFile,
-    updateNoticeAsync,
-    deleteNoticeAsync,
-    isCreating: isCreatingNotice,
-    isUpdating: isUpdatingNotice,
-    isDeleting: isDeletingNotice,
-  } = useNotices();
+  // useNotices will be called later (after visibleNoticesCount declaration)
 
   const { toast } = useToast();
 
@@ -438,6 +428,19 @@ export default function AdminDashboard() {
       });
     }
   };
+
+  // Notices hook (paged) - include inactive for admin
+  const {
+    notices: allNotices,
+    isLoading: isLoadingNotices,
+    refetch: refetchAllNotices,
+    createNoticeWithFile,
+    updateNoticeAsync,
+    deleteNoticeAsync,
+    isCreating: isCreatingNotice,
+    isUpdating: isUpdatingNotice,
+    isDeleting: isDeletingNotice,
+  } = useNotices({ enabled: true, limit: visibleNoticesCount, offset: 0, includeInactive: true });
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2844,7 +2847,7 @@ export default function AdminDashboard() {
                           Active Notices
                         </CardTitle>
                         <CardDescription>
-                          {allNotices.length} total notices
+                          Showing {allNotices.length} notice{allNotices.length !== 1 ? 's' : ''}
                         </CardDescription>
                       </div>
                     </div>
@@ -2885,7 +2888,7 @@ export default function AdminDashboard() {
                     ) : (
                       <div className="divide-y">
                         {/* allNotices are already sorted by latest first from the API */}
-                        {allNotices.slice(0, visibleNoticesCount).map((notice) => (
+                        {allNotices.map((notice) => (
                           <div
                             key={notice.id}
                             className="p-4 hover:bg-amber-50/50 transition-colors"
@@ -2998,7 +3001,7 @@ export default function AdminDashboard() {
                         ))}
                         
                         {/* Load More Button */}
-                        {visibleNoticesCount < allNotices.length && (
+                        {allNotices.length >= visibleNoticesCount && (
                           <div className="p-4 flex justify-center border-t bg-gray-50">
                             <Button
                               variant="outline"
@@ -3018,7 +3021,7 @@ export default function AdminDashboard() {
                                   Loading...
                                 </>
                               ) : (
-                                `Load More (${Math.min(10, allNotices.length - visibleNoticesCount)} more)`
+                                `Load More (10 more)`
                               )}
                             </Button>
                           </div>

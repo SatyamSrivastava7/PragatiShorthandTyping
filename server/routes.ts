@@ -1291,7 +1291,20 @@ export async function registerRoutes(
   // Get all active notices (public endpoint)
   app.get("/api/notices", async (req, res) => {
     try {
-      const notices = await storage.getActiveNotices();
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const includeInactive = req.query.include_inactive === 'true' || req.query.include_inactive === '1';
+
+      if (includeInactive) {
+        // require admin
+        if (!req.session.userId) return res.status(401).json({ message: 'Unauthorized' });
+        const user = await storage.getUser(req.session.userId);
+        if (user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+        const notices = await storage.getAllNotices(limit, offset);
+        return res.json(notices);
+      }
+
+      const notices = await storage.getActiveNotices(limit, offset);
       res.json(notices);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch notices" });
