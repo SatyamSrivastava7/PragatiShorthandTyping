@@ -373,7 +373,7 @@ export default function LandingPage() {
       </footer>
 
       {/* Notice Slider - appears at bottom when notices exist */}
-      <NoticeSlider />
+      {/* <NoticeSlider /> */}
     </div>
   );
 }
@@ -459,7 +459,10 @@ function LatestNoticeCard() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const firstItemRef = useRef<HTMLDivElement | null>(null);
   const [itemHeight, setItemHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const VISIBLE_COUNT = Math.min(6, cachedNotices.length);
 
   // Auto-advance every 3.5s, pause on hover
   useEffect(() => {
@@ -468,21 +471,26 @@ function LatestNoticeCard() {
 
     const id = setInterval(() => {
       setIndex((prev) => (prev + 1) % cachedNotices.length);
-    }, 3500);
+    }, 6000); // slower slide
 
     return () => clearInterval(id);
   }, [cachedNotices.length, paused]);
 
   // measure container height for pixel-perfect translate
+  // measure first item height and compute container height (visibleCount * itemHeight)
   useEffect(() => {
-    const el = containerRef.current;
+    const el = firstItemRef.current;
     if (!el) return;
-    const update = () => setItemHeight(el.clientHeight);
+    const update = () => {
+      const h = el.clientHeight || 72;
+      setItemHeight(h);
+      setContainerHeight(h * VISIBLE_COUNT);
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [VISIBLE_COUNT]);
 
   const current = cachedNotices[index];
 
@@ -501,26 +509,29 @@ function LatestNoticeCard() {
         </div>
 
         <div className="space-y-3">
-          <div ref={containerRef} className="overflow-hidden h-28">{/* fixed-height viewport for the ticker */}
+          <div ref={containerRef} className="overflow-hidden" style={{ height: containerHeight || undefined }}>
             <div
               aria-live="polite"
               className="flex flex-col transform-gpu"
               style={{
                 transform: `translateY(-${index * itemHeight}px)`,
-                transition: 'transform 600ms cubic-bezier(.2,.9,.2,1)'
+                transition: 'transform 900ms cubic-bezier(.2,.9,.2,1)'
               }}
             >
-              {cachedNotices.map((n) => (
-                <div key={n.id} className="h-28 flex-shrink-0">
-                  <h4 className="font-semibold text-gray-900 text-base break-words">
-                    {n.heading}
-                  </h4>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {format(new Date(n.createdAt), "MMM d, yyyy")}
-                  </p>
-                  <p className="text-sm text-gray-700 leading-relaxed line-clamp-3 mt-2">
-                    {n.content}
-                  </p>
+              {cachedNotices.map((n, i) => (
+                <div
+                  key={n.id}
+                  ref={i === 0 ? firstItemRef : undefined}
+                  className="flex-shrink-0 px-1 py-2"
+                  style={{ height: itemHeight || undefined }}
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-900 text-sm truncate">
+                      {n.heading}
+                    </h4>
+                    <span className="text-xs text-gray-500 ml-3 shrink-0">{format(new Date(n.createdAt), "MMM d, yyyy")}</span>
+                  </div>
+                  <p className="text-sm text-gray-700 truncate mt-1">{n.content}</p>
                 </div>
               ))}
             </div>
