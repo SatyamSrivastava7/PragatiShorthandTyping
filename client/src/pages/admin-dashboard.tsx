@@ -697,7 +697,36 @@ export default function AdminDashboard() {
   const editAudio80wpmInputRef = useRef<HTMLInputElement>(null);
   const editAudio100wpmInputRef = useRef<HTMLInputElement>(null);
 
-  // Filter State
+  // Cache for edit modal data - avoid redundant API calls
+  const [editCachedData, setEditCachedData] = useState<{ [testId: number]: any }>({});
+  const [lastEditedTestId, setLastEditedTestId] = useState<number | null>(null);
+  const [hasEditChanges, setHasEditChanges] = useState(false);
+
+  // Track changes in edit modal form fields
+  useEffect(() => {
+    if (!editingTestId || !editCachedData[editingTestId]) {
+      return; // Don't track changes if modal isn't open or cache doesn't exist
+    }
+
+    const cachedData = editCachedData[editingTestId];
+    
+    // Check if any form field has changed from cached value
+    const hasChanges = 
+      editTitle !== cachedData.title ||
+      editDuration !== cachedData.duration ||
+      editDateFor !== cachedData.dateFor ||
+      editLanguage !== cachedData.language ||
+      editTextContent !== cachedData.text ||
+      editAutoScroll !== cachedData.autoScroll ||
+      editAudio80wpmFile !== null ||
+      editAudio100wpmFile !== null;
+
+    if (hasChanges && !hasEditChanges) {
+      setHasEditChanges(true);
+    } else if (!hasChanges && hasEditChanges) {
+      setHasEditChanges(false);
+    }
+  }, [editingTestId, editTitle, editDuration, editDateFor, editLanguage, editTextContent, editAutoScroll, editAudio80wpmFile, editAudio100wpmFile, editCachedData, hasEditChanges]);
   const [studentFilter, setStudentFilter] = useState("");
   const [studentListSearch, setStudentListSearch] = useState("");
   // PDF Store State
@@ -913,15 +942,56 @@ export default function AdminDashboard() {
     const testToEdit = content.find(c => c.id === testId);
     if (!testToEdit) return;
 
+    // Check if we have cached data for this test and no changes were made to the previous test
+    const hasCachedData = editCachedData[testId];
+    const shouldUseCachedData = hasCachedData && (lastEditedTestId === testId || !hasEditChanges);
+
+    if (shouldUseCachedData) {
+      // Use cached data
+      const cachedData = editCachedData[testId];
+      setEditingTestId(testId);
+      setEditTitle(cachedData.title);
+      setEditDuration(cachedData.duration);
+      setEditDateFor(cachedData.dateFor);
+      setEditLanguage(cachedData.language);
+      setEditTextContent(cachedData.text);
+      setEditAutoScroll(cachedData.autoScroll);
+      setExistingAudio80wpm(cachedData.audio80wpm);
+      setExistingAudio100wpm(cachedData.audio100wpm);
+      setEditAudio80wpmFile(null);
+      setEditAudio100wpmFile(null);
+      setIsTestEditModalOpen(true);
+      setLastEditedTestId(testId);
+      setHasEditChanges(false);
+      return;
+    }
+
     // Set loading state and open modal
     setIsLoadingTestData(true);
     setIsTestEditModalOpen(true);
     setEditingTestId(testId);
+    setLastEditedTestId(testId);
+    setHasEditChanges(false);
 
     // Fetch the full content (with text and audio)
     try {
       const fullContent = await contentApi.getById(testId);
       
+      // Cache the fetched data
+      setEditCachedData(prev => ({
+        ...prev,
+        [testId]: {
+          title: fullContent.title,
+          duration: fullContent.duration.toString(),
+          dateFor: fullContent.dateFor,
+          language: fullContent.language || 'english',
+          text: fullContent.text,
+          autoScroll: fullContent.autoScroll || true,
+          audio80wpm: fullContent.audio80wpm || null,
+          audio100wpm: fullContent.audio100wpm || null,
+        }
+      }));
+
       // Set the edit state with the fetched content
       setEditTitle(fullContent.title);
       setEditDuration(fullContent.duration.toString());
@@ -986,10 +1056,27 @@ export default function AdminDashboard() {
         updateData.audio100wpm = audio100wpmBase64;
       }
 
-      await updateContent({
+      const updatedContent = await updateContent({
         id: editingTestId,
         data: updateData,
       });
+
+      // Update the cache with the new data from the API response and clear the hasEditChanges flag
+      // This ensures preview dialog and preview data stay in sync
+      setEditCachedData(prev => ({
+        ...prev,
+        [editingTestId]: {
+          title: updatedContent.title,
+          duration: updatedContent.duration.toString(),
+          dateFor: updatedContent.dateFor,
+          language: updatedContent.language || 'english',
+          text: updatedContent.text,
+          autoScroll: updatedContent.autoScroll || true,
+          audio80wpm: updatedContent.audio80wpm || null,
+          audio100wpm: updatedContent.audio100wpm || null,
+        }
+      }));
+      setHasEditChanges(false);
 
       toast({
         variant: "success",
