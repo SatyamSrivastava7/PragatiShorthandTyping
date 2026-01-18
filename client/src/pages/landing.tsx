@@ -331,7 +331,7 @@ export default function LandingPage() {
       {/* Selected Candidates Section */}
       <section id="candidates" className="w-full py-12 md:py-16 bg-gradient-to-b from-slate-50 to-white">
         <div className="container px-4 md:px-6 mx-auto">
-           <div className="text-center mb-12">
+           <div className="text-center mb-8">
              <span className="text-primary font-semibold text-sm uppercase tracking-wider">Success Stories</span>
              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Our Selected Candidates</h2>
            </div>

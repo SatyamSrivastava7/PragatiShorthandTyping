@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
 import {
   useAuth,
   usePdf,
 } from "@/lib/hooks";
+import { usersApi } from "@/lib/api";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
 import {
@@ -35,6 +36,7 @@ import {
   BarChart,
   BookOpen,
   Camera,
+  Edit2,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -99,6 +101,10 @@ export default function StudentDashboard() {
 
   // Payment Gateway State
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+
+  // Edit Name State
+  const [showEditNameDialog, setShowEditNameDialog] = useState(false);
+  const [editedName, setEditedName] = useState(currentUser?.name || "");
 
   // Search State
   const [typingSearch, setTypingSearch] = useState("");
@@ -272,6 +278,47 @@ export default function StudentDashboard() {
     }
   };
 
+  // Update name mutation
+  const updateNameMutation = useMutation({
+    mutationFn: (newName: string) => {
+      if (!currentUser?.id) throw new Error("User ID not found");
+      return usersApi.update(currentUser.id, { name: newName });
+    },
+    onSuccess: (updatedUser) => {
+      // Update the session data with new user info
+      queryClient.setQueryData(['session'], { user: updatedUser });
+      setShowEditNameDialog(false);
+      toast({
+        title: "Success",
+        description: "Your name has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update your name. Please try again.",
+      });
+    },
+  });
+
+  const handleSaveName = async () => {
+    const trimmedName = editedName.trim();
+    if (!trimmedName) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Name",
+        description: "Please enter a valid name.",
+      });
+      return;
+    }
+    if (trimmedName === currentUser?.name) {
+      setShowEditNameDialog(false);
+      return;
+    }
+    await updateNameMutation.mutateAsync(trimmedName);
+  };
+
   const initiateBuyPdf = (pdfId: string, price: number) => {
     setSelectedPdfForPurchase({ id: pdfId, price });
     setShowPaymentModal(true);
@@ -363,7 +410,56 @@ export default function StudentDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm">Welcome, {currentUser?.name}!</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm">Welcome, {currentUser?.name}!</h1>
+                <Dialog open={showEditNameDialog} onOpenChange={setShowEditNameDialog}>
+                  <DialogTrigger asChild>
+                    <button className="p-1.5 hover:bg-white/20 rounded-lg transition-colors" title="Edit name">
+                      <Edit2 className="h-5 w-5" />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                      <DialogTitle>Edit Your Name</DialogTitle>
+                      <DialogDescription>
+                        Update your name as it appears on your profile.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <Input
+                        value={editedName}
+                        onChange={(e) => setEditedName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="text-base"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveName();
+                          }
+                        }}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowEditNameDialog(false);
+                          setEditedName(currentUser?.name || "");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSaveName}
+                        disabled={updateNameMutation.isPending}
+                        className="gap-2"
+                      >
+                        {updateNameMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                        Save
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <p className="text-blue-100 flex items-center gap-2">
                 <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">ID: {currentUser?.studentId}</span>
                 Student Dashboard
