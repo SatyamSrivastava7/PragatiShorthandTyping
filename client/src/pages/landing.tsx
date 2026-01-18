@@ -148,16 +148,6 @@ export default function LandingPage() {
         
         <div className="container px-4 md:px-6 relative z-10">
           <HeroSection currentUser={currentUser} getStartedLink={getStartedLink} />
-
-          {/* Image on large screens - below both sections */}
-          <div className="relative mt-12 w-full max-w-5xl mx-auto hidden lg:block">
-            <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
-            <img
-              src={heroImage}
-              alt="Hero"
-              className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
-            />
-          </div>
         </div>
       </section>
 
@@ -411,9 +401,10 @@ function HeroSection({ currentUser, getStartedLink }: any) {
   const hasNotices = notices.length > 0;
 
   return (
-    <div className={`flex flex-col ${hasNotices ? 'lg:flex-row items-stretch' : 'items-center'} gap-8 lg:gap-12 ${!hasNotices ? 'mx-auto max-w-2xl' : ''}`}>
-      {/* Main Hero Content - Left Side or Center */}
-      <div className={`flex flex-col ${hasNotices ? 'items-start lg:items-start' : 'items-center text-center'} space-y-4 ${hasNotices ? 'flex-1' : ''}`}>
+    <div className={`flex flex-col ${hasNotices ? 'lg:flex-row items-start' : 'items-center'} gap-8 lg:gap-6 ${!hasNotices ? 'mx-auto max-w-2xl' : ''}`}>
+      {/* Left Side - Hero Content and Image */}
+      <div className={`flex flex-col ${hasNotices ? 'lg:flex-1 lg:max-w-2xl' : 'items-center text-center w-full'} space-y-6`}>
+        {/* Text Content */}
         <div className="space-y-4">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
             Master Shorthand & Typing with Pragati
@@ -430,7 +421,9 @@ function HeroSection({ currentUser, getStartedLink }: any) {
             </span>
           </div>
         </div>
-        <div className={`flex flex-col gap-3 min-[400px]:flex-row pt-6 ${!hasNotices ? 'justify-center' : ''}`}>
+
+        {/* Buttons */}
+        <div className={`flex flex-col gap-3 min-[400px]:flex-row pt-4 ${!hasNotices ? 'justify-center' : ''}`}>
           <Link href={getStartedLink}>
             <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0">
               {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
@@ -443,8 +436,8 @@ function HeroSection({ currentUser, getStartedLink }: any) {
           </Link>
         </div>
 
-        {/* Image below content on small screens */}
-        <div className="relative mt-8 w-full lg:hidden">
+        {/* Hero Image - Visible on all screens now, positioned below text on mobile/tablet */}
+        <div className={`relative w-full ${hasNotices ? 'lg:mt-4' : 'mt-8'}`}>
           <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
           <img
             src={heroImage}
@@ -454,7 +447,7 @@ function HeroSection({ currentUser, getStartedLink }: any) {
         </div>
       </div>
 
-      {/* Right Side - Latest Notice Card */}
+      {/* Right Side - Latest Notice Card - Parallel to hero section */}
       {hasNotices && <LatestNoticeCardWrapper />}
     </div>
   );
@@ -472,11 +465,11 @@ function LatestNoticeCard() {
 
   return (
     <div className="w-full h-full">
-      <div className="sticky top-24 h-fit">
-        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-xl">
+      <div className="sticky top-24">
+        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-xl h-fit max-h-[600px] overflow-y-auto">
           <div className="flex items-start gap-3 mb-4">
             <div className="mt-1">
-              <Bell className="h-6 w-6 text-yellow-600 animate-bounce" />
+              <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
             </div>
             <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
           </div>
@@ -491,7 +484,7 @@ function LatestNoticeCard() {
               </p>
             </div>
 
-            <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
+            <p className="text-sm text-gray-700 leading-relaxed max-h-[200px] overflow-y-auto">
               {latestNotice.content}
             </p>
 
@@ -538,7 +531,7 @@ function LatestNoticeCard() {
 
 function LatestNoticeCardWrapper() {
   return (
-    <div className="flex-1 hidden lg:flex items-start">
+    <div className="flex-shrink-0 hidden lg:flex w-80 items-start">
       <LatestNoticeCard />
     </div>
   );

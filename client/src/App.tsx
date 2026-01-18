@@ -15,6 +15,7 @@ import { Layout } from "@/components/layout";
 import { useAuth } from "@/lib/hooks";
 import GalleryPage from "@/pages/gallery";
 import SelectedCandidatesPage from "@/pages/selected-candidates";
+import NoticesPage from "@/pages/notice";
 
 function PrivateRoute({ component: Component, allowedRoles }: { component: React.ComponentType, allowedRoles: string[] }) {
   const { user, isLoading } = useAuth();
@@ -51,6 +52,7 @@ function Router() {
             <Route path="/adminlogin" component={AdminLoginPage} />
             <Route path="/contact" component={ContactPage} />
             <Route path="/gallery" component={GalleryPage} />
+            <Route path="/notice" component={NoticesPage} />
             <Route path="/selected-candidates" component={SelectedCandidatesPage} />
             
             {/* Protected Routes */}
