@@ -7,10 +7,22 @@ export function useFeaturedGallery() {
   const {
     data: featuredImages = [],
     isLoading,
+    error,
     refetch,
   } = useQuery({
     queryKey: ['gallery', 'featured'],
-    queryFn: () => galleryApi.getFeaturedImages(),
+    queryFn: async () => {
+      try {
+        const images = await galleryApi.getFeaturedImages();
+        console.log('Featured images fetched:', images);
+        return images;
+      } catch (err) {
+        console.error('Error fetching featured images:', err);
+        throw err;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
   const { mutateAsync: updateImageOrder, isPending: isUpdating } = useMutation({
@@ -23,6 +35,7 @@ export function useFeaturedGallery() {
   return {
     featuredImages,
     isLoading,
+    error,
     isUpdating,
     updateImageOrder,
     refetch,

@@ -183,7 +183,7 @@ export default function LandingPage() {
       </div>
 
       {/* Gallery Hero Section - Featured Images Only */}
-      {featuredImages.length > 0 && (
+      {featuredImages.length > 0 ? (
         <section className="w-full bg-black relative">
           <Carousel
             plugins={[
@@ -209,6 +209,19 @@ export default function LandingPage() {
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
             <Link href="/gallery">
               <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-6 py-2 text-sm">
+                View All Gallery →
+              </Button>
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <section className="w-full bg-gradient-to-br from-gray-900 to-black relative py-12">
+          <div className="container mx-auto px-4 flex flex-col items-center justify-center text-center">
+            <ImageIcon className="h-16 w-16 text-gray-600 mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Featured Gallery Coming Soon</h2>
+            <p className="text-gray-400 mb-6">Check back soon or explore our full gallery</p>
+            <Link href="/gallery">
+              <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-6 py-2">
                 View All Gallery →
               </Button>
             </Link>
