@@ -393,18 +393,15 @@ function HeroSection({ currentUser, getStartedLink }: any) {
           <div className="space-y-6">
             <div>
               <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-tight bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
-                Master Shorthand & Typing with 
-              </h1>
-              <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-tight bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
-                Pragati Institute
+                Master Shorthand & Typing with Pragati Institute
               </h1>
             </div>
-            <p className="text-base lg:text-lg text-gray-700 leading-relaxed max-w-2xl mt-2">
+            <p className="text-base lg:text-lg text-gray-700 leading-relaxed max-w-2xl justify-center mx-auto">
               Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence since 2008.
             </p>
             
             {/* Stats Pills */}
-            <div className="flex flex-wrap gap-3 pt-2">
+            <div className="flex flex-wrap gap-3 pt-2 justify-center mx-auto">
               <div className="px-4 py-2 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full text-sm font-semibold shadow-md">
                 Since 2008
               </div>
