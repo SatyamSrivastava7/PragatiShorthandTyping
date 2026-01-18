@@ -453,8 +453,22 @@ function LatestNoticeCard() {
   const queryClient = useQueryClient();
   // Get notices only if already cached (lazy loading - don't fetch on landing)
   const cachedNotices = queryClient.getQueryData<any[]>(["notices"]) || [];
+  
+  console.log('LatestNoticeCard render - cachedNotices count:', cachedNotices.length);
 
-  if (cachedNotices.length === 0) return null;
+  if (cachedNotices.length === 0) {
+    return (
+      <div className="lg:col-span-4 w-full">
+        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg">
+          <div className="flex items-start gap-3 mb-4">
+            <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
+            <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
+          </div>
+          <p className="text-sm text-gray-600">Visit the Notices page to load announcements</p>
+        </div>
+      </div>
+    );
+  }
 
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -499,9 +513,9 @@ function LatestNoticeCard() {
   const current = cachedNotices[index];
 
   return (
-    <div className="lg:col-span-4 w-full">
+    <div className="lg:col-span-4 w-full" style={{ minHeight: '300px' }}>
       <div
-        className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow"
+        className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow h-full flex flex-col"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
