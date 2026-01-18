@@ -1379,10 +1379,12 @@ export async function registerRoutes(
       const notice = await storage.createNotice(validatedData);
       res.json(notice);
     } catch (error) {
+      console.error('Notice creation error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
-      res.status(500).json({ message: "Failed to create notice" });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ message: `Failed to create notice: ${errorMessage}` });
     }
   });
 

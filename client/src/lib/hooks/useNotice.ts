@@ -43,12 +43,16 @@ export function useNotices() {
   // Create notice with file mutation
   const createWithFileMutation = useMutation({
     mutationFn: async ({ notice, pdfFile }: { notice: InsertNotice; pdfFile?: File }) => {
+      // If no file, send JSON for better performance and simpler parsing
+      if (!pdfFile) {
+        return await noticesApi.create(notice);
+      }
+      
+      // If file exists, send FormData
       const formData = new FormData();
       formData.append("heading", notice.heading);
       formData.append("content", notice.content);
-      if (pdfFile) {
-        formData.append("pdf", pdfFile);
-      }
+      formData.append("pdf", pdfFile);
       return await noticesApi.createWithFile(formData);
     },
     onSuccess: () => {
