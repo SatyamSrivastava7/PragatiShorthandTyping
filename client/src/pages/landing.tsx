@@ -434,7 +434,7 @@ function HeroSection({ currentUser, getStartedLink }: any) {
       </div>
 
       {/* Hero Image - Below, full width */}
-      <div className="w-full">
+      {/* <div className="w-full">
         <div className="relative">
           <div className="absolute -inset-6 bg-gradient-to-r from-primary/15 via-blue-400/15 to-indigo-400/15 rounded-3xl blur-2xl" />
           <img
@@ -443,7 +443,7 @@ function HeroSection({ currentUser, getStartedLink }: any) {
             className="relative w-full aspect-video overflow-hidden rounded-3xl object-cover shadow-2xl border-4 border-white"
           />
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
