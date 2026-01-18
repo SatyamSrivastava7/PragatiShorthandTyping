@@ -137,7 +137,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Gallery Hero Section - Now at Top */}
+      {/* Gallery Hero Section - Now at Top - Reduced Height */}
       {galleryImages.length > 0 && (
         <section className="w-full bg-black relative">
           <Carousel
@@ -151,20 +151,20 @@ export default function LandingPage() {
             <CarouselContent className="m-0">
               {galleryImages.map((url, idx) => (
                 <CarouselItem key={idx} className="pl-0">
-                  <div className="relative w-full aspect-video overflow-hidden">
+                  <div className="relative w-full aspect-[3/1] overflow-hidden">
                     <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="absolute inset-0 bg-black/20" />
                   </div>
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
-            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
+            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
+            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
           </Carousel>
           {galleryImages.length > 0 && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
               <Link href="/gallery">
-                <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-8 py-3">
+                <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-6 py-2 text-sm">
                   View All Gallery →
                 </Button>
               </Link>
@@ -382,52 +382,62 @@ function HeroSection({ currentUser, getStartedLink }: any) {
   const hasNotices = notices.length > 0;
 
   return (
-    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-      {/* Left/Main Content - Takes 7/12 on large screens */}
-      <div className="lg:col-span-7 flex flex-col space-y-6">
-        {/* Text Content */}
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-tight bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
-              Master Shorthand & Typing
-            </h1>
-            <p className="text-xl lg:text-2xl font-semibold text-primary mt-2">with Pragati Institute</p>
+    <div className="w-full space-y-8">
+      {/* Top Row: Content on left, Notice on right */}
+      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+        {/* Left/Main Content - Takes 8/12 on large screens */}
+        <div className="lg:col-span-8 flex flex-col space-y-6">
+          {/* Text Content */}
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-tight bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
+                Master Shorthand & Typing
+              </h1>
+              <p className="text-xl lg:text-2xl font-semibold text-primary mt-2">with Pragati Institute</p>
+            </div>
+            <p className="text-base lg:text-lg text-gray-700 leading-relaxed max-w-2xl">
+              Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence since 2008.
+            </p>
+            
+            {/* Stats Pills */}
+            <div className="flex flex-wrap gap-3 pt-2">
+              <div className="px-4 py-2 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full text-sm font-semibold shadow-md">
+                Since 2008
+              </div>
+              <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                5000+ Students
+              </div>
+              <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
+                1000+ Govt Jobs
+              </div>
+            </div>
           </div>
-          <p className="text-base lg:text-lg text-gray-700 leading-relaxed max-w-2xl">
-            Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence since 2008.
-          </p>
-          
-          {/* Stats Pills */}
-          <div className="flex flex-wrap gap-3 pt-2">
-            <div className="px-4 py-2 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full text-sm font-semibold shadow-md">
-              Since 2008
-            </div>
-            <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
-              5000+ Students
-            </div>
-            <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
-              1000+ Govt Jobs
-            </div>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <Link href={getStartedLink}>
+              <Button size="lg" className="px-10 h-14 text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0 whitespace-nowrap">
+                {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-3 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/gallery">
+              <Button variant="outline" size="lg" className="px-10 h-14 text-base font-semibold border-2 hover:bg-primary/5 whitespace-nowrap">
+                <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
+              </Button>
+            </Link>
           </div>
         </div>
 
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-          <Link href={getStartedLink}>
-            <Button size="lg" className="px-10 h-14 text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0 whitespace-nowrap">
-              {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-3 h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/gallery">
-            <Button variant="outline" size="lg" className="px-10 h-14 text-base font-semibold border-2 hover:bg-primary/5 whitespace-nowrap">
-              <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
-            </Button>
-          </Link>
-        </div>
+        {/* Notice Card - Right side on large screens */}
+        {hasNotices && (
+          <div className="lg:col-span-4 w-full">
+            <LatestNoticeCard />
+          </div>
+        )}
       </div>
 
-      {/* Hero Image - 5/12 on large screens */}
-      <div className="lg:col-span-5 w-full">
+      {/* Hero Image - Below, full width */}
+      <div className="w-full">
         <div className="relative">
           <div className="absolute -inset-6 bg-gradient-to-r from-primary/15 via-blue-400/15 to-indigo-400/15 rounded-3xl blur-2xl" />
           <img
@@ -437,15 +447,6 @@ function HeroSection({ currentUser, getStartedLink }: any) {
           />
         </div>
       </div>
-
-      {/* Notice Card - Sticky on right side on large screens */}
-      {hasNotices && (
-        <div className="lg:col-span-12 flex justify-end">
-          <div className="w-full lg:w-96">
-            <LatestNoticeCard />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
