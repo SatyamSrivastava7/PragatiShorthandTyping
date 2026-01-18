@@ -2,15 +2,28 @@ import { useGallery } from "@/lib/hooks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, ChevronDown } from "lucide-react";
 
 export default function GalleryPage() {
   const { 
     images: galleryImages,
+    isLoading,
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
   } = useGallery(true); // Gallery page always enabled
+
+  // Skeleton loader for initial loading state
+  const SkeletonGrid = () => (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {Array.from({ length: 8 }).map((_, idx) => (
+        <div key={idx} className="relative aspect-square rounded-lg overflow-hidden">
+          <Skeleton className="w-full h-full" />
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="container px-4 md:px-6 py-12 mx-auto">
@@ -19,7 +32,9 @@ export default function GalleryPage() {
         Glimpses of life and events at Pragati Institute of Professional Studies.
       </p>
       
-      {galleryImages.length > 0 ? (
+      {isLoading ? (
+        <SkeletonGrid />
+      ) : galleryImages.length > 0 ? (
         <div className="space-y-8">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {galleryImages.map((url, idx) => (
