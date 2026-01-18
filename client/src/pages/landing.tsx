@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
+import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
 import { useNotices } from "@/lib/hooks/useNotice";
 import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import {
 export default function LandingPage() {
   const { user: currentUser } = useAuth();
   const { images: galleryImages } = useGallery(true); // Landing page always displays gallery
+  const { featuredImages } = useFeaturedGallery(); // Get featured images (first 10 selected)
   const { candidates: selectedCandidates } = useSelectedCandidates(true); // Landing page always displays candidates
   const { toast } = useToast();
   
@@ -181,8 +183,8 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Gallery Hero Section - Now at Top - Reduced Height */}
-      {galleryImages.length > 0 && (
+      {/* Gallery Hero Section - Featured Images or All Images */}
+      {(featuredImages.length > 0 || galleryImages.length > 0) && (
         <section className="w-full bg-black relative">
           <Carousel
             plugins={[
@@ -193,10 +195,10 @@ export default function LandingPage() {
             className="w-full"
           >
             <CarouselContent className="m-0">
-              {galleryImages.map((url, idx) => (
+              {(featuredImages.length > 0 ? featuredImages : galleryImages).map((image: any, idx) => (
                 <CarouselItem key={idx} className="pl-0">
                   <div className="relative w-full aspect-[3/1] overflow-hidden">
-                    <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
+                    <img src={image.url} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/20" />
                   </div>
                 </CarouselItem>
@@ -205,7 +207,7 @@ export default function LandingPage() {
             <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
             <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
           </Carousel>
-          {galleryImages.length > 0 && (
+          {(featuredImages.length > 0 || galleryImages.length > 0) && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
               <Link href="/gallery">
                 <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-6 py-2 text-sm">

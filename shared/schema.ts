@@ -112,6 +112,7 @@ export const selectedCandidates = pgTable("selected_candidates", {
 export const galleryImages = pgTable("gallery_images", {
   id: serial("id").primaryKey(),
   url: text("url").notNull(),
+  order: integer("order").default(999).notNull(), // Default 999 for unselected; 0-9 for selected/featured images
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

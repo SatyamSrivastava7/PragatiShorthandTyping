@@ -274,6 +274,9 @@ export const galleryApi = {
     return fetchApi<{ url: string; id: number; createdAt: string }[]>(`/api/gallery${qs}`);
   },
 
+  getFeaturedImages: () =>
+    fetchApi<{ url: string; id: number; order: number; createdAt: string }[]>('/api/gallery/featured'),
+
   addImage: (url: string) =>
     fetchApi<{ url: string }>('/api/gallery', {
       method: 'POST',
@@ -284,6 +287,12 @@ export const galleryApi = {
     fetchApi<void>('/api/gallery', {
       method: 'DELETE',
       body: JSON.stringify({ url }),
+    }),
+
+  updateImageOrder: (imageIds: number[]) =>
+    fetchApi<{ message: string }>('/api/gallery/order', {
+      method: 'POST',
+      body: JSON.stringify({ imageIds }),
     }),
 };
 

@@ -21,6 +21,7 @@ import {
   useSelectedCandidates,
 } from "@/lib/hooks";
 import { useNotices } from "@/lib/hooks/useNotice";
+import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
@@ -73,6 +75,7 @@ import {
   RefreshCw,
   ChevronDown,
   Bell,
+  Star,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -140,6 +143,9 @@ export default function AdminDashboard() {
   
   // Track if results tab has been visited to prevent initial load
   const [hasVisitedResults, setHasVisitedResults] = useState(false);
+  
+  // Gallery featured images selection
+  const [selectedImageIds, setSelectedImageIds] = useState<number[]>([]);
 
   const {
     content,
@@ -175,6 +181,7 @@ export default function AdminDashboard() {
   const { settings, updateSettings } = useSettings();
   const {
     images: galleryImages,
+    imagesWithId: galleryImagesWithId,
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
@@ -182,6 +189,7 @@ export default function AdminDashboard() {
     isLoading: isGalleryLoading,
     deleteImage: removeGalleryImage,
   } = useGallery(activeTab === "gallery");
+  const { featuredImages, updateImageOrder: updateFeaturedImageOrder, isUpdating: isUpdatingFeaturedOrder } = useFeaturedGallery();
   const {
     candidates: selectedCandidates,
     hasNextPage: hasNextCandidate,
@@ -203,6 +211,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     setLocalRegFee(registrationFee);
   }, [registrationFee]);
+
+  // Initialize selected image IDs from featured images
+  useEffect(() => {
+    if (featuredImages && featuredImages.length > 0) {
+      setSelectedImageIds(featuredImages.map((img: any) => img.id));
+    }
+  }, [featuredImages]);
 
   useEffect(() => {
     if (localRegFee === registrationFee) return;
@@ -670,6 +685,43 @@ export default function AdminDashboard() {
       const url = await fileToBase64(e.target.files[0]);
       setQrCodeUrl(url);
       toast({ title: "Updated", description: "QR Code updated successfully" });
+    }
+  };
+
+  // Gallery featured images handlers
+  const toggleImageSelection = (imageId: number) => {
+    setSelectedImageIds(prev => {
+      if (prev.includes(imageId)) {
+        return prev.filter(id => id !== imageId);
+      } else {
+        // Limit to 10 images
+        if (prev.length >= 10) {
+          toast({
+            variant: "destructive",
+            title: "Limit Reached",
+            description: "You can select a maximum of 10 images for the landing page",
+          });
+          return prev;
+        }
+        return [...prev, imageId];
+      }
+    });
+  };
+
+  const handleSaveFeaturedImages = async () => {
+    try {
+      updateFeaturedImageOrder(selectedImageIds);
+      toast({
+        variant: "success",
+        title: "Success",
+        description: `${selectedImageIds.length} image(s) set as featured for landing page`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update featured images",
+      });
     }
   };
 
@@ -2482,44 +2534,155 @@ export default function AdminDashboard() {
                       ) : (
                         <>
                           {galleryImages.length > 0 && (
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground mb-3">
-                                {galleryImages.length} images uploaded
-                              </p>
-                              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                {galleryImages.map((url: string, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    className="relative group aspect-square rounded-xl overflow-hidden border-2 shadow-sm hover:shadow-md transition-shadow"
-                                  >
-                                    <img
-                                      src={url}
-                                      alt="Gallery"
-                                      className="w-full h-full object-cover"
-                                    />
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                      <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        onClick={() => removeGalleryImage(url)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              {hasNextPage && (
-                                <div className="flex justify-center mt-6">
-                                  <Button
-                                    onClick={() => fetchNextPage()}
-                                    disabled={isFetchingNextPage}
-                                    className="px-6"
-                                  >
-                                    {isFetchingNextPage ? 'Loading...' : 'Load More'}
-                                  </Button>
+                            <div className="space-y-6">
+                              {/* Featured Images Section */}
+                              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h3 className="font-semibold text-orange-800 flex items-center gap-2">
+                                    <Star className="h-5 w-5" /> Featured Images for Landing Page ({selectedImageIds.length}/10)
+                                  </h3>
+                                  {selectedImageIds.length > 0 && selectedImageIds.length !== featuredImages.length && (
+                                    <Button
+                                      onClick={handleSaveFeaturedImages}
+                                      disabled={isUpdatingFeaturedOrder}
+                                      size="sm"
+                                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                                    >
+                                      {isUpdatingFeaturedOrder ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Saving...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Star className="h-4 w-4 mr-2" />
+                                          Save Featured Images
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
                                 </div>
-                              )}
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Check images below to feature them on the landing page carousel.
+                                </p>
+                                
+                                {selectedImageIds.length > 0 ? (
+                                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    {(galleryImagesWithId || [])
+                                      .filter((img: any) => selectedImageIds.includes(img.id))
+                                      .map((img: any) => (
+                                        <div
+                                          key={img.id}
+                                          className="relative aspect-square rounded-xl overflow-hidden border-2 border-orange-300 shadow-md group cursor-pointer hover:shadow-lg transition-all"
+                                          onClick={() => toggleImageSelection(img.id)}
+                                          title="Click to remove from featured"
+                                        >
+                                          <img
+                                            src={img.url}
+                                            alt="Featured"
+                                            className="w-full h-full object-cover"
+                                          />
+                                          <div className="absolute top-2 left-2 bg-orange-500 rounded-full p-1">
+                                            <Star className="h-4 w-4 text-white fill-white" />
+                                          </div>
+                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                            <span className="text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Remove</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-8 text-muted-foreground">
+                                    <Star className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                    <p className="text-sm">No featured images selected. Check images below to add.</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* All Images Management Section with Checkboxes */}
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-3">
+                                  {galleryImages.length} images uploaded • Check to feature on landing page
+                                </p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                  {(galleryImagesWithId || []).map((img: any) => {
+                                    const isSelected = selectedImageIds.includes(img.id);
+                                    return (
+                                      <div
+                                        key={img.id}
+                                        className={`relative group aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                                          isSelected
+                                            ? 'border-orange-400 ring-2 ring-orange-200 shadow-lg'
+                                            : 'border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
+                                        }`}
+                                      >
+                                        <img
+                                          src={img.url}
+                                          alt="Gallery"
+                                          className="w-full h-full object-cover"
+                                        />
+                                        
+                                        {/* Checkbox Overlay */}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-between p-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleImageSelection(img.id);
+                                            }}
+                                            className={`flex items-center justify-center w-6 h-6 rounded border-2 transition-all ${
+                                              isSelected
+                                                ? 'bg-orange-500 border-orange-500'
+                                                : 'bg-white/80 border-white/80 hover:bg-white hover:border-white'
+                                            }`}
+                                            title={isSelected ? 'Remove from featured' : 'Add to featured'}
+                                          >
+                                            {isSelected && (
+                                              <CheckCircle className="h-4 w-4 text-white fill-white" />
+                                            )}
+                                          </button>
+                                          
+                                          {/* Delete Button */}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeGalleryImage(img.url);
+                                            }}
+                                            className="flex items-center justify-center w-6 h-6 rounded bg-red-500/80 hover:bg-red-600 transition-colors"
+                                            title="Delete image"
+                                          >
+                                            <Trash2 className="h-4 w-4 text-white" />
+                                          </button>
+                                        </div>
+
+                                        {/* Visual Indicator for Featured */}
+                                        {isSelected && (
+                                          <div className="absolute top-2 right-2 bg-orange-500 rounded-full p-1 shadow-md">
+                                            <Star className="h-4 w-4 text-white fill-white" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {hasNextPage && (
+                                  <div className="flex justify-center mt-6">
+                                    <Button
+                                      onClick={() => fetchNextPage()}
+                                      disabled={isFetchingNextPage}
+                                      className="px-6"
+                                    >
+                                      {isFetchingNextPage ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Loading...
+                                        </>
+                                      ) : (
+                                        'Load More Images'
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
 

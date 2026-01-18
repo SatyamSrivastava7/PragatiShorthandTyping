@@ -30,7 +30,7 @@ import {
   type InsertNotice,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, lt } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -90,9 +90,11 @@ export interface IStorage {
   // Gallery methods
   getAllGalleryImages(): Promise<GalleryImage[]>;
   getGalleryImagesPaged(limit: number, offset: number): Promise<GalleryImage[]>;
+  getFeaturedGalleryImages(): Promise<GalleryImage[]>;
   getGalleryImage(id: number): Promise<GalleryImage | undefined>;
   createGalleryImage(image: InsertGalleryImage): Promise<GalleryImage>;
   deleteGalleryImage(id: number): Promise<boolean>;
+  updateGalleryImageOrder(imageIds: number[]): Promise<boolean>;
   
   // Settings methods
   getSetting(key: string): Promise<Setting | undefined>;
@@ -492,6 +494,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(galleryImages).orderBy(desc(galleryImages.createdAt)).limit(limit).offset(offset);
   }
 
+  async getFeaturedGalleryImages(): Promise<GalleryImage[]> {
+    // Get first 10 featured images sorted by order (ascending), limit to 10
+    return await db.select().from(galleryImages).where(lt(galleryImages.order, 10)).orderBy(asc(galleryImages.order)).limit(10);
+  }
+
   async getGalleryImage(id: number): Promise<GalleryImage | undefined> {
     const [image] = await db.select().from(galleryImages).where(eq(galleryImages.id, id));
     return image || undefined;
@@ -505,6 +512,17 @@ export class DatabaseStorage implements IStorage {
   async deleteGalleryImage(id: number): Promise<boolean> {
     const result = await db.delete(galleryImages).where(eq(galleryImages.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async updateGalleryImageOrder(imageIds: number[]): Promise<boolean> {
+    // Reset all images to order 999 first
+    await db.update(galleryImages).set({ order: 999 });
+    
+    // Update specified images with their new order (0-9 for first 10 selections)
+    for (let i = 0; i < Math.min(imageIds.length, 10); i++) {
+      await db.update(galleryImages).set({ order: i }).where(eq(galleryImages.id, imageIds[i]));
+    }
+    return true;
   }
 
   // Settings methods

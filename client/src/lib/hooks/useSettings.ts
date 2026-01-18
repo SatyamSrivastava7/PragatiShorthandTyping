@@ -135,6 +135,7 @@ export function useGallery(enabled: boolean = false) {
 
   return {
     images: (data?.pages || []).flatMap((page: any[]) => page.map((img: any) => img.url)),
+    imagesWithId: (data?.pages || []).flatMap((page: any[]) => page), // Return full objects with id, url, createdAt
     isLoading,
     error,
     hasNextPage,

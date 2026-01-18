@@ -1211,6 +1211,50 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete image" });
     }
   });
+
+  // Get featured gallery images (first 10)
+  app.get("/api/gallery/featured", async (req, res) => {
+    try {
+      const images = await storage.getFeaturedGalleryImages();
+      res.json(images);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get featured images" });
+    }
+  });
+
+  // Update gallery image order (admin only)
+  app.post("/api/gallery/order", async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      if (!req.session.userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { imageIds } = req.body;
+      if (!Array.isArray(imageIds)) {
+        return res.status(400).json({ message: "imageIds must be an array" });
+      }
+
+      // Limit to 10 images
+      if (imageIds.length > 10) {
+        return res.status(400).json({ message: "Maximum 10 images allowed" });
+      }
+
+      const success = await storage.updateGalleryImageOrder(imageIds);
+      if (success) {
+        res.json({ message: "Gallery order updated successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to update order" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update order" });
+    }
+  });
   
   // ==================== SETTINGS ROUTES ====================
   
