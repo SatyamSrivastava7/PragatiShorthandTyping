@@ -471,7 +471,7 @@ function LatestNoticeCard() {
 
     const id = setInterval(() => {
       setIndex((prev) => (prev + 1) % cachedNotices.length);
-    }, 6000);
+    }, 4000);
 
     return () => clearInterval(id);
   }, [paused, cachedNotices.length]);
