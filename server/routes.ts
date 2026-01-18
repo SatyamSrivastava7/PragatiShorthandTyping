@@ -1357,9 +1357,9 @@ export async function registerRoutes(
 
           bb.on('close', resolve);
           bb.on('error', reject);
+          
+          req.pipe(bb);
         });
-
-        req.pipe(bb);
 
         noticeData = {
           heading: fields.heading,
@@ -1431,9 +1431,9 @@ export async function registerRoutes(
 
           bb.on('close', resolve);
           bb.on('error', reject);
+          
+          req.pipe(bb);
         });
-
-        req.pipe(bb);
 
         if (fields.heading) updates.heading = fields.heading;
         if (fields.content) updates.content = fields.content;

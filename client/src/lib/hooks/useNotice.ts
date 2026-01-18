@@ -41,24 +41,29 @@ export function useNotices() {
   });
 
   // Create notice with file mutation
+  const createWithFileMutation = useMutation({
+    mutationFn: async ({ notice, pdfFile }: { notice: InsertNotice; pdfFile?: File }) => {
+      const formData = new FormData();
+      formData.append("heading", notice.heading);
+      formData.append("content", notice.content);
+      if (pdfFile) {
+        formData.append("pdf", pdfFile);
+      }
+      return await noticesApi.createWithFile(formData);
+    },
+    onSuccess: () => {
+      // Invalidate both caches
+      queryClient.invalidateQueries({ queryKey: ["notices"] });
+      queryClient.invalidateQueries({ queryKey: ["notices", "all"] });
+    },
+  });
+
+  // Helper function to call the mutation
   const createNoticeWithFile = async (
     notice: InsertNotice,
     pdfFile?: File
   ): Promise<Notice> => {
-    const formData = new FormData();
-    formData.append("heading", notice.heading);
-    formData.append("content", notice.content);
-    if (pdfFile) {
-      formData.append("pdf", pdfFile);
-    }
-
-    const result = await noticesApi.createWithFile(formData);
-    
-    // Invalidate both caches
-    queryClient.invalidateQueries({ queryKey: ["notices"] });
-    queryClient.invalidateQueries({ queryKey: ["notices", "all"] });
-    
-    return result;
+    return await createWithFileMutation.mutateAsync({ notice, pdfFile });
   };
 
   // Update notice mutation
@@ -105,10 +110,10 @@ export function useNotices() {
     deleteNotice: deleteMutation.mutate,
     deleteNoticeAsync: deleteMutation.mutateAsync,
 
-    // States
-    isCreating: createMutation.isPending,
+    // States - use createWithFileMutation for tracking createNoticeWithFile loading
+    isCreating: createMutation.isPending || createWithFileMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    error: createMutation.error || updateMutation.error || deleteMutation.error,
+    error: createMutation.error || createWithFileMutation.error || updateMutation.error || deleteMutation.error,
   };
 }
