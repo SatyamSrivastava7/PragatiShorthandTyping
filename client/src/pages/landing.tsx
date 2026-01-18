@@ -415,7 +415,7 @@ function HeroSection({ currentUser, getStartedLink }: any) {
           </div>
 
           {/* Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center mx-auto">
             <Link href={getStartedLink}>
               <Button size="lg" className="px-10 h-14 text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0 whitespace-nowrap">
                 {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-3 h-5 w-5" />
