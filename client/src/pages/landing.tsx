@@ -482,15 +482,19 @@ function LatestNoticeCard() {
     const el = firstItemRef.current;
     if (!el) return;
     const update = () => {
-      const h = el.clientHeight || 72;
+      const h = el.clientHeight || 60;
       setItemHeight(h);
       setContainerHeight(h * VISIBLE_COUNT);
     };
-    update();
+    // Measure immediately after next frame
+    setTimeout(update, 0);
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, [VISIBLE_COUNT]);
+
+  // Set initial container height while items render
+  const initialHeight = 60 * VISIBLE_COUNT;
 
   const current = cachedNotices[index];
 
@@ -509,7 +513,7 @@ function LatestNoticeCard() {
         </div>
 
         <div className="space-y-3">
-          <div ref={containerRef} className="overflow-hidden" style={{ height: containerHeight || undefined }}>
+          <div ref={containerRef} className="overflow-hidden" style={{ height: containerHeight || initialHeight }}>
             <div
               aria-live="polite"
               className="flex flex-col transform-gpu"
