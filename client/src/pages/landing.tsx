@@ -147,52 +147,7 @@ export default function LandingPage() {
         <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-green-400/40 rounded-full animate-pulse delay-500" />
         
         <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex flex-col lg:flex-row items-stretch gap-8 lg:gap-12 justify-center">
-            {/* Main Hero Content - Left Side or Center */}
-            <div className="flex-1 flex flex-col items-start lg:items-start space-y-4">
-              <div className="space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
-                  Master Shorthand & Typing with Pragati
-                </h1>
-                <p className="max-w-[700px] text-muted-foreground md:text-xl leading-relaxed">
-                  Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
-                </p>
-                <div className="flex items-center gap-3 pt-2">
-                  <span className="bg-gradient-to-r from-primary to-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide shadow-md">
-                    Since 2008
-                  </span>
-                  <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-semibold">
-                    5000+ Students
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 min-[400px]:flex-row pt-6">
-                <Link href={getStartedLink}>
-                  <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0">
-                    {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href="/gallery">
-                  <Button variant="outline" size="lg" className="h-12 px-8 text-base border-2 hover:bg-primary/5">
-                    <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Image below content on small screens */}
-              <div className="relative mt-8 w-full lg:hidden">
-                <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
-                <img
-                  src={heroImage}
-                  alt="Hero"
-                  className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
-                />
-              </div>
-            </div>
-
-            {/* Right Side - Latest Notice Card */}
-            <LatestNoticeCardWrapper />
-          </div>
+          <HeroSection currentUser={currentUser} getStartedLink={getStartedLink} />
 
           {/* Image on large screens - below both sections */}
           <div className="relative mt-12 w-full max-w-5xl mx-auto hidden lg:block">
@@ -451,6 +406,60 @@ export default function LandingPage() {
   );
 }
 
+function HeroSection({ currentUser, getStartedLink }: any) {
+  const { notices } = useNotices();
+  const hasNotices = notices.length > 0;
+
+  return (
+    <div className={`flex flex-col ${hasNotices ? 'lg:flex-row' : ''} items-stretch gap-8 lg:gap-12 ${!hasNotices ? 'mx-auto max-w-2xl' : ''}`}>
+      {/* Main Hero Content - Left Side */}
+      <div className={`flex flex-col items-start lg:items-start space-y-4 ${hasNotices ? 'flex-1' : ''}`}>
+        <div className="space-y-4">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
+            Master Shorthand & Typing with Pragati
+          </h1>
+          <p className="max-w-[700px] text-muted-foreground md:text-xl leading-relaxed">
+            Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
+          </p>
+          <div className="flex items-center gap-3 pt-2">
+            <span className="bg-gradient-to-r from-primary to-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide shadow-md">
+              Since 2008
+            </span>
+            <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-semibold">
+              5000+ Students
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 min-[400px]:flex-row pt-6">
+          <Link href={getStartedLink}>
+            <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0">
+              {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
+          <Link href="/gallery">
+            <Button variant="outline" size="lg" className="h-12 px-8 text-base border-2 hover:bg-primary/5">
+              <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
+            </Button>
+          </Link>
+        </div>
+
+        {/* Image below content on small screens */}
+        <div className="relative mt-8 w-full lg:hidden">
+          <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
+          <img
+            src={heroImage}
+            alt="Hero"
+            className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
+          />
+        </div>
+      </div>
+
+      {/* Right Side - Latest Notice Card */}
+      {hasNotices && <LatestNoticeCardWrapper />}
+    </div>
+  );
+}
+
 // Latest Notice Card Component for Hero Section
 function LatestNoticeCard() {
   const { notices } = useNotices();
@@ -528,12 +537,6 @@ function LatestNoticeCard() {
 }
 
 function LatestNoticeCardWrapper() {
-  const { notices } = useNotices();
-
-  if (notices.length === 0) {
-    return null;
-  }
-
   return (
     <div className="flex-1 hidden lg:flex items-start">
       <LatestNoticeCard />
