@@ -607,7 +607,7 @@ export default function TypingTestPage() {
              
              {/* Overlay for inactive state */}
              {!isActive && !isFinished && (
-               <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-10">
+               <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
                  {cooldownRemaining > 0 ? (
                    <div className="text-center space-y-2">
                      <div className="text-lg font-semibold text-orange-600">Cooldown Active</div>

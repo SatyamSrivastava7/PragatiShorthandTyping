@@ -289,6 +289,21 @@ export default function AdminDashboard() {
     const currentRef = typingObserverRef.current;
     if (!currentRef || !hasMoreTyping) return;
 
+    // Check if IntersectionObserver is available
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback for older browsers: load more on scroll
+      const handleScroll = () => {
+        if (hasMoreTyping && !isLoadingMore) {
+          const rect = currentRef?.getBoundingClientRect();
+          if (rect && rect.bottom < window.innerHeight + 100) {
+            loadMoreTyping();
+          }
+        }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMoreTyping && !isLoadingMore) {
@@ -312,6 +327,21 @@ export default function AdminDashboard() {
     if (activeTab !== "manage") return;
     const currentRef = shorthandObserverRef.current;
     if (!currentRef || !hasMoreShorthand) return;
+
+    // Check if IntersectionObserver is available
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback for older browsers: load more on scroll
+      const handleScroll = () => {
+        if (hasMoreShorthand && !isLoadingMore) {
+          const rect = currentRef?.getBoundingClientRect();
+          if (rect && rect.bottom < window.innerHeight + 100) {
+            loadMoreShorthand();
+          }
+        }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {

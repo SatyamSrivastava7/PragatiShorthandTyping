@@ -2,17 +2,13 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
 import { useNotices } from "@/lib/hooks/useNotice";
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu, Bell, Download } from "lucide-react";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu, Bell, Download } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import logoImage from "@assets/WhatsApp_Image_2025-12-12_at_7.30.52_PM_(1)_1765980168956.jpeg";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import Autoplay from "embla-carousel-autoplay";
 import { useToast } from "@/hooks/use-toast";
-import { NoticeSlider } from "@/components/NoticeSlider";
 import { format } from "date-fns";
 import {
   Carousel,
@@ -33,11 +29,57 @@ export default function LandingPage() {
   };
 
   const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: `${label} copied to clipboard.`
-    });
+    // Use modern clipboard API if available, otherwise use fallback
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast({
+          title: "Copied!",
+          description: `${label} copied to clipboard.`
+        });
+      }).catch(() => {
+        // Fallback if clipboard API fails
+        copyToClipboardFallback(text, label);
+      });
+    } else {
+      // Fallback for older browsers (Windows 7)
+      copyToClipboardFallback(text, label);
+    }
+  };
+
+  const copyToClipboardFallback = (text: string, label: string) => {
+    // Create a temporary textarea element
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    
+    try {
+      textarea.select();
+      textarea.setSelectionRange(0, 99999); // For mobile devices
+      const successful = document.execCommand('copy');
+      if (successful) {
+        toast({
+          title: "Copied!",
+          description: `${label} copied to clipboard.`
+        });
+      } else {
+        toast({
+          title: "Failed to copy",
+          description: "Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      document.body.removeChild(textarea);
+    }
   };
 
   const getStartedLink = currentUser 
@@ -47,7 +89,7 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Main Header/Navigation */}
-      <header className="w-full bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
+      <header className="w-full bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white shrink-0">
@@ -453,7 +495,6 @@ function LatestNoticeCard() {
   // All hooks must be called unconditionally at the top
   const { notices, isLoading } = useNotices({ enabled: true, limit: 10, offset: 0 });
   const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const firstItemRef = useRef<HTMLDivElement | null>(null);
   const [itemHeight, setItemHeight] = useState(0);
@@ -464,16 +505,16 @@ function LatestNoticeCard() {
   const current = cachedNotices[index];
   const initialHeight = 60 * VISIBLE_COUNT;
 
-  // Auto-advance every 3s, pause on hover
+  // Auto-advance every 3s
   useEffect(() => {
-    if (paused || !cachedNotices || cachedNotices.length <= 1) return;
+    if (!cachedNotices || cachedNotices.length <= 1) return;
 
     const id = setInterval(() => {
       setIndex((prev) => (prev + 1) % cachedNotices.length);
     }, 3000);
 
     return () => clearInterval(id);
-  }, [paused, cachedNotices.length]);
+  }, [cachedNotices.length]);
 
   // Measure first item height and compute container height
   useEffect(() => {
@@ -485,16 +526,23 @@ function LatestNoticeCard() {
       setContainerHeight(h * VISIBLE_COUNT);
     };
     setTimeout(update, 0);
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
+    
+    // Use ResizeObserver with fallback for older browsers
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      return () => ro.disconnect();
+    } else {
+      // Fallback: use window resize listener for older browsers (Windows 7)
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
   }, [VISIBLE_COUNT]);
 
   // Handle mouse wheel scroll
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (cachedNotices.length <= VISIBLE_COUNT) return;
     e.preventDefault();
-    setPaused(true);
     
     if (e.deltaY > 0) {
       setIndex((prev) => (prev + 1) % cachedNotices.length);
@@ -522,8 +570,6 @@ function LatestNoticeCard() {
     <div className="lg:col-span-4 w-full" style={{ minHeight: '300px' }}>
       <div
         className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow h-full flex flex-col"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
       >
         <div className="flex items-start gap-3 mb-4">
           <div className="mt-0.5">

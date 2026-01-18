@@ -256,7 +256,7 @@ export default function AuthPage() {
       <div className="absolute top-1/3 right-1/4 w-3 h-3 bg-orange-400/40 rounded-full animate-pulse" />
       <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-green-400/40 rounded-full animate-pulse" />
       
-      <Card className="w-full max-w-md shadow-xl border-t-4 border-t-primary relative z-10 bg-white/95 backdrop-blur-sm">
+      <Card className="w-full max-w-md shadow-xl border-t-4 border-t-primary relative z-10 bg-white">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">Pragati Institute</CardTitle>
           <CardDescription>Shorthand & Typing Assessment Platform</CardDescription>

@@ -371,15 +371,15 @@ export default function StudentDashboard() {
             </div>
           </div>
           <div className="flex gap-3">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
+            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
               <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" /> : (countsQuery.data?.typing ?? 0)}</p>
               <p className="text-xs text-blue-100">Typing Tests</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
+            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
               <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-500" /> : (countsQuery.data?.shorthand ?? 0)}</p>
               <p className="text-xs text-blue-100">Shorthand</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
+            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
               <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount)}</p>
               <p className="text-xs text-blue-100">Results</p>
             </div>
