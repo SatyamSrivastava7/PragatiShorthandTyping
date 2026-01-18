@@ -451,10 +451,62 @@ function HeroSection({ currentUser, getStartedLink }: any) {
 
 // Latest Notice Card Component for Hero Section
 function LatestNoticeCard() {
-  // Fetch first 10 notices on landing page load (auto-cached by React Query)
+  // All hooks must be called unconditionally at the top
   const { notices, isLoading } = useNotices({ enabled: true, limit: 10, offset: 0 });
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const firstItemRef = useRef<HTMLDivElement | null>(null);
+  const [itemHeight, setItemHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
   
-  if (isLoading || !notices || notices.length === 0) {
+  const VISIBLE_COUNT = 5;
+  const cachedNotices = notices || [];
+  const current = cachedNotices[index];
+  const initialHeight = 60 * VISIBLE_COUNT;
+
+  // Auto-advance every 6s, pause on hover
+  useEffect(() => {
+    if (cachedNotices.length <= 1) return;
+    if (paused) return;
+
+    const id = setInterval(() => {
+      setIndex((prev) => (prev + 1) % cachedNotices.length);
+    }, 6000);
+
+    return () => clearInterval(id);
+  }, [cachedNotices.length, paused]);
+
+  // Measure first item height and compute container height
+  useEffect(() => {
+    const el = firstItemRef.current;
+    if (!el) return;
+    const update = () => {
+      const h = el.clientHeight || 60;
+      setItemHeight(h);
+      setContainerHeight(h * VISIBLE_COUNT);
+    };
+    setTimeout(update, 0);
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [VISIBLE_COUNT]);
+
+  // Handle mouse wheel scroll
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (cachedNotices.length <= VISIBLE_COUNT) return;
+    e.preventDefault();
+    setPaused(true);
+    
+    if (e.deltaY > 0) {
+      setIndex((prev) => (prev + 1) % cachedNotices.length);
+    } else {
+      setIndex((prev) => (prev - 1 + cachedNotices.length) % cachedNotices.length);
+    }
+  };
+
+  // Early return only after all hooks
+  if (isLoading || cachedNotices.length === 0) {
     return (
       <div className="lg:col-span-4 w-full">
         <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg">
@@ -467,65 +519,6 @@ function LatestNoticeCard() {
       </div>
     );
   }
-  
-  const cachedNotices = notices;
-
-  const [index, setIndex] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const firstItemRef = useRef<HTMLDivElement | null>(null);
-  const [itemHeight, setItemHeight] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const VISIBLE_COUNT = 5;
-
-  // Auto-advance every 3.5s, pause on hover
-  useEffect(() => {
-    if (cachedNotices.length <= 1) return;
-    if (paused) return;
-
-    const id = setInterval(() => {
-      setIndex((prev) => (prev + 1) % cachedNotices.length);
-    }, 6000); // slower slide
-
-    return () => clearInterval(id);
-  }, [cachedNotices.length, paused]);
-
-  // measure container height for pixel-perfect translate
-  // measure first item height and compute container height (visibleCount * itemHeight)
-  useEffect(() => {
-    const el = firstItemRef.current;
-    if (!el) return;
-    const update = () => {
-      const h = el.clientHeight || 60;
-      setItemHeight(h);
-      setContainerHeight(h * VISIBLE_COUNT);
-    };
-    // Measure immediately after next frame
-    setTimeout(update, 0);
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [VISIBLE_COUNT]);
-
-  // Set initial container height while items render
-  const initialHeight = 60 * VISIBLE_COUNT;
-
-  const current = cachedNotices[index];
-
-  // Handle mouse wheel scroll
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (cachedNotices.length <= VISIBLE_COUNT) return;
-    e.preventDefault();
-    setPaused(true);
-    
-    if (e.deltaY > 0) {
-      // Scroll down - next notice
-      setIndex((prev) => (prev + 1) % cachedNotices.length);
-    } else {
-      // Scroll up - previous notice
-      setIndex((prev) => (prev - 1 + cachedNotices.length) % cachedNotices.length);
-    }
-  };
 
   return (
     <div className="lg:col-span-4 w-full" style={{ minHeight: '300px' }}>
