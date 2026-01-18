@@ -147,8 +147,8 @@ export default function LandingPage() {
         <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-green-400/40 rounded-full animate-pulse delay-500" />
         
         <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex flex-col lg:flex-row items-stretch gap-8 lg:gap-12">
-            {/* Main Hero Content - Left Side */}
+          <div className="flex flex-col lg:flex-row items-stretch gap-8 lg:gap-12 justify-center">
+            {/* Main Hero Content - Left Side or Center */}
             <div className="flex-1 flex flex-col items-start lg:items-start space-y-4">
               <div className="space-y-4">
                 <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
