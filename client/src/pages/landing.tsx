@@ -551,11 +551,27 @@ function LatestNoticeCard() {
                   className="flex-shrink-0 px-1 py-2"
                   style={{ height: itemHeight || undefined }}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <h4 className="font-semibold text-gray-900 text-sm truncate">
                       {n.heading}
                     </h4>
-                    <span className="text-xs text-gray-500 ml-3 shrink-0">{format(new Date(n.createdAt), "MMM d, yyyy")}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-gray-500">{format(new Date(n.createdAt), "MMM d, yyyy")}</span>
+                      {n.pdfUrl && (
+                        <button
+                          onClick={() => {
+                            const link = document.createElement("a");
+                            link.href = n.pdfUrl!;
+                            link.download = "notice.pdf";
+                            link.click();
+                          }}
+                          className="text-yellow-600 hover:text-yellow-700 transition-colors"
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm text-gray-700 truncate mt-1">{n.content}</p>
                 </div>
