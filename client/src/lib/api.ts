@@ -166,6 +166,21 @@ export const contentApi = {
       method: 'PATCH',
     }),
 
+  update: (id: number, data: Partial<{
+    title: string;
+    type: 'typing' | 'shorthand';
+    text: string;
+    duration: number;
+    dateFor: string;
+    language: 'english' | 'hindi';
+    audio80wpm: string;
+    audio100wpm: string;
+  }>) =>
+    fetchApi<Content>(`/api/content/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
   delete: (id: number) =>
     fetchApi<void>(`/api/content/${id}`, {
       method: 'DELETE',

@@ -22,6 +22,7 @@ import {
 } from "@/lib/hooks";
 import { useNotices } from "@/lib/hooks/useNotice";
 import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
+import { contentApi } from "@/lib/api";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,6 +154,7 @@ export default function AdminDashboard() {
     createContentWithFile,
     toggleContent,
     deleteContent,
+    updateContent,
     isLoading: isContentLoading,
     error: contentError,
     isCreating,
@@ -394,6 +396,21 @@ export default function AdminDashboard() {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
 
+  // Edit Test State
+  const [editingTestId, setEditingTestId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDuration, setEditDuration] = useState("5");
+  const [editDateFor, setEditDateFor] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [editLanguage, setEditLanguage] = useState<"english" | "hindi">("english");
+  const [editTextContent, setEditTextContent] = useState("");
+  const [editAutoScroll, setEditAutoScroll] = useState(true);
+  const [editAudio80wpmFile, setEditAudio80wpmFile] = useState<File | null>(null);
+  const [editAudio100wpmFile, setEditAudio100wpmFile] = useState<File | null>(null);
+  const [isTestEditModalOpen, setIsTestEditModalOpen] = useState(false);
+  const [isEditingTest, setIsEditingTest] = useState(false);
+  const editAudio80wpmInputRef = useRef<HTMLInputElement>(null);
+  const editAudio100wpmInputRef = useRef<HTMLInputElement>(null);
+
   // Filter State
   const [studentFilter, setStudentFilter] = useState("");
   const [studentListSearch, setStudentListSearch] = useState("");
@@ -602,6 +619,102 @@ export default function AdminDashboard() {
     if (confirm("Are you sure you want to delete this test?")) {
       await deleteContent(id);
       toast({ title: "Deleted", description: "Test content removed." });
+    }
+  };
+
+  const handleOpenEditModal = async (testId: number) => {
+    // Find the test to edit
+    const testToEdit = content.find(c => c.id === testId);
+    if (!testToEdit) return;
+
+    // Fetch the full content (with text and audio)
+    try {
+      const fullContent = await contentApi.getById(testId);
+      
+      // Set the edit state with the fetched content
+      setEditingTestId(testId);
+      setEditTitle(fullContent.title);
+      setEditDuration(fullContent.duration.toString());
+      setEditDateFor(fullContent.dateFor);
+      setEditLanguage((fullContent.language || 'english') as 'english' | 'hindi');
+      setEditTextContent(fullContent.text);
+      setEditAutoScroll(fullContent.autoScroll || true);
+      setEditAudio80wpmFile(null);
+      setEditAudio100wpmFile(null);
+      setIsTestEditModalOpen(true);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load test details for editing",
+      });
+    }
+  };
+
+  const handleUpdateTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTestId || !editTextContent.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Title and content are required",
+      });
+      return;
+    }
+
+    try {
+      setIsEditingTest(true);
+
+      // Build the update data
+      const updateData: any = {
+        title: editTitle,
+        duration: parseInt(editDuration),
+        dateFor: editDateFor,
+        language: editLanguage,
+        text: editTextContent,
+        autoScroll: editAutoScroll,
+      };
+
+      // If there are new audio files, include them as base64
+      if (editAudio80wpmFile) {
+        const audio80wpmBase64 = await fileToBase64(editAudio80wpmFile);
+        updateData.audio80wpm = audio80wpmBase64;
+      }
+
+      if (editAudio100wpmFile) {
+        const audio100wpmBase64 = await fileToBase64(editAudio100wpmFile);
+        updateData.audio100wpm = audio100wpmBase64;
+      }
+
+      await updateContent({
+        id: editingTestId,
+        data: updateData,
+      });
+
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Test updated successfully",
+      });
+
+      setIsTestEditModalOpen(false);
+      setEditingTestId(null);
+      setEditTitle("");
+      setEditDuration("5");
+      setEditDateFor(format(new Date(), "yyyy-MM-dd"));
+      setEditLanguage("english");
+      setEditTextContent("");
+      setEditAutoScroll(true);
+      setEditAudio80wpmFile(null);
+      setEditAudio100wpmFile(null);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update test",
+      });
+    } finally {
+      setIsEditingTest(false);
     }
   };
 
@@ -1539,6 +1652,17 @@ export default function AdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                                        onClick={() =>
+                                          handleOpenEditModal(item.id)
+                                        }
+                                        title="Edit test"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
                                       <Switch
                                         checked={item.isEnabled}
                                         onCheckedChange={async () => {
@@ -3545,6 +3669,207 @@ export default function AdminDashboard() {
     </>
   );
 
+  // Edit Test Modal Component
+  const EditTestModal = () => (
+    <Dialog open={isTestEditModalOpen} onOpenChange={setIsTestEditModalOpen}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Keyboard className="h-5 w-5 text-blue-600" />
+            </div>
+            Edit Test
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleUpdateTest} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Test Title</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Enter title"
+                required
+                className="bg-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Schedule Date</Label>
+              <Input
+                type="date"
+                value={editDateFor}
+                onChange={(e) => setEditDateFor(e.target.value)}
+                required
+                className="bg-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Language</Label>
+              <Select
+                value={editLanguage}
+                onValueChange={(v: any) => setEditLanguage(v)}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="english">English</SelectItem>
+                  <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Duration (2-60 min)
+              </Label>
+              <Select value={editDuration} onValueChange={setEditDuration}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="2">2 Minutes</SelectItem>
+                  <SelectItem value="4">4 Minutes</SelectItem>
+                  <SelectItem value="5">5 Minutes</SelectItem>
+                  <SelectItem value="10">10 Minutes</SelectItem>
+                  <SelectItem value="15">15 Minutes</SelectItem>
+                  <SelectItem value="20">20 Minutes</SelectItem>
+                  <SelectItem value="25">25 Minutes</SelectItem>
+                  <SelectItem value="30">30 Minutes</SelectItem>
+                  <SelectItem value="35">35 Minutes</SelectItem>
+                  <SelectItem value="40">40 Minutes</SelectItem>
+                  <SelectItem value="45">45 Minutes</SelectItem>
+                  <SelectItem value="50">50 Minutes</SelectItem>
+                  <SelectItem value="55">55 Minutes</SelectItem>
+                  <SelectItem value="60">60 Minutes</SelectItem>
+                  <SelectItem value="70">70 Minutes</SelectItem>
+                  <SelectItem value="80">80 Minutes</SelectItem>
+                  <SelectItem value="90">90 Minutes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Auto-scroll</Label>
+              <div className="flex items-center gap-2 h-9">
+                <Switch
+                  id="edit-auto-scroll"
+                  checked={editAutoScroll}
+                  onCheckedChange={setEditAutoScroll}
+                />
+                <Label
+                  htmlFor="edit-auto-scroll"
+                  className="text-sm text-muted-foreground"
+                >
+                  {editAutoScroll ? "Enabled" : "Disabled"}
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Audio files section for shorthand tests */}
+          {editingTestId && content.find(c => c.id === editingTestId)?.type === 'shorthand' && (
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Music className="h-5 w-5 text-orange-600" />
+                    <Label className="text-sm font-medium text-orange-800">
+                      Audio File (80 WPM)
+                    </Label>
+                  </div>
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) =>
+                      setEditAudio80wpmFile(e.target.files?.[0] || null)
+                    }
+                    ref={editAudio80wpmInputRef}
+                    className="bg-white"
+                  />
+                  {editAudio80wpmFile && (
+                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />{" "}
+                      {editAudio80wpmFile.name}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Music className="h-5 w-5 text-orange-600" />
+                    <Label className="text-sm font-medium text-orange-800">
+                      Audio File (100 WPM)
+                    </Label>
+                  </div>
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) =>
+                      setEditAudio100wpmFile(e.target.files?.[0] || null)
+                    }
+                    ref={editAudio100wpmInputRef}
+                    className="bg-white"
+                  />
+                  {editAudio100wpmFile && (
+                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />{" "}
+                      {editAudio100wpmFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Content Text (Transcript)
+            </Label>
+            <Textarea
+              value={editTextContent}
+              onChange={(e) => setEditTextContent(e.target.value)}
+              placeholder="Edit the text content here..."
+              className={cn(
+                "min-h-[200px] font-mono bg-white border-2 focus:border-primary/50",
+                editLanguage === "hindi" ? "font-mangal" : "",
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              {editTextContent.split(/\s+/).filter(Boolean).length} words |{" "}
+              {editTextContent.length} characters
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsTestEditModalOpen(false)}
+              disabled={isEditingTest}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isEditingTest}
+              className="bg-gradient-to-r from-blue-500 to-blue-600"
+            >
+              {isEditingTest ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" /> Update Test
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
       {/* Mobile Header */}
@@ -3577,6 +3902,9 @@ export default function AdminDashboard() {
       <main className="flex-1 p-3 md:p-6 overflow-auto bg-gradient-to-br from-slate-50 to-blue-50/30">
         {renderContent()}
       </main>
+
+      {/* Edit Test Modal */}
+      <EditTestModal />
     </div>
   );
 }

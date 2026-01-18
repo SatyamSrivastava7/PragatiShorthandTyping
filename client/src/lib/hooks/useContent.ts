@@ -292,6 +292,53 @@ export function useContent() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Content> }) => {
+      return contentApi.update(id, data);
+    },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
+      await queryClient.cancelQueries({ queryKey: ['content', 'full', id] });
+      
+      const previousList = queryClient.getQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list']);
+      const previousFull = queryClient.getQueryData<Content>(['content', 'full', id]);
+      
+      // Optimistically update the list
+      queryClient.setQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) =>
+        old.map((item) =>
+          item.id === id ? { ...item, ...data } : item
+        )
+      );
+
+      return { previousList, previousFull };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousList) {
+        queryClient.setQueryData(['content', 'list'], context.previousList);
+      }
+      if (context?.previousFull) {
+        queryClient.setQueryData(['content', 'full', variables.id], context.previousFull);
+      }
+    },
+    onSuccess: (updatedContent) => {
+      // Update the full content cache
+      queryClient.setQueryData(['content', 'full', updatedContent.id], updatedContent);
+      // Update the list cache
+      const { text, audio80wpm, audio100wpm, ...listData } = updatedContent;
+      queryClient.setQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) =>
+        old.map((item) =>
+          item.id === updatedContent.id ? listData : item
+        )
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['content'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'list'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
+      queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
+    },
+  });
+
   return {
     content,
     enabledContent,
@@ -301,6 +348,7 @@ export function useContent() {
     createContent: createMutation.mutateAsync,
     createContentWithFile: createWithFileMutation.mutateAsync,
     toggleContent: toggleMutation.mutateAsync,
+    updateContent: updateMutation.mutateAsync,
     deleteContent: deleteMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isCreatingWithFile: createWithFileMutation.isPending,
