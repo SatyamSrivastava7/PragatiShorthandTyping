@@ -467,15 +467,14 @@ function LatestNoticeCard() {
 
   // Auto-advance every 6s, pause on hover
   useEffect(() => {
-    if (cachedNotices.length <= 1) return;
-    if (paused) return;
+    if (paused || !cachedNotices || cachedNotices.length <= 1) return;
 
     const id = setInterval(() => {
       setIndex((prev) => (prev + 1) % cachedNotices.length);
     }, 6000);
 
     return () => clearInterval(id);
-  }, [cachedNotices.length, paused]);
+  }, [paused, cachedNotices.length]);
 
   // Measure first item height and compute container height
   useEffect(() => {
