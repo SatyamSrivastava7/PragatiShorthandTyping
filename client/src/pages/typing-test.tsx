@@ -409,16 +409,16 @@ export default function TypingTestPage() {
   // Get the audio URL based on selected WPM
   const getSelectedAudioUrl = () => {
     if (selectedAudioWpm === "80" && testContent?.audio80wpm) {
-      return testContent.audio80wpm;
+      return testContent?.audio80wpm ?? testContent?.mediaUrl;
     }
     if (selectedAudioWpm === "100" && testContent?.audio100wpm) {
-      return testContent.audio100wpm;
+      return testContent?.audio100wpm;
     }
     return null;
   };
 
   // Check if both audio options are available
-  const audio80Available = !!testContent?.audio80wpm;
+  const audio80Available = !!testContent?.audio80wpm || !!testContent?.mediaUrl;
   const audio100Available = !!testContent?.audio100wpm;
   const selectedAudioUrl = getSelectedAudioUrl();
 
