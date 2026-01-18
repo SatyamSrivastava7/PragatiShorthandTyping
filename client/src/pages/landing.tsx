@@ -385,10 +385,10 @@ function HeroSection({ currentUser, getStartedLink }: any) {
 
   return (
     <div className="w-full space-y-8">
-      {/* Top Row: Content on left, Notice on right */}
-      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-        {/* Left/Main Content - Takes 8/12 on large screens */}
-        <div className="lg:col-span-8 flex flex-col space-y-6">
+      {/* Top Row: Content centered */}
+      <div className="w-full flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-10">
+        {/* Main Content - Centered */}
+        <div className="flex flex-col space-y-6 text-center lg:text-left flex-1 max-w-2xl">
           {/* Text Content */}
           <div className="space-y-6">
             <div>
@@ -397,12 +397,12 @@ function HeroSection({ currentUser, getStartedLink }: any) {
               </h1>
               <p className="text-xl lg:text-2xl font-semibold text-primary mt-2">with Pragati Institute</p>
             </div>
-            <p className="text-base lg:text-lg text-gray-700 leading-relaxed max-w-2xl">
+            <p className="text-base lg:text-lg text-gray-700 leading-relaxed">
               Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence since 2008.
             </p>
             
             {/* Stats Pills */}
-            <div className="flex flex-wrap gap-3 pt-2">
+            <div className="flex flex-wrap gap-3 pt-2 justify-center lg:justify-start">
               <div className="px-4 py-2 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full text-sm font-semibold shadow-md">
                 Since 2008
               </div>
@@ -416,7 +416,7 @@ function HeroSection({ currentUser, getStartedLink }: any) {
           </div>
 
           {/* Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center lg:justify-start">
             <Link href={getStartedLink}>
               <Button size="lg" className="px-10 h-14 text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0 whitespace-nowrap">
                 {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-3 h-5 w-5" />
@@ -430,8 +430,10 @@ function HeroSection({ currentUser, getStartedLink }: any) {
           </div>
         </div>
 
-        {/* Notice Card - Only show if notices already cached */}
-        <LatestNoticeCard />
+        {/* Notice Card - Right side */}
+        <div className="w-full lg:w-auto lg:flex-shrink-0">
+          <LatestNoticeCard />
+        </div>
       </div>
 
       {/* Hero Image - Below, full width */}
@@ -465,7 +467,7 @@ function LatestNoticeCard() {
   const current = cachedNotices[index];
   const initialHeight = 60 * VISIBLE_COUNT;
 
-  // Auto-advance every 6s, pause on hover
+  // Auto-advance every 4s, pause on hover
   useEffect(() => {
     if (paused || !cachedNotices || cachedNotices.length <= 1) return;
 
