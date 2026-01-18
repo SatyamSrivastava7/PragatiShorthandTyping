@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
+import { useNotices } from "@/lib/hooks/useNotice";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -450,21 +451,10 @@ function HeroSection({ currentUser, getStartedLink }: any) {
 
 // Latest Notice Card Component for Hero Section
 function LatestNoticeCard() {
-  const queryClient = useQueryClient();
+  // Fetch first 10 notices on landing page load (auto-cached by React Query)
+  const { notices, isLoading } = useNotices({ enabled: true, limit: 10, offset: 0 });
   
-  // Get notices from cache - search for any notice query key (including pagination params)
-  let cachedNotices: any[] = [];
-  const queries = queryClient.getQueriesData<any[]>({ queryKey: ["notices"] });
-  
-  if (queries && queries.length > 0) {
-    // Get the first matching query's data (most recent page)
-    const [, data] = queries[0];
-    cachedNotices = Array.isArray(data) ? data : [];
-  }
-  
-  console.log('LatestNoticeCard render - cachedNotices count:', cachedNotices.length, 'all queries:', queries);
-
-  if (cachedNotices.length === 0) {
+  if (isLoading || !notices || notices.length === 0) {
     return (
       <div className="lg:col-span-4 w-full">
         <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg">
@@ -472,11 +462,13 @@ function LatestNoticeCard() {
             <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
             <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
           </div>
-          <p className="text-sm text-gray-600">Visit the Notices page to load announcements</p>
+          <p className="text-sm text-gray-600">{isLoading ? 'Loading announcements...' : 'No announcements available'}</p>
         </div>
       </div>
     );
   }
+  
+  const cachedNotices = notices;
 
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -484,7 +476,7 @@ function LatestNoticeCard() {
   const firstItemRef = useRef<HTMLDivElement | null>(null);
   const [itemHeight, setItemHeight] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
-  const VISIBLE_COUNT = Math.min(6, cachedNotices.length);
+  const VISIBLE_COUNT = 5;
 
   // Auto-advance every 3.5s, pause on hover
   useEffect(() => {
@@ -520,6 +512,21 @@ function LatestNoticeCard() {
 
   const current = cachedNotices[index];
 
+  // Handle mouse wheel scroll
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (cachedNotices.length <= VISIBLE_COUNT) return;
+    e.preventDefault();
+    setPaused(true);
+    
+    if (e.deltaY > 0) {
+      // Scroll down - next notice
+      setIndex((prev) => (prev + 1) % cachedNotices.length);
+    } else {
+      // Scroll up - previous notice
+      setIndex((prev) => (prev - 1 + cachedNotices.length) % cachedNotices.length);
+    }
+  };
+
   return (
     <div className="lg:col-span-4 w-full" style={{ minHeight: '300px' }}>
       <div
@@ -535,8 +542,12 @@ function LatestNoticeCard() {
         </div>
 
         <div className="space-y-3">
-          <div ref={containerRef} className="overflow-hidden" style={{ height: containerHeight || initialHeight }}>
-            <div
+          <div
+            ref={containerRef}
+            className="overflow-hidden"
+            style={{ height: containerHeight || initialHeight }}
+            onWheel={handleWheel}
+          ><div
               aria-live="polite"
               className="flex flex-col transform-gpu"
               style={{
@@ -580,7 +591,7 @@ function LatestNoticeCard() {
           </div>
 
           <div className="flex flex-col gap-2 pt-2">
-            {current.pdfUrl && (
+            {/* {current.pdfUrl && (
               <Button
                 variant="outline"
                 size="sm"
@@ -595,7 +606,7 @@ function LatestNoticeCard() {
                 <Download className="h-4 w-4 mr-2" />
                 Download PDF
               </Button>
-            )}
+            )} */}
             <Link href="/notice" className="w-full">
               <Button
                 variant="default"
