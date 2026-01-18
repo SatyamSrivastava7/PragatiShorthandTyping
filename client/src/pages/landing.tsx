@@ -184,20 +184,20 @@ export default function LandingPage() {
 
       {/* Gallery Hero Section - Featured Images Only */}
       {featuredImages.length > 0 ? (
-        <section className="w-full bg-black relative">
+        <section className="w-full bg-black relative h-96">
           <Carousel
             plugins={[
               Autoplay({
                 delay: 4000,
               }),
             ]}
-            className="w-full"
+            className="w-full h-full"
           >
-            <CarouselContent className="m-0">
+            <CarouselContent className="m-0 h-full">
               {featuredImages.map((image: any, idx) => (
-                <CarouselItem key={idx} className="pl-0">
-                  <div className="relative w-full aspect-[3/1] overflow-hidden">
-                    <img src={image.url} alt={`Featured ${idx}`} className="w-full h-full object-cover" />
+                <CarouselItem key={idx} className="pl-0 h-full">
+                  <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-black">
+                    <img src={image.url} alt={`Featured ${idx}`} className="w-full h-full object-contain" />
                     <div className="absolute inset-0 bg-black/20" />
                   </div>
                 </CarouselItem>
