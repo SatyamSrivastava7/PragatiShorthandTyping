@@ -451,10 +451,18 @@ function HeroSection({ currentUser, getStartedLink }: any) {
 // Latest Notice Card Component for Hero Section
 function LatestNoticeCard() {
   const queryClient = useQueryClient();
-  // Get notices only if already cached (lazy loading - don't fetch on landing)
-  const cachedNotices = queryClient.getQueryData<any[]>(["notices"]) || [];
   
-  console.log('LatestNoticeCard render - cachedNotices count:', cachedNotices.length);
+  // Get notices from cache - search for any notice query key (including pagination params)
+  let cachedNotices: any[] = [];
+  const queries = queryClient.getQueriesData<any[]>({ queryKey: ["notices"] });
+  
+  if (queries && queries.length > 0) {
+    // Get the first matching query's data (most recent page)
+    const [, data] = queries[0];
+    cachedNotices = Array.isArray(data) ? data : [];
+  }
+  
+  console.log('LatestNoticeCard render - cachedNotices count:', cachedNotices.length, 'all queries:', queries);
 
   if (cachedNotices.length === 0) {
     return (
