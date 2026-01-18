@@ -70,14 +70,41 @@ export function useNotices() {
     return await createWithFileMutation.mutateAsync({ notice, pdfFile });
   };
 
-  // Update notice mutation
+  // Update notice mutation with optimistic updates
   const updateMutation = useMutation({
     mutationFn: async (updates: { id: number } & Record<string, any>) => {
       const { id, ...data } = updates;
       return await noticesApi.update(id, data);
     },
+    onMutate: async (updates) => {
+      // Cancel outgoing refetches to prevent overwrites
+      await queryClient.cancelQueries({ queryKey: ["notices", "all"] });
+
+      // Get previous data
+      const previousData = queryClient.getQueryData(["notices", "all"]) as Notice[];
+
+      // Optimistically update the cache
+      if (previousData) {
+        queryClient.setQueryData(
+          ["notices", "all"],
+          previousData.map((notice) =>
+            notice.id === updates.id
+              ? { ...notice, ...updates }
+              : notice
+          )
+        );
+      }
+
+      return { previousData };
+    },
+    onError: (err, updates, context) => {
+      // Revert to previous data on error
+      if (context?.previousData) {
+        queryClient.setQueryData(["notices", "all"], context.previousData);
+      }
+    },
     onSuccess: () => {
-      // Invalidate both caches
+      // Invalidate both caches to sync with server
       queryClient.invalidateQueries({ queryKey: ["notices"] });
       queryClient.invalidateQueries({ queryKey: ["notices", "all"] });
     },

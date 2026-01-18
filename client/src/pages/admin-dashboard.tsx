@@ -2921,7 +2921,7 @@ export default function AdminDashboard() {
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -2936,36 +2936,33 @@ export default function AdminDashboard() {
                                 >
                                   Edit
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={async () => {
-                                    try {
-                                      await updateNoticeAsync({
-                                        id: notice.id,
-                                        isActive: !notice.isActive,
-                                      });
-                                      toast({
-                                        title: "Updated",
-                                        description: `Notice ${
-                                          notice.isActive
-                                            ? "deactivated"
-                                            : "activated"
-                                        }`,
-                                      });
-                                    } catch (error) {
-                                      toast({
-                                        variant: "destructive",
-                                        title: "Error",
-                                        description: "Failed to update notice",
-                                      });
-                                    }
-                                  }}
-                                  disabled={isUpdatingNotice}
-                                  className="text-xs"
-                                >
-                                  {notice.isActive ? "Deactivate" : "Activate"}
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={notice.isActive}
+                                    onCheckedChange={async (checked) => {
+                                      try {
+                                        await updateNoticeAsync({
+                                          id: notice.id,
+                                          isActive: checked,
+                                        });
+                                        toast({
+                                          title: "Updated",
+                                          description: `Notice ${checked ? "activated" : "deactivated"}`,
+                                        });
+                                      } catch (error) {
+                                        toast({
+                                          variant: "destructive",
+                                          title: "Error",
+                                          description: "Failed to update notice",
+                                        });
+                                      }
+                                    }}
+                                    disabled={isUpdatingNotice}
+                                  />
+                                  <span className="text-xs text-gray-500 min-w-12">
+                                    {notice.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
                                 <Button
                                   variant="ghost"
                                   size="icon"
