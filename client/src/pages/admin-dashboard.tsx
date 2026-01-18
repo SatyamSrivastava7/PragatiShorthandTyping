@@ -59,6 +59,7 @@ import {
   Search,
   FileUp,
   Eye,
+  Edit,
   FolderPlus,
   Upload,
   Music,
@@ -127,6 +128,261 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
             </>
           )}
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Edit Test Modal Component
+interface EditTestModalProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  testId: number | null;
+  content: any[];
+  editTitle: string;
+  setEditTitle: (title: string) => void;
+  editDuration: string;
+  setEditDuration: (duration: string) => void;
+  editDateFor: string;
+  setEditDateFor: (date: string) => void;
+  editLanguage: 'english' | 'hindi';
+  setEditLanguage: (lang: 'english' | 'hindi') => void;
+  editTextContent: string;
+  setEditTextContent: (text: string) => void;
+  editAutoScroll: boolean;
+  setEditAutoScroll: (scroll: boolean) => void;
+  editAudio80wpmFile: File | null;
+  setEditAudio80wpmFile: (file: File | null) => void;
+  editAudio100wpmFile: File | null;
+  setEditAudio100wpmFile: (file: File | null) => void;
+  isEditingTest: boolean;
+  onSubmit: (e: React.FormEvent) => Promise<void>;
+  editAudio80wpmInputRef: React.RefObject<HTMLInputElement | null>;
+  editAudio100wpmInputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+function EditTestModalComponent({
+  isOpen,
+  onOpenChange,
+  testId,
+  content,
+  editTitle,
+  setEditTitle,
+  editDuration,
+  setEditDuration,
+  editDateFor,
+  setEditDateFor,
+  editLanguage,
+  setEditLanguage,
+  editTextContent,
+  setEditTextContent,
+  editAutoScroll,
+  setEditAutoScroll,
+  editAudio80wpmFile,
+  setEditAudio80wpmFile,
+  editAudio100wpmFile,
+  setEditAudio100wpmFile,
+  isEditingTest,
+  onSubmit,
+  editAudio80wpmInputRef,
+  editAudio100wpmInputRef,
+}: EditTestModalProps) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Keyboard className="h-5 w-5 text-blue-600" />
+            </div>
+            Edit Test
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={onSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Test Title</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Enter title"
+                required
+                className="bg-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Schedule Date</Label>
+              <Input
+                type="date"
+                value={editDateFor}
+                onChange={(e) => setEditDateFor(e.target.value)}
+                required
+                className="bg-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Language</Label>
+              <Select
+                value={editLanguage}
+                onValueChange={(v: any) => setEditLanguage(v)}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="english">English</SelectItem>
+                  <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Duration (2-60 min)
+              </Label>
+              <Select value={editDuration} onValueChange={setEditDuration}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="2">2 Minutes</SelectItem>
+                  <SelectItem value="4">4 Minutes</SelectItem>
+                  <SelectItem value="5">5 Minutes</SelectItem>
+                  <SelectItem value="10">10 Minutes</SelectItem>
+                  <SelectItem value="15">15 Minutes</SelectItem>
+                  <SelectItem value="20">20 Minutes</SelectItem>
+                  <SelectItem value="25">25 Minutes</SelectItem>
+                  <SelectItem value="30">30 Minutes</SelectItem>
+                  <SelectItem value="35">35 Minutes</SelectItem>
+                  <SelectItem value="40">40 Minutes</SelectItem>
+                  <SelectItem value="45">45 Minutes</SelectItem>
+                  <SelectItem value="50">50 Minutes</SelectItem>
+                  <SelectItem value="55">55 Minutes</SelectItem>
+                  <SelectItem value="60">60 Minutes</SelectItem>
+                  <SelectItem value="70">70 Minutes</SelectItem>
+                  <SelectItem value="80">80 Minutes</SelectItem>
+                  <SelectItem value="90">90 Minutes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Auto-scroll</Label>
+              <div className="flex items-center gap-2 h-9">
+                <Switch
+                  id="edit-auto-scroll"
+                  checked={editAutoScroll}
+                  onCheckedChange={setEditAutoScroll}
+                />
+                <Label
+                  htmlFor="edit-auto-scroll"
+                  className="text-sm text-muted-foreground"
+                >
+                  {editAutoScroll ? "Enabled" : "Disabled"}
+                </Label>
+              </div>
+            </div>
+          </div>
+
+          {/* Audio files section for shorthand tests */}
+          {testId && content.find(c => c.id === testId)?.type === 'shorthand' && (
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Music className="h-5 w-5 text-orange-600" />
+                    <Label className="text-sm font-medium text-orange-800">
+                      Audio File (80 WPM)
+                    </Label>
+                  </div>
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) =>
+                      setEditAudio80wpmFile(e.target.files?.[0] || null)
+                    }
+                    ref={editAudio80wpmInputRef}
+                    className="bg-white"
+                  />
+                  {editAudio80wpmFile && (
+                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />{" "}
+                      {editAudio80wpmFile.name}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Music className="h-5 w-5 text-orange-600" />
+                    <Label className="text-sm font-medium text-orange-800">
+                      Audio File (100 WPM)
+                    </Label>
+                  </div>
+                  <Input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) =>
+                      setEditAudio100wpmFile(e.target.files?.[0] || null)
+                    }
+                    ref={editAudio100wpmInputRef}
+                    className="bg-white"
+                  />
+                  {editAudio100wpmFile && (
+                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4" />{" "}
+                      {editAudio100wpmFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Content Text (Transcript)
+            </Label>
+            <Textarea
+              value={editTextContent}
+              onChange={(e) => setEditTextContent(e.target.value)}
+              placeholder="Edit the text content here..."
+              className={cn(
+                "min-h-[200px] font-mono bg-white border-2 focus:border-primary/50",
+                editLanguage === "hindi" ? "font-mangal" : "",
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              {editTextContent.split(/\s+/).filter(Boolean).length} words |{" "}
+              {editTextContent.length} characters
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isEditingTest}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isEditingTest}
+              className="bg-gradient-to-r from-blue-500 to-blue-600"
+            >
+              {isEditingTest ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" /> Update Test
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -1661,7 +1917,7 @@ export default function AdminDashboard() {
                                         }
                                         title="Edit test"
                                       >
-                                        <Eye className="h-4 w-4" />
+                                        <Edit className="h-4 w-4" />
                                       </Button>
                                       <Switch
                                         checked={item.isEnabled}
@@ -3669,207 +3925,6 @@ export default function AdminDashboard() {
     </>
   );
 
-  // Edit Test Modal Component
-  const EditTestModal = () => (
-    <Dialog open={isTestEditModalOpen} onOpenChange={setIsTestEditModalOpen}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Keyboard className="h-5 w-5 text-blue-600" />
-            </div>
-            Edit Test
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleUpdateTest} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Test Title</Label>
-              <Input
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                placeholder="Enter title"
-                required
-                className="bg-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Schedule Date</Label>
-              <Input
-                type="date"
-                value={editDateFor}
-                onChange={(e) => setEditDateFor(e.target.value)}
-                required
-                className="bg-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Language</Label>
-              <Select
-                value={editLanguage}
-                onValueChange={(v: any) => setEditLanguage(v)}
-              >
-                <SelectTrigger className="bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Duration (2-60 min)
-              </Label>
-              <Select value={editDuration} onValueChange={setEditDuration}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  <SelectItem value="2">2 Minutes</SelectItem>
-                  <SelectItem value="4">4 Minutes</SelectItem>
-                  <SelectItem value="5">5 Minutes</SelectItem>
-                  <SelectItem value="10">10 Minutes</SelectItem>
-                  <SelectItem value="15">15 Minutes</SelectItem>
-                  <SelectItem value="20">20 Minutes</SelectItem>
-                  <SelectItem value="25">25 Minutes</SelectItem>
-                  <SelectItem value="30">30 Minutes</SelectItem>
-                  <SelectItem value="35">35 Minutes</SelectItem>
-                  <SelectItem value="40">40 Minutes</SelectItem>
-                  <SelectItem value="45">45 Minutes</SelectItem>
-                  <SelectItem value="50">50 Minutes</SelectItem>
-                  <SelectItem value="55">55 Minutes</SelectItem>
-                  <SelectItem value="60">60 Minutes</SelectItem>
-                  <SelectItem value="70">70 Minutes</SelectItem>
-                  <SelectItem value="80">80 Minutes</SelectItem>
-                  <SelectItem value="90">90 Minutes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Auto-scroll</Label>
-              <div className="flex items-center gap-2 h-9">
-                <Switch
-                  id="edit-auto-scroll"
-                  checked={editAutoScroll}
-                  onCheckedChange={setEditAutoScroll}
-                />
-                <Label
-                  htmlFor="edit-auto-scroll"
-                  className="text-sm text-muted-foreground"
-                >
-                  {editAutoScroll ? "Enabled" : "Disabled"}
-                </Label>
-              </div>
-            </div>
-          </div>
-
-          {/* Audio files section for shorthand tests */}
-          {editingTestId && content.find(c => c.id === editingTestId)?.type === 'shorthand' && (
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <Music className="h-5 w-5 text-orange-600" />
-                    <Label className="text-sm font-medium text-orange-800">
-                      Audio File (80 WPM)
-                    </Label>
-                  </div>
-                  <Input
-                    type="file"
-                    accept="audio/*"
-                    onChange={(e) =>
-                      setEditAudio80wpmFile(e.target.files?.[0] || null)
-                    }
-                    ref={editAudio80wpmInputRef}
-                    className="bg-white"
-                  />
-                  {editAudio80wpmFile && (
-                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4" />{" "}
-                      {editAudio80wpmFile.name}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <Music className="h-5 w-5 text-orange-600" />
-                    <Label className="text-sm font-medium text-orange-800">
-                      Audio File (100 WPM)
-                    </Label>
-                  </div>
-                  <Input
-                    type="file"
-                    accept="audio/*"
-                    onChange={(e) =>
-                      setEditAudio100wpmFile(e.target.files?.[0] || null)
-                    }
-                    ref={editAudio100wpmInputRef}
-                    className="bg-white"
-                  />
-                  {editAudio100wpmFile && (
-                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4" />{" "}
-                      {editAudio100wpmFile.name}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Content Text (Transcript)
-            </Label>
-            <Textarea
-              value={editTextContent}
-              onChange={(e) => setEditTextContent(e.target.value)}
-              placeholder="Edit the text content here..."
-              className={cn(
-                "min-h-[200px] font-mono bg-white border-2 focus:border-primary/50",
-                editLanguage === "hindi" ? "font-mangal" : "",
-              )}
-            />
-            <p className="text-xs text-muted-foreground">
-              {editTextContent.split(/\s+/).filter(Boolean).length} words |{" "}
-              {editTextContent.length} characters
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsTestEditModalOpen(false)}
-              disabled={isEditingTest}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isEditingTest}
-              className="bg-gradient-to-r from-blue-500 to-blue-600"
-            >
-              {isEditingTest ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" /> Update Test
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
       {/* Mobile Header */}
@@ -3904,7 +3959,32 @@ export default function AdminDashboard() {
       </main>
 
       {/* Edit Test Modal */}
-      <EditTestModal />
+      <EditTestModalComponent
+        isOpen={isTestEditModalOpen}
+        onOpenChange={setIsTestEditModalOpen}
+        testId={editingTestId}
+        content={content}
+        editTitle={editTitle}
+        setEditTitle={setEditTitle}
+        editDuration={editDuration}
+        setEditDuration={setEditDuration}
+        editDateFor={editDateFor}
+        setEditDateFor={setEditDateFor}
+        editLanguage={editLanguage}
+        setEditLanguage={setEditLanguage}
+        editTextContent={editTextContent}
+        setEditTextContent={setEditTextContent}
+        editAutoScroll={editAutoScroll}
+        setEditAutoScroll={setEditAutoScroll}
+        editAudio80wpmFile={editAudio80wpmFile}
+        setEditAudio80wpmFile={setEditAudio80wpmFile}
+        editAudio100wpmFile={editAudio100wpmFile}
+        setEditAudio100wpmFile={setEditAudio100wpmFile}
+        isEditingTest={isEditingTest}
+        onSubmit={handleUpdateTest}
+        editAudio80wpmInputRef={editAudio80wpmInputRef}
+        editAudio100wpmInputRef={editAudio100wpmInputRef}
+      />
     </div>
   );
 }
