@@ -184,7 +184,7 @@ export default function LandingPage() {
 
       {/* Gallery Hero Section - Featured Images Only */}
       {featuredImages.length > 0 ? (
-        <section className="w-full bg-black relative h-[500px]">
+        <section className="w-full bg-black relative h-[700px] overflow-hidden">
           <Carousel
             plugins={[
               Autoplay({
