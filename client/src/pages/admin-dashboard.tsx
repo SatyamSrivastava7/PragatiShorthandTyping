@@ -189,7 +189,7 @@ export default function AdminDashboard() {
     isLoading: isGalleryLoading,
     deleteImage: removeGalleryImage,
   } = useGallery(activeTab === "gallery");
-  const { featuredImages, updateImageOrder: updateFeaturedImageOrder, isUpdating: isUpdatingFeaturedOrder } = useFeaturedGallery();
+  const { featuredImages, updateImageOrder: updateFeaturedImageOrder, isUpdating: isUpdatingFeaturedOrder } = useFeaturedGallery(activeTab === "gallery");
   const {
     candidates: selectedCandidates,
     hasNextPage: hasNextCandidate,
@@ -215,7 +215,13 @@ export default function AdminDashboard() {
   // Initialize selected image IDs from featured images
   useEffect(() => {
     if (featuredImages && featuredImages.length > 0) {
-      setSelectedImageIds(featuredImages.map((img: any) => img.id));
+      const featuredIds = featuredImages.map((img: any) => img.id);
+      console.log('Initializing/updating selected images from featured:', featuredIds);
+      setSelectedImageIds(featuredIds);
+    } else {
+      console.log('No featured images found, clearing selection');
+      // Don't clear selectedImageIds here - user might have just selected new ones
+      // Only update if we have fresh featured images from the API
     }
   }, [featuredImages]);
 
@@ -710,13 +716,14 @@ export default function AdminDashboard() {
 
   const handleSaveFeaturedImages = async () => {
     try {
-      updateFeaturedImageOrder(selectedImageIds);
+      await updateFeaturedImageOrder(selectedImageIds);
       toast({
         variant: "success",
         title: "Success",
         description: `${selectedImageIds.length} image(s) set as featured for landing page`,
       });
     } catch (error) {
+      console.error('Error saving featured images:', error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -2539,7 +2546,9 @@ export default function AdminDashboard() {
                               <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200">
                                 <div className="flex items-center justify-between mb-4">
                                   <h3 className="font-semibold text-orange-800 flex items-center gap-2">
-                                    <Star className="h-5 w-5" /> Featured Images for Landing Page ({selectedImageIds.length}/10)
+                                    <Star className="h-5 w-5" /> 
+                                    Featured Images for Landing Page ({selectedImageIds.length}/10)
+                                    {isUpdatingFeaturedOrder && <Loader2 className="h-4 w-4 animate-spin text-orange-500" />}
                                   </h3>
                                   {selectedImageIds.length > 0 && selectedImageIds.length !== featuredImages.length && (
                                     <Button
@@ -2563,7 +2572,7 @@ export default function AdminDashboard() {
                                   )}
                                 </div>
                                 <p className="text-sm text-muted-foreground mb-4">
-                                  Check images below to feature them on the landing page carousel.
+                                  Check images below to feature them on the landing page carousel. {isUpdatingFeaturedOrder && '(Updating...)'}
                                 </p>
                                 
                                 {selectedImageIds.length > 0 ? (

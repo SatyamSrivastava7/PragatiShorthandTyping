@@ -1216,8 +1216,19 @@ export async function registerRoutes(
   app.get("/api/gallery/featured", async (req, res) => {
     try {
       const images = await storage.getFeaturedGalleryImages();
-      res.json(images);
+      console.log('Featured gallery images fetched:', {
+        count: images.length,
+        images: images.map((img: any) => ({ id: img.id, order: img.order, hasUrl: !!img.url, urlLength: img.url?.length }))
+      });
+      // Ensure response has all fields
+      res.json(images.map((img: any) => ({
+        id: img.id,
+        url: img.url,
+        order: img.order,
+        createdAt: img.createdAt,
+      })));
     } catch (error) {
+      console.error('Error fetching featured gallery images:', error);
       res.status(500).json({ message: "Failed to get featured images" });
     }
   });

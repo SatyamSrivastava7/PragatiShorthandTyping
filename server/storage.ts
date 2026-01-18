@@ -496,7 +496,12 @@ export class DatabaseStorage implements IStorage {
 
   async getFeaturedGalleryImages(): Promise<GalleryImage[]> {
     // Get first 10 featured images sorted by order (ascending), limit to 10
-    return await db.select().from(galleryImages).where(lt(galleryImages.order, 10)).orderBy(asc(galleryImages.order)).limit(10);
+    const images = await db.select().from(galleryImages).where(lt(galleryImages.order, 10)).orderBy(asc(galleryImages.order)).limit(10);
+    console.log('Database query result - featured images:', {
+      count: images.length,
+      images: images.map((img: any) => ({ id: img.id, order: img.order, hasUrl: !!img.url }))
+    });
+    return images;
   }
 
   async getGalleryImage(id: number): Promise<GalleryImage | undefined> {
@@ -515,13 +520,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGalleryImageOrder(imageIds: number[]): Promise<boolean> {
+    console.log('Updating gallery image order for IDs:', imageIds);
+    
     // Reset all images to order 999 first
     await db.update(galleryImages).set({ order: 999 });
     
     // Update specified images with their new order (0-9 for first 10 selections)
     for (let i = 0; i < Math.min(imageIds.length, 10); i++) {
-      await db.update(galleryImages).set({ order: i }).where(eq(galleryImages.id, imageIds[i]));
+      const imageId = imageIds[i];
+      console.log(`Setting image ${imageId} to order ${i}`);
+      await db.update(galleryImages).set({ order: i }).where(eq(galleryImages.id, imageId));
     }
+    
+    // Verify the update
+    const updated = await db.select().from(galleryImages).where(lt(galleryImages.order, 10)).orderBy(asc(galleryImages.order));
+    console.log('Featured images after update:', {
+      count: updated.length,
+      images: updated.map((img: any) => ({ id: img.id, order: img.order, hasUrl: !!img.url }))
+    });
+    
     return true;
   }
 
