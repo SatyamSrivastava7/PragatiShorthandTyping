@@ -155,7 +155,10 @@ interface EditTestModalProps {
   setEditAudio80wpmFile: (file: File | null) => void;
   editAudio100wpmFile: File | null;
   setEditAudio100wpmFile: (file: File | null) => void;
+  existingAudio80wpm: string | null;
+  existingAudio100wpm: string | null;
   isEditingTest: boolean;
+  isLoadingTestData: boolean;
   onSubmit: (e: React.FormEvent) => Promise<void>;
   editAudio80wpmInputRef: React.RefObject<HTMLInputElement | null>;
   editAudio100wpmInputRef: React.RefObject<HTMLInputElement | null>;
@@ -182,7 +185,10 @@ function EditTestModalComponent({
   setEditAudio80wpmFile,
   editAudio100wpmFile,
   setEditAudio100wpmFile,
+  existingAudio80wpm,
+  existingAudio100wpm,
   isEditingTest,
+  isLoadingTestData,
   onSubmit,
   editAudio80wpmInputRef,
   editAudio100wpmInputRef,
@@ -199,6 +205,12 @@ function EditTestModalComponent({
           </DialogTitle>
         </DialogHeader>
 
+        {isLoadingTestData ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+            <span className="text-muted-foreground">Loading test details...</span>
+          </div>
+        ) : (
         <form onSubmit={onSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
@@ -265,6 +277,7 @@ function EditTestModalComponent({
                 </SelectContent>
               </Select>
             </div>
+            {testId && content.find(c => c.id === testId)?.type === 'typing' && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Auto-scroll</Label>
               <div className="flex items-center gap-2 h-9">
@@ -281,6 +294,7 @@ function EditTestModalComponent({
                 </Label>
               </div>
             </div>
+            )}
           </div>
 
           {/* Audio files section for shorthand tests */}
@@ -294,6 +308,12 @@ function EditTestModalComponent({
                       Audio File (80 WPM)
                     </Label>
                   </div>
+                  {existingAudio80wpm && !editAudio80wpmFile && (
+                    <p className="text-sm text-orange-700 mb-2 p-2 bg-white rounded border border-orange-300 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Audio attached
+                    </p>
+                  )}
                   <Input
                     type="file"
                     accept="audio/*"
@@ -317,6 +337,12 @@ function EditTestModalComponent({
                       Audio File (100 WPM)
                     </Label>
                   </div>
+                  {existingAudio100wpm && !editAudio100wpmFile && (
+                    <p className="text-sm text-orange-700 mb-2 p-2 bg-white rounded border border-orange-300 flex items-center gap-1">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Audio attached
+                    </p>
+                  )}
                   <Input
                     type="file"
                     accept="audio/*"
@@ -383,6 +409,7 @@ function EditTestModalComponent({
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -662,8 +689,11 @@ export default function AdminDashboard() {
   const [editAutoScroll, setEditAutoScroll] = useState(true);
   const [editAudio80wpmFile, setEditAudio80wpmFile] = useState<File | null>(null);
   const [editAudio100wpmFile, setEditAudio100wpmFile] = useState<File | null>(null);
+  const [existingAudio80wpm, setExistingAudio80wpm] = useState<string | null>(null);
+  const [existingAudio100wpm, setExistingAudio100wpm] = useState<string | null>(null);
   const [isTestEditModalOpen, setIsTestEditModalOpen] = useState(false);
   const [isEditingTest, setIsEditingTest] = useState(false);
+  const [isLoadingTestData, setIsLoadingTestData] = useState(false);
   const editAudio80wpmInputRef = useRef<HTMLInputElement>(null);
   const editAudio100wpmInputRef = useRef<HTMLInputElement>(null);
 
@@ -883,22 +913,36 @@ export default function AdminDashboard() {
     const testToEdit = content.find(c => c.id === testId);
     if (!testToEdit) return;
 
+    // Set loading state and open modal
+    setIsLoadingTestData(true);
+    setIsTestEditModalOpen(true);
+    setEditingTestId(testId);
+
     // Fetch the full content (with text and audio)
     try {
       const fullContent = await contentApi.getById(testId);
       
       // Set the edit state with the fetched content
-      setEditingTestId(testId);
       setEditTitle(fullContent.title);
       setEditDuration(fullContent.duration.toString());
       setEditDateFor(fullContent.dateFor);
       setEditLanguage((fullContent.language || 'english') as 'english' | 'hindi');
       setEditTextContent(fullContent.text);
       setEditAutoScroll(fullContent.autoScroll || true);
+      
+      // Store existing audio file references
+      setExistingAudio80wpm(fullContent.audio80wpm || null);
+      setExistingAudio100wpm(fullContent.audio100wpm || null);
+      
+      // Reset file inputs
       setEditAudio80wpmFile(null);
       setEditAudio100wpmFile(null);
-      setIsTestEditModalOpen(true);
+      
+      setIsLoadingTestData(false);
     } catch (error) {
+      setIsLoadingTestData(false);
+      setIsTestEditModalOpen(false);
+      setEditingTestId(null);
       toast({
         variant: "destructive",
         title: "Error",
@@ -963,6 +1007,9 @@ export default function AdminDashboard() {
       setEditAutoScroll(true);
       setEditAudio80wpmFile(null);
       setEditAudio100wpmFile(null);
+      setExistingAudio80wpm(null);
+      setExistingAudio100wpm(null);
+      setIsEditingTest(false);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -3980,7 +4027,10 @@ export default function AdminDashboard() {
         setEditAudio80wpmFile={setEditAudio80wpmFile}
         editAudio100wpmFile={editAudio100wpmFile}
         setEditAudio100wpmFile={setEditAudio100wpmFile}
+        existingAudio80wpm={existingAudio80wpm}
+        existingAudio100wpm={existingAudio100wpm}
         isEditingTest={isEditingTest}
+        isLoadingTestData={isLoadingTestData}
         onSubmit={handleUpdateTest}
         editAudio80wpmInputRef={editAudio80wpmInputRef}
         editAudio100wpmInputRef={editAudio100wpmInputRef}

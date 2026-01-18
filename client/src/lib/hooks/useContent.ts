@@ -293,7 +293,16 @@ export function useContent() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Content> }) => {
+    mutationFn: ({ id, data }: { id: number; data: Partial<{
+      title: string;
+      type: 'typing' | 'shorthand';
+      text: string;
+      duration: number;
+      dateFor: string;
+      language: 'english' | 'hindi';
+      audio80wpm: string;
+      audio100wpm: string;
+    }> }) => {
       return contentApi.update(id, data);
     },
     onMutate: async ({ id, data }) => {
@@ -331,12 +340,8 @@ export function useContent() {
         )
       );
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['content'] });
-      queryClient.invalidateQueries({ queryKey: ['content', 'list'] });
-      queryClient.invalidateQueries({ queryKey: ['content', 'enabled'] });
-      queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
-    },
+    // Don't use onSettled for update - onSuccess already updates the cache
+    // Invalidating queries here would cause unnecessary refetches
   });
 
   return {
