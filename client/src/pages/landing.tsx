@@ -191,9 +191,7 @@ export default function LandingPage() {
             </div>
 
             {/* Right Side - Latest Notice Card */}
-            <div className="flex-1 hidden lg:flex items-start">
-              <LatestNoticeCard />
-            </div>
+            <LatestNoticeCardWrapper />
           </div>
 
           {/* Image on large screens - below both sections */}
@@ -525,6 +523,20 @@ function LatestNoticeCard() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LatestNoticeCardWrapper() {
+  const { notices } = useNotices();
+
+  if (notices.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex-1 hidden lg:flex items-start">
+      <LatestNoticeCard />
     </div>
   );
 }
