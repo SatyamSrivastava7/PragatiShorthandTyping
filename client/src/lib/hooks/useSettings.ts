@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { settingsApi, galleryApi, selectedCandidatesApi } from '../api';
 
 interface GalleryImage {
@@ -52,38 +52,54 @@ export function useSettings() {
   };
 }
 
-export function useGallery() {
+export function useGallery(enabled: boolean = false) {
   const queryClient = useQueryClient();
 
-  const { data: images = [], isLoading, error } = useQuery({
+  const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['gallery'],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       try {
-        return await galleryApi.getImages();
+        return await galleryApi.getImagesPaged(18, pageParam);
       } catch (err) {
         console.error('Error fetching gallery images:', err);
-        // Return empty array on error so page can still render
         return [] as { url: string }[];
       }
     },
-    staleTime: 30000,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any[], allPages: any[][]) => {
+      // If we got 18 images, there might be more
+      return lastPage.length === 18 ? allPages.reduce((acc, p) => acc + p.length, 0) : undefined;
+    },
+    enabled: enabled,
+    staleTime: 10 * 60 * 1000, // 10 minutes - data stays fresh for user navigation
     retry: 1,
-    gcTime: 300000,
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for extended session
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false, // Don't refetch when reconnecting to internet
   });
 
   const addMutation = useMutation({
     mutationFn: galleryApi.addImage,
     onMutate: async (url) => {
       await queryClient.cancelQueries({ queryKey: ['gallery'] });
-      const previousImages = queryClient.getQueryData<GalleryImage[]>(['gallery']);
+      const previousData = queryClient.getQueryData(['gallery']);
       
-      queryClient.setQueryData<GalleryImage[]>(['gallery'], (old = []) => [...old, { url }]);
+      queryClient.setQueryData(['gallery'], (old: any) => {
+        if (!old) return { pages: [[{ url }]], pageParams: [0] };
+        const newPages = old.pages ? [...old.pages] : [[]];
+        if (newPages[0]) {
+          newPages[0] = [{ url }, ...newPages[0]];
+        } else {
+          newPages[0] = [{ url }];
+        }
+        return { ...old, pages: newPages };
+      });
       
-      return { previousImages };
+      return { previousData };
     },
     onError: (err, url, context) => {
-      if (context?.previousImages) {
-        queryClient.setQueryData(['gallery'], context.previousImages);
+      if (context?.previousData) {
+        queryClient.setQueryData(['gallery'], context.previousData);
       }
     },
     onSettled: () => {
@@ -95,17 +111,21 @@ export function useGallery() {
     mutationFn: galleryApi.deleteImage,
     onMutate: async (url) => {
       await queryClient.cancelQueries({ queryKey: ['gallery'] });
-      const previousImages = queryClient.getQueryData<GalleryImage[]>(['gallery']);
+      const previousData = queryClient.getQueryData(['gallery']);
       
-      queryClient.setQueryData<GalleryImage[]>(['gallery'], (old = []) =>
-        old.filter((img) => img.url !== url)
-      );
+      queryClient.setQueryData(['gallery'], (old: any) => {
+        if (!old || !old.pages) return old;
+        const newPages = old.pages.map((page: any[]) =>
+          page.filter((img: any) => img.url !== url)
+        );
+        return { ...old, pages: newPages };
+      });
       
-      return { previousImages };
+      return { previousData };
     },
     onError: (err, url, context) => {
-      if (context?.previousImages) {
-        queryClient.setQueryData(['gallery'], context.previousImages);
+      if (context?.previousData) {
+        queryClient.setQueryData(['gallery'], context.previousData);
       }
     },
     onSettled: () => {
@@ -114,38 +134,47 @@ export function useGallery() {
   });
 
   return {
-    images: images.map(img => img.url),
+    images: (data?.pages || []).flatMap((page: any[]) => page.map((img: any) => img.url)),
     isLoading,
     error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
     addImage: addMutation.mutateAsync,
     deleteImage: deleteMutation.mutateAsync,
   };
 }
 
-export function useSelectedCandidates() {
+export function useSelectedCandidates(enabled: boolean = false) {
   const queryClient = useQueryClient();
 
-  const { data: candidates = [], isLoading, error } = useQuery({
+  const { data, isLoading, error, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['selected-candidates'],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = 0 }) => {
       try {
-        return await selectedCandidatesApi.getAll();
+        return await selectedCandidatesApi.getPaged(10, pageParam);
       } catch (err) {
         console.error('Error fetching selected candidates:', err);
-        // Return empty array on error so page can still render
         return [] as { id: number; name: string; designation: string; year: string; imageUrl: string }[];
       }
     },
-    staleTime: 30000,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: any[], allPages: any[][]) => {
+      return lastPage.length === 10 ? allPages.reduce((acc, p) => acc + p.length, 0) : undefined;
+    },
+    enabled: enabled,
+    staleTime: 10 * 60 * 1000, // 10 minutes - data stays fresh for user navigation
     retry: 1,
-    gcTime: 300000,
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache for extended session
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false, // Don't refetch when reconnecting to internet
   });
 
   const createMutation = useMutation({
     mutationFn: selectedCandidatesApi.create,
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['selected-candidates'] });
-      const previousCandidates = queryClient.getQueryData<SelectedCandidate[]>(['selected-candidates']);
+      const previousData = queryClient.getQueryData(['selected-candidates']);
       
       const optimisticCandidate: SelectedCandidate = {
         id: -Math.floor(Math.random() * 1000000),
@@ -155,13 +184,22 @@ export function useSelectedCandidates() {
         imageUrl: data.imageUrl,
       };
       
-      queryClient.setQueryData<SelectedCandidate[]>(['selected-candidates'], (old = []) => [...old, optimisticCandidate]);
+      queryClient.setQueryData(['selected-candidates'], (old: any) => {
+        if (!old) return { pages: [[optimisticCandidate]], pageParams: [0] };
+        const newPages = old.pages ? [...old.pages] : [[]];
+        if (newPages[0]) {
+          newPages[0] = [optimisticCandidate, ...newPages[0]];
+        } else {
+          newPages[0] = [optimisticCandidate];
+        }
+        return { ...old, pages: newPages };
+      });
       
-      return { previousCandidates };
+      return { previousData };
     },
     onError: (err, data, context) => {
-      if (context?.previousCandidates) {
-        queryClient.setQueryData(['selected-candidates'], context.previousCandidates);
+      if (context?.previousData) {
+        queryClient.setQueryData(['selected-candidates'], context.previousData);
       }
     },
     onSettled: () => {
@@ -173,17 +211,21 @@ export function useSelectedCandidates() {
     mutationFn: selectedCandidatesApi.delete,
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['selected-candidates'] });
-      const previousCandidates = queryClient.getQueryData<SelectedCandidate[]>(['selected-candidates']);
+      const previousData = queryClient.getQueryData(['selected-candidates']);
       
-      queryClient.setQueryData<SelectedCandidate[]>(['selected-candidates'], (old = []) =>
-        old.filter((candidate) => candidate.id !== id)
-      );
+      queryClient.setQueryData(['selected-candidates'], (old: any) => {
+        if (!old || !old.pages) return old;
+        const newPages = old.pages.map((page: SelectedCandidate[]) =>
+          page.filter((candidate: SelectedCandidate) => candidate.id !== id)
+        );
+        return { ...old, pages: newPages };
+      });
       
-      return { previousCandidates };
+      return { previousData };
     },
     onError: (err, id, context) => {
-      if (context?.previousCandidates) {
-        queryClient.setQueryData(['selected-candidates'], context.previousCandidates);
+      if (context?.previousData) {
+        queryClient.setQueryData(['selected-candidates'], context.previousData);
       }
     },
     onSettled: () => {
@@ -192,9 +234,12 @@ export function useSelectedCandidates() {
   });
 
   return {
-    candidates,
+    candidates: (data?.pages || []).flatMap((page: any[]) => page),
     isLoading,
     error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
     addCandidate: createMutation.mutateAsync,
     deleteCandidate: deleteMutation.mutateAsync,
   };

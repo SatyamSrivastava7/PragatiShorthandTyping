@@ -336,19 +336,6 @@ export function calculateAlignedMistakes(
     // Missing words count as 1 mistake each (only within attempted portion)
     if (item.status === "missing") {
       mistakes += 1; // Base mistake for missing word
-      
-      // Add punctuation penalties for missing words
-      const hasTrailingComma = item.original.endsWith(',');
-      const hasTrailingPeriod = item.original.endsWith('.');
-      
-      if (hasTrailingComma) {
-        mistakes += 0.25; // Comma penalty
-      }
-      
-      if (hasTrailingPeriod) {
-        mistakes += 1; // Period penalty
-      }
-      
       continue;
     }
 
@@ -364,21 +351,23 @@ export function calculateAlignedMistakes(
       const cleanTyped = item.typed.replace(/[.,]/g, "");
 
       if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
+        // Words are actually different (not just punctuation)
         mistakes += 1;
       } else {
-        const origTrailingComma = item.original.endsWith(',') ? 1 : 0;
-        const typedTrailingComma = item.typed.endsWith(',') ? 1 : 0;
+        // Same word, check punctuation differences
+        const origCommas = (item.original.match(/,/g) || []).length;
+        const typedCommas = (item.typed.match(/,/g) || []).length;
+        const commaDifference = Math.abs(origCommas - typedCommas);
         
-        if (origTrailingComma !== typedTrailingComma) {
-          mistakes += 0.25;
-        }
-
-        const origTrailingPeriod = item.original.endsWith('.') ? 1 : 0;
-        const typedTrailingPeriod = item.typed.endsWith('.') ? 1 : 0;
+        const origPeriods = (item.original.match(/\./g) || []).length;
+        const typedPeriods = (item.typed.match(/\./g) || []).length;
+        const periodDifference = Math.abs(origPeriods - typedPeriods);
         
-        if (origTrailingPeriod !== typedTrailingPeriod) {
-          mistakes += 1;
-        }
+        // Each missing or extra comma counts as 0.25 mistake
+        mistakes += commaDifference * 0.25;
+        
+        // Each missing or extra period counts as 1 mistake
+        mistakes += periodDifference * 1;
       }
     }
   }
@@ -467,9 +456,27 @@ export function calculateShorthandMetrics(
   // Count missing words only from attempted portion (not trailing untyped words)
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
 
+  // Calculate half mistakes (comma errors: missing or extra commas)
+  let halfMistakes = 0;
+  for (const item of attemptedAlignment) {
+    if (item.status === "substitution") {
+      const cleanOriginal = item.original.replace(/[.,]/g, "");
+      const cleanTyped = item.typed.replace(/[.,]/g, "");
+      
+      // Only count comma differences if the actual words match
+      if (cleanOriginal.toLowerCase() === cleanTyped.toLowerCase()) {
+        const origCommas = (item.original.match(/,/g) || []).length;
+        const typedCommas = (item.typed.match(/,/g) || []).length;
+        const commaDifference = Math.abs(origCommas - typedCommas);
+        halfMistakes += commaDifference;
+      }
+    }
+  }
+
   return {
     words: totalWordsTyped,
     mistakes,
+    halfMistakes,
     result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
     missingWords,
   };
@@ -552,7 +559,7 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
+        .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
@@ -586,19 +593,14 @@ export const generateResultPDF = async (result: Result) => {
       <h3>Performance Metrics</h3>
       <table class="metrics-table">
         <tr>
-          <th>Metric</th><th>Value</th>
+          <th>Metric</th><th>Value</th><th>Metric</th><th>Value</th>
         </tr>
         <tr>
           <td>Total Original Words</td><td>${originalWords.length}</td>
-        </tr>
-        <tr>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
-        
         <tr>
           <td>Mistakes</td><td class="error">${result.mistakes}</td>
-        </tr>
-        <tr>
           <td>Missing Words</td><td class="error">${attemptedAlignment.filter((a) => a.status === "missing").length}</td>
         </tr>
         ${
@@ -606,24 +608,26 @@ export const generateResultPDF = async (result: Result) => {
             ? `
         <tr>
           <td>Backspaces</td><td>${result.backspaces}</td>
-        </tr>
-        <tr>
           <td>Accuracy</td><td class="success">${result.words > 0 && parseFloat(String(result.mistakes)) < result.words ? ((parseFloat(String(result.mistakes)) * 100) / result.words).toFixed(2) : "0.00"}%</td>
         </tr>
         <tr>
+          <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
-          <tr>
-            <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
-          </tr>
+        <tr>
+          <td></td><td></td>
+          <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
+        </tr>
         `
             : `
-          <tr>
-            <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          </tr>
-          <tr>
-            <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${(parseInt(result.mistakes)*100)/originalWords.length}%</td>
-          </tr>
+        <tr>
+          <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
+          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${((parseInt(result.mistakes)*100)/originalWords.length).toFixed(2)}%</td>
+        </tr>
+        <tr>
+          <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
+          <td></td><td></td>
+        </tr>
         `
         }
       </table>

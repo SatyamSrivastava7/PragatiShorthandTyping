@@ -19,8 +19,8 @@ import {
   useSettings,
   useGallery,
   useSelectedCandidates,
-  useDictations,
 } from "@/lib/hooks";
+import { useNotices } from "@/lib/hooks/useNotice";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,8 @@ import {
   Keyboard,
   Menu,
   RefreshCw,
+  ChevronDown,
+  Bell,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -81,12 +83,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
 import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
 
-// Preview Dialog Component - Loads full content on-demand (including text and mediaUrl)
+// Preview Dialog Component - Loads full content on-demand (including text and audioUrl)
 // Only fetches when dialog is actually opened to avoid loading all audio files
 function PreviewDialog({ contentId, title }: { contentId: number; title: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -112,7 +115,7 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           ) : (
             <>
               <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
-              {fullContent?.mediaUrl && (
+              {(fullContent?.audio80wpm || fullContent?.audio100wpm) && (
                 <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
                   <Music size={12} /> Audio Attached
                 </div>
@@ -127,6 +130,17 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
 
 export default function AdminDashboard() {
   usePrefetchContent();
+
+  // Declare activeTab first so it can be used in hooks
+  const [activeTab, setActiveTab] = useState("students");
+  const [gallerySubTab, setGallerySubTab] = useState("gallery_images");
+
+  // PDF Store State - declare early for usePdf hook
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  
+  // Track if results tab has been visited to prevent initial load
+  const [hasVisitedResults, setHasVisitedResults] = useState(false);
+
   const {
     content,
     createContent,
@@ -138,8 +152,18 @@ export default function AdminDashboard() {
     isCreating,
     isCreatingWithFile,
   } = useContent();
-  const { results, deleteResult } = useResults();
-  const { users, updateUser, deleteUser } = useUsers();
+  const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults, fetchNextPage: fetchNextTyping, isFetchingNextPage: isFetchingNextTyping, hasNextPage: hasNextTyping } = useResults(
+    undefined,
+    activeTab === "results" && hasVisitedResults,
+    { type: 'typing', limit: 50 }
+  );
+  const { results: shorthandResults, fetchNextPage: fetchNextShorthand, isFetchingNextPage: isFetchingNextShorthand, hasNextPage: hasNextShorthand } = useResults(
+    undefined,
+    activeTab === "results" && hasVisitedResults,
+    { type: 'shorthand', limit: 50 }
+  );
+  const { deleteResult } = useResults(undefined, false);
+  const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
     folders: pdfFolders,
     resources: pdfResources,
@@ -147,24 +171,38 @@ export default function AdminDashboard() {
     createResource: addPdfResource,
     deleteResource: deletePdfResource,
     deleteFolder: deletePdfFolder,
-  } = usePdf();
+  } = usePdf(true, selectedFolderId?.toString());
   const { settings, updateSettings } = useSettings();
   const {
     images: galleryImages,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
     addImage: addGalleryImage,
+    isLoading: isGalleryLoading,
     deleteImage: removeGalleryImage,
-  } = useGallery();
+  } = useGallery(activeTab === "gallery");
   const {
     candidates: selectedCandidates,
+    hasNextPage: hasNextCandidate,
+    fetchNextPage: fetchNextCandidate,
+    isFetchingNextPage: isFetchingNextCandidate,
+    isLoading: isCandidatesLoading,
     addCandidate: addSelectedCandidate,
     deleteCandidate: removeSelectedCandidate,
-  } = useSelectedCandidates();
+  } = useSelectedCandidates(activeTab === "gallery" && gallerySubTab === "selected_candidates");
   const {
-    dictations,
-    createDictation: addDictation,
-    toggleDictation,
-    deleteDictation,
-  } = useDictations();
+    allNotices,
+    isLoadingAll: isLoadingNotices,
+    refetchAll: refetchAllNotices,
+    createNoticeWithFile,
+    updateNoticeAsync,
+    deleteNoticeAsync,
+    isCreating: isCreatingNotice,
+    isUpdating: isUpdatingNotice,
+    isDeleting: isDeletingNotice,
+  } = useNotices();
+
   const { toast } = useToast();
 
   const registrationFee = settings?.registrationFee || 0;
@@ -184,8 +222,6 @@ export default function AdminDashboard() {
     return () => clearTimeout(timer);
   }, [localRegFee]);
 
-  const [activeTab, setActiveTab] = useState("students");
-
   // Lazy Loading State for Manage Tests
   const ITEMS_PER_BATCH = 100; // Initial batch size for admin table
   const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
@@ -201,6 +237,13 @@ export default function AdminDashboard() {
       setVisibleShorthandCount(ITEMS_PER_BATCH);
     }
   }, [activeTab, content.length]);
+
+  // Track when user visits results tab to enable API calls
+  useEffect(() => {
+    if (activeTab === "results" && !hasVisitedResults) {
+      setHasVisitedResults(true);
+    }
+  }, [activeTab, hasVisitedResults]);
 
   // Get filtered and sorted content for each type
   const getTypingTests = () => {
@@ -313,18 +356,19 @@ export default function AdminDashboard() {
   // Filter State
   const [studentFilter, setStudentFilter] = useState("");
   const [studentListSearch, setStudentListSearch] = useState("");
-
   // PDF Store State
   const [newFolderName, setNewFolderName] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [pdfName, setPdfName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [viewPdfId, setViewPdfId] = useState<number | null>(null);
 
   // Dictation State - Merged into Upload
-  const [dictationFile, setDictationFile] = useState<File | null>(null);
+  const [audio80wpmFile, setAudio80wpmFile] = useState<File | null>(null);
+  const [audio100wpmFile, setAudio100wpmFile] = useState<File | null>(null);
   const dictationFileInputRef = useRef<HTMLInputElement>(null);
+  const audio80wpmInputRef = useRef<HTMLInputElement>(null);
+  const audio100wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Upload Loading State - use mutation state instead of local state
   const isUploading = isCreating || isCreatingWithFile;
@@ -343,6 +387,20 @@ export default function AdminDashboard() {
   const [candidateYear, setCandidateYear] = useState("");
   const [candidateImage, setCandidateImage] = useState<File | null>(null);
 
+  // Notices State
+  const [noticeHeading, setNoticeHeading] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
+  const [noticePdfFile, setNoticePdfFile] = useState<File | null>(null);
+  const noticePdfInputRef = useRef<HTMLInputElement>(null);
+  const [visibleNoticesCount, setVisibleNoticesCount] = useState(10); // Show 10 at a time
+  const [isLoadingMoreNotices, setIsLoadingMoreNotices] = useState(false);
+  const [editingNotice, setEditingNotice] = useState<any>(null);
+  const [editHeading, setEditHeading] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editPdfFile, setEditPdfFile] = useState<File | null>(null);
+  const editPdfInputRef = useRef<HTMLInputElement>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   const handleAddCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidateName || !candidateImage) {
@@ -354,23 +412,31 @@ export default function AdminDashboard() {
       return;
     }
 
-    const imageUrl = await fileToBase64(candidateImage);
-    addSelectedCandidate({
-      name: candidateName,
-      designation: candidateDesignation,
-      year: candidateYear,
-      imageUrl: imageUrl,
-    });
+    try {
+      const imageUrl = await fileToBase64(candidateImage);
+      await addSelectedCandidate({
+        name: candidateName,
+        designation: candidateDesignation,
+        year: candidateYear,
+        imageUrl: imageUrl,
+      });
 
-    toast({
-      variant: "success",
-      title: "Success",
-      description: "Candidate added",
-    });
-    setCandidateName("");
-    setCandidateDesignation("");
-    setCandidateYear("");
-    setCandidateImage(null);
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Candidate added",
+      });
+      setCandidateName("");
+      setCandidateDesignation("");
+      setCandidateYear("");
+      setCandidateImage(null);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add candidate",
+      });
+    }
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -392,7 +458,7 @@ export default function AdminDashboard() {
 
     try {
       // Check if we have a file to upload
-      const hasFile = contentType === "shorthand" && dictationFile;
+      const hasFile = contentType === "shorthand" && (audio80wpmFile || audio100wpmFile);
 
       if (hasFile) {
         // Use FormData for file uploads (faster - no client-side base64 conversion)
@@ -405,7 +471,12 @@ export default function AdminDashboard() {
         formData.append('language', language || 'english');
         // For shorthand with file, autoScroll is always true
         formData.append('autoScroll', 'true');
-        formData.append('audioFile', dictationFile);
+        if (audio80wpmFile) {
+          formData.append('audio80wpm', audio80wpmFile);
+        }
+        if (audio100wpmFile) {
+          formData.append('audio100wpm', audio100wpmFile);
+        }
 
         // Use FormData upload endpoint (server converts to base64)
         await createContentWithFile(formData);
@@ -429,9 +500,16 @@ export default function AdminDashboard() {
       });
       setTitle("");
       setTextContent("");
-      setDictationFile(null);
+      setAudio80wpmFile(null);
+      setAudio100wpmFile(null);
       if (dictationFileInputRef.current) {
         dictationFileInputRef.current.value = "";
+      }
+      if (audio80wpmInputRef.current) {
+        audio80wpmInputRef.current.value = "";
+      }
+      if (audio100wpmInputRef.current) {
+        audio100wpmInputRef.current.value = "";
       }
     } catch (error) {
       toast({
@@ -517,15 +595,40 @@ export default function AdminDashboard() {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     if (e.target.files) {
+      let successCount = 0;
+      let errorCount = 0;
+      
       for (const file of Array.from(e.target.files)) {
-        const url = await fileToBase64(file);
-        addGalleryImage(url);
+        try {
+          const url = await fileToBase64(file);
+          await addGalleryImage(url);
+          successCount++;
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          errorCount++;
+        }
       }
-      toast({
-        variant: "success",
-        title: "Success",
-        description: "Images uploaded to gallery",
-      });
+      
+      if (successCount > 0) {
+        toast({
+          variant: "success",
+          title: "Success",
+          description: `${successCount} image(s) uploaded to gallery`,
+        });
+      }
+      
+      if (errorCount > 0) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to upload ${errorCount} image(s)`,
+        });
+      }
+      
+      // Reset file input
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 
@@ -548,18 +651,24 @@ export default function AdminDashboard() {
     generateResultPDF(result);
   };
 
-  const filteredResults = results
-    .filter(
-      (r) =>
-        r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
-        (r.studentDisplayId?.toLowerCase() || "").includes(
-          studentFilter.toLowerCase(),
-        ),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
-    );
+  // Filter results by student name/ID for display
+  const filterResultsByStudent = (results: typeof typingResults) =>
+    results
+      .filter(
+        (r) =>
+          r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
+          (r.studentDisplayId?.toLowerCase() || "").includes(
+            studentFilter.toLowerCase(),
+          ),
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.submittedAt).getTime() -
+          new Date(a.submittedAt).getTime(),
+      );
+
+  const displayTypingResults = filterResultsByStudent(typingResults);
+  const displayShorthandResults = filterResultsByStudent(shorthandResults);
 
   const filteredStudents = users
     .filter(
@@ -581,8 +690,6 @@ export default function AdminDashboard() {
     (u) => u.role === "student" && u.isPaymentCompleted,
   ).length;
   const disabledStudents = totalStudents - enabledStudents;
-
-  console.log("content ****", content);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -732,6 +839,7 @@ export default function AdminDashboard() {
                     disabled={isRefreshingStudents}
                     onClick={async () => {
                       setIsRefreshingStudents(true);
+                      // Invalidate all user-related caches
                       await queryClient.invalidateQueries({
                         queryKey: ["users"],
                       });
@@ -1072,28 +1180,55 @@ export default function AdminDashboard() {
                   </div>
 
                   {contentType === "shorthand" && (
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Music className="h-5 w-5 text-orange-600" />
-                        <Label className="text-sm font-medium text-orange-800">
-                          Audio File (Optional)
-                        </Label>
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <Music className="h-5 w-5 text-orange-600" />
+                            <Label className="text-sm font-medium text-orange-800">
+                              Audio File (80 WPM)
+                            </Label>
+                          </div>
+                          <Input
+                            type="file"
+                            accept="audio/*"
+                            onChange={(e) =>
+                              setAudio80wpmFile(e.target.files?.[0] || null)
+                            }
+                            ref={audio80wpmInputRef}
+                            className="bg-white"
+                          />
+                          {audio80wpmFile && (
+                            <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                              <CheckCircle className="h-4 w-4" />{" "}
+                              {audio80wpmFile.name}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <Music className="h-5 w-5 text-orange-600" />
+                            <Label className="text-sm font-medium text-orange-800">
+                              Audio File (100 WPM)
+                            </Label>
+                          </div>
+                          <Input
+                            type="file"
+                            accept="audio/*"
+                            onChange={(e) =>
+                              setAudio100wpmFile(e.target.files?.[0] || null)
+                            }
+                            ref={audio100wpmInputRef}
+                            className="bg-white"
+                          />
+                          {audio100wpmFile && (
+                            <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
+                              <CheckCircle className="h-4 w-4" />{" "}
+                              {audio100wpmFile.name}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <Input
-                        type="file"
-                        accept="audio/*"
-                        onChange={(e) =>
-                          setDictationFile(e.target.files?.[0] || null)
-                        }
-                        ref={dictationFileInputRef}
-                        className="bg-white"
-                      />
-                      {dictationFile && (
-                        <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                          <CheckCircle className="h-4 w-4" />{" "}
-                          {dictationFile.name}
-                        </p>
-                      )}
                     </div>
                   )}
 
@@ -1307,9 +1442,9 @@ export default function AdminDashboard() {
                                       </span>
                                     )}
                                   </TableCell>
-                                    <TableCell>
-                                      <PreviewDialog contentId={item.id} title={item.title} />
-                                    </TableCell>
+                                  <TableCell>
+                                    <PreviewDialog contentId={item.id} title={item.title} />
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
                                       <Switch
@@ -1486,13 +1621,13 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 bg-white border rounded-full text-muted-foreground">
+                            {/* <span className="text-xs px-2 py-1 bg-white border rounded-full text-muted-foreground">
                               {
                                 pdfResources.filter((p) => p.folderId === f.id)
                                   .length
                               }{" "}
                               files
-                            </span>
+                            </span> */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1836,7 +1971,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-indigo-100">Total Results</p>
                       <p className="text-3xl font-bold mt-1">
-                        {results.length}
+                        {(counts.typing || 0) + (counts.shorthand || 0)}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1851,10 +1986,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-blue-100">Typing Tests</p>
                       <p className="text-3xl font-bold mt-1">
-                        {
-                          results.filter((r) => r.contentType === "typing")
-                            .length
-                        }
+                        {counts.typing || 0}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1869,10 +2001,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-orange-100">Shorthand Tests</p>
                       <p className="text-3xl font-bold mt-1">
-                        {
-                          results.filter((r) => r.contentType === "shorthand")
-                            .length
-                        }
+                        {counts.shorthand || 0}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1955,9 +2084,8 @@ export default function AdminDashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredResults
-                              .filter((r) => r.contentType === type)
-                              .map((result) => (
+                            {(type === "typing" ? displayTypingResults : displayShorthandResults)?.map(
+                              (result) => (
                                 <TableRow
                                   key={result.id}
                                   className="hover:bg-slate-50/50"
@@ -2179,23 +2307,68 @@ export default function AdminDashboard() {
                                     </Button>
                                   </TableCell>
                                 </TableRow>
-                              ))}
-                            {filteredResults.filter(
-                              (r) => r.contentType === type,
+                              )
+                            )}
+                            {(type === "typing"
+                              ? displayTypingResults
+                              : displayShorthandResults
                             ).length === 0 && (
-                                <TableRow>
-                                  <TableCell
-                                    colSpan={6}
-                                    className="text-center py-12 text-muted-foreground"
-                                  >
-                                    <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                    No {type} results found
-                                  </TableCell>
-                                </TableRow>
-                              )}
+                              <TableRow>
+                                <TableCell
+                                  colSpan={6}
+                                  className="text-center py-12 text-muted-foreground"
+                                >
+                                  <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                  No {type} results found
+                                </TableCell>
+                              </TableRow>
+                            )}
                           </TableBody>
                         </Table>
                       </div>
+                      {/* Load More Button - Only show if more data available */}
+                      {type === "typing" && hasNextTyping && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextTyping()}
+                            disabled={isFetchingNextTyping}
+                          >
+                            {isFetchingNextTyping ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Typing Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      {type === "shorthand" && hasNextShorthand && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextShorthand()}
+                            disabled={isFetchingNextShorthand}
+                          >
+                            {isFetchingNextShorthand ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Shorthand Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </TabsContent>
                   ))}
                 </Tabs>
@@ -2223,7 +2396,7 @@ export default function AdminDashboard() {
 
             <Card className="shadow-lg border-0">
               <CardContent className="p-0">
-                <Tabs key="gallery-tabs" defaultValue="gallery_images">
+                <Tabs key="gallery-tabs" defaultValue="gallery_images" onValueChange={setGallerySubTab}>
                   <div className="px-6 pt-4 border-b bg-slate-50">
                     <TabsList className="bg-white shadow-sm">
                       <TabsTrigger
@@ -2268,42 +2441,62 @@ export default function AdminDashboard() {
                         />
                       </div>
 
-                      {galleryImages.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-3">
-                            {galleryImages.length} images uploaded
-                          </p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {galleryImages.map((url, idx) => (
-                              <div
-                                key={idx}
-                                className="relative group aspect-square rounded-xl overflow-hidden border-2 shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                <img
-                                  src={url}
-                                  alt="Gallery"
-                                  className="w-full h-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={() => removeGalleryImage(url)}
+                      {isGalleryLoading && activeTab === "gallery" && gallerySubTab === "gallery_images" ? (
+                        <div className="flex items-center justify-center p-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+                          <span className="ml-3 text-muted-foreground">Loading gallery...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {galleryImages.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground mb-3">
+                                {galleryImages.length} images uploaded
+                              </p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                {galleryImages.map((url: string, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    className="relative group aspect-square rounded-xl overflow-hidden border-2 shadow-sm hover:shadow-md transition-shadow"
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <img
+                                      src={url}
+                                      alt="Gallery"
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={() => removeGalleryImage(url)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {hasNextPage && (
+                                <div className="flex justify-center mt-6">
+                                  <Button
+                                    onClick={() => fetchNextPage()}
+                                    disabled={isFetchingNextPage}
+                                    className="px-6"
+                                  >
+                                    {isFetchingNextPage ? 'Loading...' : 'Load More'}
                                   </Button>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                              )}
+                            </div>
+                          )}
 
-                      {galleryImages.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                          <p>No images uploaded yet</p>
-                        </div>
+                          {galleryImages.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                              <p>No images uploaded yet</p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </TabsContent>
@@ -2383,91 +2576,648 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="rounded-xl border overflow-hidden">
-                        <Table>
-                          <TableHeader className="bg-slate-50">
-                            <TableRow>
-                              <TableHead className="font-semibold">
-                                Photo
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Name
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Designation
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Year
-                              </TableHead>
-                              <TableHead className="font-semibold text-right">
-                                Action
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {[...selectedCandidates]
-                              .sort((a, b) => {
-                                const yearA = parseInt(a.year) || 0;
-                                const yearB = parseInt(b.year) || 0;
-                                return yearB - yearA;
-                              })
-                              .map((candidate) => (
-                                <TableRow
-                                  key={candidate.id}
-                                  className="hover:bg-slate-50/50"
-                                >
-                                  <TableCell>
-                                    <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
-                                      <img
-                                        src={candidate.imageUrl}
-                                        alt={candidate.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="font-medium">
-                                    {candidate.name}
-                                  </TableCell>
-                                  <TableCell className="text-muted-foreground">
-                                    {candidate.designation}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="inline-flex items-center px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                                      {candidate.year}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-destructive hover:bg-red-50"
-                                      onClick={() =>
-                                        removeSelectedCandidate(candidate.id)
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                        {isCandidatesLoading && activeTab === "gallery" && gallerySubTab === "selected_candidates" ? (
+                          <div className="flex items-center justify-center p-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                            <span className="ml-3 text-muted-foreground">Loading candidates...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Table>
+                              <TableHeader className="bg-slate-50">
+                                <TableRow>
+                                  <TableHead className="font-semibold">
+                                    Photo
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Designation
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Year
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-right">
+                                    Action
+                                  </TableHead>
                                 </TableRow>
-                              ))}
-                            {selectedCandidates.length === 0 && (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={5}
-                                  className="text-center py-12 text-muted-foreground"
+                              </TableHeader>
+                              <TableBody>
+                                {[...selectedCandidates]
+                                  .sort((a, b) => {
+                                    const yearA = parseInt(a.year) || 0;
+                                    const yearB = parseInt(b.year) || 0;
+                                    return yearB - yearA;
+                                  })
+                                  .map((candidate) => (
+                                    <TableRow
+                                      key={candidate.id}
+                                      className="hover:bg-slate-50/50"
+                                    >
+                                      <TableCell>
+                                        <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
+                                          <img
+                                            src={candidate.imageUrl}
+                                            alt={candidate.name}
+                                            className="h-full w-full object-cover"
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="font-medium">
+                                        {candidate.name}
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground">
+                                        {candidate.designation}
+                                      </TableCell>
+                                      <TableCell>
+                                        <span className="inline-flex items-center px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                          {candidate.year}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="text-destructive hover:bg-red-50"
+                                          onClick={() =>
+                                            removeSelectedCandidate(candidate.id)
+                                          }
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                {selectedCandidates.length === 0 && !isCandidatesLoading && (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={5}
+                                      className="text-center py-12 text-muted-foreground"
+                                    >
+                                      <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                      No candidates added yet
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                            {hasNextCandidate && (
+                              <div className="flex justify-center p-4 border-t">
+                                <Button
+                                  onClick={() => fetchNextCandidate()}
+                                  disabled={isFetchingNextCandidate}
+                                  className="px-6"
                                 >
-                                  <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                  No candidates added yet
-                                </TableCell>
-                              </TableRow>
+                                  {isFetchingNextCandidate ? 'Loading...' : 'Load More'}
+                                </Button>
+                              </div>
                             )}
-                          </TableBody>
-                        </Table>
+                          </>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
+          </div>
+        );
+      case "notices":
+        return (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg">
+                <Bell className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Manage Notices
+                </h2>
+                <p className="text-muted-foreground">
+                  Create and manage notices for the landing page
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Form Section */}
+              <Card className="shadow-lg border-0 lg:col-span-1">
+                <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <Bell className="h-4 w-4 text-yellow-600" />
+                    </div>
+                    Create Notice
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!noticeHeading.trim() || !noticeContent.trim()) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Heading and content are required",
+                        });
+                        return;
+                      }
+
+                      try {
+                        await createNoticeWithFile(
+                          {
+                            heading: noticeHeading,
+                            content: noticeContent,
+                            pdfUrl: null,
+                          },
+                          noticePdfFile || undefined
+                        );
+
+                        toast({
+                          variant: "success",
+                          title: "Success",
+                          description: "Notice published successfully",
+                        });
+
+                        // Reset form
+                        setNoticeHeading("");
+                        setNoticeContent("");
+                        setNoticePdfFile(null);
+                        if (noticePdfInputRef.current) {
+                          noticePdfInputRef.current.value = "";
+                        }
+
+                        // Refresh notices
+                        await refetchAllNotices();
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to create notice",
+                        });
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Heading
+                      </Label>
+                      <Input
+                        value={noticeHeading}
+                        onChange={(e) => setNoticeHeading(e.target.value)}
+                        placeholder="e.g., System Maintenance"
+                        className="bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Content
+                      </Label>
+                      <Textarea
+                        value={noticeContent}
+                        onChange={(e) => setNoticeContent(e.target.value)}
+                        placeholder="Enter notice details here..."
+                        className="min-h-[150px] bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Attachment (Optional PDF)
+                      </Label>
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) =>
+                          setNoticePdfFile(e.target.files?.[0] || null)
+                        }
+                        ref={noticePdfInputRef}
+                        className="bg-white"
+                      />
+                      {noticePdfFile && (
+                        <p className="mt-2 text-sm text-yellow-700 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" />{" "}
+                          {noticePdfFile.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isCreatingNotice}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-md hover:shadow-lg transition-all"
+                    >
+                      {isCreatingNotice ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Publishing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" /> Publish Notice
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Notices List Section */}
+              <Card className="shadow-lg border-0 lg:col-span-2">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Bell className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          Active Notices
+                        </CardTitle>
+                        <CardDescription>
+                          {allNotices.length} total notices
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => refetchAllNotices()}
+                      disabled={isLoadingNotices}
+                    >
+                      <RefreshCw
+                        className={cn(
+                          "h-4 w-4",
+                          isLoadingNotices && "animate-spin"
+                        )}
+                      />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="max-h-[500px] overflow-auto">
+                    {isLoadingNotices ? (
+                      <div className="flex items-center justify-center p-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <span className="ml-3 text-muted-foreground">
+                          Loading notices...
+                        </span>
+                      </div>
+                    ) : allNotices.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-12 text-center">
+                        <Bell className="h-10 w-10 text-muted-foreground opacity-30 mb-3" />
+                        <p className="text-muted-foreground">
+                          No notices yet
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Create your first notice to get started
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {/* allNotices are already sorted by latest first from the API */}
+                        {allNotices.slice(0, visibleNoticesCount).map((notice) => (
+                          <div
+                            key={notice.id}
+                            className="p-4 hover:bg-amber-50/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 mb-1 break-words">
+                                  {notice.heading}
+                                </h4>
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {notice.content}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  {notice.pdfUrl && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                      📎 PDF Attached
+                                    </span>
+                                  )}
+                                  {notice.isActive ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                      ✓ Active
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                                      ○ Inactive
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-gray-500">
+                                    {format(
+                                      new Date(notice.createdAt),
+                                      "MMM d, yyyy h:mm a"
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingNotice(notice);
+                                    setEditHeading(notice.heading);
+                                    setEditContent(notice.content);
+                                    setEditPdfFile(null);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  className="text-xs hover:bg-blue-50"
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={async () => {
+                                    try {
+                                      await updateNoticeAsync({
+                                        id: notice.id,
+                                        isActive: !notice.isActive,
+                                      });
+                                      toast({
+                                        title: "Updated",
+                                        description: `Notice ${
+                                          notice.isActive
+                                            ? "deactivated"
+                                            : "activated"
+                                        }`,
+                                      });
+                                    } catch (error) {
+                                      toast({
+                                        variant: "destructive",
+                                        title: "Error",
+                                        description: "Failed to update notice",
+                                      });
+                                    }
+                                  }}
+                                  disabled={isUpdatingNotice}
+                                  className="text-xs"
+                                >
+                                  {notice.isActive ? "Deactivate" : "Activate"}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive hover:bg-red-50"
+                                  onClick={async () => {
+                                    if (
+                                      confirm(
+                                        "Are you sure you want to delete this notice?"
+                                      )
+                                    ) {
+                                      try {
+                                        await deleteNoticeAsync(notice.id);
+                                        toast({
+                                          title: "Deleted",
+                                          description: "Notice removed",
+                                        });
+                                      } catch (error) {
+                                        toast({
+                                          variant: "destructive",
+                                          title: "Error",
+                                          description: "Failed to delete notice",
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  disabled={isDeletingNotice}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Load More Button */}
+                        {visibleNoticesCount < allNotices.length && (
+                          <div className="p-4 flex justify-center border-t bg-gray-50">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setIsLoadingMoreNotices(true);
+                                setTimeout(() => {
+                                  setVisibleNoticesCount((prev) => prev + 10);
+                                  setIsLoadingMoreNotices(false);
+                                }, 300);
+                              }}
+                              disabled={isLoadingMoreNotices}
+                              className="min-w-48"
+                            >
+                              {isLoadingMoreNotices ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Loading...
+                                </>
+                              ) : (
+                                `Load More (${Math.min(10, allNotices.length - visibleNoticesCount)} more)`
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Edit Notice Modal */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Notice</DialogTitle>
+                </DialogHeader>
+                {editingNotice && (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!editHeading.trim() || !editContent.trim()) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Heading and content are required",
+                        });
+                        return;
+                      }
+
+                      try {
+                        // Build the update object
+                        const updateData: any = {
+                          heading: editHeading,
+                          content: editContent,
+                        };
+
+                        // If a new PDF was selected, we'll need to upload it
+                        if (editPdfFile) {
+                          const formData = new FormData();
+                          formData.append('heading', editHeading);
+                          formData.append('content', editContent);
+                          formData.append('pdf', editPdfFile);
+                          
+                          // Call the update with file
+                          await fetch(`/api/notices/${editingNotice.id}`, {
+                            method: 'PATCH',
+                            body: formData,
+                          }).then(res => {
+                            if (!res.ok) throw new Error('Failed to update notice');
+                            return res.json();
+                          });
+                        } else {
+                          // Just update the text fields
+                          await updateNoticeAsync({
+                            id: editingNotice.id,
+                            heading: editHeading,
+                            content: editContent,
+                          });
+                        }
+
+                        toast({
+                          variant: "success",
+                          title: "Success",
+                          description: "Notice updated successfully",
+                        });
+
+                        // Reset form and close modal
+                        setEditingNotice(null);
+                        setEditHeading("");
+                        setEditContent("");
+                        setEditPdfFile(null);
+                        if (editPdfInputRef.current) {
+                          editPdfInputRef.current.value = "";
+                        }
+                        setIsEditModalOpen(false);
+
+                        // Refresh notices
+                        await refetchAllNotices();
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to update notice",
+                        });
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Heading
+                      </Label>
+                      <Input
+                        value={editHeading}
+                        onChange={(e) => setEditHeading(e.target.value)}
+                        placeholder="e.g., System Maintenance"
+                        className="bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Content
+                      </Label>
+                      <Textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        placeholder="Enter notice details here..."
+                        className="min-h-[150px] bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Attachment (Optional PDF)
+                      </Label>
+                      {editingNotice.pdfUrl && !editPdfFile && (
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
+                          <span className="text-sm text-blue-700">
+                            📎 Current PDF attached
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              // Note: This would require a remove PDF endpoint
+                              toast({
+                                title: "Info",
+                                description: "Upload a new PDF to replace the existing one",
+                              });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) =>
+                          setEditPdfFile(e.target.files?.[0] || null)
+                        }
+                        ref={editPdfInputRef}
+                        className="bg-white"
+                      />
+                      {editPdfFile && (
+                        <p className="mt-2 text-sm text-yellow-700 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" /> {editPdfFile.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingNotice(null);
+                          setEditHeading("");
+                          setEditContent("");
+                          setEditPdfFile(null);
+                          if (editPdfInputRef.current) {
+                            editPdfInputRef.current.value = "";
+                          }
+                          setIsEditModalOpen(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={isUpdatingNotice}
+                        className="bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-md hover:shadow-lg transition-all"
+                      >
+                        {isUpdatingNotice ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         );
       default:
@@ -2517,6 +3267,13 @@ export default function AdminDashboard() {
       icon: ImageIcon,
       color: "text-pink-600",
       bg: "bg-pink-100",
+    },
+    {
+      id: "notices",
+      label: "Notices",
+      icon: Bell,
+      color: "text-yellow-600",
+      bg: "bg-yellow-100",
     },
   ];
 
@@ -2588,7 +3345,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
-        {/* Mobile Header */}
+      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-3 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
         <h2 className="text-lg font-bold text-white">Admin Panel</h2>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>

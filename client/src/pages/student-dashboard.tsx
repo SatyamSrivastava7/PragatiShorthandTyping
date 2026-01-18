@@ -1,12 +1,8 @@
 import { useState, useRef, useEffect } from "react";
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   useAuth,
-  useContent,
-  useResults,
   usePdf,
-  useSettings,
-  useDictations,
-  useUsers,
 } from "@/lib/hooks";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
@@ -20,10 +16,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { format, isSameDay } from "date-fns";
+import { format } from "date-fns";
 import {
   PlayCircle,
-  CheckCircle,
   Download,
   FileText,
   ShoppingCart,
@@ -54,23 +49,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
-  const { enabledContent: content, isLoading: isContentLoading } = useContent();
-  const { results } = useResults(currentUser?.id);
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const {
     folders: pdfFolders,
     resources: pdfResources,
+    resourcesLoading,
     purchasePdf: buyPdf,
     consumePdfPurchase,
-  } = usePdf();
-  const { settings } = useSettings();
-  const { dictations } = useDictations();
-  const { updateUser } = useUsers();
+  } = usePdf(true, currentFolder); // Only fetch resources when folder is selected
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const profilePicInputRef = useRef<HTMLInputElement>(null);
@@ -94,12 +85,11 @@ export default function StudentDashboard() {
     };
   }, []);
 
-  const qrCodeUrl = settings?.qrCodeUrl || "";
+  // const qrCodeUrl = settings?.qrCodeUrl || "";
 
   const today = new Date();
 
   // PDF Store State
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [processingPdf, setProcessingPdf] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPdfForPurchase, setSelectedPdfForPurchase] = useState<{
@@ -114,13 +104,85 @@ export default function StudentDashboard() {
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
 
-  // Lazy Loading State
-  const ITEMS_PER_BATCH = 100; // Initial batch size
-  const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
-  const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const typingObserverRef = useRef<HTMLDivElement | null>(null);
-  const shorthandObserverRef = useRef<HTMLDivElement | null>(null);
+  // Selected language folders for each tab (null = show folders)
+  const [selectedTypingLanguage, setSelectedTypingLanguage] = useState<string | null>(null);
+  const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
+  // Active main tab
+  const [activeTab, setActiveTab] = useState<string>('typing_tests');
+  // Pagination settings
+  const PAGE_SIZE = 6;
+  const PAGE_SIZE_RESULTS = 5;
+
+  // Typing: useInfiniteQuery per language (cached by react-query)
+  const typingQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'typing', selectedTypingLanguage],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ type: 'typing', language: selectedTypingLanguage || 'english', limit: PAGE_SIZE, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'typing_tests' && !!selectedTypingLanguage,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Shorthand: useInfiniteQuery per language (cached by react-query)
+  const shorthandQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'shorthand', selectedShorthandLanguage],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ type: 'shorthand', language: selectedShorthandLanguage || 'english', limit: PAGE_SIZE, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'shorthand_tests' && !!selectedShorthandLanguage,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // paging is handled by react-query `useInfiniteQuery` (typingQuery, shorthandQuery)
+
+  // Results: counts and paged lists (5 per page) for typing and shorthand
+  // With proper caching: staleTime = when to fetch fresh, gcTime = when to discard from memory
+  const resultsCountsQuery = useQuery({
+    queryKey: ['results', 'counts', currentUser?.id],
+    queryFn: async () => {
+      return await (await import('@/lib/api')).resultsApi.getCounts({ studentId: currentUser?.id });
+    },
+    enabled: !!currentUser?.id, // Fetch on page load for header display
+    staleTime: 1000 * 60 * 3, // 3 minutes - refetch if older
+    gcTime: 1000 * 60 * 10, // 10 minutes - keep in memory
+  });
+
+  const typingResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'typing', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'typing', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // 15 minutes
+  });
+
+  const shorthandResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'shorthand', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'shorthand', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // 15 minutes
+  });
+
+  // When selection or active tab changes, react-query handles fetching (enabled flag)
+  useEffect(() => {
+    // no-op: selection and activeTab drive `useInfiniteQuery` enabled state
+  }, [selectedTypingLanguage, selectedShorthandLanguage, activeTab]);
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -146,7 +208,8 @@ export default function StudentDashboard() {
         if (!isMountedRef.current) return;
         try {
           const base64 = reader.result as string;
-          await updateUser({ id: userId, data: { profilePicture: base64 } });
+          const { usersApi } = await import('@/lib/api');
+          await usersApi.update(userId, { profilePicture: base64 });
           if (!isMountedRef.current) return;
           await queryClient.invalidateQueries({ queryKey: ['session'] });
           if (!isMountedRef.current) return;
@@ -174,98 +237,26 @@ export default function StudentDashboard() {
     }
   };
 
-  // Filter content: Enabled (Date filter removed as requested)
-  const availableTests = content.filter((c) => c.isEnabled);
 
-  const typingTests = availableTests.filter((c) => c.type === "typing" && 
-    c.title.toLowerCase().includes(typingSearch.toLowerCase()));
-  const shorthandTests = availableTests.filter((c) => c.type === "shorthand" && 
-    c.title.toLowerCase().includes(shorthandSearch.toLowerCase()));
-
-  // Reset visible count when search changes
-  useEffect(() => {
-    setVisibleTypingCount(ITEMS_PER_BATCH);
-    setVisibleShorthandCount(ITEMS_PER_BATCH);
-  }, [typingSearch, shorthandSearch]);
-
-  // Get visible items for lazy loading
-  const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
-  const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
-  const hasMoreTyping = visibleTypingCount < typingTests.length;
-  const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
-
-  // Load more typing tests
-  const loadMoreTyping = () => {
-    if (isLoadingMore || !hasMoreTyping) return;
-    setIsLoadingMore(true);
-    // Simulate loading delay for smooth UX
-    setTimeout(() => {
-      setVisibleTypingCount(prev => Math.min(prev + ITEMS_PER_BATCH, typingTests.length));
-      setIsLoadingMore(false);
-    }, 300);
+  const groupTestsByLanguage = (tests: any[]) => {
+    return tests.reduce<Record<string, any[]>>((acc, t) => {
+      const lang = (t.language || "English").toString().toLowerCase();
+      if (!acc[lang]) acc[lang] = [];
+      acc[lang].push(t);
+      return acc;
+    }, {});
   };
-
-  // Load more shorthand tests
-  const loadMoreShorthand = () => {
-    if (isLoadingMore || !hasMoreShorthand) return;
-    setIsLoadingMore(true);
-    // Simulate loading delay for smooth UX
-    setTimeout(() => {
-      setVisibleShorthandCount(prev => Math.min(prev + ITEMS_PER_BATCH, shorthandTests.length));
-      setIsLoadingMore(false);
-    }, 300);
-  };
-
-  // Intersection Observer for typing tests
-  useEffect(() => {
-    const currentRef = typingObserverRef.current;
-    if (!currentRef || !hasMoreTyping) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMoreTyping && !isLoadingMore) {
-          loadMoreTyping();
-        }
-      },
-      { threshold: 0.1, rootMargin: '100px' }
-    );
-
-    observer.observe(currentRef);
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [hasMoreTyping, isLoadingMore, typingTests.length, visibleTypingCount]);
-
-  // Intersection Observer for shorthand tests
-  useEffect(() => {
-    const currentRef = shorthandObserverRef.current;
-    if (!currentRef || !hasMoreShorthand) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMoreShorthand && !isLoadingMore) {
-          loadMoreShorthand();
-        }
-      },
-      { threshold: 0.1, rootMargin: '100px' }
-    );
-
-    observer.observe(currentRef);
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [hasMoreShorthand, isLoadingMore, shorthandTests.length, visibleShorthandCount]);
 
   const getResultForContent = (contentId: string) => {
-    return results.find(
-      (r) => r.contentId !== null && r.contentId.toString() === contentId && r.studentId === currentUser?.id,
-    );
+    // Get all results from typing query
+    const typingPages = typingResultsQuery.data?.pages ?? [];
+    const typingResult = typingPages.flat().find((r: any) => r.contentId !== null && r.contentId.toString() === contentId);
+    if (typingResult) return typingResult;
+    
+    // Get all results from shorthand query
+    const shorthandPages = shorthandResultsQuery.data?.pages ?? [];
+    const shorthandResult = shorthandPages.flat().find((r: any) => r.contentId !== null && r.contentId.toString() === contentId);
+    return shorthandResult;
   };
 
   const handleDownloadResult = (result: Result) => {
@@ -299,7 +290,7 @@ export default function StudentDashboard() {
     setSelectedPdfForPurchase(null);
     setShowPaymentModal(false);
     setIsVerifyingPayment(false);
-    
+
 
     toast({
       variant: "success",
@@ -327,8 +318,17 @@ export default function StudentDashboard() {
     consumePdfPurchase(parseInt(pdfId));
   };
 
-  const typingResultsCount = results.filter(r => r.contentType === 'typing').length;
-  const shorthandResultsCount = results.filter(r => r.contentType === 'shorthand').length;
+  const typingResultsCount = (resultsCountsQuery.data?.typing) ?? 0;
+  const shorthandResultsCount = resultsCountsQuery.data?.shorthand ?? 0;
+
+  // Fetch lightweight counts for UI (avoid fetching full lists just for counts)
+  const countsQuery = useQuery({
+    queryKey: ['content', 'counts', 'enabled'],
+    queryFn: async () => {
+      return await (await import('@/lib/api')).contentApi.getCounts({ enabled: true });
+    },
+    staleTime: 1000 * 60 * 2,
+  });
 
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
@@ -372,22 +372,22 @@ export default function StudentDashboard() {
           </div>
           <div className="flex gap-3">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{typingTests.length}</p>
+              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" /> : (countsQuery.data?.typing ?? 0)}</p>
               <p className="text-xs text-blue-100">Typing Tests</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{shorthandTests.length}</p>
+              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-500" /> : (countsQuery.data?.shorthand ?? 0)}</p>
               <p className="text-xs text-blue-100">Shorthand</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{results.length}</p>
+              <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount)}</p>
               <p className="text-xs text-blue-100">Results</p>
             </div>
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue="typing_tests" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
           <TabsTrigger
             value="typing_tests"
@@ -424,7 +424,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Typing Tests</h3>
-                  <p className="text-sm text-muted-foreground">{typingTests.length} tests available</p>
+                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
@@ -439,81 +439,95 @@ export default function StudentDashboard() {
               </div>
             </div>
           </div>
-          {isContentLoading ? (
+          {typingQuery?.isLoading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {visibleTypingTests.length > 0 ? (
-              <>
-                {visibleTypingTests.map((test) => {
-                const result = getResultForContent(test.id?.toString());
-                const isCompleted = !!result;
-
-                return (
-                  <Card
-                    key={test.id}
-                    className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
-                  >
-                    <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
-                          {test.language || "English"}
-                        </span>
-                      </div>
-                      <CardDescription className="text-xs text-muted-foreground mt-2">
-                        {format(new Date(test.dateFor), "PPP")}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 pb-4">
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span className="font-medium text-foreground">{test.duration} min</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Keyboard className="h-4 w-4" />
-                          <span>Typing</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="pt-4 border-t bg-slate-50">
-                      <Button
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
-                        onClick={() => setLocation(`/test/${test.id}`)}
-                      >
-                        <PlayCircle className="mr-2 h-4 w-4" /> Start Test
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-                {/* Intersection Observer Target */}
-                {hasMoreTyping && (
-                  <div ref={typingObserverRef} className="col-span-full flex justify-center py-4">
-                    {isLoadingMore && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Loading more tests...</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-blue-200 rounded-xl bg-blue-50/50">
-                <div className="bg-blue-100 rounded-full p-4 mb-4">
-                  <Keyboard className="h-8 w-8 text-blue-400" />
+            <div>
+              {!selectedTypingLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => setSelectedTypingLanguage(lang)}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
+                      <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-700">No typing tests available</h3>
-                <p className="text-sm text-muted-foreground mt-1">Check back later for new tests</p>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedTypingLanguage(null)}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedTypingLanguage} Typing Tests</h4>
+                  </div>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {((typingQuery.data?.pages ?? []) as any[])
+                      .flat()
+                      .filter((t: any) => ((t.language || 'english').toString().toLowerCase()) === (selectedTypingLanguage || 'english'))
+                      .filter((t: any) => t.title.toLowerCase().includes(typingSearch.toLowerCase()))
+                      .map((test: any) => {
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
+
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
+                              </div>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="font-medium text-foreground">{test.duration} min</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Keyboard className="h-4 w-4" />
+                                  <span>Typing</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                            <CardFooter className="pt-4 border-t bg-slate-50">
+                              <Button
+                                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                              >
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
+                  </div>
+                  {typingQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button onClick={() => typingQuery.fetchNextPage()} disabled={typingQuery.isFetchingNextPage}>
+                        {typingQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
           )}
         </TabsContent>
 
@@ -526,7 +540,7 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Shorthand Tests</h3>
-                  <p className="text-sm text-muted-foreground">{shorthandTests.length} tests available</p>
+                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.shorthand ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
@@ -541,84 +555,97 @@ export default function StudentDashboard() {
               </div>
             </div>
           </div>
-          {isContentLoading ? (
+          {shorthandQuery?.isLoading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {visibleShorthandTests.length > 0 ? (
-              <>
-                {visibleShorthandTests.map((test) => {
-                const result = getResultForContent(test.id?.toString());
-                const isCompleted = !!result;
-
-                return (
-                  <Card
-                    key={test.id}
-                    className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
-                  >
-                    <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
-                        <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0 capitalize">
-                          {test.language || "English"}
-                        </span>
-                      </div>
-                      <CardDescription className="text-xs text-muted-foreground mt-2">
-                        {format(new Date(test.dateFor), "PPP")}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 pb-4">
-                      <div className="flex items-center gap-4 text-sm mb-3">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span className="font-medium text-foreground">{test.duration} min</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Mic className="h-4 w-4" />
-                          <span>Shorthand</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
-                        Listen to Audio, Write on Paper, Type Here
-                      </p>
-                    </CardContent>
-                    <CardFooter className="pt-4 border-t bg-slate-50">
-                      <Button
-                        className="w-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-md group-hover:shadow-lg transition-shadow"
-                        onClick={() => setLocation(`/test/${test.id}`)}
-                      >
-                        <PlayCircle className="mr-2 h-4 w-4" /> Start Test
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                );
-              })}
-                {/* Intersection Observer Target */}
-                {hasMoreShorthand && (
-                  <div ref={shorthandObserverRef} className="col-span-full flex justify-center py-4">
-                    {isLoadingMore && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Loading more tests...</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center p-16 text-center border-2 border-dashed border-orange-200 rounded-xl bg-orange-50/50">
-                <div className="bg-orange-100 rounded-full p-4 mb-4">
-                  <Mic className="h-8 w-8 text-orange-400" />
+            <div>
+              {!selectedShorthandLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => setSelectedShorthandLanguage(lang)}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-orange-500 fill-orange-100" />
+                      <span className="font-medium text-center capitalize">{lang}</span>
+                    </div>
+                  ))}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-700">No shorthand tests available</h3>
-                <p className="text-sm text-muted-foreground mt-1">Check back later for new tests</p>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedShorthandLanguage(null)}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedShorthandLanguage} Shorthand Tests</h4>
+                  </div>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {((shorthandQuery.data?.pages ?? []) as any[])
+                      .flat()
+                      .filter((t: any) => ((t.language || 'english').toString().toLowerCase()) === (selectedShorthandLanguage || 'english'))
+                      .filter((t: any) => t.title.toLowerCase().includes(shorthandSearch.toLowerCase()))
+                      .map((test: any) => {
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
+
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
+                              </div>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="flex items-center gap-4 text-sm mb-3">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="font-medium text-foreground">{test.duration} min</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Mic className="h-4 w-4" />
+                                  <span>Shorthand</span>
+                                </div>
+                              </div>
+                              <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
+                                Listen to Audio, Write on Paper, Type Here
+                              </p>
+                            </CardContent>
+                            <CardFooter className="pt-4 border-t bg-slate-50">
+                              <Button
+                                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 shadow-md group-hover:shadow-lg transition-shadow"
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                              >
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
+                  </div>
+                  {shorthandQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button onClick={() => shorthandQuery.fetchNextPage()} disabled={shorthandQuery.isFetchingNextPage}>
+                        {shorthandQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </TabsContent>
 
@@ -630,7 +657,7 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-lg">My Results</h3>
-                <p className="text-sm text-muted-foreground">{results.length} total results</p>
+                <p className="text-sm text-muted-foreground">{(typingResultsCount + shorthandResultsCount)} total results</p>
               </div>
             </div>
           </div>
@@ -668,7 +695,7 @@ export default function StudentDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-100">Total Results</p>
-                    <p className="text-2xl font-bold mt-1">{results.length}</p>
+                    <p className="text-2xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount)}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
                     <Award className="h-5 w-5" />
@@ -692,22 +719,15 @@ export default function StudentDashboard() {
                   </TabsList>
                 </div>
 
-                {["typing", "shorthand"].map((type) => (
+                {["typing", "shorthand"].map((type) => {
+                  const resultsQuery = type === 'typing' ? typingResultsQuery : shorthandResultsQuery;
+                  const pages = resultsQuery.data?.pages ?? [];
+                  const flatResults = pages.flat();
+
+                  return (
                   <TabsContent key={type} value={`${type}_results`} className="p-6">
                     <div className="space-y-3">
-                      {results
-                        .filter(
-                          (r) =>
-                            (r.studentId?.toString() === currentUser?.studentId?.toString() ||
-                              r.studentId === currentUser?.id) &&
-                            r.contentType === type,
-                        )
-                        .sort(
-                          (a, b) =>
-                            new Date(b.submittedAt).getTime() -
-                            new Date(a.submittedAt).getTime(),
-                        )
-                        .map((result) => (
+                      {flatResults.length > 0 ? flatResults.map((result: any) => (
                           <div
                             key={result.id}
                             className="p-4 rounded-xl border bg-white hover:shadow-md transition-shadow flex items-center justify-between"
@@ -733,9 +753,8 @@ export default function StudentDashboard() {
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-3">
-                                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                                    result.result === "Pass" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
-                                  }`}>
+                                  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${result.result === "Pass" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                                    }`}>
                                     {result.result}
                                   </span>
                                   <span className="text-sm text-muted-foreground">
@@ -752,143 +771,145 @@ export default function StudentDashboard() {
                                   <Download className="h-4 w-4 mr-1" /> PDF
                                 </Button>
 
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-1" /> View
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-                                <DialogHeader>
-                                  <DialogTitle>Result Analysis</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                      <span className="font-semibold">
-                                        Test:
-                                      </span>{" "}
-                                      {result.contentTitle}
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Date:
-                                      </span>{" "}
-                                      {format(
-                                        new Date(result.submittedAt),
-                                        "PPP",
-                                      )}
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Duration:
-                                      </span>{" "}
-                                      {result.time} minutes
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Mistakes:
-                                      </span>{" "}
-                                      <span className="text-red-600 font-bold">
-                                        {result.mistakes}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold">
-                                        Total Original Words:
-                                      </span>{" "}
-                                      <span>
-                                        {
-                                          (result.originalText || "")
-                                            .trim()
-                                            .split(/\s+/).length
-                                        }
-                                      </span>
-                                    </div>
-                                    <div>
-                                      {result.contentType === "typing" ? (
-                                        <span>
-                                          <span className="font-semibold">
-                                            Gross Speed:
-                                          </span>{" "}
-                                          {result.grossSpeed} WPM
-                                        </span>
-                                      ) : (
-                                        <span>
-                                          <span className="font-semibold">
-                                            Result:
-                                          </span>{" "}
-                                          <span
-                                            className={
-                                              result.result === "Pass"
-                                                ? "text-green-600 font-bold"
-                                                : "text-red-600 font-bold"
-                                            }
-                                          >
-                                            {" "}
-                                            {result.result}
-                                          </span>{" "}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="border rounded p-4 bg-muted/30">
-                                    <h4 className="font-semibold mb-2">
-                                      Your Input
-                                    </h4>
-                                    <ResultTextAnalysis
-                                      originalText={result.originalText || ""}
-                                      typedText={result.typedText}
-                                      language={(result.language as 'english' | 'hindi') || undefined}
-                                    />
-                                  </div>
-
-                                  <div className="border rounded p-4 bg-muted/30">
-                                    <h4 className="font-semibold mb-2">
-                                      Original Text
-                                    </h4>
-                                    <p className="text-sm whitespace-pre-wrap">
-                                      {result.originalText}
-                                    </p>
-                                  </div>
-
-                                  <div className="flex justify-end pt-4">
-                                    <Button
-                                      onClick={() =>
-                                        handleDownloadResult(result)
-                                      }
-                                    >
-                                      <Download className="mr-2 h-4 w-4" />{" "}
-                                      Download PDF Report
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                      <Eye className="h-4 w-4 mr-1" /> View
                                     </Button>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                    <DialogHeader>
+                                      <DialogTitle>Result Analysis</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                          <span className="font-semibold">
+                                            Test:
+                                          </span>{" "}
+                                          {result.contentTitle}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Date:
+                                          </span>{" "}
+                                          {format(
+                                            new Date(result.submittedAt),
+                                            "PPP",
+                                          )}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Duration:
+                                          </span>{" "}
+                                          {result.time} minutes
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Mistakes:
+                                          </span>{" "}
+                                          <span className="text-red-600 font-bold">
+                                            {result.mistakes}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold">
+                                            Total Original Words:
+                                          </span>{" "}
+                                          <span>
+                                            {
+                                              (result.originalText || "")
+                                                .trim()
+                                                .split(/\s+/).length
+                                            }
+                                          </span>
+                                        </div>
+                                        <div>
+                                          {result.contentType === "typing" ? (
+                                            <span>
+                                              <span className="font-semibold">
+                                                Gross Speed:
+                                              </span>{" "}
+                                              {result.grossSpeed} WPM
+                                            </span>
+                                          ) : (
+                                            <span>
+                                              <span className="font-semibold">
+                                                Result:
+                                              </span>{" "}
+                                              <span
+                                                className={
+                                                  result.result === "Pass"
+                                                    ? "text-green-600 font-bold"
+                                                    : "text-red-600 font-bold"
+                                                }
+                                              >
+                                                {" "}
+                                                {result.result}
+                                              </span>{" "}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="border rounded p-4 bg-muted/30">
+                                        <h4 className="font-semibold mb-2">
+                                          Your Input
+                                        </h4>
+                                        <ResultTextAnalysis
+                                          originalText={result.originalText || ""}
+                                          typedText={result.typedText}
+                                          language={(result.language as 'english' | 'hindi') || undefined}
+                                        />
+                                      </div>
+
+                                      <div className="border rounded p-4 bg-muted/30">
+                                        <h4 className="font-semibold mb-2">
+                                          Original Text
+                                        </h4>
+                                        <p className="text-sm whitespace-pre-wrap">
+                                          {result.originalText}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex justify-end pt-4">
+                                        <Button
+                                          onClick={() =>
+                                            handleDownloadResult(result)
+                                          }
+                                        >
+                                          <Download className="mr-2 h-4 w-4" />{" "}
+                                          Download PDF Report
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
                               </div>
                             </div>
                           </div>
-                        ))}
-                      {results.filter(
-                        (r) =>
-                          (r.studentId?.toString() === currentUser?.studentId?.toString() ||
-                            r.studentId === currentUser?.id) &&
-                          r.contentType === type,
-                      ).length === 0 && (
-                        <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${
-                          type === 'typing' ? 'border-blue-200 bg-blue-50/50' : 'border-orange-200 bg-orange-50/50'
-                        }`}>
-                          <div className={`p-3 rounded-full mb-3 ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                            {type === 'typing' ? <Keyboard className="h-6 w-6 text-blue-400" /> : <Mic className="h-6 w-6 text-orange-400" />}
+                        )
+                      ) : (
+                          <div className={`flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-xl ${type === 'typing' ? 'border-blue-200 bg-blue-50/50' : 'border-orange-200 bg-orange-50/50'}`}>
+                            <div className={`p-3 rounded-full mb-3 ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
+                              {type === 'typing' ? <Keyboard className="h-6 w-6 text-blue-400" /> : <Mic className="h-6 w-6 text-orange-400" />}
+                            </div>
+                            <p className="text-gray-600 font-medium">No {type} results yet</p>
+                            <p className="text-sm text-muted-foreground mt-1">Complete a test to see your results here</p>
                           </div>
-                          <p className="text-gray-600 font-medium">No {type} results yet</p>
-                          <p className="text-sm text-muted-foreground mt-1">Complete a test to see your results here</p>
+                        )}
+                      {/* Load more button */}
+                      {resultsQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button onClick={() => resultsQuery.fetchNextPage()} disabled={resultsQuery.isFetchingNextPage}>
+                            {resultsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                          </Button>
                         </div>
                       )}
                     </div>
                   </TabsContent>
-                ))}
+                  );
+                })}
               </Tabs>
             </CardContent>
           </Card>
@@ -944,63 +965,72 @@ export default function StudentDashboard() {
               ) : (
                 // PDF List View
                 <div className="space-y-4">
-                  {pdfResources
-                    .filter((p) => p.folderId?.toString() === currentFolder)
-                    .map((pdf) => {
-                      const isPurchased = currentUser?.purchasedPdfs?.includes(
-                        pdf.id.toString(),
-                      );
+                  {resourcesLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                      <span className="ml-3 text-muted-foreground">Loading PDFs...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {pdfResources
+                        .filter((p) => p.folderId?.toString() === currentFolder)
+                        .map((pdf) => {
+                          const isPurchased = currentUser?.purchasedPdfs?.includes(
+                            pdf.id.toString(),
+                          );
 
-                      return (
-                        <div
-                          key={pdf.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-red-500" />
-                            <div>
-                              <h4 className="font-medium">{pdf.name}</h4>
-                              <p className="text-xs text-muted-foreground">
-                                {pdf.pageCount} Pages
-                              </p>
-                            </div>
-                          </div>
+                          return (
+                            <div
+                              key={pdf.id}
+                              className="flex items-center justify-between p-4 border rounded-lg"
+                            >
+                              <div className="flex items-center gap-3">
+                                <FileText className="h-8 w-8 text-red-500" />
+                                <div>
+                                  <h4 className="font-medium">{pdf.name}</h4>
+                                  <p className="text-xs text-muted-foreground">
+                                    {pdf.pageCount} Pages
+                                  </p>
+                                </div>
+                              </div>
 
-                          <div>
-                            {isPurchased ? (
-                              <Button
-                                variant="outline"
-                                className="text-green-600 border-green-200 bg-green-50"
-                                onClick={() =>
-                                  handleDownloadPdf(pdf.id.toString(), pdf.url)
-                                }
-                              >
-                                <Download className="mr-2 h-4 w-4" /> Download
-                              </Button>
-                            ) : (
-                              <Button
-                                onClick={() =>
-                                  initiateBuyPdf(pdf.id.toString(), parseInt(pdf.price))
-                                }
-                                disabled={processingPdf === pdf.id.toString()}
-                              >
-                                {processingPdf === pdf.id.toString() ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <div>
+                                {isPurchased ? (
+                                  <Button
+                                    variant="outline"
+                                    className="text-green-600 border-green-200 bg-green-50"
+                                    onClick={() =>
+                                      handleDownloadPdf(pdf.id.toString(), pdf.url)
+                                    }
+                                  >
+                                    <Download className="mr-2 h-4 w-4" /> Download
+                                  </Button>
                                 ) : (
-                                  <ShoppingCart className="mr-2 h-4 w-4" />
+                                  <Button
+                                    onClick={() =>
+                                      initiateBuyPdf(pdf.id.toString(), parseInt(pdf.price))
+                                    }
+                                    disabled={processingPdf === pdf.id.toString()}
+                                  >
+                                    {processingPdf === pdf.id.toString() ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <ShoppingCart className="mr-2 h-4 w-4" />
+                                    )}
+                                    Buy for ₹{pdf.price}
+                                  </Button>
                                 )}
-                                Buy for ₹{pdf.price}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
-                    .length === 0 && (
-                    <p className="text-center text-muted-foreground">
-                      No PDFs in this folder.
-                    </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
+                        .length === 0 && (
+                          <p className="text-center text-muted-foreground">
+                            No PDFs in this folder.
+                          </p>
+                        )}
+                    </>
                   )}
                 </div>
               )}

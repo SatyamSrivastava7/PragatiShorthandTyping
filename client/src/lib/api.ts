@@ -1,4 +1,4 @@
-import type { User, Content, Result, PdfFolder, PdfResource } from '@shared/schema';
+import type { User, Content, Result, PdfFolder, PdfResource, Notice, InsertNotice } from '@shared/schema';
 
 const API_URL = '';
 
@@ -117,13 +117,27 @@ export const contentApi = {
   getEnabled: () =>
     fetchApi<Content[]>('/api/content/enabled'),
 
-  // Lightweight endpoint - excludes text and mediaUrl fields for faster loading (all content)
+  // Lightweight endpoint - excludes text and audioUrl fields for faster loading (all content)
   getAllList: () =>
-    fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>('/api/content/list'),
+    fetchApi<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>('/api/content/list'),
 
-  // Lightweight endpoint - excludes text and mediaUrl fields for faster loading (enabled only)
-  getEnabledList: () =>
-    fetchApi<Omit<Content, 'text' | 'mediaUrl'>[]>('/api/content/enabled/list'),
+  // Lightweight endpoint - excludes text and audioUrl fields for faster loading (enabled only)
+  // Optional params: { type, language, limit, offset }
+  getEnabledList: (params?: { type?: string; language?: string; limit?: number; offset?: number }) => {
+    const qs = params
+      ? '?' + new URLSearchParams(Object.entries(params).reduce<Record<string,string>>((acc, [k, v]) => {
+          if (v !== undefined && v !== null) acc[k] = String(v);
+          return acc;
+        }, {})).toString()
+      : '';
+    return fetchApi<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(`/api/content/enabled/list${qs}`);
+  },
+
+  // Get counts grouped by type. Optional params: { enabled }
+  getCounts: (params?: { enabled?: boolean }) => {
+    const qs = params && params.enabled !== undefined ? `?enabled=${params.enabled}` : '';
+    return fetchApi<Record<string, number>>(`/api/content/counts${qs}`);
+  },
 
   getById: (id: number) =>
     fetchApi<Content>(`/api/content/${id}`),
@@ -135,7 +149,8 @@ export const contentApi = {
     duration: number;
     dateFor: string;
     language?: 'english' | 'hindi';
-    mediaUrl?: string;
+    audio80wpm?: string;
+    audio100wpm?: string;
   }) =>
     fetchApi<Content>('/api/content', {
       method: 'POST',
@@ -164,12 +179,30 @@ export const resultsApi = {
   getByStudent: (studentId: number) =>
     fetchApi<Result[]>(`/api/results/student/${studentId}`),
 
+  // Paged results: optional params { studentId, type, limit, offset }
+  getPaged: (params?: { studentId?: number; type?: string; limit?: number; offset?: number }) => {
+    const qs = params
+      ? '?' + new URLSearchParams(Object.entries(params).reduce<Record<string,string>>((acc, [k, v]) => {
+          if (v !== undefined && v !== null) acc[k] = String(v);
+          return acc;
+        }, {})).toString()
+      : '';
+    return fetchApi<Result[]>(`/api/results${qs}`);
+  },
+
+  // Lightweight counts grouped by content type. Optional params: { studentId }
+  getCounts: (params?: { studentId?: number }) => {
+    const qs = params && params.studentId !== undefined ? `?studentId=${params.studentId}` : '';
+    return fetchApi<Record<string, number>>(`/api/results/counts${qs}`);
+  },
+
   create: (data: {
     contentId: number;
     typedText: string;
     words: number;
     time: number;
     mistakes: string;
+    halfMistakes?: string;
     backspaces: number;
     grossSpeed?: string;
     netSpeed?: string;
@@ -234,7 +267,12 @@ export const pdfApi = {
 
 export const galleryApi = {
   getImages: () =>
-    fetchApi<{ url: string }[]>('/api/gallery'),
+    fetchApi<{ url: string; id: number; createdAt: string }[]>('/api/gallery'),
+
+  getImagesPaged: (limit: number = 18, offset: number = 0) => {
+    const qs = `?limit=${limit}&offset=${offset}`;
+    return fetchApi<{ url: string; id: number; createdAt: string }[]>(`/api/gallery${qs}`);
+  },
 
   addImage: (url: string) =>
     fetchApi<{ url: string }>('/api/gallery', {
@@ -252,6 +290,11 @@ export const galleryApi = {
 export const selectedCandidatesApi = {
   getAll: () =>
     fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }[]>('/api/selected-candidates'),
+
+  getPaged: (limit: number = 10, offset: number = 0) => {
+    const qs = `?limit=${limit}&offset=${offset}`;
+    return fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }[]>(`/api/selected-candidates${qs}`);
+  },
 
   create: (data: { name: string; designation: string; year: string; imageUrl: string }) =>
     fetchApi<{ id: number; name: string; designation: string; year: string; imageUrl: string }>('/api/selected-candidates', {
@@ -300,36 +343,30 @@ export const settingsApi = {
     }),
 };
 
-export interface Dictation {
-  id: number;
-  title: string;
-  mediaUrl: string;
-  language: string;
-  isEnabled: boolean;
-  createdAt: Date;
-}
+export const noticesApi = {
+  getPublic: () =>
+    fetchApi<Notice[]>('/api/notices'),
 
-export const dictationsApi = {
   getAll: () =>
-    fetchApi<Dictation[]>('/api/dictations'),
+    fetchApi<Notice[]>('/api/notices/all'),
 
-  create: (data: {
-    title: string;
-    mediaUrl: string;
-    language?: 'english' | 'hindi';
-  }) =>
-    fetchApi<Dictation>('/api/dictations', {
+  create: (data: InsertNotice) =>
+    fetchApi<Notice>('/api/notices', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  toggle: (id: number) =>
-    fetchApi<Dictation>(`/api/dictations/${id}/toggle`, {
-      method: 'POST',
+  createWithFile: (formData: FormData) =>
+    fetchApiFormData<Notice>('/api/notices', formData),
+
+  update: (id: number, data: Partial<InsertNotice> & { isActive?: boolean }) =>
+    fetchApi<Notice>(`/api/notices/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     }),
 
   delete: (id: number) =>
-    fetchApi<void>(`/api/dictations/${id}`, {
+    fetchApi<void>(`/api/notices/${id}`, {
       method: 'DELETE',
     }),
 };

@@ -2,19 +2,31 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { pdfApi } from '../api';
 import type { PdfFolder, PdfResource } from '@shared/schema';
 
-export function usePdf() {
+export function usePdf(enabled: boolean = true, selectedFolderId?: string | null) {
   const queryClient = useQueryClient();
 
+  // Only fetch folders when tab is enabled (lazy loading)
   const { data: folders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ['pdf', 'folders'],
     queryFn: pdfApi.getFolders,
-    staleTime: 30000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: 1,
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: enabled, // Only fetch when tab is active
   });
 
+  // Only fetch resources when a folder is selected (lazy loading)
   const { data: resources = [], isLoading: resourcesLoading } = useQuery({
     queryKey: ['pdf', 'resources'],
     queryFn: pdfApi.getResources,
-    staleTime: 30000,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    retry: 1,
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: enabled && !!selectedFolderId, // Only fetch when tab is active AND folder is selected
   });
 
   const createFolderMutation = useMutation({
@@ -87,7 +99,7 @@ export function usePdf() {
         name: data.name,
         url: data.url,
         pageCount: data.pageCount,
-        price: data.price,
+        price: data.price.toString(),
         folderId: data.folderId,
         createdAt: new Date(),
       };
@@ -148,6 +160,7 @@ export function usePdf() {
     folders,
     resources,
     isLoading: foldersLoading || resourcesLoading,
+    resourcesLoading,
     createFolder: createFolderMutation.mutateAsync,
     deleteFolder: deleteFolderMutation.mutateAsync,
     createResource: createResourceMutation.mutateAsync,

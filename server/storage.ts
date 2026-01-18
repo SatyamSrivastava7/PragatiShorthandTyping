@@ -4,10 +4,11 @@ import {
   results, 
   pdfFolders, 
   pdfResources, 
-  dictations, 
+  
   selectedCandidates, 
   galleryImages,
   settings,
+  notices,
   type User, 
   type InsertUser,
   type Content,
@@ -18,17 +19,18 @@ import {
   type InsertPdfFolder,
   type PdfResource,
   type InsertPdfResource,
-  type Dictation,
-  type InsertDictation,
+  
   type SelectedCandidate,
   type InsertSelectedCandidate,
   type GalleryImage,
   type InsertGalleryImage,
   type Setting,
   type InsertSetting,
+  type Notice,
+  type InsertNotice,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -38,12 +40,14 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined>;
   getAllUsers(role?: string): Promise<User[]>;
+  getNextStudentId(year: string): Promise<string>;
   deleteUser(id: number): Promise<boolean>;
   
   // Content methods
   getContent(id: number): Promise<Content | undefined>;
   getAllContent(type?: string): Promise<Content[]>;
   getEnabledContent(): Promise<Content[]>;
+  getContentCounts(enabled?: boolean): Promise<Record<string, number>>;
   getContentByDate(dateFor: string, type?: string): Promise<Content[]>;
   createContent(content: InsertContent): Promise<Content>;
   updateContent(id: number, updates: Partial<InsertContent>): Promise<Content | undefined>;
@@ -53,7 +57,7 @@ export interface IStorage {
   
   // Results methods
   getResult(id: number): Promise<Result | undefined>;
-  getResultsByStudent(studentId: number): Promise<Result[]>;
+  getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]>;
   getResultsByContent(contentId: number): Promise<Result[]>;
   getAllResults(): Promise<Result[]>;
   createResult(result: InsertResult): Promise<Result>;
@@ -73,13 +77,9 @@ export interface IStorage {
   updatePdfResource(id: number, updates: Partial<InsertPdfResource>): Promise<PdfResource | undefined>;
   deletePdfResource(id: number): Promise<boolean>;
   
-  // Dictation methods
-  getAllDictations(): Promise<Dictation[]>;
-  getDictation(id: number): Promise<Dictation | undefined>;
-  createDictation(dictation: InsertDictation): Promise<Dictation>;
-  updateDictation(id: number, updates: Partial<InsertDictation>): Promise<Dictation | undefined>;
-  deleteDictation(id: number): Promise<boolean>;
-  toggleDictation(id: number): Promise<Dictation | undefined>;
+  // Results paging + counts
+  getResultsPaged(type?: string, studentId?: number, limit?: number, offset?: number): Promise<Result[]>;
+  getResultCounts(studentId?: number): Promise<Record<string, number>>;
   
   // Selected Candidates methods
   getAllSelectedCandidates(): Promise<SelectedCandidate[]>;
@@ -89,6 +89,7 @@ export interface IStorage {
   
   // Gallery methods
   getAllGalleryImages(): Promise<GalleryImage[]>;
+  getGalleryImagesPaged(limit: number, offset: number): Promise<GalleryImage[]>;
   getGalleryImage(id: number): Promise<GalleryImage | undefined>;
   createGalleryImage(image: InsertGalleryImage): Promise<GalleryImage>;
   deleteGalleryImage(id: number): Promise<boolean>;
@@ -97,6 +98,14 @@ export interface IStorage {
   getSetting(key: string): Promise<Setting | undefined>;
   getAllSettings(): Promise<Setting[]>;
   upsertSetting(setting: InsertSetting): Promise<Setting>;
+  
+  // Notices methods
+  createNotice(notice: InsertNotice): Promise<Notice>;
+  getNotice(id: number): Promise<Notice | undefined>;
+  getActiveNotices(): Promise<Notice[]>;
+  getAllNotices(): Promise<Notice[]>;
+  updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined>;
+  deleteNotice(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -134,6 +143,30 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users);
   }
 
+  async getNextStudentId(year: string): Promise<string> {
+    // Efficiently fetch only student IDs for the current year (instead of all users)
+    const prefix = `PIPS${year}`;
+    const likePattern = `${prefix}%`;
+    
+    const result = await db
+      .select({ studentId: users.studentId })
+      .from(users)
+      .where(sql`${users.studentId} LIKE ${likePattern}`)
+      .orderBy(desc(users.studentId))
+      .limit(1);
+    
+    let maxNum = 0;
+    if (result.length > 0 && result[0].studentId) {
+      const numStr = result[0].studentId.slice(prefix.length);
+      const num = parseInt(numStr, 10);
+      if (!isNaN(num)) {
+        maxNum = num;
+      }
+    }
+    
+    return `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+  }
+
   async deleteUser(id: number): Promise<boolean> {
     // First delete all results associated with this user
     await db.delete(results).where(eq(results.studentId, id));
@@ -155,7 +188,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(content).orderBy(desc(content.createdAt));
   }
 
-  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
+  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
     const columns = {
       id: content.id,
       title: content.title,
@@ -164,7 +197,6 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      // Exclude mediaUrl to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     };
@@ -174,7 +206,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select(columns).from(content).orderBy(desc(content.createdAt));
   }
 
-  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl'>[]> {
+  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
     return await db.select({
       id: content.id,
       title: content.title,
@@ -183,14 +215,118 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      // Exclude mediaUrl to avoid loading large audio files
       language: content.language,
       createdAt: content.createdAt,
     }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
   }
 
+  async getEnabledContentListPaged(type?: string, language?: string, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
+    const columns = {
+      id: content.id,
+      title: content.title,
+      type: content.type,
+      duration: content.duration,
+      dateFor: content.dateFor,
+      isEnabled: content.isEnabled,
+      autoScroll: content.autoScroll,
+      audio80wpm: content.audio80wpm,
+      audio100wpm: content.audio100wpm,
+      language: content.language,
+      createdAt: content.createdAt,
+    };
+
+    // Build conditions array and apply as a single where clause to satisfy Drizzle's types
+    const conditions = [eq(content.isEnabled, true)];
+    if (type) conditions.push(eq(content.type, type));
+    if (language) conditions.push(eq(content.language, language));
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+    // Build base query
+    let q: any = db.select(columns).from(content).where(whereClause).orderBy(desc(content.createdAt));
+
+    // Only apply limit/offset when they are finite numbers
+    if (Number.isFinite(limit as number)) {
+      q = q.limit(Number(limit));
+    }
+    if (Number.isFinite(offset as number)) {
+      q = q.offset(Number(offset));
+    }
+
+    return await q;
+  }
+
   async getEnabledContent(): Promise<Content[]> {
     return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
+  }
+
+  async getResultsPaged(type?: string, studentId?: number, limit?: number, offset?: number): Promise<Result[]> {
+    const conditions: any[] = [];
+    
+    // Ensure type is properly trimmed and normalized
+    if (type && typeof type === 'string') {
+      const normalizedType = type.trim().toLowerCase();
+      conditions.push(eq(results.contentType, normalizedType));
+    }
+    
+    if (typeof studentId === 'number') {
+      conditions.push(eq(results.studentId, studentId));
+    }
+
+    let q: any = db.select().from(results);
+    
+    // Apply WHERE clause if conditions exist
+    if (conditions.length > 0) {
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+      q = q.where(whereClause);
+    }
+    
+    // Apply ORDER BY
+    q = q.orderBy(desc(results.submittedAt));
+    
+    // Apply LIMIT and OFFSET
+    if (Number.isFinite(limit as number)) {
+      q = q.limit(Number(limit));
+    }
+    if (Number.isFinite(offset as number)) {
+      q = q.offset(Number(offset));
+    }
+
+    return await q;
+  }
+
+  async getResultCounts(studentId?: number): Promise<Record<string, number>> {
+    const types = ['typing', 'shorthand'];
+    const resultObj: Record<string, number> = {};
+
+    for (const t of types) {
+      const conditions: any[] = [eq(results.contentType, t)];
+      if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(results).where(whereClause);
+      const [row] = await q;
+      resultObj[t] = Number(row?.cnt ?? 0);
+    }
+
+    return resultObj;
+  }
+
+  async getContentCounts(enabled?: boolean): Promise<Record<string, number>> {
+    const types = ['typing', 'shorthand'];
+    const result: Record<string, number> = {};
+
+    for (const t of types) {
+      const conditions: any[] = [eq(content.type, t)];
+      if (typeof enabled === 'boolean') conditions.push(eq(content.isEnabled, !!enabled));
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(content).where(whereClause);
+      const [row] = await q;
+      result[t] = Number(row?.cnt ?? 0);
+    }
+
+    return result;
   }
 
   async getContentByDate(dateFor: string, type?: string): Promise<Content[]> {
@@ -228,7 +364,7 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
-  // Lightweight toggle - only returns id and isEnabled (no text/mediaUrl)
+  // Lightweight toggle - only returns id and isEnabled (no text/audio fields)
   async toggleContentLightweight(id: number): Promise<{ id: number; isEnabled: boolean } | undefined> {
     const [item] = await db.select({ id: content.id, isEnabled: content.isEnabled })
       .from(content)
@@ -248,7 +384,10 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async getResultsByStudent(studentId: number): Promise<Result[]> {
+  async getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]> {
+    if (contentType) {
+      return await db.select().from(results).where(and(eq(results.studentId, studentId), eq(results.contentType, contentType))).orderBy(desc(results.submittedAt));
+    }
     return await db.select().from(results).where(eq(results.studentId, studentId)).orderBy(desc(results.submittedAt));
   }
 
@@ -322,41 +461,7 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  // Dictation methods
-  async getAllDictations(): Promise<Dictation[]> {
-    return await db.select().from(dictations).orderBy(desc(dictations.createdAt));
-  }
-
-  async getDictation(id: number): Promise<Dictation | undefined> {
-    const [dictation] = await db.select().from(dictations).where(eq(dictations.id, id));
-    return dictation || undefined;
-  }
-
-  async createDictation(insertDictation: InsertDictation): Promise<Dictation> {
-    const [dictation] = await db.insert(dictations).values(insertDictation).returning();
-    return dictation;
-  }
-
-  async updateDictation(id: number, updates: Partial<InsertDictation>): Promise<Dictation | undefined> {
-    const [dictation] = await db.update(dictations).set(updates).where(eq(dictations.id, id)).returning();
-    return dictation || undefined;
-  }
-
-  async deleteDictation(id: number): Promise<boolean> {
-    const result = await db.delete(dictations).where(eq(dictations.id, id));
-    return result.rowCount ? result.rowCount > 0 : false;
-  }
-
-  async toggleDictation(id: number): Promise<Dictation | undefined> {
-    const [item] = await db.select().from(dictations).where(eq(dictations.id, id));
-    if (!item) return undefined;
-    
-    const [updated] = await db.update(dictations)
-      .set({ isEnabled: !item.isEnabled })
-      .where(eq(dictations.id, id))
-      .returning();
-    return updated || undefined;
-  }
+  
 
   // Selected Candidates methods
   async getAllSelectedCandidates(): Promise<SelectedCandidate[]> {
@@ -381,6 +486,10 @@ export class DatabaseStorage implements IStorage {
   // Gallery methods
   async getAllGalleryImages(): Promise<GalleryImage[]> {
     return await db.select().from(galleryImages).orderBy(desc(galleryImages.createdAt));
+  }
+
+  async getGalleryImagesPaged(limit: number, offset: number): Promise<GalleryImage[]> {
+    return await db.select().from(galleryImages).orderBy(desc(galleryImages.createdAt)).limit(limit).offset(offset);
   }
 
   async getGalleryImage(id: number): Promise<GalleryImage | undefined> {
@@ -433,6 +542,38 @@ export class DatabaseStorage implements IStorage {
         throw error;
       }
     }
+  }
+
+  // Notices methods
+  async createNotice(notice: InsertNotice): Promise<Notice> {
+    const [created] = await db.insert(notices).values(notice).returning();
+    return created;
+  }
+
+  async getNotice(id: number): Promise<Notice | undefined> {
+    const [notice] = await db.select().from(notices).where(eq(notices.id, id));
+    return notice || undefined;
+  }
+
+  async getActiveNotices(): Promise<Notice[]> {
+    return await db.select().from(notices).where(eq(notices.isActive, true)).orderBy(desc(notices.createdAt));
+  }
+
+  async getAllNotices(): Promise<Notice[]> {
+    return await db.select().from(notices).orderBy(desc(notices.createdAt));
+  }
+
+  async updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined> {
+    const [updated] = await db.update(notices)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(notices.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteNotice(id: number): Promise<boolean> {
+    const result = await db.delete(notices).where(eq(notices.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 

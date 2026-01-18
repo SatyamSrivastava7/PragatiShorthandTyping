@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRoute, useLocation, Link } from "wouter";
-import { useAuth, useContentById, useResults, useSettings } from "@/lib/hooks";
+import { useRoute, Link } from "wouter";
+import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Timer, EyeOff, Save, CheckCircle, Music, ArrowLeft, Settings, Maximize, Minimize, Type, RefreshCw, Loader2 } from "lucide-react";
+import { Timer, Save, CheckCircle, Music, ArrowLeft, Maximize, Minimize, Type, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -18,14 +16,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
-  const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
   const { data: testContent, isLoading: isContentLoading } = useContentById(params?.id ? Number(params.id) : undefined);
-  const { createResult } = useResults();
-  const { settings } = useSettings();
+  const { createResult } = useResults(undefined, false); // Only use POST, disable GET query
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
@@ -39,6 +42,7 @@ export default function TypingTestPage() {
   const [submissionFailed, setSubmissionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [selectedAudioWpm, setSelectedAudioWpm] = useState<"80" | "100">("80"); // Default to 80 WPM
   
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -109,6 +113,7 @@ export default function TypingTestPage() {
     let result: 'Pass' | 'Fail';
     let grossSpeed: string | undefined;
     let netSpeed: string | undefined;
+    let halfMistakes: string | undefined;
 
     if (testContent.type === 'typing') {
       metrics = calculateTypingMetrics(testContent.text, typedText, testContent.duration, backspaces);
@@ -122,6 +127,7 @@ export default function TypingTestPage() {
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;
+      halfMistakes = String(metrics.halfMistakes);
     }
 
     try {
@@ -131,6 +137,7 @@ export default function TypingTestPage() {
         words: metrics.words,
         time: testContent.duration,
         mistakes: String(metrics.mistakes),
+        halfMistakes,
         backspaces: backspaces,
         grossSpeed: grossSpeed,
         netSpeed: netSpeed,
@@ -206,16 +213,36 @@ export default function TypingTestPage() {
   useEffect(() => {
     const autoScrollEnabled = testContent?.autoScroll ?? true;
     if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current) {
-      // Very basic sync: Scroll original text based on progress
-      const totalLength = testContent.text.length;
+      const container = originalTextRef.current;
+      const text = testContent.text;
       const currentLength = typedText.length;
-      const progress = currentLength / totalLength;
       
-      const scrollHeight = originalTextRef.current.scrollHeight;
-      const clientHeight = originalTextRef.current.clientHeight;
+      // Find the current line number by counting newlines up to cursor position
+      const linesBeforeCursor = text.substring(0, currentLength).split('\n').length - 1;
       
-      // Scroll proportional to progress
-      originalTextRef.current.scrollTop = (scrollHeight - clientHeight) * progress;
+      // Get all lines
+      const allLines = text.split('\n');
+      
+      // Calculate approximate line height from the container
+      const lineHeight = parseInt(window.getComputedStyle(container).lineHeight, 10);
+      const containerHeight = container.clientHeight;
+      
+      // We want the current line to appear around 40% down the visible area
+      // This ensures 2-3 previous lines remain visible above it
+      const targetScrollPosition = Math.max(
+        0,
+        (linesBeforeCursor * lineHeight) - (containerHeight * 0.35)
+      );
+      
+      // Smooth scroll with easing for a slower, more natural feel
+      const currentScroll = container.scrollTop;
+      const diff = targetScrollPosition - currentScroll;
+      
+      // Use a smooth transition: only move 30% of the distance per update
+      // This makes the scroll feel slower and more natural
+      const newScroll = currentScroll + diff * 0.3;
+      
+      container.scrollTop = newScroll;
     }
   }, [typedText, testContent]);
 
@@ -379,6 +406,22 @@ export default function TypingTestPage() {
      }
   };
 
+  // Get the audio URL based on selected WPM
+  const getSelectedAudioUrl = () => {
+    if (selectedAudioWpm === "80" && testContent?.audio80wpm) {
+      return testContent?.audio80wpm ?? testContent?.mediaUrl;
+    }
+    if (selectedAudioWpm === "100" && testContent?.audio100wpm) {
+      return testContent?.audio100wpm;
+    }
+    return null;
+  };
+
+  // Check if both audio options are available
+  const audio80Available = !!testContent?.audio80wpm || !!testContent?.mediaUrl;
+  const audio100Available = !!testContent?.audio100wpm;
+  const selectedAudioUrl = getSelectedAudioUrl();
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -458,9 +501,9 @@ export default function TypingTestPage() {
       <div className="flex-1 flex flex-col gap-6 min-h-0">
         
         {/* Shorthand Audio Player - Prominent at top */}
-        {testContent.type === 'shorthand' && testContent.mediaUrl && (
+        {testContent.type === 'shorthand' && (audio80Available || audio100Available) && (
            <Card className="bg-muted/30 border-2 border-orange-200 shrink-0">
-             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+             <CardContent className="p-4 flex flex-col gap-4">
                <div className="flex items-center gap-3">
                  <div className="p-3 bg-orange-100 rounded-full text-orange-600">
                    <Music size={24} />
@@ -470,13 +513,48 @@ export default function TypingTestPage() {
                    <p className="text-sm text-muted-foreground">Listen carefully, write on your shorthand pad, then type below.</p>
                  </div>
                </div>
-               <audio 
-                 id="shorthand-audio" 
-                 src={testContent.mediaUrl} 
-                 controls 
-                 className="w-full md:w-96"
-                 controlsList="nodownload" 
-               />
+
+               {/* Speed Selector for Multi-Audio */}
+               {(audio80Available || audio100Available) && (
+                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                   <div className="flex items-center gap-2">
+                     <label className="text-sm font-medium">Select Audio Speed:</label>
+                     <Select value={selectedAudioWpm} onValueChange={(val) => setSelectedAudioWpm(val as "80" | "100")}>
+                       <SelectTrigger className="w-32">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="80" disabled={!audio80Available}>
+                           80 WPM {!audio80Available && "(Not available)"}
+                         </SelectItem>
+                         <SelectItem value="100" disabled={!audio100Available}>
+                           100 WPM {!audio100Available && "(Not available)"}
+                         </SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+
+                   {/* Audio Not Found Message */}
+                   {!selectedAudioUrl && (
+                     <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
+                       <AlertCircle size={18} className="text-red-600" />
+                       <span className="text-sm text-red-700 font-medium">Audio file not found for {selectedAudioWpm} WPM</span>
+                     </div>
+                   )}
+                 </div>
+               )}
+
+               {/* Audio Player */}
+               {selectedAudioUrl ? (
+                 <audio 
+                   key={selectedAudioUrl}
+                   id="shorthand-audio" 
+                   src={selectedAudioUrl} 
+                   controls 
+                   className="w-full"
+                   controlsList="nodownload" 
+                 />
+               ) : null}
              </CardContent>
            </Card>
         )}

@@ -9,10 +9,10 @@ import {
   insertResultSchema,
   insertPdfFolderSchema,
   insertPdfResourceSchema,
-  insertDictationSchema,
   insertSelectedCandidateSchema,
   insertGalleryImageSchema,
   insertSettingSchema,
+  insertNoticeSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -68,21 +68,7 @@ export async function registerRoutes(
         try {
           // Generate student ID (PIPS + year + sequential number)
           const year = new Date().getFullYear().toString().slice(-2);
-          const allUsers = await storage.getAllUsers();
-          const prefix = `PIPS${year}`;
-          
-          // Find the highest existing student ID number for this year
-          let maxNum = 0;
-          for (const u of allUsers) {
-            if (u.studentId && u.studentId.startsWith(prefix)) {
-              const numStr = u.studentId.slice(prefix.length);
-              const num = parseInt(numStr, 10);
-              if (!isNaN(num) && num > maxNum) {
-                maxNum = num;
-              }
-            }
-          }
-          const studentId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+          const studentId = await storage.getNextStudentId(year);
           
           // Create user with isPaymentCompleted = false (requires admin approval)
           user = await storage.createUser({
@@ -321,6 +307,16 @@ export async function registerRoutes(
   // Get all users (admin only)
   app.get("/api/users", async (req, res) => {
     try {
+      // Check if user is authenticated and is an admin
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+      
       const role = req.query.role as string | undefined;
       const users = await storage.getAllUsers(role);
       
@@ -432,11 +428,37 @@ export async function registerRoutes(
   // Get enabled content list (lightweight - excludes text field)
   app.get("/api/content/enabled/list", async (req, res) => {
     try {
+      const type = req.query.type as string | undefined;
+      const language = req.query.language as string | undefined;
+      let limit = req.query.limit ? Number(req.query.limit as string) : undefined;
+      let offset = req.query.offset ? Number(req.query.offset as string) : undefined;
+      if (!Number.isFinite(limit as number)) limit = undefined;
+      if (!Number.isFinite(offset as number)) offset = undefined;
+
+      // If pagination or filters provided, use paged method
+      if (type || language || typeof limit === 'number' || typeof offset === 'number') {
+        const content = await storage.getEnabledContentListPaged(type, language, limit, offset);
+        return res.json(content);
+      }
+
       const content = await storage.getEnabledContentList();
       res.json(content);
     } catch (error) {
       console.error("Error fetching enabled content list:", error);
       res.status(500).json({ message: "Failed to get content", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Get content counts grouped by type (optionally only enabled)
+  app.get("/api/content/counts", async (req, res) => {
+    try {
+      const enabledParam = req.query.enabled as string | undefined;
+      const enabled = enabledParam === undefined ? undefined : (enabledParam === 'true');
+      const counts = await storage.getContentCounts(enabled as any);
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching content counts:", error);
+      res.status(500).json({ message: "Failed to get content counts", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -492,8 +514,7 @@ export async function registerRoutes(
     try {
       const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
       const formData: Record<string, string> = {};
-      let audioFileBuffer: Buffer | null = null;
-      let audioMimeType: string | null = null;
+      const audioFiles: Record<string, { buffer: Buffer; mimeType: string }> = {};
       let fileSize = 0;
 
       return new Promise<void>((resolve, reject) => {
@@ -504,12 +525,11 @@ export async function registerRoutes(
           }
         });
 
-        // Handle file field
+        // Handle file field - supports audioFile, audio80wpm, audio100wpm
         bb.on('file', (name: string, file: any, info: { filename: string; encoding: string; mimeType: string }) => {
           const { mimeType } = info;
           
-          if (name === 'audioFile') {
-            audioMimeType = mimeType || 'audio/mpeg';
+          if (name === 'audioFile' || name === 'audio80wpm' || name === 'audio100wpm') {
             const chunks: Buffer[] = [];
 
             file.on('data', (chunk: Buffer) => {
@@ -526,7 +546,10 @@ export async function registerRoutes(
             });
 
             file.on('end', () => {
-              audioFileBuffer = Buffer.concat(chunks);
+              audioFiles[name] = {
+                buffer: Buffer.concat(chunks),
+                mimeType: mimeType || 'audio/mpeg',
+              };
             });
 
             file.on('error', (err: Error) => {
@@ -546,11 +569,20 @@ export async function registerRoutes(
         // Handle form completion
         bb.on('finish', async () => {
           try {
-            // Convert audio file to base64 if present
-            let mediaUrl: string | null = null;
-            if (audioFileBuffer) {
-              const base64 = audioFileBuffer.toString('base64');
-              mediaUrl = `data:${audioMimeType || 'audio/mpeg'};base64,${base64}`;
+            // Convert audio files to base64 if present
+            let audio80wpm: string | null = null;
+            let audio100wpm: string | null = null;
+
+            if (audioFiles['audio80wpm']) {
+              const { buffer, mimeType } = audioFiles['audio80wpm'];
+              const base64 = buffer.toString('base64');
+              audio80wpm = `data:${mimeType};base64,${base64}`;
+            }
+
+            if (audioFiles['audio100wpm']) {
+              const { buffer, mimeType } = audioFiles['audio100wpm'];
+              const base64 = buffer.toString('base64');
+              audio100wpm = `data:${mimeType};base64,${base64}`;
             }
 
             const validatedData = insertContentSchema.parse({
@@ -560,7 +592,8 @@ export async function registerRoutes(
               duration: parseInt(formData.duration),
               dateFor: formData.dateFor,
               language: formData.language || 'english',
-              mediaUrl,
+              audio80wpm,
+              audio100wpm,
               autoScroll: formData.autoScroll === 'true',
             });
 
@@ -630,7 +663,7 @@ export async function registerRoutes(
     }
   });
   
-  // Toggle content (lightweight - only returns id and isEnabled, no text/mediaUrl)
+  // Toggle content (lightweight - only returns id and isEnabled, no text/audioUrl)
   // Supports both POST and PATCH
   app.post("/api/content/:id/toggle", async (req, res) => {
     try {
@@ -641,7 +674,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // Return only id and isEnabled (no large fields like text/audioUrl)
       // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {
@@ -659,7 +692,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // Return only id and isEnabled (no large fields like text/audioUrl)
       // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {
@@ -695,27 +728,53 @@ export async function registerRoutes(
     try {
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
       const contentId = req.query.contentId ? parseInt(req.query.contentId as string) : undefined;
-      
-      let results;
-      if (studentId) {
-        results = await storage.getResultsByStudent(studentId);
-      } else if (contentId) {
-        results = await storage.getResultsByContent(contentId);
-      } else {
-        results = await storage.getAllResults();
+      const type = req.query.type as string | undefined;
+      let limit = req.query.limit ? Number(req.query.limit as string) : undefined;
+      let offset = req.query.offset ? Number(req.query.offset as string) : undefined;
+      if (!Number.isFinite(limit as number)) limit = undefined;
+      if (!Number.isFinite(offset as number)) offset = undefined;
+
+      // If filters or pagination provided, use paged method
+      if (type || typeof limit === 'number' || typeof offset === 'number' || typeof studentId === 'number') {
+        const paged = await storage.getResultsPaged(type, studentId, limit, offset);
+        return res.json(paged);
       }
-      
-      res.json(results);
+
+      // Backwards-compatible behavior
+      if (studentId) {
+        const r = await storage.getResultsByStudent(studentId, type);
+        return res.json(r);
+      }
+      if (contentId) {
+        const r = await storage.getResultsByContent(contentId);
+        return res.json(r);
+      }
+
+      const all = await storage.getAllResults();
+      res.json(all);
     } catch (error) {
       res.status(500).json({ message: "Failed to get results" });
     }
   });
 
-  // Get results by student ID (URL pattern)
+  // Get results counts (grouped by content type) - optional studentId
+  app.get("/api/results/counts", async (req, res) => {
+    try {
+      const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
+      const counts = await storage.getResultCounts(studentId);
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching result counts:", error);
+      res.status(500).json({ message: "Failed to get result counts", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Get results by student ID (URL pattern) - supports ?type=typing or ?type=shorthand
   app.get("/api/results/student/:studentId", async (req, res) => {
     try {
       const studentId = parseInt(req.params.studentId);
-      const results = await storage.getResultsByStudent(studentId);
+      const contentType = req.query.type as string | undefined;
+      const results = await storage.getResultsByStudent(studentId, contentType);
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to get results" });
@@ -1043,74 +1102,7 @@ export async function registerRoutes(
     }
   });
   
-  // ==================== DICTATION ROUTES ====================
   
-  app.get("/api/dictations", async (req, res) => {
-    try {
-      const dictations = await storage.getAllDictations();
-      res.json(dictations);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get dictations" });
-    }
-  });
-  
-  app.post("/api/dictations", async (req, res) => {
-    try {
-      const validatedData = insertDictationSchema.parse(req.body);
-      const dictation = await storage.createDictation(validatedData);
-      res.status(201).json(dictation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).message });
-      }
-      res.status(500).json({ message: "Failed to create dictation" });
-    }
-  });
-  
-  app.patch("/api/dictations/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const dictation = await storage.updateDictation(id, req.body);
-      
-      if (!dictation) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json(dictation);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update dictation" });
-    }
-  });
-  
-  app.post("/api/dictations/:id/toggle", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const dictation = await storage.toggleDictation(id);
-      
-      if (!dictation) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json(dictation);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to toggle dictation" });
-    }
-  });
-  
-  app.delete("/api/dictations/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteDictation(id);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json({ message: "Dictation deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete dictation" });
-    }
-  });
   
   // ==================== SELECTED CANDIDATES ROUTES ====================
   
@@ -1155,7 +1147,10 @@ export async function registerRoutes(
   
   app.get("/api/gallery", async (req, res) => {
     try {
-      const images = await storage.getAllGalleryImages();
+      const limit = req.query.limit ? Number(req.query.limit as string) : 18;
+      const offset = req.query.offset ? Number(req.query.offset as string) : 0;
+      
+      const images = await storage.getGalleryImagesPaged(limit, offset);
       res.json(images);
     } catch (error) {
       res.status(500).json({ message: "Failed to get images" });
@@ -1166,7 +1161,7 @@ export async function registerRoutes(
     try {
       const validatedData = insertGalleryImageSchema.parse(req.body);
       const image = await storage.createGalleryImage(validatedData);
-      res.status(201).json(image);
+      res.status(201).json({ url: image.url });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
@@ -1288,6 +1283,207 @@ export async function registerRoutes(
       res.json(settingsObj);
     } catch (error) {
       res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // ==================== NOTICES ROUTES ====================
+
+  // Get all active notices (public endpoint)
+  app.get("/api/notices", async (req, res) => {
+    try {
+      const notices = await storage.getActiveNotices();
+      res.json(notices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notices" });
+    }
+  });
+
+  // Get all notices (admin only)
+  app.get("/api/notices/all", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const notices = await storage.getAllNotices();
+      res.json(notices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notices" });
+    }
+  });
+
+  // Create notice (admin only)
+  app.post("/api/notices", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Handle both JSON and multipart/form-data (for PDF uploads)
+      let noticeData: any = {};
+
+      if (req.is('multipart/form-data')) {
+        // Parse multipart data
+        const bb = busboy({ headers: req.headers });
+        const fields: Record<string, string> = {};
+        let pdfFile: Buffer | null = null;
+        let pdfMimeType: string | null = null;
+
+        await new Promise((resolve, reject) => {
+          bb.on('file', (fieldname, file, info) => {
+            if (fieldname === 'pdf') {
+              const chunks: Buffer[] = [];
+              file.on('data', (data) => chunks.push(data));
+              file.on('end', () => {
+                pdfFile = Buffer.concat(chunks);
+                pdfMimeType = info.mimeType;
+              });
+            }
+          });
+
+          bb.on('field', (fieldname, val) => {
+            fields[fieldname] = val;
+          });
+
+          bb.on('close', resolve);
+          bb.on('error', reject);
+        });
+
+        req.pipe(bb);
+
+        noticeData = {
+          heading: fields.heading,
+          content: fields.content,
+          pdfUrl: pdfFile ? `data:${pdfMimeType};base64,${(pdfFile as Buffer).toString('base64')}` : null,
+        };
+      } else {
+        // JSON request
+        noticeData = {
+          heading: req.body.heading,
+          content: req.body.content,
+          pdfUrl: req.body.pdfUrl || null,
+        };
+      }
+
+      const validatedData = insertNoticeSchema.parse(noticeData);
+      const notice = await storage.createNotice(validatedData);
+      res.json(notice);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Failed to create notice" });
+    }
+  });
+
+  // Update notice (admin only)
+  app.patch("/api/notices/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid notice ID" });
+      }
+
+      // Handle both JSON and multipart/form-data (for PDF uploads)
+      let updates: any = {};
+
+      if (req.is('multipart/form-data')) {
+        // Parse multipart data
+        const bb = busboy({ headers: req.headers });
+        const fields: Record<string, string> = {};
+        let pdfFile: Buffer | null = null;
+        let pdfMimeType: string | null = null;
+
+        await new Promise((resolve, reject) => {
+          bb.on('file', (fieldname, file, info) => {
+            if (fieldname === 'pdf') {
+              const chunks: Buffer[] = [];
+              file.on('data', (data) => chunks.push(data));
+              file.on('end', () => {
+                pdfFile = Buffer.concat(chunks);
+                pdfMimeType = info.mimeType;
+              });
+            }
+          });
+
+          bb.on('field', (fieldname, val) => {
+            fields[fieldname] = val;
+          });
+
+          bb.on('close', resolve);
+          bb.on('error', reject);
+        });
+
+        req.pipe(bb);
+
+        if (fields.heading) updates.heading = fields.heading;
+        if (fields.content) updates.content = fields.content;
+        if (pdfFile) {
+          updates.pdfUrl = `data:${pdfMimeType};base64,${(pdfFile as Buffer).toString('base64')}`;
+        }
+      } else {
+        // JSON request
+        if (req.body.heading) updates.heading = req.body.heading;
+        if (req.body.content) updates.content = req.body.content;
+        if ('isActive' in req.body) updates.isActive = req.body.isActive;
+        if (req.body.pdfUrl) updates.pdfUrl = req.body.pdfUrl;
+      }
+
+      const notice = await storage.updateNotice(id, updates);
+      if (!notice) {
+        return res.status(404).json({ message: "Notice not found" });
+      }
+
+      res.json(notice);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update notice" });
+    }
+  });
+
+  // Delete notice (admin only)
+  app.delete("/api/notices/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid notice ID" });
+      }
+
+      const deleted = await storage.deleteNotice(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Notice not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete notice" });
     }
   });
 
