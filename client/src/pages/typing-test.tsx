@@ -296,39 +296,40 @@ export default function TypingTestPage() {
     }
     
     // Typing test restrictions below
+    // Only allow: Shift, Enter, Space, and regular characters (letters, numbers, punctuation)
+    const allowedKeys = ['Shift', 'Enter', ' ', 'Tab', 'Backspace']; // Tab for consistency
+    const isRegularCharacter = e.key.length === 1; // Single character key (letters, numbers, punctuation)
+    
+    // Block all keys except the allowed ones and regular characters
+    if (!allowedKeys.includes(e.key) && !isRegularCharacter) {
+      e.preventDefault();
+      return;
+    }
+    
     const textarea = e.currentTarget;
     const cursorPos = textarea.selectionStart;
     const wordBoundary = getWordBoundary(typedText);
     const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
     
-    // Block Delete key when cursor is before word boundary
+    // Block any modifier combinations (Ctrl, Alt, Cmd) - even on allowed keys
+    if (hasModifier) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Block Delete key entirely
     if (e.key === 'Delete') {
-      if (cursorPos < wordBoundary) {
-        e.preventDefault();
-        return;
-      }
+      e.preventDefault();
+      return;
     }
     
     if (e.key === 'Backspace') {
-      // Block any modifier+backspace (Ctrl+Backspace deletes whole word)
-      if (hasModifier) {
-        e.preventDefault();
-        return;
-      }
-      
-      // Simple rule: can only backspace within current word (after the word boundary)
-      // Once you type a space/enter, the previous word is locked
+      // Can only backspace within current word (after the word boundary)
       if (cursorPos <= wordBoundary) {
         e.preventDefault();
         return;
       }
       setBackspaceCount(prev => prev + 1);
-    }
-    
-    // Block modifier+Delete (Ctrl+Delete deletes word forward)
-    if (e.key === 'Delete' && hasModifier) {
-      e.preventDefault();
-      return;
     }
     
     if (e.key === 'ArrowLeft') {
@@ -352,14 +353,8 @@ export default function TypingTestPage() {
       e.preventDefault();
     }
     
-    // Block Ctrl+A (select all) to prevent selecting previous words
-    if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      textarea.setSelectionRange(wordBoundary, typedText.length);
-    }
-    
-    // Block Ctrl+Z (undo) to prevent restoring previous state
-    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+    // Block Tab key - move to next element
+    if (e.key === 'Tab') {
       e.preventDefault();
     }
   };
