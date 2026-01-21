@@ -60,12 +60,13 @@ export const useCreateTestFolder = () => {
       const folderType = newFolder.type || "typing";
       const folderLanguage = newFolder.language || "english";
       
-      // Refetch the specific language+type cache immediately
+      // Refetch the specific language+type cache immediately (for both typing and shorthand)
       queryClient.refetchQueries({
         queryKey: ["testFolders", folderLanguage, folderType],
+        exact: true,
       });
       
-      // Also refetch all latest folders cache
+      // Also refetch all latest folders cache (matches all pagination queries)
       queryClient.refetchQueries({
         queryKey: ["testFolders", "latest"],
       });
@@ -87,12 +88,13 @@ export const useUpdateTestFolder = () => {
       const folderType = updatedFolder.type || "typing";
       const folderLanguage = updatedFolder.language || "english";
       
-      // Refetch the specific language+type cache immediately
+      // Refetch the specific language+type cache immediately (for both typing and shorthand)
       queryClient.refetchQueries({
         queryKey: ["testFolders", folderLanguage, folderType],
+        exact: true,
       });
       
-      // Also refetch all latest folders cache
+      // Also refetch all latest folders cache (matches all pagination queries)
       queryClient.refetchQueries({
         queryKey: ["testFolders", "latest"],
       });
