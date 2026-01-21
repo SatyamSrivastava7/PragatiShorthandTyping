@@ -201,29 +201,42 @@ export function calculateAlignedMistakes(
   // Use alignWords to get the correct alignment (same as what's displayed)
   const alignment = alignWords(originalText, typedText);
   
-  // Separate attempted portion (before trailing missing words)
-  const attemptedAlignment: AlignmentEntry[] = [];
-  let foundTrailingMissing = false;
-  
-  // Find where trailing missing words start
-  // Trailing missing = missing words that appear after all typed words have been processed
-  for (const item of alignment) {
-    if (item.status === "missing" && foundTrailingMissing) {
-      // Skip trailing missing words
-      continue;
-    }
-    if (item.status !== "missing" || item.typed !== "" || item.original !== "") {
-      // Non-missing or missing with typed content
-      attemptedAlignment.push(item);
-      if (item.typed === "" && item.original !== "" && item.status === "missing") {
-        // This could be start of trailing missing, check if all remaining are missing
-        const remainingItems = alignment.slice(alignment.indexOf(item) + 1);
-        if (remainingItems.every(i => i.status === "missing" && i.typed === "")) {
-          foundTrailingMissing = true;
-        }
-      }
+  // Find the last typed position in the original text
+  // This tells us where the student's attempt ends
+  let lastTypedIndex = -1;
+  for (let i = alignment.length - 1; i >= 0; i--) {
+    if (alignment[i].typed !== "") {
+      lastTypedIndex = i;
+      break;
     }
   }
+  
+  // If student didn't type anything, return empty attempted alignment
+  if (lastTypedIndex === -1) {
+    return { mistakes: 0, alignment, attemptedAlignment: [] };
+  }
+  
+  // Reconstruct the original and typed text up to the last typed position
+  // This ensures we use the same alignWords logic on just the attempted portion
+  let attemptedOriginal = "";
+  let attemptedTyped = "";
+  let originalCharIndex = 0;
+  
+  for (let i = 0; i <= lastTypedIndex; i++) {
+    const item = alignment[i];
+    attemptedTyped += item.typed;
+    attemptedOriginal += item.original;
+    
+    // Add space between words (except after the last word)
+    if (i < lastTypedIndex) {
+      attemptedTyped += " ";
+      attemptedOriginal += " ";
+    }
+  }
+  
+  // Re-run alignWords on just the attempted portions
+  // This ensures the same error pairing and representation as the full alignment
+  const attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
 
   let mistakes = 0;
   
@@ -302,14 +315,14 @@ export function calculateTypingMetrics(
     originalText,
     typedText,
   );
-  const typedWords = typedText
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w);
 
-  const totalWordsTyped = typedWords.length;
-  // Use words count, not length of array if empty
-  const wordCount = typedText.trim() === "" ? 0 : totalWordsTyped;
+  // Count words ONLY from the attempted portion (not trailing missed words or extra words)
+  const typedWordsInAttempted = attemptedAlignment.filter(
+    (a) => a.typed !== "" && a.status !== "missing"
+  ).length;
+
+  const totalWordsTyped = typedWordsInAttempted;
+  const wordCount = totalWordsTyped;
 
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
@@ -414,12 +427,13 @@ export function calculateShorthandMetrics(
     originalText,
     typedText,
   );
-  const typedWords = typedText
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w);
 
-  const totalWordsTyped = typedText.trim() === "" ? 0 : typedWords.length;
+  // Count words ONLY from the attempted portion (not trailing missed words)
+  const typedWordsInAttempted = attemptedAlignment.filter(
+    (a) => a.typed !== "" && a.status !== "missing"
+  ).length;
+
+  const totalWordsTyped = typedWordsInAttempted;
   
   // Get the last sentence from original text
   // Split by sentence delimiters (. ! ?) and get the last sentence
@@ -441,6 +455,7 @@ export function calculateShorthandMetrics(
   
   // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
   // ALSO: If test is incomplete (didn't type last sentence), it's automatically Fail
+  // Calculate percentage based on ATTEMPTED words only
   const mistakePercentage =
     totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
   const isPassed = !isComplete ? false : mistakePercentage <= 5;
@@ -509,13 +524,14 @@ export const generateResultPDF = async (result: Result) => {
       ? "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;"
       : "font-family: 'Times New Roman', Times, serif;";
 
-  // Use the same alignWords function as ResultTextAnalysis for consistency
-  // This ensures PDF "Typed Content" matches "Your Input" display
-  const alignment = alignWords(result.originalText || "", result.typedText);
+  // Use calculateAlignedMistakes to get attemptedAlignment (excludes trailing untyped content)
+  // This ensures PDF "Typed Content" shows only what student actually attempted
+  const { attemptedAlignment, alignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
 
   let typedHtml = "";
 
-  for (const item of alignment) {
+  // Use attemptedAlignment to exclude trailing missing words from PDF
+  for (const item of attemptedAlignment) {
     if (item.status === "missing") {
       // Missing word - show in green brackets
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
@@ -594,17 +610,17 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Mistakes</td><td class="error">${result.mistakes}</td>
-          <td>Missing Words</td><td class="error">${alignment.filter((a) => a.status === "missing").length}</td>
+          <td>Missing Words</td><td class="error">${attemptedAlignment.filter((a) => a.status === "missing").length}</td>
         </tr>
         ${
           result.contentType === "typing"
             ? `
         <tr>
+          <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
           <td>Backspaces</td><td>${result.backspaces}</td>
-          <td>Accuracy</td><td class="success">${result.words > 0 && parseFloat(String(result.mistakes)) < result.words ? ((parseFloat(String(result.mistakes)) * 100) / result.words).toFixed(2) : "0.00"}%</td>
         </tr>
         <tr>
-          <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
+          <td>Accuracy</td><td class="success">${result.words > 0 && parseFloat(String(result.mistakes)) < result.words ? ((parseFloat(String(result.mistakes)) * 100) / result.words).toFixed(2) : "0.00"}%</td>
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
         <tr>
@@ -615,11 +631,11 @@ export const generateResultPDF = async (result: Result) => {
             : `
         <tr>
           <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
-          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${((parseInt(result.mistakes)*100)/alignment.filter((a) => a.original !== "").length).toFixed(2)}%</td>
+          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.words > 0 ? ((parseInt(result.mistakes)*100)/result.words).toFixed(2) : "0.00"}%</td>
         </tr>
         <tr>
           <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          <td>Status</td><td class="${isLastSentenceAttempted(result.originalText || "", alignment) ? "success" : "error" }">${isLastSentenceAttempted(result.originalText || "", alignment) ? "Complete" : "Incomplete" }</td>
+          <td>Status</td><td class="${isLastSentenceAttempted(result.originalText || "", attemptedAlignment) ? "success" : "error" }">${isLastSentenceAttempted(result.originalText || "", attemptedAlignment) ? "Complete" : "Incomplete" }</td>
         </tr>
         `
         }
