@@ -430,8 +430,7 @@ export async function registerRoutes(
       if (!language) {
         return res.status(400).json({ message: "language parameter is required" });
       }
-      // For student dashboard, only show folders with enabled content
-      const folders = await storage.getLatestTestFoldersByLanguage(language, limit, offset, type, true);
+      const folders = await storage.getLatestTestFoldersByLanguage(language, limit, offset, type);
       res.json(folders);
     } catch (error) {
       console.error("Error fetching latest test folders:", error);
