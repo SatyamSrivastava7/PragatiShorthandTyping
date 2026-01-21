@@ -42,7 +42,7 @@ export default function TypingTestPage() {
   const [submissionFailed, setSubmissionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
-  const [selectedAudioWpm, setSelectedAudioWpm] = useState<"80" | "100">("80"); // Default to 80 WPM
+  const [selectedVideoWpm, setSelectedVideoWpm] = useState<"60" | "80" | "100" | "120">("80"); // Default to 80 WPM
   
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -287,109 +287,119 @@ export default function TypingTestPage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
-    // Shorthand tests allow free editing - no restrictions
-    if (testContent?.type === 'shorthand') {
-      // Only track backspaces for shorthand
-      if (e.key === 'Backspace') {
-        setBackspaceCount(prev => prev + 1);
-      }
-      return;
-    }
-    
-    // Typing test restrictions below
-    // Only allow: Shift, Enter, Space, and regular characters (letters, numbers, punctuation)
-    const allowedKeys = ['Shift', 'Enter', ' ', 'Tab', 'Backspace']; // Tab for consistency
-    const isRegularCharacter = e.key.length === 1; // Single character key (letters, numbers, punctuation)
-    
-    // Block all keys except the allowed ones and regular characters
-    if (!allowedKeys.includes(e.key) && !isRegularCharacter) {
-      e.preventDefault();
-      return;
-    }
-    
     const textarea = e.currentTarget;
-    const cursorPos = textarea.selectionStart;
-    const wordBoundary = getWordBoundary(typedText);
     const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
     
-    // Block any modifier combinations (Ctrl, Alt, Cmd) - even on allowed keys
+    // Block any modifier combinations (Ctrl, Alt, Cmd) - for all test types
     if (hasModifier) {
       e.preventDefault();
       return;
     }
     
-    // Block Delete key entirely
+    // Block Delete key entirely - for all test types
     if (e.key === 'Delete') {
       e.preventDefault();
       return;
     }
     
+    // Track backspaces for all test types
     if (e.key === 'Backspace') {
-      // Can only backspace within current word (after the word boundary)
-      if (cursorPos <= wordBoundary) {
-        e.preventDefault();
-        return;
-      }
       setBackspaceCount(prev => prev + 1);
     }
     
-    if (e.key === 'ArrowLeft') {
-      // Block if at boundary or if using modifier (which could jump words)
-      if (cursorPos <= wordBoundary || hasModifier) {
+    // Typing test specific restrictions
+    if (testContent?.type === 'typing') {
+      // Only allow: Shift, Enter, Space, and regular characters (letters, numbers, punctuation)
+      const allowedKeys = ['Shift', 'Enter', ' ', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowDown'];
+      const isRegularCharacter = e.key.length === 1; // Single character key (letters, numbers, punctuation)
+      
+      // Block all keys except the allowed ones and regular characters
+      if (!allowedKeys.includes(e.key) && !isRegularCharacter) {
         e.preventDefault();
-        if (hasModifier) {
-          textarea.setSelectionRange(wordBoundary, wordBoundary);
+        return;
+      }
+
+      const cursorPos = textarea.selectionStart;
+      const wordBoundary = getWordBoundary(typedText);
+      
+      if (e.key === 'Backspace') {
+        // Can only backspace within current word (after the word boundary)
+        if (cursorPos <= wordBoundary) {
+          e.preventDefault();
+          return;
         }
       }
-    }
-    
-    // Block Home key - would jump to start of line/text
-    if (e.key === 'Home') {
-      e.preventDefault();
-      textarea.setSelectionRange(wordBoundary, wordBoundary);
-    }
-    
-    // Block ArrowUp - would move to previous line
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-    }
-    
-    // Block Tab key - move to next element
-    if (e.key === 'Tab') {
-      e.preventDefault();
+      
+      if (e.key === 'ArrowLeft') {
+        // Block if at boundary
+        if (cursorPos <= wordBoundary) {
+          e.preventDefault();
+        }
+      }
+      
+      // Block Home key - would jump to start of line/text - only for typing
+      if (e.key === 'Home') {
+        e.preventDefault();
+        textarea.setSelectionRange(wordBoundary, wordBoundary);
+      }
+      
+      // Block ArrowUp - would move to previous line - only for typing
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+      }
+      
+      // Block Tab key - move to next element - only for typing
+      if (e.key === 'Tab') {
+        e.preventDefault();
+      }
+    } else if (testContent?.type === 'shorthand') {
+      // For shorthand tests: block Tab and Home keys
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        return;
+      }
+      
+      if (e.key === 'Home') {
+        e.preventDefault();
+        return;
+      }
     }
   };
 
   const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
-    // Shorthand tests allow free selection - no restrictions
-    if (testContent?.type === 'shorthand') return;
-    
     const textarea = e.currentTarget;
-    const wordBoundary = getWordBoundary(typedText);
     
-    // If selection starts before word boundary, adjust it
-    if (textarea.selectionStart < wordBoundary) {
-      textarea.setSelectionRange(wordBoundary, Math.max(wordBoundary, textarea.selectionEnd));
+    // For typing tests - restrict selection to word boundary
+    if (testContent?.type === 'typing') {
+      const wordBoundary = getWordBoundary(typedText);
+      
+      // If selection starts before word boundary, adjust it
+      if (textarea.selectionStart < wordBoundary) {
+        textarea.setSelectionRange(wordBoundary, Math.max(wordBoundary, textarea.selectionEnd));
+      }
     }
+    // For shorthand tests - allow free selection
   };
 
   const handleClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
-    // Shorthand tests allow free cursor movement - no restrictions
-    if (testContent?.type === 'shorthand') return;
-    
     const textarea = e.currentTarget;
-    const wordBoundary = getWordBoundary(typedText);
     
-    // If clicked before word boundary, move cursor to boundary
-    setTimeout(() => {
-      if (textarea.selectionStart < wordBoundary) {
-        textarea.setSelectionRange(wordBoundary, wordBoundary);
-      }
-    }, 0);
+    // For typing tests - restrict cursor movement to word boundary
+    if (testContent?.type === 'typing') {
+      const wordBoundary = getWordBoundary(typedText);
+      
+      // If clicked before word boundary, move cursor to boundary
+      setTimeout(() => {
+        if (textarea.selectionStart < wordBoundary) {
+          textarea.setSelectionRange(wordBoundary, wordBoundary);
+        }
+      }, 0);
+    }
+    // For shorthand tests - allow free cursor movement
   };
 
   const toggleFullScreen = () => {
@@ -402,17 +412,29 @@ export default function TypingTestPage() {
      }
   };
 
-  // Audio functionality has been replaced with video links
-  // Get the audio URL based on selected WPM (deprecated - no longer used)
-  const getSelectedAudioUrl = () => {
-    // Audio uploads are no longer supported, return null
-    return null;
+  // Video functionality - Get the video URL based on selected WPM
+  const getSelectedVideoUrl = () => {
+    if (!testContent) return null;
+    
+    // Map selected WPM to the corresponding video field
+    const videoFieldMap: Record<"60" | "80" | "100" | "120", keyof typeof testContent> = {
+      "60": "video60wpm",
+      "80": "video80wpm",
+      "100": "video100wpm",
+      "120": "video120wpm",
+    };
+    
+    const videoField = videoFieldMap[selectedVideoWpm];
+    const value = testContent[videoField];
+    return typeof value === 'string' ? value : null;
   };
 
-  // Check if both audio options are available (deprecated - no longer used)
-  const audio80Available = false;
-  const audio100Available = false;
-  const selectedAudioUrl = getSelectedAudioUrl();
+  // Check which video speeds are available
+  const video60Available = testContent?.video60wpm ? true : false;
+  const video80Available = testContent?.video80wpm ? true : false;
+  const video100Available = testContent?.video100wpm ? true : false;
+  const video120Available = testContent?.video120wpm ? true : false;
+  const selectedVideoUrl = getSelectedVideoUrl();
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -478,19 +500,33 @@ export default function TypingTestPage() {
               <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
             </div>
 
-            {/* Audio Speed Selector for Shorthand Tests */}
+            {/* Video Speed Selector for Shorthand Tests */}
             {testContent.type === 'shorthand' && (
               <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
-                <label className="text-xs font-medium whitespace-nowrap">Audio Speed:</label>
-                <Select value={selectedAudioWpm} onValueChange={(val) => setSelectedAudioWpm(val as "80" | "100")}>
+                <label className="text-xs font-medium whitespace-nowrap">Video Speed:</label>
+                <Select value={selectedVideoWpm} onValueChange={(val) => setSelectedVideoWpm(val as "60" | "80" | "100" | "120")}>
                   <SelectTrigger className="w-24 h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="80">80 WPM</SelectItem>
-                    <SelectItem value="100">100 WPM</SelectItem>
+                    <SelectItem value="60" disabled={!video60Available}>60 WPM</SelectItem>
+                    <SelectItem value="80" disabled={!video80Available}>80 WPM</SelectItem>
+                    <SelectItem value="100" disabled={!video100Available}>100 WPM</SelectItem>
+                    <SelectItem value="120" disabled={!video120Available}>120 WPM</SelectItem>
                   </SelectContent>
                 </Select>
+                
+                {/* Video Link - Click to open in new tab */}
+                {selectedVideoUrl && (
+                  <a 
+                    href={selectedVideoUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:text-blue-800 underline font-medium whitespace-nowrap"
+                  >
+                    Open Video
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -508,8 +544,8 @@ export default function TypingTestPage() {
       {/* Main Workspace - Vertical Layout */}
       <div className="flex-1 flex flex-col gap-6 min-h-0">
         
-        {/* Shorthand Audio Player - Prominent at top */}
-        {testContent.type === 'shorthand' && (audio80Available || audio100Available) && (
+        {/* Shorthand Video Player - Prominent at top */}
+        {testContent.type === 'shorthand' && (video60Available || video80Available || video100Available || video120Available) && (
            <Card className="bg-muted/30 border-2 border-orange-200 shrink-0">
              <CardContent className="p-4 flex flex-col gap-4">
                <div className="flex items-center gap-3">
@@ -517,30 +553,18 @@ export default function TypingTestPage() {
                    <Music size={24} />
                  </div>
                  <div>
-                   <h3 className="font-semibold text-lg">Dictation Audio</h3>
-                   <p className="text-sm text-muted-foreground">Listen carefully, write on your shorthand pad, then type below.</p>
+                   <h3 className="font-semibold text-lg">Dictation Video</h3>
+                   <p className="text-sm text-muted-foreground">Select the video speed from the header and watch the dictation video. Then type what you hear below.</p>
                  </div>
                </div>
 
-               {/* Audio Not Found Message */}
-               {!selectedAudioUrl && (
+               {/* Video Not Found Message */}
+               {!selectedVideoUrl && (
                  <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
                    <AlertCircle size={18} className="text-red-600" />
-                   <span className="text-sm text-red-700 font-medium">Audio file not found for {selectedAudioWpm} WPM</span>
+                   <span className="text-sm text-red-700 font-medium">Video not available for {selectedVideoWpm} WPM. Please select a different speed.</span>
                  </div>
                )}
-
-               {/* Audio Player */}
-               {selectedAudioUrl ? (
-                 <audio 
-                   key={selectedAudioUrl}
-                   id="shorthand-audio" 
-                   src={selectedAudioUrl} 
-                   controls 
-                   className="w-full"
-                   controlsList="nodownload" 
-                 />
-               ) : null}
              </CardContent>
            </Card>
         )}
