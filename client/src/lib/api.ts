@@ -136,7 +136,7 @@ export const testFolderApi = {
   },
 
   // Create a new folder
-  create: (data: { name: string; language: string; type?: string }) =>
+  create: (data: { name: string; language: string; type: string }) =>
     fetchApi<TestFolder>('/api/test-folders', {
       method: 'POST',
       body: JSON.stringify(data),

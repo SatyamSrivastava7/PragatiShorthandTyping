@@ -54,7 +54,7 @@ export const useCreateTestFolder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: { name: string; language: string; type?: string }) =>
+    mutationFn: (data: { name: string; language: string; type: string }) =>
       testFolderApi.create(data),
     onSuccess: (newFolder) => {
       const folderType = newFolder.type || "typing";
