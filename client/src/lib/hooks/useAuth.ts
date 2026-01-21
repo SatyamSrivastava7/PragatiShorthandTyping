@@ -10,7 +10,25 @@ export function useAuth() {
     queryKey: ['session'],
     queryFn: async () => {
       try {
-        return await authApi.getSession();
+        const response = await authApi.getSession();
+        
+        // Check if user was disabled by admin
+        if ((response as any)?.disabled) {
+          // Clear session and redirect to auth
+          queryClient.setQueryData(['session'], { user: null });
+          setLocation('/auth');
+          return { user: null };
+        }
+        
+        // Check if user access expired
+        if ((response as any)?.expired) {
+          // Clear session and redirect to auth
+          queryClient.setQueryData(['session'], { user: null });
+          setLocation('/auth');
+          return { user: null };
+        }
+        
+        return response;
       } catch (err) {
         console.error('Error fetching session:', err);
         // Don't throw for session errors - user might not be logged in

@@ -16,6 +16,18 @@ async function fetchApi<T>(
   });
 
   if (!response.ok) {
+    // If we get a 403 (Forbidden), it might be because user was disabled
+    // In this case, we should clear session and redirect
+    if (response.status === 403) {
+      const error = await response.json().catch(() => ({ message: 'Access denied' }));
+      if (error.message?.includes('disabled')) {
+        // Clear the session query cache to trigger re-fetch
+        // This will cause the useAuth hook to detect the disabled status
+        window.location.href = '/auth';
+        throw new Error(error.message || 'Your access has been disabled');
+      }
+    }
+    
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
     throw new Error(error.message || `HTTP ${response.status}`);
   }

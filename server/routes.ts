@@ -242,6 +242,13 @@ export async function registerRoutes(
         return res.json({ user: null });
       }
       
+      // Check if student is disabled by admin
+      if (user.role === 'student' && !user.isPaymentCompleted) {
+        // Destroy session immediately
+        req.session.destroy(() => {});
+        return res.json({ user: null, disabled: true, message: "Your access has been disabled. Please contact the administrator." });
+      }
+      
       // Check if student access has expired (30 days validity)
       if (user.role === 'student' && user.validUntil) {
         const now = new Date();
