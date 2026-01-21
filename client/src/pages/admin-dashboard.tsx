@@ -546,7 +546,7 @@ export default function AdminDashboard() {
     return content
       .filter((c) => c.type === "typing")
       .sort((a, b) => {
-        if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+        // Sort by creation date (newest first), regardless of enabled/disabled status
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   };
@@ -555,7 +555,7 @@ export default function AdminDashboard() {
     return content
       .filter((c) => c.type === "shorthand")
       .sort((a, b) => {
-        if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+        // Sort by creation date (newest first), regardless of enabled/disabled status
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   };
