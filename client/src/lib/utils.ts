@@ -501,10 +501,43 @@ export function calculateShorthandMetrics(
     .filter((w) => w);
 
   const totalWordsTyped = typedText.trim() === "" ? 0 : typedWords.length;
+  
+  // Get the last sentence from original text
+  // Split by sentence delimiters (. ! ?) and get the last sentence
+  const sentenceDelimiters = /[.!?]+/;
+  const sentences = originalText.split(sentenceDelimiters).filter((s) => s.trim());
+  const lastSentence = sentences.length > 0 ? sentences[sentences.length - 1].trim() : "";
+  
+  // Get the last sentence words
+  const lastSentenceWords = lastSentence
+    .split(/\s+/)
+    .filter((w) => w)
+    .map((w) => normalizeForComparison(w));
+  
+  // Check if the student attempted the last sentence
+  // They don't need to get all words correctly, just reach that part
+  // Look for any word from the last sentence in the alignment (regardless of status: match, missing, substitution, extra)
+  let lastSentenceAttempted = false;
+  if (lastSentenceWords.length > 0) {
+    // Check if any last sentence word appears in the attempted alignment
+    for (const alignmentItem of attemptedAlignment) {
+      const originalWord = normalizeForComparison(alignmentItem.original);
+      if (lastSentenceWords.includes(originalWord)) {
+        // Found a word from last sentence in alignment - student attempted it
+        lastSentenceAttempted = true;
+        break;
+      }
+    }
+  }
+  
+  // Check if test is complete (student attempted the last sentence, with any mistakes/variations)
+  const isComplete = lastSentenceAttempted;
+  
   // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
+  // ALSO: If test is incomplete (didn't type last sentence), it's automatically Fail
   const mistakePercentage =
     totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
-  const isPassed = mistakePercentage <= 5;
+  const isPassed = !isComplete ? false : mistakePercentage <= 5;
 
   // Count missing words only from attempted portion (not trailing untyped words)
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
@@ -669,8 +702,8 @@ export const generateResultPDF = async (result: Result) => {
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
         <tr>
-          <td>Status</td><td class="${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "success" : "error" }">${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "Complete" : "Incomplete" }</td>
           <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
+          <td></td><td></td>
         </tr>
         `
             : `
@@ -680,7 +713,7 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          <td>Status</td><td class="${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "success" : "error" }">${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "Complete" : "Incomplete" }</td>
+          <td>Status</td><td class="${alignment.filter((a) => a.original !== "").length - result.words == 0 ? "success" : "error" }">${alignment.filter((a) => a.original !== "").length - result.words == 0 ? "Complete" : "Incomplete" }</td>
         </tr>
         `
         }
