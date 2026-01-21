@@ -554,22 +554,10 @@ export default function AdminDashboard() {
   
   // Only fetch test folders for languages and types that have content
   // This avoids unnecessary API calls
-  const { data: englishTypingFolders = [] } = useTestFolders(
-    contentLanguages.includes('english') && contentTypes.includes('typing') ? 'english' : '', 
-    contentLanguages.includes('english') && contentTypes.includes('typing') ? 'typing' : undefined
-  );
-  const { data: englishShorthandFolders = [] } = useTestFolders(
-    contentLanguages.includes('english') && contentTypes.includes('shorthand') ? 'english' : '', 
-    contentLanguages.includes('english') && contentTypes.includes('shorthand') ? 'shorthand' : undefined
-  );
-  const { data: hindiTypingFolders = [] } = useTestFolders(
-    contentLanguages.includes('hindi') && contentTypes.includes('typing') ? 'hindi' : '', 
-    contentLanguages.includes('hindi') && contentTypes.includes('typing') ? 'typing' : undefined
-  );
-  const { data: hindiShorthandFolders = [] } = useTestFolders(
-    contentLanguages.includes('hindi') && contentTypes.includes('shorthand') ? 'hindi' : '', 
-    contentLanguages.includes('hindi') && contentTypes.includes('shorthand') ? 'shorthand' : undefined
-  );
+  const { data: englishTypingFolders = [] } = useTestFolders('english', 'typing');
+  const { data: englishShorthandFolders = [] } = useTestFolders('english', 'shorthand');
+  const { data: hindiTypingFolders = [] } = useTestFolders('hindi', 'typing');
+  const { data: hindiShorthandFolders = [] } = useTestFolders('hindi', 'shorthand');
   const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...hindiTypingFolders, ...hindiShorthandFolders];
   
   // Helper function to get folder name by ID (with memoization to avoid recalculating)
