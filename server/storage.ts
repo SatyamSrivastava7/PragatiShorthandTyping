@@ -57,8 +57,8 @@ export interface IStorage {
   toggleContentLightweight(id: number): Promise<{ id: number; isEnabled: boolean } | undefined>;
   
   // Test Folder methods
-  getTestFoldersByLanguage(language: string, type?: string): Promise<TestFolder[]>;
-  getLatestTestFoldersByLanguage(language: string, limit?: number, offset?: number, type?: string): Promise<TestFolder[]>;
+  getTestFoldersByLanguage(language: string, type?: string, onlyWithContent?: boolean): Promise<TestFolder[]>;
+  getLatestTestFoldersByLanguage(language: string, limit?: number, offset?: number, type?: string, onlyWithContent?: boolean): Promise<TestFolder[]>;
   getTestFolder(id: number): Promise<TestFolder | undefined>;
   createTestFolder(folder: InsertTestFolder): Promise<TestFolder>;
   updateTestFolder(id: number, updates: Partial<InsertTestFolder>): Promise<TestFolder | undefined>;
@@ -412,7 +412,7 @@ export class DatabaseStorage implements IStorage {
     return folders;
   }
 
-  async getLatestTestFoldersByLanguage(language: string, limit: number = 6, offset: number = 0, type?: string): Promise<TestFolder[]> {
+  async getLatestTestFoldersByLanguage(language: string, limit: number = 6, offset: number = 0, type?: string, onlyWithContent: boolean = false): Promise<TestFolder[]> {
     // Get folders ordered by creation date
     const conditions = [eq(testFolders.language, language)];
     if (type) {
@@ -425,8 +425,30 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(testFolders.createdAt));
     
+    // If onlyWithContent is true, filter to only folders with enabled content
+    let result = folders;
+    if (onlyWithContent) {
+      const foldersWithContent = await Promise.all(
+        folders.map(async (folder) => {
+          const hasEnabledContent = await db
+            .select()
+            .from(content)
+            .where(and(
+              eq(content.folderId, folder.id), 
+              eq(content.isEnabled, true),
+              eq(content.type, folder.type) // Ensure content type matches folder type
+            ))
+            .limit(1);
+          
+          return hasEnabledContent.length > 0 ? folder : null;
+        })
+      );
+      
+      result = foldersWithContent.filter((f): f is TestFolder => f !== null);
+    }
+    
     // Apply pagination
-    return folders.slice(offset, offset + limit);
+    return result.slice(offset, offset + limit);
   }
 
   async getTestFolder(id: number): Promise<TestFolder | undefined> {
