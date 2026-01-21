@@ -477,6 +477,22 @@ export default function TypingTestPage() {
               />
               <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
             </div>
+
+            {/* Audio Speed Selector for Shorthand Tests */}
+            {testContent.type === 'shorthand' && (
+              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+                <label className="text-xs font-medium whitespace-nowrap">Audio Speed:</label>
+                <Select value={selectedAudioWpm} onValueChange={(val) => setSelectedAudioWpm(val as "80" | "100")}>
+                  <SelectTrigger className="w-24 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="80">80 WPM</SelectItem>
+                    <SelectItem value="100">100 WPM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className={cn(
@@ -506,33 +522,11 @@ export default function TypingTestPage() {
                  </div>
                </div>
 
-               {/* Speed Selector for Multi-Audio */}
-               {(audio80Available || audio100Available) && (
-                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                   <div className="flex items-center gap-2">
-                     <label className="text-sm font-medium">Select Audio Speed:</label>
-                     <Select value={selectedAudioWpm} onValueChange={(val) => setSelectedAudioWpm(val as "80" | "100")}>
-                       <SelectTrigger className="w-32">
-                         <SelectValue />
-                       </SelectTrigger>
-                       <SelectContent>
-                         <SelectItem value="80" disabled={!audio80Available}>
-                           80 WPM {!audio80Available && "(Not available)"}
-                         </SelectItem>
-                         <SelectItem value="100" disabled={!audio100Available}>
-                           100 WPM {!audio100Available && "(Not available)"}
-                         </SelectItem>
-                       </SelectContent>
-                     </Select>
-                   </div>
-
-                   {/* Audio Not Found Message */}
-                   {!selectedAudioUrl && (
-                     <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
-                       <AlertCircle size={18} className="text-red-600" />
-                       <span className="text-sm text-red-700 font-medium">Audio file not found for {selectedAudioWpm} WPM</span>
-                     </div>
-                   )}
+               {/* Audio Not Found Message */}
+               {!selectedAudioUrl && (
+                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
+                   <AlertCircle size={18} className="text-red-600" />
+                   <span className="text-sm text-red-700 font-medium">Audio file not found for {selectedAudioWpm} WPM</span>
                  </div>
                )}
 
