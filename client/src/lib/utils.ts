@@ -484,6 +484,36 @@ export function calculateTypingMetrics(
   };
 }
 
+/**
+ * Check if the student attempted the last sentence of the original text.
+ * Returns true if any word from the last sentence appears in the alignment.
+ */
+export function isLastSentenceAttempted(
+  originalText: string,
+  alignment: AlignmentEntry[]
+): boolean {
+  // Extract the last sentence (ends with . ! or ?)
+  const lastSentenceMatch = originalText.match(/[^.!?]*[.!?](?!.*[.!?])/);
+  if (!lastSentenceMatch) return false;
+
+  const lastSentence = lastSentenceMatch[0];
+  const lastSentenceWords = lastSentence
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => normalizeForComparison(w))
+    .filter((w) => w);
+
+  // Check if any last sentence word appears in the alignment
+  for (const alignmentItem of alignment) {
+    const originalWord = normalizeForComparison(alignmentItem.original);
+    if (lastSentenceWords.includes(originalWord)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function calculateShorthandMetrics(
   originalText: string,
   typedText: string,
@@ -514,21 +544,8 @@ export function calculateShorthandMetrics(
     .filter((w) => w)
     .map((w) => normalizeForComparison(w));
   
-  // Check if the student attempted the last sentence
-  // They don't need to get all words correctly, just reach that part
-  // Look for any word from the last sentence in the alignment (regardless of status: match, missing, substitution, extra)
-  let lastSentenceAttempted = false;
-  if (lastSentenceWords.length > 0) {
-    // Check if any last sentence word appears in the attempted alignment
-    for (const alignmentItem of attemptedAlignment) {
-      const originalWord = normalizeForComparison(alignmentItem.original);
-      if (lastSentenceWords.includes(originalWord)) {
-        // Found a word from last sentence in alignment - student attempted it
-        lastSentenceAttempted = true;
-        break;
-      }
-    }
-  }
+  // Check if the student attempted the last sentence using the reusable helper
+  const lastSentenceAttempted = isLastSentenceAttempted(originalText, attemptedAlignment);
   
   // Check if test is complete (student attempted the last sentence, with any mistakes/variations)
   const isComplete = lastSentenceAttempted;
@@ -713,7 +730,7 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          <td>Status</td><td class="${alignment.filter((a) => a.original !== "").length - result.words == 0 ? "success" : "error" }">${alignment.filter((a) => a.original !== "").length - result.words == 0 ? "Complete" : "Incomplete" }</td>
+          <td>Status</td><td class="${isLastSentenceAttempted(result.originalText || "", alignment) ? "success" : "error" }">${isLastSentenceAttempted(result.originalText || "", alignment) ? "Complete" : "Incomplete" }</td>
         </tr>
         `
         }
