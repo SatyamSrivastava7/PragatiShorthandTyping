@@ -896,7 +896,7 @@ export default function StudentDashboard() {
                                 Listen to Audio, Write on Paper, Type Here
                               </p>
                               {/* YouTube Video Links Dropdown */}
-                              {(test.video60wpm || test.video80wpm || test.video100wpm || test.video120wpm) && (
+                              {/* {(test.video60wpm || test.video80wpm || test.video100wpm || test.video120wpm) && (
                                 <div className="space-y-2">
                                   <label className="text-xs font-medium text-gray-700">Typing Speed Videos:</label>
                                   <Select 
@@ -943,7 +943,7 @@ export default function StudentDashboard() {
                                     </SelectContent>
                                   </Select>
                                 </div>
-                              )}
+                              )} */}
                             </CardContent>
                             <CardFooter className="pt-4 border-t bg-slate-50">
                               <Button

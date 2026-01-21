@@ -503,7 +503,7 @@ export default function TypingTestPage() {
             {/* Video Speed Selector for Shorthand Tests */}
             {testContent.type === 'shorthand' && (
               <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
-                <label className="text-xs font-medium whitespace-nowrap">Video Speed:</label>
+                <label className="text-xs font-medium whitespace-nowrap">Audio Speed:</label>
                 <Select value={selectedVideoWpm} onValueChange={(val) => setSelectedVideoWpm(val as "60" | "80" | "100" | "120")}>
                   <SelectTrigger className="w-24 h-9">
                     <SelectValue />
@@ -524,7 +524,7 @@ export default function TypingTestPage() {
                     rel="noopener noreferrer"
                     className="text-xs text-blue-600 hover:text-blue-800 underline font-medium whitespace-nowrap"
                   >
-                    Open Video
+                    Open Audio
                   </a>
                 )}
               </div>
@@ -553,16 +553,16 @@ export default function TypingTestPage() {
                    <Music size={24} />
                  </div>
                  <div>
-                   <h3 className="font-semibold text-lg">Dictation Video</h3>
-                   <p className="text-sm text-muted-foreground">Select the video speed from the header and watch the dictation video. Then type what you hear below.</p>
+                   <h3 className="font-semibold text-lg">Dictation Audio</h3>
+                   <p className="text-sm text-muted-foreground">Select the audio speed from the header and listen the dictation audio.</p>
                  </div>
                </div>
 
-               {/* Video Not Found Message */}
+               {/* Audio Not Found Message */}
                {!selectedVideoUrl && (
                  <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
                    <AlertCircle size={18} className="text-red-600" />
-                   <span className="text-sm text-red-700 font-medium">Video not available for {selectedVideoWpm} WPM. Please select a different speed.</span>
+                   <span className="text-sm text-red-700 font-medium">Audio not available for {selectedVideoWpm} WPM. Please select a different speed.</span>
                  </div>
                )}
              </CardContent>
