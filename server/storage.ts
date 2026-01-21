@@ -4,7 +4,7 @@ import {
   results, 
   pdfFolders, 
   pdfResources, 
-  
+  testFolders,
   selectedCandidates, 
   galleryImages,
   settings,
@@ -19,7 +19,8 @@ import {
   type InsertPdfFolder,
   type PdfResource,
   type InsertPdfResource,
-  
+  type TestFolder,
+  type InsertTestFolder,
   type SelectedCandidate,
   type InsertSelectedCandidate,
   type GalleryImage,
@@ -54,6 +55,13 @@ export interface IStorage {
   deleteContent(id: number): Promise<boolean>;
   toggleContent(id: number): Promise<Content | undefined>;
   toggleContentLightweight(id: number): Promise<{ id: number; isEnabled: boolean } | undefined>;
+  
+  // Test Folder methods
+  getTestFoldersByLanguage(language: string): Promise<TestFolder[]>;
+  getTestFolder(id: number): Promise<TestFolder | undefined>;
+  createTestFolder(folder: InsertTestFolder): Promise<TestFolder>;
+  updateTestFolder(id: number, updates: Partial<InsertTestFolder>): Promise<TestFolder | undefined>;
+  deleteTestFolder(id: number): Promise<boolean>;
   
   // Results methods
   getResult(id: number): Promise<Result | undefined>;
@@ -378,6 +386,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(content.id, id))
       .returning({ id: content.id, isEnabled: content.isEnabled });
     return updated || undefined;
+  }
+
+  // Test Folder methods
+  async getTestFoldersByLanguage(language: string): Promise<TestFolder[]> {
+    return await db.select().from(testFolders).where(eq(testFolders.language, language)).orderBy(asc(testFolders.name));
+  }
+
+  async getTestFolder(id: number): Promise<TestFolder | undefined> {
+    const [folder] = await db.select().from(testFolders).where(eq(testFolders.id, id));
+    return folder || undefined;
+  }
+
+  async createTestFolder(folder: InsertTestFolder): Promise<TestFolder> {
+    const [item] = await db.insert(testFolders).values(folder).returning();
+    return item;
+  }
+
+  async updateTestFolder(id: number, updates: Partial<InsertTestFolder>): Promise<TestFolder | undefined> {
+    const [item] = await db.update(testFolders).set(updates).where(eq(testFolders.id, id)).returning();
+    return item || undefined;
+  }
+
+  async deleteTestFolder(id: number): Promise<boolean> {
+    // Set folderId to null for all content in this folder
+    await db.update(content).set({ folderId: null }).where(eq(content.folderId, id));
+    // Delete the folder
+    const result = await db.delete(testFolders).where(eq(testFolders.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Results methods

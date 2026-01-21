@@ -1,4 +1,4 @@
-import type { User, Content, Result, PdfFolder, PdfResource, Notice, InsertNotice } from '@shared/schema';
+import type { User, Content, Result, PdfFolder, PdfResource, Notice, InsertNotice, TestFolder } from '@shared/schema';
 
 const API_URL = '';
 
@@ -122,6 +122,32 @@ export const usersApi = {
     }),
 };
 
+export const testFolderApi = {
+  // Get all folders by language
+  getByLanguage: (language: string) =>
+    fetchApi<TestFolder[]>(`/api/test-folders?language=${language}`),
+
+  // Create a new folder
+  create: (data: { name: string; language: string }) =>
+    fetchApi<TestFolder>('/api/test-folders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Update folder name
+  update: (id: number, data: { name: string }) =>
+    fetchApi<TestFolder>(`/api/test-folders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  // Delete folder
+  delete: (id: number) =>
+    fetchApi<void>(`/api/test-folders/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 export const contentApi = {
   getAll: () =>
     fetchApi<Content[]>('/api/content'),
@@ -129,11 +155,11 @@ export const contentApi = {
   getEnabled: () =>
     fetchApi<Content[]>('/api/content/enabled'),
 
-  // Lightweight endpoint - excludes text and audioUrl fields for faster loading (all content)
+  // Lightweight endpoint - excludes text for faster loading (all content)
   getAllList: () =>
-    fetchApi<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>('/api/content/list'),
+    fetchApi<Omit<Content, 'text'>[]>('/api/content/list'),
 
-  // Lightweight endpoint - excludes text and audioUrl fields for faster loading (enabled only)
+  // Lightweight endpoint - excludes text for faster loading (enabled only)
   // Optional params: { type, language, limit, offset }
   getEnabledList: (params?: { type?: string; language?: string; limit?: number; offset?: number }) => {
     const qs = params
@@ -142,7 +168,7 @@ export const contentApi = {
           return acc;
         }, {})).toString()
       : '';
-    return fetchApi<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(`/api/content/enabled/list${qs}`);
+    return fetchApi<Omit<Content, 'text'>[]>(`/api/content/enabled/list${qs}`);
   },
 
   // Get counts grouped by type. Optional params: { enabled }
@@ -161,8 +187,11 @@ export const contentApi = {
     duration: number;
     dateFor: string;
     language?: 'english' | 'hindi';
-    audio80wpm?: string;
-    audio100wpm?: string;
+    folderId?: number;
+    video60wpm?: string;
+    video80wpm?: string;
+    video100wpm?: string;
+    video120wpm?: string;
   }) =>
     fetchApi<Content>('/api/content', {
       method: 'POST',
@@ -185,8 +214,11 @@ export const contentApi = {
     duration: number;
     dateFor: string;
     language: 'english' | 'hindi';
-    audio80wpm: string;
-    audio100wpm: string;
+    folderId: number;
+    video60wpm: string;
+    video80wpm: string;
+    video100wpm: string;
+    video120wpm: string;
   }>) =>
     fetchApi<Content>(`/api/content/${id}`, {
       method: 'PATCH',

@@ -27,6 +27,14 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Test Folders table (organize tests by language and folder)
+export const testFolders = pgTable("test_folders", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  language: varchar("language", { length: 10 }).notNull(), // 'english' | 'hindi'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Content table (typing and shorthand tests)
 export const content = pgTable("content", {
   id: serial("id").primaryKey(),
@@ -37,10 +45,15 @@ export const content = pgTable("content", {
   dateFor: varchar("date_for", { length: 20 }).notNull(), // ISO date string
   isEnabled: boolean("is_enabled").default(false).notNull(),
   autoScroll: boolean("auto_scroll").default(true).notNull(), // enable auto-scroll for typing tests
-  mediaUrl: text("media_url"), // Original audio URL for shorthand
-  audio80wpm: text("audio_80wpm"), // Optional 80 WPM audio for shorthand
-  audio100wpm: text("audio_100wpm"), // Optional 100 WPM audio for shorthand
   language: varchar("language", { length: 10 }).default('english'), // 'english' | 'hindi'
+  folderId: integer("folder_id").references(() => testFolders.id, { onDelete: "set null" }), // optional folder
+  
+  // YouTube video links for shorthand test (optional)
+  video60wpm: text("video_60wpm"), // YouTube link for 60 WPM
+  video80wpm: text("video_80wpm"), // YouTube link for 80 WPM
+  video100wpm: text("video_100wpm"), // YouTube link for 100 WPM
+  video120wpm: text("video_120wpm"), // YouTube link for 120 WPM
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -141,12 +154,18 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 });
 
+export const insertTestFolderSchema = createInsertSchema(testFolders).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertContentSchema = createInsertSchema(content).omit({
   id: true,
   createdAt: true,
   isEnabled: true,
 }).extend({
   autoScroll: z.boolean().optional(),
+  folderId: z.number().optional(),
 });
 
 export const insertResultSchema = createInsertSchema(results).omit({
@@ -197,6 +216,9 @@ export const insertNoticeSchema = createInsertSchema(notices).omit({
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type TestFolder = typeof testFolders.$inferSelect;
+export type InsertTestFolder = z.infer<typeof insertTestFolderSchema>;
 
 export type Content = typeof content.$inferSelect;
 export type InsertContent = z.infer<typeof insertContentSchema>;

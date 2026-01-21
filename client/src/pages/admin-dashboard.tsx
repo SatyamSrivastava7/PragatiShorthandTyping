@@ -92,6 +92,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
+import { FolderSelector } from "@/components/FolderSelector";
 import { queryClient } from "@/lib/queryClient";
 
 // Preview Dialog Component - Loads full content on-demand (including text and audioUrl)
@@ -120,11 +121,6 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           ) : (
             <>
               <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
-              {(fullContent?.audio80wpm || fullContent?.audio100wpm) && (
-                <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
-                  <Music size={12} /> Audio Attached
-                </div>
-              )}
             </>
           )}
         </div>
@@ -151,17 +147,19 @@ interface EditTestModalProps {
   setEditTextContent: (text: string) => void;
   editAutoScroll: boolean;
   setEditAutoScroll: (scroll: boolean) => void;
-  editAudio80wpmFile: File | null;
-  setEditAudio80wpmFile: (file: File | null) => void;
-  editAudio100wpmFile: File | null;
-  setEditAudio100wpmFile: (file: File | null) => void;
-  existingAudio80wpm: string | null;
-  existingAudio100wpm: string | null;
+  editVideo60wpmLink: string;
+  setEditVideo60wpmLink: (link: string) => void;
+  editVideo80wpmLink: string;
+  setEditVideo80wpmLink: (link: string) => void;
+  editVideo100wpmLink: string;
+  setEditVideo100wpmLink: (link: string) => void;
+  editVideo120wpmLink: string;
+  setEditVideo120wpmLink: (link: string) => void;
+  editSelectedTestFolderId: number | null;
+  setEditSelectedTestFolderId: (folderId: number | null) => void;
   isEditingTest: boolean;
   isLoadingTestData: boolean;
   onSubmit: (e: React.FormEvent) => Promise<void>;
-  editAudio80wpmInputRef: React.RefObject<HTMLInputElement | null>;
-  editAudio100wpmInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 function EditTestModalComponent({
@@ -181,17 +179,19 @@ function EditTestModalComponent({
   setEditTextContent,
   editAutoScroll,
   setEditAutoScroll,
-  editAudio80wpmFile,
-  setEditAudio80wpmFile,
-  editAudio100wpmFile,
-  setEditAudio100wpmFile,
-  existingAudio80wpm,
-  existingAudio100wpm,
+  editVideo60wpmLink,
+  setEditVideo60wpmLink,
+  editVideo80wpmLink,
+  setEditVideo80wpmLink,
+  editVideo100wpmLink,
+  setEditVideo100wpmLink,
+  editVideo120wpmLink,
+  setEditVideo120wpmLink,
+  editSelectedTestFolderId,
+  setEditSelectedTestFolderId,
   isEditingTest,
   isLoadingTestData,
   onSubmit,
-  editAudio80wpmInputRef,
-  editAudio100wpmInputRef,
 }: EditTestModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -297,67 +297,68 @@ function EditTestModalComponent({
             )}
           </div>
 
-          {/* Audio files section for shorthand tests */}
+          {/* Folder Selector */}
+          <FolderSelector
+            language={editLanguage}
+            selectedFolderId={editSelectedTestFolderId}
+            onFolderSelect={setEditSelectedTestFolderId}
+          />
+
+          {/* Video link section for shorthand tests */}
           {testId && content.find(c => c.id === testId)?.type === 'shorthand' && (
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+              <h3 className="font-medium text-blue-900 flex items-center gap-2">
+                <Keyboard className="h-4 w-4" />
+                YouTube Video Links (Optional)
+              </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <Music className="h-5 w-5 text-orange-600" />
-                    <Label className="text-sm font-medium text-orange-800">
-                      Audio File (80 WPM)
-                    </Label>
-                  </div>
-                  {existingAudio80wpm && !editAudio80wpmFile && (
-                    <p className="text-sm text-orange-700 mb-2 p-2 bg-white rounded border border-orange-300 flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      Audio attached
-                    </p>
-                  )}
+                  <Label className="text-sm font-medium text-gray-700">
+                    60 WPM Video Link
+                  </Label>
                   <Input
-                    type="file"
-                    accept="audio/*"
-                    onChange={(e) =>
-                      setEditAudio80wpmFile(e.target.files?.[0] || null)
-                    }
-                    ref={editAudio80wpmInputRef}
-                    className="bg-white"
+                    type="url"
+                    value={editVideo60wpmLink}
+                    onChange={(e) => setEditVideo60wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
                   />
-                  {editAudio80wpmFile && (
-                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4" />{" "}
-                      {editAudio80wpmFile.name}
-                    </p>
-                  )}
                 </div>
                 <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <Music className="h-5 w-5 text-orange-600" />
-                    <Label className="text-sm font-medium text-orange-800">
-                      Audio File (100 WPM)
-                    </Label>
-                  </div>
-                  {existingAudio100wpm && !editAudio100wpmFile && (
-                    <p className="text-sm text-orange-700 mb-2 p-2 bg-white rounded border border-orange-300 flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      Audio attached
-                    </p>
-                  )}
+                  <Label className="text-sm font-medium text-gray-700">
+                    80 WPM Video Link
+                  </Label>
                   <Input
-                    type="file"
-                    accept="audio/*"
-                    onChange={(e) =>
-                      setEditAudio100wpmFile(e.target.files?.[0] || null)
-                    }
-                    ref={editAudio100wpmInputRef}
-                    className="bg-white"
+                    type="url"
+                    value={editVideo80wpmLink}
+                    onChange={(e) => setEditVideo80wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
                   />
-                  {editAudio100wpmFile && (
-                    <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                      <CheckCircle className="h-4 w-4" />{" "}
-                      {editAudio100wpmFile.name}
-                    </p>
-                  )}
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    100 WPM Video Link
+                  </Label>
+                  <Input
+                    type="url"
+                    value={editVideo100wpmLink}
+                    onChange={(e) => setEditVideo100wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    120 WPM Video Link
+                  </Label>
+                  <Input
+                    type="url"
+                    value={editVideo120wpmLink}
+                    onChange={(e) => setEditVideo120wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
+                  />
                 </div>
               </div>
             </div>
@@ -676,8 +677,17 @@ export default function AdminDashboard() {
   const [duration, setDuration] = useState("5");
   const [dateFor, setDateFor] = useState(format(new Date(), "yyyy-MM-dd"));
   const [language, setLanguage] = useState<"english" | "hindi">("english");
-  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  
+  // Video link states for shorthand tests
+  const [video60wpmLink, setVideo60wpmLink] = useState("");
+  const [video80wpmLink, setVideo80wpmLink] = useState("");
+  const [video100wpmLink, setVideo100wpmLink] = useState("");
+  const [video120wpmLink, setVideo120wpmLink] = useState("");
+
+  // Folder state for organizing tests
+  const [selectedTestFolderId, setSelectedTestFolderId] = useState<number | null>(null);
+  const [editSelectedTestFolderId, setEditSelectedTestFolderId] = useState<number | null>(null);
 
   // Edit Test State
   const [editingTestId, setEditingTestId] = useState<number | null>(null);
@@ -687,15 +697,16 @@ export default function AdminDashboard() {
   const [editLanguage, setEditLanguage] = useState<"english" | "hindi">("english");
   const [editTextContent, setEditTextContent] = useState("");
   const [editAutoScroll, setEditAutoScroll] = useState(true);
-  const [editAudio80wpmFile, setEditAudio80wpmFile] = useState<File | null>(null);
-  const [editAudio100wpmFile, setEditAudio100wpmFile] = useState<File | null>(null);
-  const [existingAudio80wpm, setExistingAudio80wpm] = useState<string | null>(null);
-  const [existingAudio100wpm, setExistingAudio100wpm] = useState<string | null>(null);
+  
+  // Edit video link states for shorthand tests
+  const [editVideo60wpmLink, setEditVideo60wpmLink] = useState("");
+  const [editVideo80wpmLink, setEditVideo80wpmLink] = useState("");
+  const [editVideo100wpmLink, setEditVideo100wpmLink] = useState("");
+  const [editVideo120wpmLink, setEditVideo120wpmLink] = useState("");
+  
   const [isTestEditModalOpen, setIsTestEditModalOpen] = useState(false);
   const [isEditingTest, setIsEditingTest] = useState(false);
   const [isLoadingTestData, setIsLoadingTestData] = useState(false);
-  const editAudio80wpmInputRef = useRef<HTMLInputElement>(null);
-  const editAudio100wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Cache for edit modal data - avoid redundant API calls
   const [editCachedData, setEditCachedData] = useState<{ [testId: number]: any }>({});
@@ -718,15 +729,18 @@ export default function AdminDashboard() {
       editLanguage !== cachedData.language ||
       editTextContent !== cachedData.text ||
       editAutoScroll !== cachedData.autoScroll ||
-      editAudio80wpmFile !== null ||
-      editAudio100wpmFile !== null;
+      editSelectedTestFolderId !== (cachedData.folderId || null) ||
+      editVideo60wpmLink !== (cachedData.video60wpm || "") ||
+      editVideo80wpmLink !== (cachedData.video80wpm || "") ||
+      editVideo100wpmLink !== (cachedData.video100wpm || "") ||
+      editVideo120wpmLink !== (cachedData.video120wpm || "");
 
     if (hasChanges && !hasEditChanges) {
       setHasEditChanges(true);
     } else if (!hasChanges && hasEditChanges) {
       setHasEditChanges(false);
     }
-  }, [editingTestId, editTitle, editDuration, editDateFor, editLanguage, editTextContent, editAutoScroll, editAudio80wpmFile, editAudio100wpmFile, editCachedData, hasEditChanges]);
+  }, [editingTestId, editTitle, editDuration, editDateFor, editLanguage, editTextContent, editAutoScroll, editSelectedTestFolderId, editVideo60wpmLink, editVideo80wpmLink, editVideo100wpmLink, editVideo120wpmLink, editCachedData, hasEditChanges]);
   const [studentFilter, setStudentFilter] = useState("");
   const [studentListSearch, setStudentListSearch] = useState("");
   // PDF Store State
@@ -735,13 +749,6 @@ export default function AdminDashboard() {
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [viewPdfId, setViewPdfId] = useState<number | null>(null);
-
-  // Dictation State - Merged into Upload
-  const [audio80wpmFile, setAudio80wpmFile] = useState<File | null>(null);
-  const [audio100wpmFile, setAudio100wpmFile] = useState<File | null>(null);
-  const dictationFileInputRef = useRef<HTMLInputElement>(null);
-  const audio80wpmInputRef = useRef<HTMLInputElement>(null);
-  const audio100wpmInputRef = useRef<HTMLInputElement>(null);
 
   // Upload Loading State - use mutation state instead of local state
   const isUploading = isCreating || isCreatingWithFile;
@@ -843,41 +850,27 @@ export default function AdminDashboard() {
     });
 
     try {
-      // Check if we have a file to upload
-      const hasFile = contentType === "shorthand" && (audio80wpmFile || audio100wpmFile);
+      // Build upload data with optional video links
+      const createData: any = {
+        title,
+        type: contentType,
+        text: textContent,
+        duration: parseInt(duration),
+        dateFor,
+        language: language || 'english',
+        autoScroll: contentType === "typing" ? autoScroll : true,
+      };
 
-      if (hasFile) {
-        // Use FormData for file uploads (faster - no client-side base64 conversion)
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('type', contentType);
-        formData.append('text', textContent);
-        formData.append('duration', duration);
-        formData.append('dateFor', dateFor);
-        formData.append('language', language || 'english');
-        // For shorthand with file, autoScroll is always true
-        formData.append('autoScroll', 'true');
-        if (audio80wpmFile) {
-          formData.append('audio80wpm', audio80wpmFile);
-        }
-        if (audio100wpmFile) {
-          formData.append('audio100wpm', audio100wpmFile);
-        }
+      // Add folder ID if selected
+      if (selectedTestFolderId) createData.folderId = selectedTestFolderId;
 
-        // Use FormData upload endpoint (server converts to base64)
-        await createContentWithFile(formData);
-      } else {
-        // Use JSON endpoint for uploads without files (more efficient)
-        await createContent({
-          title,
-          type: contentType,
-          text: textContent,
-          duration: parseInt(duration),
-          dateFor,
-          language: language || 'english',
-          autoScroll: contentType === "typing" ? autoScroll : true,
-        } as any);
-      }
+      // Add video links if they are provided (optional)
+      if (video60wpmLink) createData.video60wpm = video60wpmLink;
+      if (video80wpmLink) createData.video80wpm = video80wpmLink;
+      if (video100wpmLink) createData.video100wpm = video100wpmLink;
+      if (video120wpmLink) createData.video120wpm = video120wpmLink;
+
+      await createContent(createData as any);
 
       toast({
         variant: "success",
@@ -886,17 +879,11 @@ export default function AdminDashboard() {
       });
       setTitle("");
       setTextContent("");
-      setAudio80wpmFile(null);
-      setAudio100wpmFile(null);
-      if (dictationFileInputRef.current) {
-        dictationFileInputRef.current.value = "";
-      }
-      if (audio80wpmInputRef.current) {
-        audio80wpmInputRef.current.value = "";
-      }
-      if (audio100wpmInputRef.current) {
-        audio100wpmInputRef.current.value = "";
-      }
+      setVideo60wpmLink("");
+      setVideo80wpmLink("");
+      setVideo100wpmLink("");
+      setVideo120wpmLink("");
+      setSelectedTestFolderId(null);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -956,10 +943,11 @@ export default function AdminDashboard() {
       setEditLanguage(cachedData.language);
       setEditTextContent(cachedData.text);
       setEditAutoScroll(cachedData.autoScroll);
-      setExistingAudio80wpm(cachedData.audio80wpm);
-      setExistingAudio100wpm(cachedData.audio100wpm);
-      setEditAudio80wpmFile(null);
-      setEditAudio100wpmFile(null);
+      setEditSelectedTestFolderId(cachedData.folderId || null);
+      setEditVideo60wpmLink(cachedData.video60wpm || "");
+      setEditVideo80wpmLink(cachedData.video80wpm || "");
+      setEditVideo100wpmLink(cachedData.video100wpm || "");
+      setEditVideo120wpmLink(cachedData.video120wpm || "");
       setIsTestEditModalOpen(true);
       setLastEditedTestId(testId);
       setHasEditChanges(false);
@@ -973,7 +961,7 @@ export default function AdminDashboard() {
     setLastEditedTestId(testId);
     setHasEditChanges(false);
 
-    // Fetch the full content (with text and audio)
+    // Fetch the full content (with text and video links)
     try {
       const fullContent = await contentApi.getById(testId);
       
@@ -987,8 +975,11 @@ export default function AdminDashboard() {
           language: fullContent.language || 'english',
           text: fullContent.text,
           autoScroll: fullContent.autoScroll || true,
-          audio80wpm: fullContent.audio80wpm || null,
-          audio100wpm: fullContent.audio100wpm || null,
+          video60wpm: fullContent.video60wpm || null,
+          video80wpm: fullContent.video80wpm || null,
+          video100wpm: fullContent.video100wpm || null,
+          video120wpm: fullContent.video120wpm || null,
+          folderId: fullContent.folderId || null,
         }
       }));
 
@@ -999,14 +990,13 @@ export default function AdminDashboard() {
       setEditLanguage((fullContent.language || 'english') as 'english' | 'hindi');
       setEditTextContent(fullContent.text);
       setEditAutoScroll(fullContent.autoScroll || true);
+      setEditSelectedTestFolderId(fullContent.folderId || null);
       
-      // Store existing audio file references
-      setExistingAudio80wpm(fullContent.audio80wpm || null);
-      setExistingAudio100wpm(fullContent.audio100wpm || null);
-      
-      // Reset file inputs
-      setEditAudio80wpmFile(null);
-      setEditAudio100wpmFile(null);
+      // Set video links
+      setEditVideo60wpmLink(fullContent.video60wpm || "");
+      setEditVideo80wpmLink(fullContent.video80wpm || "");
+      setEditVideo100wpmLink(fullContent.video100wpm || "");
+      setEditVideo120wpmLink(fullContent.video120wpm || "");
       
       setIsLoadingTestData(false);
     } catch (error) {
@@ -1045,16 +1035,14 @@ export default function AdminDashboard() {
         autoScroll: editAutoScroll,
       };
 
-      // If there are new audio files, include them as base64
-      if (editAudio80wpmFile) {
-        const audio80wpmBase64 = await fileToBase64(editAudio80wpmFile);
-        updateData.audio80wpm = audio80wpmBase64;
-      }
+      // Include folder ID if selected
+      if (editSelectedTestFolderId) updateData.folderId = editSelectedTestFolderId;
 
-      if (editAudio100wpmFile) {
-        const audio100wpmBase64 = await fileToBase64(editAudio100wpmFile);
-        updateData.audio100wpm = audio100wpmBase64;
-      }
+      // Include video links if present
+      if (editVideo60wpmLink) updateData.video60wpm = editVideo60wpmLink;
+      if (editVideo80wpmLink) updateData.video80wpm = editVideo80wpmLink;
+      if (editVideo100wpmLink) updateData.video100wpm = editVideo100wpmLink;
+      if (editVideo120wpmLink) updateData.video120wpm = editVideo120wpmLink;
 
       const updatedContent = await updateContent({
         id: editingTestId,
@@ -1072,8 +1060,11 @@ export default function AdminDashboard() {
           language: updatedContent.language || 'english',
           text: updatedContent.text,
           autoScroll: updatedContent.autoScroll || true,
-          audio80wpm: updatedContent.audio80wpm || null,
-          audio100wpm: updatedContent.audio100wpm || null,
+          video60wpm: updatedContent.video60wpm || null,
+          video80wpm: updatedContent.video80wpm || null,
+          video100wpm: updatedContent.video100wpm || null,
+          video120wpm: updatedContent.video120wpm || null,
+          folderId: updatedContent.folderId || null,
         }
       }));
       setHasEditChanges(false);
@@ -1092,10 +1083,11 @@ export default function AdminDashboard() {
       setEditLanguage("english");
       setEditTextContent("");
       setEditAutoScroll(true);
-      setEditAudio80wpmFile(null);
-      setEditAudio100wpmFile(null);
-      setExistingAudio80wpm(null);
-      setExistingAudio100wpm(null);
+      setEditVideo60wpmLink("");
+      setEditVideo80wpmLink("");
+      setEditVideo100wpmLink("");
+      setEditVideo120wpmLink("");
+      setEditSelectedTestFolderId(null);
       setIsEditingTest(false);
     } catch (error) {
       toast({
@@ -1774,54 +1766,67 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
+                  {/* Folder Selector */}
+                  <FolderSelector
+                    language={language}
+                    selectedFolderId={selectedTestFolderId}
+                    onFolderSelect={setSelectedTestFolderId}
+                  />
+
                   {contentType === "shorthand" && (
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-4">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                      <h3 className="font-medium text-blue-900 flex items-center gap-2">
+                        <Keyboard className="h-4 w-4" />
+                        YouTube Video Links (Optional)
+                      </h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <Music className="h-5 w-5 text-orange-600" />
-                            <Label className="text-sm font-medium text-orange-800">
-                              Audio File (80 WPM)
-                            </Label>
-                          </div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            60 WPM Video Link
+                          </Label>
                           <Input
-                            type="file"
-                            accept="audio/*"
-                            onChange={(e) =>
-                              setAudio80wpmFile(e.target.files?.[0] || null)
-                            }
-                            ref={audio80wpmInputRef}
-                            className="bg-white"
+                            type="url"
+                            value={video60wpmLink}
+                            onChange={(e) => setVideo60wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
                           />
-                          {audio80wpmFile && (
-                            <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                              <CheckCircle className="h-4 w-4" />{" "}
-                              {audio80wpmFile.name}
-                            </p>
-                          )}
                         </div>
                         <div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <Music className="h-5 w-5 text-orange-600" />
-                            <Label className="text-sm font-medium text-orange-800">
-                              Audio File (100 WPM)
-                            </Label>
-                          </div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            80 WPM Video Link
+                          </Label>
                           <Input
-                            type="file"
-                            accept="audio/*"
-                            onChange={(e) =>
-                              setAudio100wpmFile(e.target.files?.[0] || null)
-                            }
-                            ref={audio100wpmInputRef}
-                            className="bg-white"
+                            type="url"
+                            value={video80wpmLink}
+                            onChange={(e) => setVideo80wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
                           />
-                          {audio100wpmFile && (
-                            <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                              <CheckCircle className="h-4 w-4" />{" "}
-                              {audio100wpmFile.name}
-                            </p>
-                          )}
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            100 WPM Video Link
+                          </Label>
+                          <Input
+                            type="url"
+                            value={video100wpmLink}
+                            onChange={(e) => setVideo100wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            120 WPM Video Link
+                          </Label>
+                          <Input
+                            type="url"
+                            value={video120wpmLink}
+                            onChange={(e) => setVideo120wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
+                          />
                         </div>
                       </div>
                     </div>
@@ -1997,6 +2002,9 @@ export default function AdminDashboard() {
                                   Lang
                                 </TableHead>
                                 <TableHead className="font-semibold">
+                                  Folder
+                                </TableHead>
+                                <TableHead className="font-semibold">
                                   Duration
                                 </TableHead>
                                 <TableHead className="font-semibold">
@@ -2024,6 +2032,9 @@ export default function AdminDashboard() {
                                   </TableCell>
                                   <TableCell className="capitalize">
                                     {item.language}
+                                  </TableCell>
+                                  <TableCell className="text-sm">
+                                    {item.folderId ? `ID: ${item.folderId}` : '-'}
                                   </TableCell>
                                   <TableCell>{item.duration} min</TableCell>
                                   <TableCell>
@@ -2053,6 +2064,46 @@ export default function AdminDashboard() {
                                       >
                                         <Edit className="h-4 w-4" />
                                       </Button>
+                                      <Dialog>
+                                        <DialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-purple-600 hover:bg-purple-50"
+                                            title="Change folder"
+                                          >
+                                            <FolderPlus className="h-4 w-4" />
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                          <DialogHeader>
+                                            <DialogTitle>Change Test Folder</DialogTitle>
+                                          </DialogHeader>
+                                          <FolderSelector
+                                            language={item.language || 'english'}
+                                            selectedFolderId={item.folderId || null}
+                                            onFolderSelect={async (folderId) => {
+                                              try {
+                                                await updateContent({
+                                                  id: item.id,
+                                                  data: { folderId: folderId } as any,
+                                                });
+                                                toast({
+                                                  variant: "success",
+                                                  title: "Success",
+                                                  description: "Folder updated successfully",
+                                                });
+                                              } catch (error) {
+                                                toast({
+                                                  variant: "destructive",
+                                                  title: "Error",
+                                                  description: error instanceof Error ? error.message : "Failed to update folder",
+                                                });
+                                              }
+                                            }}
+                                          />
+                                        </DialogContent>
+                                      </Dialog>
                                       <Switch
                                         checked={item.isEnabled}
                                         onCheckedChange={async () => {
@@ -4110,17 +4161,19 @@ export default function AdminDashboard() {
         setEditTextContent={setEditTextContent}
         editAutoScroll={editAutoScroll}
         setEditAutoScroll={setEditAutoScroll}
-        editAudio80wpmFile={editAudio80wpmFile}
-        setEditAudio80wpmFile={setEditAudio80wpmFile}
-        editAudio100wpmFile={editAudio100wpmFile}
-        setEditAudio100wpmFile={setEditAudio100wpmFile}
-        existingAudio80wpm={existingAudio80wpm}
-        existingAudio100wpm={existingAudio100wpm}
+        editVideo60wpmLink={editVideo60wpmLink}
+        setEditVideo60wpmLink={setEditVideo60wpmLink}
+        editVideo80wpmLink={editVideo80wpmLink}
+        setEditVideo80wpmLink={setEditVideo80wpmLink}
+        editVideo100wpmLink={editVideo100wpmLink}
+        setEditVideo100wpmLink={setEditVideo100wpmLink}
+        editVideo120wpmLink={editVideo120wpmLink}
+        setEditVideo120wpmLink={setEditVideo120wpmLink}
+        editSelectedTestFolderId={editSelectedTestFolderId}
+        setEditSelectedTestFolderId={setEditSelectedTestFolderId}
         isEditingTest={isEditingTest}
         isLoadingTestData={isLoadingTestData}
         onSubmit={handleUpdateTest}
-        editAudio80wpmInputRef={editAudio80wpmInputRef}
-        editAudio100wpmInputRef={editAudio100wpmInputRef}
       />
     </div>
   );

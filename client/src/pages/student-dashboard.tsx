@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
 import {
   useAuth,
   usePdf,
+  useTestFolders,
 } from "@/lib/hooks";
 import { usersApi } from "@/lib/api";
 import type { Result } from "@shared/schema";
@@ -51,6 +52,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
 
@@ -109,15 +117,27 @@ export default function StudentDashboard() {
   // Search State
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
+  
+  // Selected video speeds per test for shorthand
+  const [selectedVideoSpeeds, setSelectedVideoSpeeds] = useState<Record<number, string>>({}); // testId -> speed (60, 80, 100, 120)
 
-  // Selected language folders for each tab (null = show folders)
+  // Selected language folders for each tab (null = show language folders, then folder selection)
   const [selectedTypingLanguage, setSelectedTypingLanguage] = useState<string | null>(null);
   const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
+  
+  // Selected folder per test type (null = show folders, number = show tests in that folder, undefined = no folder filter)
+  const [selectedTypingFolderId, setSelectedTypingFolderId] = useState<number | null | undefined>(undefined);
+  const [selectedShorthandFolderId, setSelectedShorthandFolderId] = useState<number | null | undefined>(undefined);
+  
   // Active main tab
   const [activeTab, setActiveTab] = useState<string>('typing_tests');
   // Pagination settings
   const PAGE_SIZE = 6;
   const PAGE_SIZE_RESULTS = 5;
+
+  // Fetch test folders for both languages (cached by react-query)
+  const typingFoldersQuery = useTestFolders(selectedTypingLanguage || 'english');
+  const shorthandFoldersQuery = useTestFolders(selectedShorthandLanguage || 'english');
 
   // Typing: useInfiniteQuery per language (cached by react-query)
   const typingQuery = useInfiniteQuery({
@@ -547,7 +567,10 @@ export default function StudentDashboard() {
                   {['english', 'hindi'].map((lang) => (
                     <div
                       key={lang}
-                      onClick={() => setSelectedTypingLanguage(lang)}
+                      onClick={() => {
+                        setSelectedTypingLanguage(lang);
+                        setSelectedTypingFolderId(undefined); // Reset folder selection when changing language
+                      }}
                       className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
                     >
                       <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
@@ -555,18 +578,68 @@ export default function StudentDashboard() {
                     </div>
                   ))}
                 </div>
+              ) : selectedTypingFolderId === undefined ? (
+                // Show folder selection
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedTypingLanguage(null);
+                      setSelectedTypingFolderId(undefined);
+                    }}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedTypingLanguage} - Select Folder</h4>
+                  </div>
+                  {typingFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Option to view all tests without folder filter */}
+                      <div
+                        onClick={() => setSelectedTypingFolderId(null)}
+                        className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-blue-50/50"
+                      >
+                        <Folder className="h-12 w-12 text-blue-600 fill-blue-200" />
+                        <span className="font-medium text-center text-sm">All Tests</span>
+                      </div>
+                      {/* Show available folders */}
+                      {(typingFoldersQuery.data || []).map((folder: any) => (
+                        <div
+                          key={folder.id}
+                          onClick={() => setSelectedTypingFolderId(folder.id)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                        >
+                          <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
+                          <span className="font-medium text-center text-sm">{folder.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedTypingLanguage(null)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setSelectedTypingFolderId(undefined);
+                      }}
+                    >
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <h4 className="text-sm font-semibold capitalize">{selectedTypingLanguage} Typing Tests</h4>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedTypingLanguage} {selectedTypingFolderId !== null ? `- ${(typingFoldersQuery.data || []).find(f => f.id === selectedTypingFolderId)?.name || 'Folder'}` : '- All Tests'} Typing Tests
+                    </h4>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                     {((typingQuery.data?.pages ?? []) as any[])
                       .flat()
                       .filter((t: any) => ((t.language || 'english').toString().toLowerCase()) === (selectedTypingLanguage || 'english'))
+                      .filter((t: any) => selectedTypingFolderId === null ? true : t.folderId === selectedTypingFolderId)
                       .filter((t: any) => t.title.toLowerCase().includes(typingSearch.toLowerCase()))
                       .map((test: any) => {
                         const result = getResultForContent(test.id?.toString());
@@ -663,7 +736,10 @@ export default function StudentDashboard() {
                   {['english', 'hindi'].map((lang) => (
                     <div
                       key={lang}
-                      onClick={() => setSelectedShorthandLanguage(lang)}
+                      onClick={() => {
+                        setSelectedShorthandLanguage(lang);
+                        setSelectedShorthandFolderId(undefined); // Reset folder selection when changing language
+                      }}
                       className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
                     >
                       <Folder className="h-12 w-12 text-orange-500 fill-orange-100" />
@@ -671,18 +747,68 @@ export default function StudentDashboard() {
                     </div>
                   ))}
                 </div>
+              ) : selectedShorthandFolderId === undefined ? (
+                // Show folder selection
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedShorthandLanguage(null);
+                      setSelectedShorthandFolderId(undefined);
+                    }}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedShorthandLanguage} - Select Folder</h4>
+                  </div>
+                  {shorthandFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {/* Option to view all tests without folder filter */}
+                      <div
+                        onClick={() => setSelectedShorthandFolderId(null)}
+                        className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-orange-50/50"
+                      >
+                        <Folder className="h-12 w-12 text-orange-600 fill-orange-200" />
+                        <span className="font-medium text-center text-sm">All Tests</span>
+                      </div>
+                      {/* Show available folders */}
+                      {(shorthandFoldersQuery.data || []).map((folder: any) => (
+                        <div
+                          key={folder.id}
+                          onClick={() => setSelectedShorthandFolderId(folder.id)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                        >
+                          <Folder className="h-12 w-12 text-orange-500 fill-orange-100" />
+                          <span className="font-medium text-center text-sm">{folder.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedShorthandLanguage(null)}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setSelectedShorthandFolderId(undefined);
+                      }}
+                    >
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <h4 className="text-sm font-semibold capitalize">{selectedShorthandLanguage} Shorthand Tests</h4>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedShorthandLanguage} {selectedShorthandFolderId !== null ? `- ${(shorthandFoldersQuery.data || []).find(f => f.id === selectedShorthandFolderId)?.name || 'Folder'}` : '- All Tests'} Shorthand Tests
+                    </h4>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                     {((shorthandQuery.data?.pages ?? []) as any[])
                       .flat()
                       .filter((t: any) => ((t.language || 'english').toString().toLowerCase()) === (selectedShorthandLanguage || 'english'))
+                      .filter((t: any) => selectedShorthandFolderId === null ? true : t.folderId === selectedShorthandFolderId)
                       .filter((t: any) => t.title.toLowerCase().includes(shorthandSearch.toLowerCase()))
                       .map((test: any) => {
                         const result = getResultForContent(test.id?.toString());
@@ -716,9 +842,58 @@ export default function StudentDashboard() {
                                   <span>Shorthand</span>
                                 </div>
                               </div>
-                              <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2">
+                              <p className="text-xs text-orange-600 bg-orange-50 rounded-lg p-2 mb-3">
                                 Listen to Audio, Write on Paper, Type Here
                               </p>
+                              {/* YouTube Video Links Dropdown */}
+                              {(test.video60wpm || test.video80wpm || test.video100wpm || test.video120wpm) && (
+                                <div className="space-y-2">
+                                  <label className="text-xs font-medium text-gray-700">Typing Speed Videos:</label>
+                                  <Select 
+                                    value={selectedVideoSpeeds[test.id] || ""} 
+                                    onValueChange={(speed) => {
+                                      setSelectedVideoSpeeds(prev => ({ ...prev, [test.id]: speed }));
+                                      // Get the corresponding video link
+                                      const videoLinks: Record<string, string> = {
+                                        '60': test.video60wpm || '',
+                                        '80': test.video80wpm || '',
+                                        '100': test.video100wpm || '',
+                                        '120': test.video120wpm || '',
+                                      };
+                                      const link = videoLinks[speed];
+                                      if (link) {
+                                        window.open(link, '_blank');
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs bg-white">
+                                      <SelectValue placeholder="Select typing speed..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {test.video60wpm ? (
+                                        <SelectItem value="60">60 WPM - Available</SelectItem>
+                                      ) : (
+                                        <SelectItem value="60" disabled>60 WPM - Not Available</SelectItem>
+                                      )}
+                                      {test.video80wpm ? (
+                                        <SelectItem value="80">80 WPM - Available</SelectItem>
+                                      ) : (
+                                        <SelectItem value="80" disabled>80 WPM - Not Available</SelectItem>
+                                      )}
+                                      {test.video100wpm ? (
+                                        <SelectItem value="100">100 WPM - Available</SelectItem>
+                                      ) : (
+                                        <SelectItem value="100" disabled>100 WPM - Not Available</SelectItem>
+                                      )}
+                                      {test.video120wpm ? (
+                                        <SelectItem value="120">120 WPM - Available</SelectItem>
+                                      ) : (
+                                        <SelectItem value="120" disabled>120 WPM - Not Available</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
                             </CardContent>
                             <CardFooter className="pt-4 border-t bg-slate-50">
                               <Button

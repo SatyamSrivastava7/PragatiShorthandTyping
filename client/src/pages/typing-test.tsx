@@ -402,20 +402,16 @@ export default function TypingTestPage() {
      }
   };
 
-  // Get the audio URL based on selected WPM
+  // Audio functionality has been replaced with video links
+  // Get the audio URL based on selected WPM (deprecated - no longer used)
   const getSelectedAudioUrl = () => {
-    if (selectedAudioWpm === "80" && testContent?.audio80wpm) {
-      return testContent?.audio80wpm ?? testContent?.mediaUrl;
-    }
-    if (selectedAudioWpm === "100" && testContent?.audio100wpm) {
-      return testContent?.audio100wpm;
-    }
+    // Audio uploads are no longer supported, return null
     return null;
   };
 
-  // Check if both audio options are available
-  const audio80Available = !!testContent?.audio80wpm || !!testContent?.mediaUrl;
-  const audio100Available = !!testContent?.audio100wpm;
+  // Check if both audio options are available (deprecated - no longer used)
+  const audio80Available = false;
+  const audio100Available = false;
   const selectedAudioUrl = getSelectedAudioUrl();
 
   const formatTime = (seconds: number) => {

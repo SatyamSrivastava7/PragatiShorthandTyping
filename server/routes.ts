@@ -418,6 +418,69 @@ export async function registerRoutes(
     }
   });
   
+  // ==================== TEST FOLDER ROUTES ====================
+  
+  // Get test folders by language
+  app.get("/api/test-folders", async (req, res) => {
+    try {
+      const language = req.query.language as string | undefined;
+      if (!language) {
+        return res.status(400).json({ message: "language parameter is required" });
+      }
+      const folders = await storage.getTestFoldersByLanguage(language);
+      res.json(folders);
+    } catch (error) {
+      console.error("Error fetching test folders:", error);
+      res.status(500).json({ message: "Failed to fetch test folders" });
+    }
+  });
+
+  // Create test folder
+  app.post("/api/test-folders", async (req, res) => {
+    try {
+      const { name, language } = req.body;
+      if (!name || !language) {
+        return res.status(400).json({ message: "name and language are required" });
+      }
+      const folder = await storage.createTestFolder({ name, language });
+      res.status(201).json(folder);
+    } catch (error) {
+      console.error("Error creating test folder:", error);
+      res.status(500).json({ message: "Failed to create test folder" });
+    }
+  });
+
+  // Update test folder
+  app.patch("/api/test-folders/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ message: "name is required" });
+      }
+      const folder = await storage.updateTestFolder(id, { name });
+      if (!folder) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+      res.json(folder);
+    } catch (error) {
+      console.error("Error updating test folder:", error);
+      res.status(500).json({ message: "Failed to update test folder" });
+    }
+  });
+
+  // Delete test folder
+  app.delete("/api/test-folders/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTestFolder(id);
+      res.json({ message: "Folder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting test folder:", error);
+      res.status(500).json({ message: "Failed to delete test folder" });
+    }
+  });
+
   // ==================== CONTENT ROUTES ====================
   
   // Get all content list (lightweight - excludes text field)
@@ -521,7 +584,6 @@ export async function registerRoutes(
     try {
       const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
       const formData: Record<string, string> = {};
-      const audioFiles: Record<string, { buffer: Buffer; mimeType: string }> = {};
       let fileSize = 0;
 
       return new Promise<void>((resolve, reject) => {
@@ -532,40 +594,10 @@ export async function registerRoutes(
           }
         });
 
-        // Handle file field - supports audioFile, audio80wpm, audio100wpm
-        bb.on('file', (name: string, file: any, info: { filename: string; encoding: string; mimeType: string }) => {
-          const { mimeType } = info;
-          
-          if (name === 'audioFile' || name === 'audio80wpm' || name === 'audio100wpm') {
-            const chunks: Buffer[] = [];
-
-            file.on('data', (chunk: Buffer) => {
-              fileSize += chunk.length;
-              if (fileSize > MAX_FILE_SIZE) {
-                file.destroy();
-                if (!res.headersSent) {
-                  res.status(400).json({ message: 'File size exceeds 100MB limit' });
-                }
-                reject(new Error('File size exceeds 100MB limit'));
-                return;
-              }
-              chunks.push(chunk);
-            });
-
-            file.on('end', () => {
-              audioFiles[name] = {
-                buffer: Buffer.concat(chunks),
-                mimeType: mimeType || 'audio/mpeg',
-              };
-            });
-
-            file.on('error', (err: Error) => {
-              reject(new Error(`File upload error: ${err.message}`));
-            });
-          } else {
-            // Ignore other files
-            file.resume();
-          }
+        // Skip file handling - audio uploads are no longer supported
+        bb.on('file', (name: string, file: any) => {
+          // Ignore all files - no audio uploads
+          file.resume();
         });
 
         // Handle form fields
@@ -576,21 +608,12 @@ export async function registerRoutes(
         // Handle form completion
         bb.on('finish', async () => {
           try {
-            // Convert audio files to base64 if present
-            let audio80wpm: string | null = null;
-            let audio100wpm: string | null = null;
-
-            if (audioFiles['audio80wpm']) {
-              const { buffer, mimeType } = audioFiles['audio80wpm'];
-              const base64 = buffer.toString('base64');
-              audio80wpm = `data:${mimeType};base64,${base64}`;
-            }
-
-            if (audioFiles['audio100wpm']) {
-              const { buffer, mimeType } = audioFiles['audio100wpm'];
-              const base64 = buffer.toString('base64');
-              audio100wpm = `data:${mimeType};base64,${base64}`;
-            }
+            // Parse video links if provided
+            const videoData: Record<string, string | undefined> = {};
+            if (formData.video60wpm) videoData.video60wpm = formData.video60wpm;
+            if (formData.video80wpm) videoData.video80wpm = formData.video80wpm;
+            if (formData.video100wpm) videoData.video100wpm = formData.video100wpm;
+            if (formData.video120wpm) videoData.video120wpm = formData.video120wpm;
 
             const validatedData = insertContentSchema.parse({
               title: formData.title,
@@ -599,9 +622,8 @@ export async function registerRoutes(
               duration: parseInt(formData.duration),
               dateFor: formData.dateFor,
               language: formData.language || 'english',
-              audio80wpm,
-              audio100wpm,
               autoScroll: formData.autoScroll === 'true',
+              ...videoData,
             });
 
             const content = await storage.createContent(validatedData);
