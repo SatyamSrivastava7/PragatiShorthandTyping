@@ -58,14 +58,15 @@ export const useCreateTestFolder = () => {
       testFolderApi.create(data),
     onSuccess: (newFolder) => {
       const folderType = newFolder.type || "typing";
+      const folderLanguage = newFolder.language || "english";
       
-      // Invalidate the specific language+type cache
-      // This will refetch folders immediately
+      // Invalidate the specific language+type cache with exact queryKey match
       queryClient.invalidateQueries({
-        queryKey: ["testFolders", newFolder.language, folderType],
+        queryKey: ["testFolders", folderLanguage, folderType],
+        exact: true,
       });
       
-      // Also invalidate all latest folders cache to ensure fresh data
+      // Also invalidate all latest folders cache
       queryClient.invalidateQueries({
         queryKey: ["testFolders", "latest"],
       });
@@ -85,13 +86,15 @@ export const useUpdateTestFolder = () => {
       testFolderApi.update(data.id, data.updates),
     onSuccess: (updatedFolder) => {
       const folderType = updatedFolder.type || "typing";
+      const folderLanguage = updatedFolder.language || "english";
       
-      // Invalidate the specific language+type cache
+      // Invalidate the specific language+type cache with exact queryKey match
       queryClient.invalidateQueries({
-        queryKey: ["testFolders", updatedFolder.language, folderType],
+        queryKey: ["testFolders", folderLanguage, folderType],
+        exact: true,
       });
       
-      // Also invalidate all latest folders cache to ensure fresh data
+      // Also invalidate all latest folders cache
       queryClient.invalidateQueries({
         queryKey: ["testFolders", "latest"],
       });
