@@ -3,7 +3,8 @@
  * Run with: node server/add-type-to-folders.js
  */
 
-const { Client } = require("pg");
+import pkg from "pg";
+const { Client } = pkg;
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
