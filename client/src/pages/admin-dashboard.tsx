@@ -20,6 +20,7 @@ import {
   useGallery,
   useSelectedCandidates,
   useTestFolders,
+  useDeleteTestFolder,
 } from "@/lib/hooks";
 import { useNotices } from "@/lib/hooks/useNotice";
 import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
@@ -95,6 +96,72 @@ import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { FolderSelector } from "@/components/FolderSelector";
 import { queryClient } from "@/lib/queryClient";
+
+// Delete Folder Button Component
+function DeleteFolderButton({ 
+  folderId, 
+  onDeleteSuccess 
+}: { 
+  folderId: number; 
+  onDeleteSuccess: () => void;
+}) {
+  const deleteMutation = useDeleteTestFolder();
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(folderId);
+      onDeleteSuccess();
+      setShowConfirm(false);
+    } catch (error) {
+      // Error handling is done in the mutation hook
+    }
+  };
+
+  if (showConfirm) {
+    return (
+      <div className="flex gap-2">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+        >
+          {deleteMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Deleting...
+            </>
+          ) : (
+            <>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Confirm Delete
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowConfirm(false)}
+          disabled={deleteMutation.isPending}
+        >
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="destructive"
+      size="sm"
+      onClick={() => setShowConfirm(true)}
+    >
+      <Trash2 className="h-4 w-4 mr-2" />
+      Delete Folder
+    </Button>
+  );
+}
 
 // Preview Dialog Component - Loads full content on-demand (including text and audioUrl)
 // Only fetches when dialog is actually opened to avoid loading all audio files
@@ -2126,30 +2193,47 @@ export default function AdminDashboard() {
                                           <DialogHeader>
                                             <DialogTitle>Change Test Folder</DialogTitle>
                                           </DialogHeader>
-                                          <FolderSelector
-                                            language={item.language || 'english'}
-                                            type={item.type as "typing" | "shorthand"}
-                                            selectedFolderId={item.folderId || null}
-                                            onFolderSelect={async (folderId) => {
-                                              try {
-                                                await updateContent({
-                                                  id: item.id,
-                                                  data: { folderId: folderId } as any,
-                                                });
-                                                toast({
-                                                  variant: "success",
-                                                  title: "Success",
-                                                  description: "Folder updated successfully",
-                                                });
-                                              } catch (error) {
-                                                toast({
-                                                  variant: "destructive",
-                                                  title: "Error",
-                                                  description: error instanceof Error ? error.message : "Failed to update folder",
-                                                });
-                                              }
-                                            }}
-                                          />
+                                          <div className="space-y-4">
+                                            <FolderSelector
+                                              language={item.language || 'english'}
+                                              type={item.type as "typing" | "shorthand"}
+                                              selectedFolderId={item.folderId || null}
+                                              onFolderSelect={async (folderId) => {
+                                                try {
+                                                  await updateContent({
+                                                    id: item.id,
+                                                    data: { folderId: folderId } as any,
+                                                  });
+                                                  toast({
+                                                    variant: "success",
+                                                    title: "Success",
+                                                    description: "Folder updated successfully",
+                                                  });
+                                                } catch (error) {
+                                                  toast({
+                                                    variant: "destructive",
+                                                    title: "Error",
+                                                    description: error instanceof Error ? error.message : "Failed to update folder",
+                                                  });
+                                                }
+                                              }}
+                                            />
+                                            {item.folderId && (
+                                              <div className="border-t pt-4">
+                                                <p className="text-sm text-gray-600 mb-2">Delete this folder from the system</p>
+                                                <DeleteFolderButton
+                                                  folderId={item.folderId}
+                                                  onDeleteSuccess={() => {
+                                                    toast({
+                                                      variant: "success",
+                                                      title: "Success",
+                                                      description: "Folder deleted successfully",
+                                                    });
+                                                  }}
+                                                />
+                                              </div>
+                                            )}
+                                          </div>
                                         </DialogContent>
                                       </Dialog>
                                       <Switch
