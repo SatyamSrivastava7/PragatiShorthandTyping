@@ -32,6 +32,7 @@ export const testFolders = pgTable("test_folders", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   language: varchar("language", { length: 10 }).notNull(), // 'english' | 'hindi'
+  type: varchar("type", { length: 20 }).notNull().default("typing"), // 'typing' | 'shorthand'
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

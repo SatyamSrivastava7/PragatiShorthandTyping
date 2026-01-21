@@ -396,21 +396,65 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Test Folder methods
-  async getTestFoldersByLanguage(language: string): Promise<TestFolder[]> {
-    return await db.select().from(testFolders).where(eq(testFolders.language, language)).orderBy(asc(testFolders.name));
+  async getTestFoldersByLanguage(language: string, type?: string): Promise<TestFolder[]> {
+    // First get all folders for the language and type
+    const conditions = [eq(testFolders.language, language)];
+    if (type) {
+      conditions.push(eq(testFolders.type, type));
+    }
+    
+    const folders = await db
+      .select()
+      .from(testFolders)
+      .where(and(...conditions))
+      .orderBy(asc(testFolders.name));
+    
+    // Filter to only folders with enabled content
+    const foldersWithContent = await Promise.all(
+      folders.map(async (folder) => {
+        const hasEnabledContent = await db
+          .select()
+          .from(content)
+          .where(and(eq(content.folderId, folder.id), eq(content.isEnabled, true)))
+          .limit(1);
+        
+        return hasEnabledContent.length > 0 ? folder : null;
+      })
+    );
+    
+    return foldersWithContent.filter((f): f is TestFolder => f !== null);
   }
 
-  async getLatestTestFoldersByLanguage(language: string, limit: number = 6, offset: number = 0): Promise<TestFolder[]> {
-    let q: any = db.select().from(testFolders).where(eq(testFolders.language, language)).orderBy(desc(testFolders.createdAt));
-    
-    if (Number.isFinite(limit as number)) {
-      q = q.limit(Number(limit));
-    }
-    if (Number.isFinite(offset as number)) {
-      q = q.offset(Number(offset));
+  async getLatestTestFoldersByLanguage(language: string, limit: number = 6, offset: number = 0, type?: string): Promise<TestFolder[]> {
+    // First get folders ordered by creation date
+    const conditions = [eq(testFolders.language, language)];
+    if (type) {
+      conditions.push(eq(testFolders.type, type));
     }
     
-    return await q;
+    const folders = await db
+      .select()
+      .from(testFolders)
+      .where(and(...conditions))
+      .orderBy(desc(testFolders.createdAt));
+    
+    // Filter to only folders with enabled content
+    const foldersWithContent = await Promise.all(
+      folders.map(async (folder) => {
+        const hasEnabledContent = await db
+          .select()
+          .from(content)
+          .where(and(eq(content.folderId, folder.id), eq(content.isEnabled, true)))
+          .limit(1);
+        
+        return hasEnabledContent.length > 0 ? folder : null;
+      })
+    );
+    
+    const filtered = foldersWithContent.filter((f): f is TestFolder => f !== null);
+    
+    // Apply pagination
+    return filtered.slice(offset, offset + limit);
   }
 
   async getTestFolder(id: number): Promise<TestFolder | undefined> {

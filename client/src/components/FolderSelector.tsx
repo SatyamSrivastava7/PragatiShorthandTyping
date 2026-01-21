@@ -23,6 +23,7 @@ import type { TestFolder } from "@shared/schema";
 
 interface FolderSelectorProps {
   language: string;
+  type?: "typing" | "shorthand";
   selectedFolderId?: number | null;
   onFolderSelect: (folderId: number | null) => void;
 }
@@ -33,19 +34,20 @@ interface FolderSelectorProps {
  */
 export function FolderSelector({
   language,
+  type,
   selectedFolderId,
   onFolderSelect,
 }: FolderSelectorProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  // Fetch folders for the selected language
+  // Fetch folders for the selected language and type
   const { 
     data: folders = [], 
     isLoading: isLoadingFolders,
     error: foldersError,
     isError: isFoldersError
-  } = useTestFolders(language);
+  } = useTestFolders(language, type);
 
   // Mutation for creating new folder
   const { mutate: createFolder, isPending: isCreatingFolder } =
@@ -66,7 +68,7 @@ export function FolderSelector({
     }
 
     createFolder(
-      { name: newFolderName.trim(), language },
+      { name: newFolderName.trim(), language, type },
       {
         onSuccess: (newFolder) => {
           toast({

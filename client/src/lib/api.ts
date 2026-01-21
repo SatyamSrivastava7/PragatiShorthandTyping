@@ -123,23 +123,27 @@ export const usersApi = {
 };
 
 export const testFolderApi = {
-  // Get all folders by language
-  getByLanguage: (language: string) =>
-    fetchApi<TestFolder[]>(`/api/test-folders?language=${language}`),
+  // Get all folders by language (optionally filtered by type)
+  getByLanguage: (language: string, type?: string) => {
+    const qs = type ? `&type=${type}` : '';
+    return fetchApi<TestFolder[]>(`/api/test-folders?language=${language}${qs}`);
+  },
 
   // Get latest folders by language with pagination (for student dashboard)
-  getLatestByLanguage: (language: string, limit: number = 6, offset: number = 0) =>
-    fetchApi<TestFolder[]>(`/api/test-folders/latest?language=${language}&limit=${limit}&offset=${offset}`),
+  getLatestByLanguage: (language: string, limit: number = 6, offset: number = 0, type?: string) => {
+    const qs = type ? `&type=${type}` : '';
+    return fetchApi<TestFolder[]>(`/api/test-folders/latest?language=${language}&limit=${limit}&offset=${offset}${qs}`);
+  },
 
   // Create a new folder
-  create: (data: { name: string; language: string }) =>
+  create: (data: { name: string; language: string; type?: string }) =>
     fetchApi<TestFolder>('/api/test-folders', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   // Update folder name
-  update: (id: number, data: { name: string }) =>
+  update: (id: number, data: { name?: string; type?: string }) =>
     fetchApi<TestFolder>(`/api/test-folders/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),

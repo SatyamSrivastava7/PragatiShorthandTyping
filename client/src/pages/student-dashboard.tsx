@@ -137,8 +137,8 @@ export default function StudentDashboard() {
 
   // Fetch latest test folders for both languages (cached by react-query)
   // Only fetch latest 6 folders, ordered by creation date (newest first)
-  const typingFoldersQuery = useLatestTestFolders(selectedTypingLanguage || 'english');
-  const shorthandFoldersQuery = useLatestTestFolders(selectedShorthandLanguage || 'english');
+  const typingFoldersQuery = useLatestTestFolders(selectedTypingLanguage || 'english', 6, 'typing');
+  const shorthandFoldersQuery = useLatestTestFolders(selectedShorthandLanguage || 'english', 6, 'shorthand');
 
   // Typing: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
   const typingQuery = useInfiniteQuery({

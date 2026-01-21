@@ -424,12 +424,13 @@ export async function registerRoutes(
   app.get("/api/test-folders/latest", async (req, res) => {
     try {
       const language = req.query.language as string | undefined;
+      const type = req.query.type as string | undefined;
       const limit = parseInt(req.query.limit as string) || 6;
       const offset = parseInt(req.query.offset as string) || 0;
       if (!language) {
         return res.status(400).json({ message: "language parameter is required" });
       }
-      const folders = await storage.getLatestTestFoldersByLanguage(language, limit, offset);
+      const folders = await storage.getLatestTestFoldersByLanguage(language, limit, offset, type);
       res.json(folders);
     } catch (error) {
       console.error("Error fetching latest test folders:", error);
@@ -441,10 +442,11 @@ export async function registerRoutes(
   app.get("/api/test-folders", async (req, res) => {
     try {
       const language = req.query.language as string | undefined;
+      const type = req.query.type as string | undefined;
       if (!language) {
         return res.status(400).json({ message: "language parameter is required" });
       }
-      const folders = await storage.getTestFoldersByLanguage(language);
+      const folders = await storage.getTestFoldersByLanguage(language, type);
       res.json(folders || []);
     } catch (error) {
       console.error("Error fetching test folders:", error);
@@ -455,11 +457,11 @@ export async function registerRoutes(
   // Create test folder
   app.post("/api/test-folders", async (req, res) => {
     try {
-      const { name, language } = req.body;
+      const { name, language, type } = req.body;
       if (!name || !language) {
         return res.status(400).json({ message: "name and language are required" });
       }
-      const folder = await storage.createTestFolder({ name, language });
+      const folder = await storage.createTestFolder({ name, language, type: type || "typing" });
       res.status(201).json(folder);
     } catch (error) {
       console.error("Error creating test folder:", error);

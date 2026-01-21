@@ -19,6 +19,7 @@ import {
   useSettings,
   useGallery,
   useSelectedCandidates,
+  useTestFolders,
 } from "@/lib/hooks";
 import { useNotices } from "@/lib/hooks/useNotice";
 import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
@@ -300,6 +301,7 @@ function EditTestModalComponent({
           {/* Folder Selector */}
           <FolderSelector
             language={editLanguage}
+            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand"}
             selectedFolderId={editSelectedTestFolderId}
             onFolderSelect={setEditSelectedTestFolderId}
           />
@@ -476,6 +478,22 @@ export default function AdminDashboard() {
     deleteImage: removeGalleryImage,
   } = useGallery(activeTab === "gallery");
   const { featuredImages, updateImageOrder: updateFeaturedImageOrder, isUpdating: isUpdatingFeaturedOrder } = useFeaturedGallery(activeTab === "gallery");
+  
+  // Get unique languages from content to minimize API calls
+  const contentLanguages = Array.from(new Set(content.map(c => c.language || 'english'))) as Array<'english' | 'hindi'>;
+  
+  // Only fetch test folders for languages that have content, and only when manage tab is active
+  const { data: englishTestFolders = [] } = useTestFolders(contentLanguages.includes('english') ? 'english' : '');
+  const { data: hindiTestFolders = [] } = useTestFolders(contentLanguages.includes('hindi') ? 'hindi' : '');
+  const allTestFolders = [...englishTestFolders, ...hindiTestFolders];
+  
+  // Helper function to get folder name by ID (with memoization to avoid recalculating)
+  const getFolderNameById = (folderId: number | null | undefined): string => {
+    if (!folderId) return '-';
+    const folder = allTestFolders.find(f => f.id === folderId);
+    return folder?.name || `Folder #${folderId}`;
+  };
+  
   const {
     candidates: selectedCandidates,
     hasNextPage: hasNextCandidate,
@@ -1778,6 +1796,7 @@ export default function AdminDashboard() {
                   {language && (
                     <FolderSelector
                       language={language}
+                      type={contentType}
                       selectedFolderId={selectedTestFolderId}
                       onFolderSelect={setSelectedTestFolderId}
                     />
@@ -2044,7 +2063,7 @@ export default function AdminDashboard() {
                                     {item.language}
                                   </TableCell>
                                   <TableCell className="text-sm">
-                                    {item.folderId ? `ID: ${item.folderId}` : '-'}
+                                    {getFolderNameById(item.folderId)}
                                   </TableCell>
                                   <TableCell>{item.duration} min</TableCell>
                                   <TableCell>
@@ -2091,6 +2110,7 @@ export default function AdminDashboard() {
                                           </DialogHeader>
                                           <FolderSelector
                                             language={item.language || 'english'}
+                                            type={item.type as "typing" | "shorthand"}
                                             selectedFolderId={item.folderId || null}
                                             onFolderSelect={async (folderId) => {
                                               try {

@@ -8,10 +8,10 @@ const FOLDERS_PAGE_SIZE = 6;
  * Hook to fetch test folders by language with caching
  * Minimizes API calls by caching folder data with 5-minute stale time
  */
-export const useTestFolders = (language: string) => {
+export const useTestFolders = (language: string, type?: string) => {
   return useQuery({
-    queryKey: ["testFolders", language],
-    queryFn: () => testFolderApi.getByLanguage(language),
+    queryKey: ["testFolders", language, type],
+    queryFn: () => testFolderApi.getByLanguage(language, type),
     staleTime: 5 * 60 * 1000, // 5 minutes before considering data stale
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     retry: 1, // Retry once on failure
@@ -23,11 +23,11 @@ export const useTestFolders = (language: string) => {
  * Hook to fetch latest test folders by language with pagination
  * Returns paginated results with "load more" functionality
  */
-export const useLatestTestFolders = (language: string, limit: number = FOLDERS_PAGE_SIZE) => {
+export const useLatestTestFolders = (language: string, limit: number = FOLDERS_PAGE_SIZE, type?: string) => {
   return useInfiniteQuery({
-    queryKey: ["testFolders", "latest", language, limit],
+    queryKey: ["testFolders", "latest", language, limit, type],
     queryFn: async ({ pageParam = 0 }) => {
-      return await testFolderApi.getLatestByLanguage(language, limit, pageParam);
+      return await testFolderApi.getLatestByLanguage(language, limit, pageParam, type);
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage: TestFolder[], pages: TestFolder[][]) => {
@@ -50,7 +50,7 @@ export const useCreateTestFolder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: { name: string; language: string }) =>
+    mutationFn: (data: { name: string; language: string; type?: string }) =>
       testFolderApi.create(data),
     onSuccess: (newFolder) => {
       // Invalidate the language-specific folders cache to refetch
