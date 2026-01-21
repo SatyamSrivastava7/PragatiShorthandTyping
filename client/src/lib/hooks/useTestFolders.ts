@@ -14,6 +14,8 @@ export const useTestFolders = (language: string) => {
     queryFn: () => testFolderApi.getByLanguage(language),
     staleTime: 5 * 60 * 1000, // 5 minutes before considering data stale
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    retry: 1, // Retry once on failure
+    enabled: !!language, // Only run if language is provided
   });
 };
 

@@ -445,10 +445,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "language parameter is required" });
       }
       const folders = await storage.getTestFoldersByLanguage(language);
-      res.json(folders);
+      res.json(folders || []);
     } catch (error) {
       console.error("Error fetching test folders:", error);
-      res.status(500).json({ message: "Failed to fetch test folders" });
+      res.status(500).json({ message: "Failed to fetch test folders", error: error instanceof Error ? error.message : String(error) });
     }
   });
 

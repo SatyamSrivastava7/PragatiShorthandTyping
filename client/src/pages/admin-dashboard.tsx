@@ -1775,11 +1775,13 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* Folder Selector */}
-                  <FolderSelector
-                    language={language}
-                    selectedFolderId={selectedTestFolderId}
-                    onFolderSelect={setSelectedTestFolderId}
-                  />
+                  {language && (
+                    <FolderSelector
+                      language={language}
+                      selectedFolderId={selectedTestFolderId}
+                      onFolderSelect={setSelectedTestFolderId}
+                    />
+                  )}
 
                   {contentType === "shorthand" && (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">

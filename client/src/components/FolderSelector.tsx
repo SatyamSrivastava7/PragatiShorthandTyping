@@ -43,7 +43,8 @@ export function FolderSelector({
   const { 
     data: folders = [], 
     isLoading: isLoadingFolders,
-    error: foldersError
+    error: foldersError,
+    isError: isFoldersError
   } = useTestFolders(language);
 
   // Mutation for creating new folder
@@ -177,8 +178,8 @@ export function FolderSelector({
       {isLoadingFolders && (
         <p className="text-xs text-muted-foreground">Loading folders...</p>
       )}
-      {foldersError && (
-        <p className="text-xs text-destructive">Failed to load folders. Please try again.</p>
+      {isFoldersError && foldersError && (
+        <p className="text-xs text-destructive">Failed to load folders. You can still create tests without assigning a folder.</p>
       )}
     </div>
   );
