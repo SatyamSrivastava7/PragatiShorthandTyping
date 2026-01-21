@@ -1100,15 +1100,23 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (!newFolderName) return;
-    addPdfFolder(newFolderName);
-    setNewFolderName("");
-    toast({
-      variant: "success",
-      title: "Success",
-      description: "Folder created",
-    });
+    try {
+      await addPdfFolder(newFolderName);
+      setNewFolderName("");
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Folder created",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create folder",
+      });
+    }
   };
 
   const handleUploadPdf = async () => {

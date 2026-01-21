@@ -40,7 +40,11 @@ export function FolderSelector({
   const [newFolderName, setNewFolderName] = useState("");
 
   // Fetch folders for the selected language
-  const { data: folders = [], isLoading: isLoadingFolders } = useTestFolders(language);
+  const { 
+    data: folders = [], 
+    isLoading: isLoadingFolders,
+    error: foldersError
+  } = useTestFolders(language);
 
   // Mutation for creating new folder
   const { mutate: createFolder, isPending: isCreatingFolder } =
@@ -172,6 +176,9 @@ export function FolderSelector({
       </div>
       {isLoadingFolders && (
         <p className="text-xs text-muted-foreground">Loading folders...</p>
+      )}
+      {foldersError && (
+        <p className="text-xs text-destructive">Failed to load folders. Please try again.</p>
       )}
     </div>
   );

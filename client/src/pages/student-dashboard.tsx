@@ -664,12 +664,18 @@ export default function StudentDashboard() {
                     </h4>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                    {((typingQuery.data?.pages ?? []) as any[])
-                      .flat()
-                      .filter((t: any) => ((t.language || 'english').toString().toLowerCase()) === (selectedTypingLanguage || 'english'))
+                    {typingQuery.isError ? (
+                      <div className="col-span-full text-center py-8">
+                        <p className="text-destructive mb-2">Failed to load tests</p>
+                        <p className="text-sm text-muted-foreground">{typingQuery.error instanceof Error ? typingQuery.error.message : 'Unknown error'}</p>
+                      </div>
+                    ) : ((typingQuery.data?.pages ?? []) as any[])
+                      .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
+                      .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedTypingLanguage || 'english'))
                       .filter((t: any) => selectedTypingFolderId === null ? true : t.folderId === selectedTypingFolderId)
-                      .filter((t: any) => t.title.toLowerCase().includes(typingSearch.toLowerCase()))
+                      .filter((t: any) => t.title && t.title.toLowerCase().includes(typingSearch.toLowerCase()))
                       .map((test: any) => {
+                        if (!test || !test.id) return null;
                         const result = getResultForContent(test.id?.toString());
                         const isCompleted = !!result;
 
@@ -712,7 +718,8 @@ export default function StudentDashboard() {
                             </CardFooter>
                           </Card>
                         );
-                      })}
+                      })
+                      .filter(Boolean)}
                   </div>
                   {typingQuery.hasNextPage && (
                     <div className="flex justify-center mt-4">
