@@ -65,15 +65,9 @@ export const useCreateTestFolder = () => {
         queryKey: ["testFolders", newFolder.language, folderType],
       });
       
-      // Also invalidate latest folders cache for the same language
-      // This handles the infinite query pagination
+      // Also invalidate all latest folders cache to ensure fresh data
       queryClient.invalidateQueries({
         queryKey: ["testFolders", "latest"],
-        predicate: (query) => {
-          // Query key structure: ["testFolders", "latest", language, limit, type]
-          const queryKeyArray = query.queryKey as (string | number)[];
-          return queryKeyArray[2] === newFolder.language && queryKeyArray[4] === folderType;
-        }
       });
     },
   });
@@ -97,14 +91,9 @@ export const useUpdateTestFolder = () => {
         queryKey: ["testFolders", updatedFolder.language, folderType],
       });
       
-      // Also invalidate latest folders cache for the same language
+      // Also invalidate all latest folders cache to ensure fresh data
       queryClient.invalidateQueries({
         queryKey: ["testFolders", "latest"],
-        predicate: (query) => {
-          // Query key structure: ["testFolders", "latest", language, limit, type]
-          const queryKeyArray = query.queryKey as (string | number)[];
-          return queryKeyArray[2] === updatedFolder.language && queryKeyArray[4] === folderType;
-        }
       });
     },
   });
