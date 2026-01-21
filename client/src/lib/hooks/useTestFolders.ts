@@ -1,6 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { testFolderApi } from "@/lib/api";
 import type { TestFolder } from "@shared/schema";
+
+const FOLDERS_PAGE_SIZE = 6;
 
 /**
  * Hook to fetch test folders by language with caching
@@ -12,6 +14,30 @@ export const useTestFolders = (language: string) => {
     queryFn: () => testFolderApi.getByLanguage(language),
     staleTime: 5 * 60 * 1000, // 5 minutes before considering data stale
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+  });
+};
+
+/**
+ * Hook to fetch latest test folders by language with pagination
+ * Returns paginated results with "load more" functionality
+ */
+export const useLatestTestFolders = (language: string, limit: number = FOLDERS_PAGE_SIZE) => {
+  return useInfiniteQuery({
+    queryKey: ["testFolders", "latest", language, limit],
+    queryFn: async ({ pageParam = 0 }) => {
+      return await testFolderApi.getLatestByLanguage(language, limit, pageParam);
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: TestFolder[], pages: TestFolder[][]) => {
+      // If the last page has fewer items than the limit, there are no more pages
+      if (lastPage.length < limit) {
+        return undefined;
+      }
+      // Otherwise, calculate the offset for the next page
+      return pages.reduce((acc, p) => acc + p.length, 0);
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 };
 
@@ -28,6 +54,10 @@ export const useCreateTestFolder = () => {
       // Invalidate the language-specific folders cache to refetch
       queryClient.invalidateQueries({
         queryKey: ["testFolders", newFolder.language],
+      });
+      // Also invalidate latest folders cache
+      queryClient.invalidateQueries({
+        queryKey: ["testFolders", "latest", newFolder.language],
       });
     },
   });
@@ -46,6 +76,10 @@ export const useUpdateTestFolder = () => {
       // Invalidate the language-specific folders cache to refetch
       queryClient.invalidateQueries({
         queryKey: ["testFolders", updatedFolder.language],
+      });
+      // Also invalidate latest folders cache
+      queryClient.invalidateQueries({
+        queryKey: ["testFolders", "latest", updatedFolder.language],
       });
     },
   });

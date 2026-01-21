@@ -58,6 +58,7 @@ export interface IStorage {
   
   // Test Folder methods
   getTestFoldersByLanguage(language: string): Promise<TestFolder[]>;
+  getLatestTestFoldersByLanguage(language: string, limit?: number, offset?: number): Promise<TestFolder[]>;
   getTestFolder(id: number): Promise<TestFolder | undefined>;
   createTestFolder(folder: InsertTestFolder): Promise<TestFolder>;
   updateTestFolder(id: number, updates: Partial<InsertTestFolder>): Promise<TestFolder | undefined>;
@@ -198,7 +199,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(content).orderBy(desc(content.createdAt));
   }
 
-  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
+  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm'>[]> {
     const columns = {
       id: content.id,
       title: content.title,
@@ -209,14 +210,15 @@ export class DatabaseStorage implements IStorage {
       autoScroll: content.autoScroll,
       language: content.language,
       createdAt: content.createdAt,
+      folderId: content.folderId,
     };
     if (type) {
-      return await db.select(columns).from(content).where(eq(content.type, type)).orderBy(desc(content.createdAt));
+      return await db.select(columns).from(content).where(eq(content.type, type)).orderBy(desc(content.createdAt)) as any;
     }
-    return await db.select(columns).from(content).orderBy(desc(content.createdAt));
+    return await db.select(columns).from(content).orderBy(desc(content.createdAt)) as any;
   }
 
-  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
+  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm'>[]> {
     return await db.select({
       id: content.id,
       title: content.title,
@@ -227,10 +229,11 @@ export class DatabaseStorage implements IStorage {
       autoScroll: content.autoScroll,
       language: content.language,
       createdAt: content.createdAt,
-    }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
+      folderId: content.folderId,
+    }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt)) as any;
   }
 
-  async getEnabledContentListPaged(type?: string, language?: string, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]> {
+  async getEnabledContentListPaged(type?: string, language?: string, folderId?: number, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm'>[]> {
     const columns = {
       id: content.id,
       title: content.title,
@@ -239,16 +242,20 @@ export class DatabaseStorage implements IStorage {
       dateFor: content.dateFor,
       isEnabled: content.isEnabled,
       autoScroll: content.autoScroll,
-      audio80wpm: content.audio80wpm,
-      audio100wpm: content.audio100wpm,
+      video60wpm: content.video60wpm,
+      video80wpm: content.video80wpm,
+      video100wpm: content.video100wpm,
+      video120wpm: content.video120wpm,
       language: content.language,
       createdAt: content.createdAt,
+      folderId: content.folderId,
     };
 
     // Build conditions array and apply as a single where clause to satisfy Drizzle's types
     const conditions = [eq(content.isEnabled, true)];
     if (type) conditions.push(eq(content.type, type));
     if (language) conditions.push(eq(content.language, language));
+    if (folderId) conditions.push(eq(content.folderId, folderId));
 
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
@@ -263,7 +270,7 @@ export class DatabaseStorage implements IStorage {
       q = q.offset(Number(offset));
     }
 
-    return await q;
+    return await q as any;
   }
 
   async getEnabledContent(): Promise<Content[]> {
@@ -391,6 +398,19 @@ export class DatabaseStorage implements IStorage {
   // Test Folder methods
   async getTestFoldersByLanguage(language: string): Promise<TestFolder[]> {
     return await db.select().from(testFolders).where(eq(testFolders.language, language)).orderBy(asc(testFolders.name));
+  }
+
+  async getLatestTestFoldersByLanguage(language: string, limit: number = 6, offset: number = 0): Promise<TestFolder[]> {
+    let q: any = db.select().from(testFolders).where(eq(testFolders.language, language)).orderBy(desc(testFolders.createdAt));
+    
+    if (Number.isFinite(limit as number)) {
+      q = q.limit(Number(limit));
+    }
+    if (Number.isFinite(offset as number)) {
+      q = q.offset(Number(offset));
+    }
+    
+    return await q;
   }
 
   async getTestFolder(id: number): Promise<TestFolder | undefined> {

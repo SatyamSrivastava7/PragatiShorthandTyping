@@ -420,6 +420,23 @@ export async function registerRoutes(
   
   // ==================== TEST FOLDER ROUTES ====================
   
+  // Get latest test folders by language (for student dashboard - limited to 6)
+  app.get("/api/test-folders/latest", async (req, res) => {
+    try {
+      const language = req.query.language as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 6;
+      const offset = parseInt(req.query.offset as string) || 0;
+      if (!language) {
+        return res.status(400).json({ message: "language parameter is required" });
+      }
+      const folders = await storage.getLatestTestFoldersByLanguage(language, limit, offset);
+      res.json(folders);
+    } catch (error) {
+      console.error("Error fetching latest test folders:", error);
+      res.status(500).json({ message: "Failed to fetch latest test folders" });
+    }
+  });
+
   // Get test folders by language
   app.get("/api/test-folders", async (req, res) => {
     try {
@@ -500,14 +517,15 @@ export async function registerRoutes(
     try {
       const type = req.query.type as string | undefined;
       const language = req.query.language as string | undefined;
+      const folderId = req.query.folderId ? Number(req.query.folderId as string) : undefined;
       let limit = req.query.limit ? Number(req.query.limit as string) : undefined;
       let offset = req.query.offset ? Number(req.query.offset as string) : undefined;
       if (!Number.isFinite(limit as number)) limit = undefined;
       if (!Number.isFinite(offset as number)) offset = undefined;
 
       // If pagination or filters provided, use paged method
-      if (type || language || typeof limit === 'number' || typeof offset === 'number') {
-        const content = await storage.getEnabledContentListPaged(type, language, limit, offset);
+      if (type || language || folderId || typeof limit === 'number' || typeof offset === 'number') {
+        const content = await storage.getEnabledContentListPaged(type, language, folderId, limit, offset);
         return res.json(content);
       }
 

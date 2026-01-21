@@ -3,7 +3,7 @@ import { useInfiniteQuery, useQuery, useMutation } from '@tanstack/react-query';
 import {
   useAuth,
   usePdf,
-  useTestFolders,
+  useLatestTestFolders,
 } from "@/lib/hooks";
 import { usersApi } from "@/lib/api";
 import type { Result } from "@shared/schema";
@@ -135,32 +135,45 @@ export default function StudentDashboard() {
   const PAGE_SIZE = 6;
   const PAGE_SIZE_RESULTS = 5;
 
-  // Fetch test folders for both languages (cached by react-query)
-  const typingFoldersQuery = useTestFolders(selectedTypingLanguage || 'english');
-  const shorthandFoldersQuery = useTestFolders(selectedShorthandLanguage || 'english');
+  // Fetch latest test folders for both languages (cached by react-query)
+  // Only fetch latest 6 folders, ordered by creation date (newest first)
+  const typingFoldersQuery = useLatestTestFolders(selectedTypingLanguage || 'english');
+  const shorthandFoldersQuery = useLatestTestFolders(selectedShorthandLanguage || 'english');
 
-  // Typing: useInfiniteQuery per language (cached by react-query)
+  // Typing: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
   const typingQuery = useInfiniteQuery({
-    queryKey: ['content', 'enabled', 'list', 'typing', selectedTypingLanguage],
+    queryKey: ['content', 'enabled', 'list', 'typing', selectedTypingLanguage, selectedTypingFolderId],
     queryFn: async ({ pageParam = 0 }) => {
-      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ type: 'typing', language: selectedTypingLanguage || 'english', limit: PAGE_SIZE, offset: pageParam });
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ 
+        type: 'typing', 
+        language: selectedTypingLanguage || 'english', 
+        folderId: selectedTypingFolderId || undefined,
+        limit: PAGE_SIZE, 
+        offset: pageParam 
+      });
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'typing_tests' && !!selectedTypingLanguage,
+    enabled: activeTab === 'typing_tests' && !!selectedTypingLanguage && selectedTypingFolderId !== undefined,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
   });
 
-  // Shorthand: useInfiniteQuery per language (cached by react-query)
+  // Shorthand: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
   const shorthandQuery = useInfiniteQuery({
-    queryKey: ['content', 'enabled', 'list', 'shorthand', selectedShorthandLanguage],
+    queryKey: ['content', 'enabled', 'list', 'shorthand', selectedShorthandLanguage, selectedShorthandFolderId],
     queryFn: async ({ pageParam = 0 }) => {
-      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ type: 'shorthand', language: selectedShorthandLanguage || 'english', limit: PAGE_SIZE, offset: pageParam });
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ 
+        type: 'shorthand', 
+        language: selectedShorthandLanguage || 'english',
+        folderId: selectedShorthandFolderId || undefined,
+        limit: PAGE_SIZE, 
+        offset: pageParam 
+      });
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'shorthand_tests' && !!selectedShorthandLanguage,
+    enabled: activeTab === 'shorthand_tests' && !!selectedShorthandLanguage && selectedShorthandFolderId !== undefined,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
   });
@@ -596,26 +609,41 @@ export default function StudentDashboard() {
                       <span className="ml-3 text-muted-foreground">Loading folders...</span>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {/* Option to view all tests without folder filter */}
-                      <div
-                        onClick={() => setSelectedTypingFolderId(null)}
-                        className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-blue-50/50"
-                      >
-                        <Folder className="h-12 w-12 text-blue-600 fill-blue-200" />
-                        <span className="font-medium text-center text-sm">All Tests</span>
-                      </div>
-                      {/* Show available folders */}
-                      {(typingFoldersQuery.data || []).map((folder: any) => (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Option to view all tests without folder filter */}
                         <div
-                          key={folder.id}
-                          onClick={() => setSelectedTypingFolderId(folder.id)}
-                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                          onClick={() => setSelectedTypingFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-blue-50/50"
                         >
-                          <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
-                          <span className="font-medium text-center text-sm">{folder.name}</span>
+                          <Folder className="h-12 w-12 text-blue-600 fill-blue-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
                         </div>
-                      ))}
+                        {/* Show available folders */}
+                        {((typingFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedTypingFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
+                      </div>
+                      {typingFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button 
+                            onClick={() => typingFoldersQuery.fetchNextPage()} 
+                            disabled={typingFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {typingFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -632,7 +660,7 @@ export default function StudentDashboard() {
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <h4 className="text-sm font-semibold capitalize">
-                      {selectedTypingLanguage} {selectedTypingFolderId !== null ? `- ${(typingFoldersQuery.data || []).find(f => f.id === selectedTypingFolderId)?.name || 'Folder'}` : '- All Tests'} Typing Tests
+                      {selectedTypingLanguage} {selectedTypingFolderId !== null ? `- ${((typingFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedTypingFolderId)?.name || 'Folder'}` : '- All Tests'} Typing Tests
                     </h4>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -765,26 +793,41 @@ export default function StudentDashboard() {
                       <span className="ml-3 text-muted-foreground">Loading folders...</span>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {/* Option to view all tests without folder filter */}
-                      <div
-                        onClick={() => setSelectedShorthandFolderId(null)}
-                        className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-orange-50/50"
-                      >
-                        <Folder className="h-12 w-12 text-orange-600 fill-orange-200" />
-                        <span className="font-medium text-center text-sm">All Tests</span>
-                      </div>
-                      {/* Show available folders */}
-                      {(shorthandFoldersQuery.data || []).map((folder: any) => (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Option to view all tests without folder filter */}
                         <div
-                          key={folder.id}
-                          onClick={() => setSelectedShorthandFolderId(folder.id)}
-                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                          onClick={() => setSelectedShorthandFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-orange-50/50"
                         >
-                          <Folder className="h-12 w-12 text-orange-500 fill-orange-100" />
-                          <span className="font-medium text-center text-sm">{folder.name}</span>
+                          <Folder className="h-12 w-12 text-orange-600 fill-orange-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
                         </div>
-                      ))}
+                        {/* Show available folders */}
+                        {((shorthandFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedShorthandFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-orange-500 fill-orange-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
+                      </div>
+                      {shorthandFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button 
+                            onClick={() => shorthandFoldersQuery.fetchNextPage()} 
+                            disabled={shorthandFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {shorthandFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -801,7 +844,7 @@ export default function StudentDashboard() {
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <h4 className="text-sm font-semibold capitalize">
-                      {selectedShorthandLanguage} {selectedShorthandFolderId !== null ? `- ${(shorthandFoldersQuery.data || []).find(f => f.id === selectedShorthandFolderId)?.name || 'Folder'}` : '- All Tests'} Shorthand Tests
+                      {selectedShorthandLanguage} {selectedShorthandFolderId !== null ? `- ${((shorthandFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedShorthandFolderId)?.name || 'Folder'}` : '- All Tests'} Shorthand Tests
                     </h4>
                   </div>
                   <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">

@@ -127,6 +127,10 @@ export const testFolderApi = {
   getByLanguage: (language: string) =>
     fetchApi<TestFolder[]>(`/api/test-folders?language=${language}`),
 
+  // Get latest folders by language with pagination (for student dashboard)
+  getLatestByLanguage: (language: string, limit: number = 6, offset: number = 0) =>
+    fetchApi<TestFolder[]>(`/api/test-folders/latest?language=${language}&limit=${limit}&offset=${offset}`),
+
   // Create a new folder
   create: (data: { name: string; language: string }) =>
     fetchApi<TestFolder>('/api/test-folders', {
@@ -160,8 +164,8 @@ export const contentApi = {
     fetchApi<Omit<Content, 'text'>[]>('/api/content/list'),
 
   // Lightweight endpoint - excludes text for faster loading (enabled only)
-  // Optional params: { type, language, limit, offset }
-  getEnabledList: (params?: { type?: string; language?: string; limit?: number; offset?: number }) => {
+  // Optional params: { type, language, folderId, limit, offset }
+  getEnabledList: (params?: { type?: string; language?: string; folderId?: number; limit?: number; offset?: number }) => {
     const qs = params
       ? '?' + new URLSearchParams(Object.entries(params).reduce<Record<string,string>>((acc, [k, v]) => {
           if (v !== undefined && v !== null) acc[k] = String(v);
