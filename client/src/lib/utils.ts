@@ -329,6 +329,10 @@ export function calculateAlignedMistakes(
   }
 
   let mistakes = 0;
+  
+  function commaCount(word: string) {
+    return (word.match(/,/g) || []).length;
+  }
 
   for (let idx = 0; idx < attemptedAlignment.length; idx++) {
     const item = attemptedAlignment[idx];
@@ -347,29 +351,47 @@ export function calculateAlignedMistakes(
 
     // Substitutions - check if it's just punctuation difference
     if (item.status === "substitution") {
-      const cleanOriginal = item.original.replace(/[.,]/g, "");
-      const cleanTyped = item.typed.replace(/[.,]/g, "");
+      // 1️⃣ Word mistake (always 1 if words differ ignoring commas & periods)
+      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
 
-      if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
-        // Words are actually different (not just punctuation)
-        mistakes += 1;
-      } else {
-        // Same word, check punctuation differences
-        const origCommas = (item.original.match(/,/g) || []).length;
-        const typedCommas = (item.typed.match(/,/g) || []).length;
-        const commaDifference = Math.abs(origCommas - typedCommas);
-        
-        const origPeriods = (item.original.match(/\./g) || []).length;
-        const typedPeriods = (item.typed.match(/\./g) || []).length;
-        const periodDifference = Math.abs(origPeriods - typedPeriods);
-        
-        // Each missing or extra comma counts as 0.25 mistake
-        mistakes += commaDifference * 0.25;
-        
-        // Each missing or extra period counts as 1 mistake
-        mistakes += periodDifference * 1;
+      if (cleanOriginal !== cleanTyped) {
+          mistakes += 1;
       }
+
+      // 2️⃣ Comma mistake (independent of word correctness)
+      const origCommas = commaCount(item.original);
+      const typedCommas = commaCount(item.typed);
+      const commaDifference = Math.abs(origCommas - typedCommas);
+
+        mistakes += commaDifference * 0.25;
+
+      continue;
     }
+    // if (item.status === "substitution") {
+    //   const cleanOriginal = item.original.replace(/[.,]/g, "");
+    //   const cleanTyped = item.typed.replace(/[.,]/g, "");
+
+    //   if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
+    //     // Words are actually different (not just punctuation)
+    //     mistakes += 1;
+    //   } else {
+    //     // Same word, check punctuation differences
+    //     const origCommas = (item.original.match(/,/g) || []).length;
+    //     const typedCommas = (item.typed.match(/,/g) || []).length;
+    //     const commaDifference = Math.abs(origCommas - typedCommas);
+        
+    //     const origPeriods = (item.original.match(/\./g) || []).length;
+    //     const typedPeriods = (item.typed.match(/\./g) || []).length;
+    //     const periodDifference = Math.abs(origPeriods - typedPeriods);
+        
+    //     // Each missing or extra comma counts as 0.25 mistake
+    //     mistakes += commaDifference * 0.25;
+        
+    //     // Each missing or extra period counts as 1 mistake
+    //     mistakes += periodDifference * 1;
+    //   }
+    // }
   }
 
   return { mistakes, alignment, attemptedAlignment };
@@ -458,18 +480,31 @@ export function calculateShorthandMetrics(
 
   // Calculate half mistakes (comma errors: missing or extra commas)
   let halfMistakes = 0;
-  for (const item of attemptedAlignment) {
-    if (item.status === "substitution") {
-      const cleanOriginal = item.original.replace(/[.,]/g, "");
-      const cleanTyped = item.typed.replace(/[.,]/g, "");
+  // for (const item of attemptedAlignment) {
+  //   if (item.status === "substitution") {
+  //     const cleanOriginal = item.original.replace(/[.,]/g, "");
+  //     const cleanTyped = item.typed.replace(/[.,]/g, "");
       
-      // Only count comma differences if the actual words match
-      if (cleanOriginal.toLowerCase() === cleanTyped.toLowerCase()) {
-        const origCommas = (item.original.match(/,/g) || []).length;
-        const typedCommas = (item.typed.match(/,/g) || []).length;
-        const commaDifference = Math.abs(origCommas - typedCommas);
-        halfMistakes += commaDifference;
-      }
+  //     // Only count comma differences if the actual words match
+  //     if (cleanOriginal.toLowerCase() === cleanTyped.toLowerCase()) {
+  //       const origCommas = (item.original.match(/,/g) || []).length;
+  //       const typedCommas = (item.typed.match(/,/g) || []).length;
+  //       const commaDifference = Math.abs(origCommas - typedCommas);
+  //       halfMistakes += commaDifference;
+  //     }
+  //   }
+  // }
+
+  for (const item of attemptedAlignment) {
+    // Comma mistakes only make sense when both sides exist
+    if (
+      item.status === "substitution" ||
+      item.status === "match"
+    ) {
+      const origCommas = (item.original.match(/,/g) || []).length;
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+
+      halfMistakes += Math.abs(origCommas - typedCommas);
     }
   }
 
@@ -615,7 +650,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
         <tr>
-          <td></td><td></td>
+          <td>Status</td><td class="${(originalWords.length - result.words == 0) ? "success" : "error" }">${(originalWords.length - result.words == 0) ? "Complete" : "Incomplete" }</td>
           <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
         </tr>
         `
@@ -626,7 +661,7 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          <td></td><td></td>
+          <td>Status</td><td class="${(originalWords.length - result.words == 0) ? "success" : "error" }">${(originalWords.length - result.words == 0) ? "Complete" : "Incomplete" }</td>
         </tr>
         `
         }
