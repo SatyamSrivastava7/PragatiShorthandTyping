@@ -368,7 +368,7 @@ function EditTestModalComponent({
           {/* Folder Selector */}
           <FolderSelector
             language={editLanguage}
-            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand"}
+            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" || "typing"}
             selectedFolderId={editSelectedTestFolderId}
             onFolderSelect={setEditSelectedTestFolderId}
           />
