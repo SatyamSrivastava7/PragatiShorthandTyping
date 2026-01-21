@@ -98,9 +98,9 @@ export function FolderSelector({
       </Label>
       <div className="flex gap-2">
         <Select
-          value={selectedFolderId?.toString() || ""}
+          value={selectedFolderId?.toString() || "none"}
           onValueChange={(value) => {
-            onFolderSelect(value ? parseInt(value) : null);
+            onFolderSelect(value === "none" ? null : parseInt(value));
           }}
           disabled={isLoadingFolders}
         >
@@ -108,7 +108,7 @@ export function FolderSelector({
             <SelectValue placeholder="Select a folder or create new one..." />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No Folder</SelectItem>
+            <SelectItem value="none">No Folder</SelectItem>
             {folders.map((folder: TestFolder) => (
               <SelectItem key={folder.id} value={folder.id.toString()}>
                 {folder.name}
