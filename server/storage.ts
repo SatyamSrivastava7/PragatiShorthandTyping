@@ -57,8 +57,8 @@ export interface IStorage {
   toggleContentLightweight(id: number): Promise<{ id: number; isEnabled: boolean } | undefined>;
   
   // Test Folder methods
-  getTestFoldersByLanguage(language: string): Promise<TestFolder[]>;
-  getLatestTestFoldersByLanguage(language: string, limit?: number, offset?: number): Promise<TestFolder[]>;
+  getTestFoldersByLanguage(language: string, type?: string): Promise<TestFolder[]>;
+  getLatestTestFoldersByLanguage(language: string, limit?: number, offset?: number, type?: string): Promise<TestFolder[]>;
   getTestFolder(id: number): Promise<TestFolder | undefined>;
   createTestFolder(folder: InsertTestFolder): Promise<TestFolder>;
   updateTestFolder(id: number, updates: Partial<InsertTestFolder>): Promise<TestFolder | undefined>;
@@ -409,13 +409,17 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(asc(testFolders.name));
     
-    // Filter to only folders with enabled content
+    // Filter to only folders with enabled content matching the folder type
     const foldersWithContent = await Promise.all(
       folders.map(async (folder) => {
         const hasEnabledContent = await db
           .select()
           .from(content)
-          .where(and(eq(content.folderId, folder.id), eq(content.isEnabled, true)))
+          .where(and(
+            eq(content.folderId, folder.id), 
+            eq(content.isEnabled, true),
+            eq(content.type, folder.type) // Ensure content type matches folder type
+          ))
           .limit(1);
         
         return hasEnabledContent.length > 0 ? folder : null;
@@ -438,13 +442,17 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(testFolders.createdAt));
     
-    // Filter to only folders with enabled content
+    // Filter to only folders with enabled content matching the folder type
     const foldersWithContent = await Promise.all(
       folders.map(async (folder) => {
         const hasEnabledContent = await db
           .select()
           .from(content)
-          .where(and(eq(content.folderId, folder.id), eq(content.isEnabled, true)))
+          .where(and(
+            eq(content.folderId, folder.id), 
+            eq(content.isEnabled, true),
+            eq(content.type, folder.type) // Ensure content type matches folder type
+          ))
           .limit(1);
         
         return hasEnabledContent.length > 0 ? folder : null;
