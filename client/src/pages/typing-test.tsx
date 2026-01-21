@@ -127,7 +127,7 @@ export default function TypingTestPage() {
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;
-      halfMistakes = String(metrics.halfMistakes);
+      halfMistakes = String(metrics.halfMistakes ?? 0);
     }
 
     try {

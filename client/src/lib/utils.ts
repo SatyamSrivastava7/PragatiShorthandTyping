@@ -443,9 +443,25 @@ export function calculateTypingMetrics(
     return Number.isInteger(rounded) ? rounded : rounded.toFixed(2);
   };
 
+  let halfMistakes = 0;
+
+  for (const item of attemptedAlignment) {
+    // Comma mistakes only make sense when both sides exist
+    if (
+      item.status === "substitution" ||
+      item.status === "match"
+    ) {
+      const origCommas = (item.original.match(/,/g) || []).length;
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+
+      halfMistakes += Math.abs(origCommas - typedCommas);
+    }
+  }
+
   return {
     words: wordCount,
     mistakes,
+    halfMistakes,
     grossSpeed: formatSpeed(grossSpeed),
     netSpeed: formatSpeed(netSpeed),
     backspaces,
