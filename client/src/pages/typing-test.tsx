@@ -122,6 +122,7 @@ export default function TypingTestPage() {
       result = mistakePercentage > 5 ? 'Fail' : 'Pass';
       grossSpeed = String(metrics.grossSpeed);
       netSpeed = String(metrics.netSpeed);
+      halfMistakes = String(metrics.halfMistakes ?? 0);
     } else {
       metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
       result = metrics.result;

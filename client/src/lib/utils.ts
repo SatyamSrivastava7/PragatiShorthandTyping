@@ -337,15 +337,19 @@ export function calculateAlignedMistakes(
   for (let idx = 0; idx < attemptedAlignment.length; idx++) {
     const item = attemptedAlignment[idx];
     
-    // Missing words count as 1 mistake each (only within attempted portion)
+    // Missing words count as 1 mistake + 0.25 per missing comma
     if (item.status === "missing") {
       mistakes += 1; // Base mistake for missing word
+      const origCommas = commaCount(item.original);
+      mistakes += origCommas * 0.25; // Add 0.25 for each missing comma
       continue;
     }
 
-    // Extra words count as 1 mistake each
+    // Extra words count as 1 mistake + 0.25 per extra comma
     if (item.status === "extra") {
-      mistakes += 1;
+      mistakes += 1; // Base mistake for extra word
+      const typedCommas = commaCount(item.typed);
+      mistakes += typedCommas * 0.25; // Add 0.25 for each extra comma
       continue;
     }
 
@@ -443,17 +447,28 @@ export function calculateTypingMetrics(
     return Number.isInteger(rounded) ? rounded : rounded.toFixed(2);
   };
 
+  // Calculate half mistakes (comma errors: missing or extra commas)
+  // Count all comma differences from the alignment
   let halfMistakes = 0;
 
   for (const item of attemptedAlignment) {
-    // Comma mistakes only make sense when both sides exist
-    if (
-      item.status === "substitution" ||
-      item.status === "match"
-    ) {
+    if (item.status === "missing") {
+      // Missing word - count its commas as missing
+      const origCommas = (item.original.match(/,/g) || []).length;
+      halfMistakes += origCommas;
+    } else if (item.status === "extra") {
+      // Extra typed word - count its commas as extra
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+      halfMistakes += typedCommas;
+    } else if (item.status === "substitution") {
+      // Substitution - count comma difference
       const origCommas = (item.original.match(/,/g) || []).length;
       const typedCommas = (item.typed.match(/,/g) || []).length;
-
+      halfMistakes += Math.abs(origCommas - typedCommas);
+    } else if (item.status === "match") {
+      // Match - count comma difference (if any)
+      const origCommas = (item.original.match(/,/g) || []).length;
+      const typedCommas = (item.typed.match(/,/g) || []).length;
       halfMistakes += Math.abs(origCommas - typedCommas);
     }
   }
@@ -495,31 +510,27 @@ export function calculateShorthandMetrics(
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
 
   // Calculate half mistakes (comma errors: missing or extra commas)
+  // Count all comma differences from the alignment
   let halfMistakes = 0;
-  // for (const item of attemptedAlignment) {
-  //   if (item.status === "substitution") {
-  //     const cleanOriginal = item.original.replace(/[.,]/g, "");
-  //     const cleanTyped = item.typed.replace(/[.,]/g, "");
-      
-  //     // Only count comma differences if the actual words match
-  //     if (cleanOriginal.toLowerCase() === cleanTyped.toLowerCase()) {
-  //       const origCommas = (item.original.match(/,/g) || []).length;
-  //       const typedCommas = (item.typed.match(/,/g) || []).length;
-  //       const commaDifference = Math.abs(origCommas - typedCommas);
-  //       halfMistakes += commaDifference;
-  //     }
-  //   }
-  // }
 
   for (const item of attemptedAlignment) {
-    // Comma mistakes only make sense when both sides exist
-    if (
-      item.status === "substitution" ||
-      item.status === "match"
-    ) {
+    if (item.status === "missing") {
+      // Missing word - count its commas as missing
+      const origCommas = (item.original.match(/,/g) || []).length;
+      halfMistakes += origCommas;
+    } else if (item.status === "extra") {
+      // Extra typed word - count its commas as extra
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+      halfMistakes += typedCommas;
+    } else if (item.status === "substitution") {
+      // Substitution - count comma difference
       const origCommas = (item.original.match(/,/g) || []).length;
       const typedCommas = (item.typed.match(/,/g) || []).length;
-
+      halfMistakes += Math.abs(origCommas - typedCommas);
+    } else if (item.status === "match") {
+      // Match - count comma difference (if any)
+      const origCommas = (item.original.match(/,/g) || []).length;
+      const typedCommas = (item.typed.match(/,/g) || []).length;
       halfMistakes += Math.abs(origCommas - typedCommas);
     }
   }
@@ -559,30 +570,22 @@ export const generateResultPDF = async (result: Result) => {
       ? "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;"
       : "font-family: 'Times New Roman', Times, serif;";
 
-  // Use LCS-based alignment for accurate error detection with positional missing words
-  // Only show the attempted portion (excludes trailing untyped words)
-  const { attemptedAlignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
-  const originalWords = (result.originalText || "")
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w);
-  const typedWords = result.typedText
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w);
+  // Use the same alignWords function as ResultTextAnalysis for consistency
+  // This ensures PDF "Typed Content" matches "Your Input" display
+  const alignment = alignWords(result.originalText || "", result.typedText);
 
   let typedHtml = "";
 
-  for (const item of attemptedAlignment) {
+  for (const item of alignment) {
     if (item.status === "missing") {
-      // Missing word - show in green brackets at correct position
+      // Missing word - show in green brackets
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
     } else if (item.status === "substitution") {
-      // Wrong word - show underlined in red with correct word in green brackets
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span>`;
+      // Substitution - show correct word in green brackets FIRST, then typed word underlined in red
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
     } else if (item.status === "extra") {
-      // Extra typed word - show underlined in red
+      // Extra word - show underlined in red
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
     } else {
       // Match - show normally
@@ -647,12 +650,12 @@ export const generateResultPDF = async (result: Result) => {
           <th>Metric</th><th>Value</th><th>Metric</th><th>Value</th>
         </tr>
         <tr>
-          <td>Total Original Words</td><td>${originalWords.length}</td>
+          <td>Total Original Words</td><td>${alignment.filter((a) => a.original !== "").length}</td>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>
           <td>Mistakes</td><td class="error">${result.mistakes}</td>
-          <td>Missing Words</td><td class="error">${attemptedAlignment.filter((a) => a.status === "missing").length}</td>
+          <td>Missing Words</td><td class="error">${alignment.filter((a) => a.status === "missing").length}</td>
         </tr>
         ${
           result.contentType === "typing"
@@ -666,18 +669,18 @@ export const generateResultPDF = async (result: Result) => {
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
         <tr>
-          <td>Status</td><td class="${(originalWords.length - result.words == 0) ? "success" : "error" }">${(originalWords.length - result.words == 0) ? "Complete" : "Incomplete" }</td>
+          <td>Status</td><td class="${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "success" : "error" }">${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "Complete" : "Incomplete" }</td>
           <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
         </tr>
         `
             : `
         <tr>
           <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
-          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${((parseInt(result.mistakes)*100)/originalWords.length).toFixed(2)}%</td>
+          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${((parseInt(result.mistakes)*100)/alignment.filter((a) => a.original !== "").length).toFixed(2)}%</td>
         </tr>
         <tr>
           <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          <td>Status</td><td class="${(originalWords.length - result.words == 0) ? "success" : "error" }">${(originalWords.length - result.words == 0) ? "Complete" : "Incomplete" }</td>
+          <td>Status</td><td class="${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "success" : "error" }">${(alignment.filter((a) => a.original !== "").length - result.words == 0) ? "Complete" : "Incomplete" }</td>
         </tr>
         `
         }
