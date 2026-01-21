@@ -60,14 +60,18 @@ export const useCreateTestFolder = () => {
       const folderType = newFolder.type || "typing";
       const folderLanguage = newFolder.language || "english";
       
-      // Refetch the specific language+type cache immediately (for both typing and shorthand)
-      queryClient.refetchQueries({
+      // Invalidate all testFolders queries for this language to ensure fresh data
+      queryClient.invalidateQueries({
+        queryKey: ["testFolders", folderLanguage],
+      });
+      
+      // Also invalidate the specific language+type combination
+      queryClient.invalidateQueries({
         queryKey: ["testFolders", folderLanguage, folderType],
-        exact: true,
       });
       
       // Also refetch all latest folders cache (matches all pagination queries)
-      queryClient.refetchQueries({
+      queryClient.invalidateQueries({
         queryKey: ["testFolders", "latest"],
       });
     },
@@ -76,7 +80,7 @@ export const useCreateTestFolder = () => {
 
 /**
  * Mutation to update a test folder name
- * Refetches caches for the folder's language and type
+ * Invalidates caches for the folder's language and type
  */
 export const useUpdateTestFolder = () => {
   const queryClient = useQueryClient();
@@ -88,14 +92,13 @@ export const useUpdateTestFolder = () => {
       const folderType = updatedFolder.type || "typing";
       const folderLanguage = updatedFolder.language || "english";
       
-      // Refetch the specific language+type cache immediately (for both typing and shorthand)
-      queryClient.refetchQueries({
-        queryKey: ["testFolders", folderLanguage, folderType],
-        exact: true,
+      // Invalidate all testFolders queries for this language
+      queryClient.invalidateQueries({
+        queryKey: ["testFolders", folderLanguage],
       });
       
-      // Also refetch all latest folders cache (matches all pagination queries)
-      queryClient.refetchQueries({
+      // Also invalidate all latest folders cache
+      queryClient.invalidateQueries({
         queryKey: ["testFolders", "latest"],
       });
     },
@@ -104,7 +107,7 @@ export const useUpdateTestFolder = () => {
 
 /**
  * Mutation to delete a test folder
- * Refetches all folder caches to ensure consistency across the app
+ * Invalidates all folder caches to ensure consistency across the app
  */
 export const useDeleteTestFolder = () => {
   const queryClient = useQueryClient();
@@ -112,8 +115,8 @@ export const useDeleteTestFolder = () => {
   return useMutation({
     mutationFn: (id: number) => testFolderApi.delete(id),
     onSuccess: () => {
-      // Refetch all testFolder queries to ensure data consistency across app
-      queryClient.refetchQueries({
+      // Invalidate all testFolder queries to ensure data consistency across app
+      queryClient.invalidateQueries({
         queryKey: ["testFolders"],
       });
     },
