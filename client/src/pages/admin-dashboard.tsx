@@ -844,6 +844,12 @@ export default function AdminDashboard() {
       setHasEditChanges(false);
     }
   }, [editingTestId, editTitle, editDuration, editDateFor, editLanguage, editTextContent, editAutoScroll, editSelectedTestFolderId, editVideo60wpmLink, editVideo80wpmLink, editVideo100wpmLink, editVideo120wpmLink, editCachedData, hasEditChanges]);
+
+  // Reset folder selection when content type changes (to avoid cross-type folder mismatches)
+  useEffect(() => {
+    setSelectedTestFolderId(null);
+  }, [contentType]);
+
   const [studentFilter, setStudentFilter] = useState("");
   const [studentListSearch, setStudentListSearch] = useState("");
   // PDF Store State
