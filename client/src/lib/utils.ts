@@ -192,140 +192,37 @@ export function alignWords(
   return result;
 }
 
-// Calculate mistakes using BOUNDED ALIGNMENT with lookahead
-// Handles skipped words and extra words within a reasonable buffer
-// Only considers the "attempted portion" - trailing untyped words are NOT counted
+// Calculate mistakes using the same alignment as alignWords
+// Ensures consistency between displayed alignment and mistake counting
 export function calculateAlignedMistakes(
   originalText: string,
   typedText: string,
 ): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[] } {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
+  // Use alignWords to get the correct alignment (same as what's displayed)
+  const alignment = alignWords(originalText, typedText);
   
-  if (typedWords.length === 0) {
-    // No typed words - no attempted portion
-    const alignment: AlignmentEntry[] = originalWords.map(w => ({
-      typed: "",
-      original: w,
-      status: "missing" as AlignmentStatus,
-      isError: true,
-    }));
-    return { mistakes: 0, alignment, attemptedAlignment: [] };
-  }
-  
-  // Lookahead buffer - how many positions ahead to check for matches
-  const LOOKAHEAD = 3;
-  
+  // Separate attempted portion (before trailing missing words)
   const attemptedAlignment: AlignmentEntry[] = [];
-  let origIdx = 0; // Current position in original words
-  let typedIdx = 0; // Current position in typed words
+  let foundTrailingMissing = false;
   
-  while (typedIdx < typedWords.length) {
-    const typed = typedWords[typedIdx];
-    
-    // Check if we've run out of original words
-    if (origIdx >= originalWords.length) {
-      // All remaining typed words are extras
-      attemptedAlignment.push({
-        typed,
-        original: "",
-        status: "extra",
-        isError: true,
-      });
-      typedIdx++;
+  // Find where trailing missing words start
+  // Trailing missing = missing words that appear after all typed words have been processed
+  for (const item of alignment) {
+    if (item.status === "missing" && foundTrailingMissing) {
+      // Skip trailing missing words
       continue;
     }
-    
-    const original = originalWords[origIdx];
-    
-    // Check for direct match at current position
-    if (normalizeForComparison(typed) === normalizeForComparison(original)) {
-      attemptedAlignment.push({
-        typed,
-        original,
-        status: "match",
-        isError: false,
-      });
-      origIdx++;
-      typedIdx++;
-      continue;
-    }
-    
-    // No direct match - look ahead in original to see if typed word appears later
-    // This handles the case where student skipped words
-    let foundAhead = -1;
-    for (let look = 1; look <= LOOKAHEAD && origIdx + look < originalWords.length; look++) {
-      if (normalizeForComparison(typed) === normalizeForComparison(originalWords[origIdx + look])) {
-        foundAhead = look;
-        break;
+    if (item.status !== "missing" || item.typed !== "" || item.original !== "") {
+      // Non-missing or missing with typed content
+      attemptedAlignment.push(item);
+      if (item.typed === "" && item.original !== "" && item.status === "missing") {
+        // This could be start of trailing missing, check if all remaining are missing
+        const remainingItems = alignment.slice(alignment.indexOf(item) + 1);
+        if (remainingItems.every(i => i.status === "missing" && i.typed === "")) {
+          foundTrailingMissing = true;
+        }
       }
     }
-    
-    if (foundAhead > 0) {
-      // Student skipped some words - mark them as missing
-      for (let skip = 0; skip < foundAhead; skip++) {
-        attemptedAlignment.push({
-          typed: "",
-          original: originalWords[origIdx + skip],
-          status: "missing",
-          isError: true,
-        });
-      }
-      // Now add the match
-      attemptedAlignment.push({
-        typed,
-        original: originalWords[origIdx + foundAhead],
-        status: "match",
-        isError: false,
-      });
-      origIdx += foundAhead + 1;
-      typedIdx++;
-      continue;
-    }
-    
-    // Look ahead in typed to see if current original word appears later
-    // This handles the case where student added extra words
-    let foundTypedAhead = -1;
-    for (let look = 1; look <= LOOKAHEAD && typedIdx + look < typedWords.length; look++) {
-      if (normalizeForComparison(typedWords[typedIdx + look]) === normalizeForComparison(original)) {
-        foundTypedAhead = look;
-        break;
-      }
-    }
-    
-    if (foundTypedAhead > 0) {
-      // Student typed extra words - mark current typed as extra
-      attemptedAlignment.push({
-        typed,
-        original: "",
-        status: "extra",
-        isError: true,
-      });
-      typedIdx++;
-      continue;
-    }
-    
-    // No match found in lookahead - treat as substitution
-    attemptedAlignment.push({
-      typed,
-      original,
-      status: "substitution",
-      isError: true,
-    });
-    origIdx++;
-    typedIdx++;
-  }
-  
-  // Full alignment includes trailing missing words (for display purposes only)
-  // These are NOT counted as mistakes since they're beyond the attempted portion
-  const alignment: AlignmentEntry[] = [...attemptedAlignment];
-  for (let i = origIdx; i < originalWords.length; i++) {
-    alignment.push({
-      typed: "",
-      original: originalWords[i],
-      status: "missing",
-      isError: true,
-    });
   }
 
   let mistakes = 0;
@@ -334,68 +231,60 @@ export function calculateAlignedMistakes(
     return (word.match(/,/g) || []).length;
   }
 
-  for (let idx = 0; idx < attemptedAlignment.length; idx++) {
-    const item = attemptedAlignment[idx];
-    
-    // Missing words count as 1 mistake + 0.25 per missing comma
+  function periodCount(word: string) {
+    return (word.match(/\./g) || []).length;
+  }
+
+  // Count mistakes based on alignment, following the rules:
+  // 1 missing/extra/incorrect word = 1 mistake
+  // 1 missing/extra period = 1 mistake
+  // 1 missing/extra comma = 0.25 mistake
+  for (const item of attemptedAlignment) {
     if (item.status === "missing") {
-      mistakes += 1; // Base mistake for missing word
+      // Missing word = 1 mistake
+      mistakes += 1;
       const origCommas = commaCount(item.original);
-      mistakes += origCommas * 0.25; // Add 0.25 for each missing comma
-      continue;
-    }
-
-    // Extra words count as 1 mistake + 0.25 per extra comma
-    if (item.status === "extra") {
-      mistakes += 1; // Base mistake for extra word
+      mistakes += origCommas * 0.25; // Each missing comma = 0.25
+      const origPeriods = periodCount(item.original);
+      mistakes += origPeriods * 1; // Each missing period = 1
+    } else if (item.status === "extra") {
+      // Extra word = 1 mistake
+      mistakes += 1;
       const typedCommas = commaCount(item.typed);
-      mistakes += typedCommas * 0.25; // Add 0.25 for each extra comma
-      continue;
-    }
-
-    // Substitutions - check if it's just punctuation difference
-    if (item.status === "substitution") {
-      // 1️⃣ Word mistake (always 1 if words differ ignoring commas & periods)
+      mistakes += typedCommas * 0.25; // Each extra comma = 0.25
+      const typedPeriods = periodCount(item.typed);
+      mistakes += typedPeriods * 1; // Each extra period = 1
+    } else if (item.status === "substitution") {
+      // Wrong word = 1 mistake
       const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
       const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
-
+      
       if (cleanOriginal !== cleanTyped) {
-          mistakes += 1;
+        mistakes += 1; // Word content differs
       }
-
-      // 2️⃣ Comma mistake (independent of word correctness)
+      
+      // Count punctuation differences
       const origCommas = commaCount(item.original);
       const typedCommas = commaCount(item.typed);
       const commaDifference = Math.abs(origCommas - typedCommas);
-
-        mistakes += commaDifference * 0.25;
-
-      continue;
+      mistakes += commaDifference * 0.25;
+      
+      const origPeriods = periodCount(item.original);
+      const typedPeriods = periodCount(item.typed);
+      const periodDifference = Math.abs(origPeriods - typedPeriods);
+      mistakes += periodDifference * 1;
+    } else if (item.status === "match") {
+      // Matched word but check for punctuation differences
+      const origCommas = commaCount(item.original);
+      const typedCommas = commaCount(item.typed);
+      const commaDifference = Math.abs(origCommas - typedCommas);
+      mistakes += commaDifference * 0.25;
+      
+      const origPeriods = periodCount(item.original);
+      const typedPeriods = periodCount(item.typed);
+      const periodDifference = Math.abs(origPeriods - typedPeriods);
+      mistakes += periodDifference * 1;
     }
-    // if (item.status === "substitution") {
-    //   const cleanOriginal = item.original.replace(/[.,]/g, "");
-    //   const cleanTyped = item.typed.replace(/[.,]/g, "");
-
-    //   if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
-    //     // Words are actually different (not just punctuation)
-    //     mistakes += 1;
-    //   } else {
-    //     // Same word, check punctuation differences
-    //     const origCommas = (item.original.match(/,/g) || []).length;
-    //     const typedCommas = (item.typed.match(/,/g) || []).length;
-    //     const commaDifference = Math.abs(origCommas - typedCommas);
-        
-    //     const origPeriods = (item.original.match(/\./g) || []).length;
-    //     const typedPeriods = (item.typed.match(/\./g) || []).length;
-    //     const periodDifference = Math.abs(origPeriods - typedPeriods);
-        
-    //     // Each missing or extra comma counts as 0.25 mistake
-    //     mistakes += commaDifference * 0.25;
-        
-    //     // Each missing or extra period counts as 1 mistake
-    //     mistakes += periodDifference * 1;
-    //   }
-    // }
   }
 
   return { mistakes, alignment, attemptedAlignment };

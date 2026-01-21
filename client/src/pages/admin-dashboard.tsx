@@ -482,10 +482,28 @@ export default function AdminDashboard() {
   // Get unique languages from content to minimize API calls
   const contentLanguages = Array.from(new Set(content.map(c => c.language || 'english'))) as Array<'english' | 'hindi'>;
   
-  // Only fetch test folders for languages that have content, and only when manage tab is active
-  const { data: englishTestFolders = [] } = useTestFolders(contentLanguages.includes('english') ? 'english' : '');
-  const { data: hindiTestFolders = [] } = useTestFolders(contentLanguages.includes('hindi') ? 'hindi' : '');
-  const allTestFolders = [...englishTestFolders, ...hindiTestFolders];
+  // Get unique types from content to minimize API calls
+  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand'>;
+  
+  // Only fetch test folders for languages and types that have content
+  // This avoids unnecessary API calls
+  const { data: englishTypingFolders = [] } = useTestFolders(
+    contentLanguages.includes('english') && contentTypes.includes('typing') ? 'english' : '', 
+    contentLanguages.includes('english') && contentTypes.includes('typing') ? 'typing' : undefined
+  );
+  const { data: englishShorthandFolders = [] } = useTestFolders(
+    contentLanguages.includes('english') && contentTypes.includes('shorthand') ? 'english' : '', 
+    contentLanguages.includes('english') && contentTypes.includes('shorthand') ? 'shorthand' : undefined
+  );
+  const { data: hindiTypingFolders = [] } = useTestFolders(
+    contentLanguages.includes('hindi') && contentTypes.includes('typing') ? 'hindi' : '', 
+    contentLanguages.includes('hindi') && contentTypes.includes('typing') ? 'typing' : undefined
+  );
+  const { data: hindiShorthandFolders = [] } = useTestFolders(
+    contentLanguages.includes('hindi') && contentTypes.includes('shorthand') ? 'hindi' : '', 
+    contentLanguages.includes('hindi') && contentTypes.includes('shorthand') ? 'shorthand' : undefined
+  );
+  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...hindiTypingFolders, ...hindiShorthandFolders];
   
   // Helper function to get folder name by ID (with memoization to avoid recalculating)
   const getFolderNameById = (folderId: number | null | undefined): string => {
