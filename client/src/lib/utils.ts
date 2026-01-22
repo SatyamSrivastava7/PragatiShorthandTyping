@@ -387,33 +387,46 @@ export function calculateTypingMetrics(
 }
 
 /**
- * Check if the student attempted the last sentence of the original text.
- * Returns true if any word from the last sentence appears in the alignment.
+ * Check if the student typed the last 3 words exactly (exact match).
+ * Returns true only if all last 3 words have "match" status (no mistakes, missing, or substitutions).
  */
 export function isLastSentenceAttempted(
   originalText: string,
   alignment: AlignmentEntry[]
 ): boolean {
-  // Extract the last sentence (ends with . ! or ?)
-  const lastSentenceMatch = originalText.match(/[^.!?]*[.!?](?!.*[.!?])/);
-  if (!lastSentenceMatch) return false;
-
-  const lastSentence = lastSentenceMatch[0];
-  const lastSentenceWords = lastSentence
-    .toLowerCase()
+  // Extract the last 3 words from the original text
+  const words = originalText
+    .trim()
     .split(/\s+/)
-    .map((w) => normalizeForComparison(w))
     .filter((w) => w);
+  
+  if (words.length === 0) return false;
 
-  // Check if any last sentence word appears in the alignment
-  for (const alignmentItem of alignment) {
-    const originalWord = normalizeForComparison(alignmentItem.original);
-    if (lastSentenceWords.includes(originalWord)) {
-      return true;
+  // Get the last 3 words (or fewer if text has less than 3 words)
+  const numWordsToCheck = Math.min(3, words.length);
+  const lastWordsToMatch = words.slice(-numWordsToCheck).map((w) => normalizeForComparison(w));
+
+  // Track how many of the last N words we've found with exact match
+  let matchedCount = 0;
+  
+  // Scan alignment from the end backwards to find matches for the last 3 words
+  for (let i = alignment.length - 1; i >= 0 && matchedCount < numWordsToCheck; i--) {
+    const alignmentItem = alignment[i];
+    
+    // Check if this alignment item's original word is one we're looking for
+    // and if it has an exact match status
+    if (alignmentItem.status === "match") {
+      const originalWord = normalizeForComparison(alignmentItem.original);
+      
+      // Check if this word matches one of our target words (from the end)
+      if (originalWord === lastWordsToMatch[numWordsToCheck - 1 - matchedCount]) {
+        matchedCount++;
+      }
     }
   }
 
-  return false;
+  // Return true only if all last 3 words are exact matches (no missing, substitution, or extra)
+  return matchedCount === numWordsToCheck;
 }
 
 export function calculateShorthandMetrics(
@@ -609,14 +622,14 @@ export const generateResultPDF = async (result: Result) => {
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>
-          <td>Mistakes</td><td class="error">${result.mistakes}</td>
+          <td>Total Mistakes</td><td class="error">${result.mistakes}</td>
           <td>Missing Words</td><td class="error">${attemptedAlignment.filter((a) => a.status === "missing").length}</td>
         </tr>
         ${
           result.contentType === "typing"
             ? `
         <tr>
-          <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
+          <td>No. of Punctuation Mistakes</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
           <td>Backspaces</td><td>${result.backspaces}</td>
         </tr>
         <tr>
