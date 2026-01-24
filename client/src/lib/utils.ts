@@ -69,7 +69,7 @@ export function alignWords(
 
   // Greedy sequential matching with 40-word look-ahead window
   // Matches words sequentially - finds first match within window, then proceeds
-  const LOOK_AHEAD_WINDOW = 40;
+  const LOOK_AHEAD_WINDOW = 20;
   const result: AlignmentEntry[] = [];
   let origIndex = 0;
   let typedIndex = 0;
@@ -111,7 +111,7 @@ export function alignWords(
     for (let k = origIndex; k < Math.min(origIndex + LOOK_AHEAD_WINDOW, originalWords.length); k++) {
       if (normalizeForComparison(originalWords[k]) === currentTypedWord) {
         foundMatchAtDistance = k - origIndex;
-        break; // Take the first match, don't look further
+        break; // Take the FIRST (earliest) match within window
       }
     }
 
@@ -138,7 +138,8 @@ export function alignWords(
       typedIndex++;
     } else {
       // No match found within window
-      // Mark as substitution (wrong word)
+      // Mark as substitution (wrong word) but don't advance origIndex yet
+      // Try to match next typed word from nearby position first
       result.push({
         typed: typedWords[typedIndex],
         original: originalWords[origIndex],
@@ -146,8 +147,29 @@ export function alignWords(
         isError: true,
       });
       
-      origIndex++;
       typedIndex++;
+      
+      // Only advance origIndex if there's no next typed word, or if we can't find it nearby
+      if (typedIndex < typedWords.length) {
+        // Check if next typed word can be found nearby (within small window of next 10 words)
+        const nextTypedWord = normalizeForComparison(typedWords[typedIndex]);
+        let canFindNextNearby = false;
+        
+        for (let k = origIndex + 1; k < Math.min(origIndex + 15, originalWords.length); k++) {
+          if (normalizeForComparison(originalWords[k]) === nextTypedWord) {
+            canFindNextNearby = true;
+            break;
+          }
+        }
+        
+        // Only advance origIndex if we can't find the next typed word nearby
+        if (!canFindNextNearby) {
+          origIndex++;
+        }
+      } else {
+        // No more typed words, advance origIndex
+        origIndex++;
+      }
     }
   }
 
