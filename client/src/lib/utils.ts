@@ -34,8 +34,18 @@ export interface AlignmentEntry {
   isError: boolean;
 }
 
-// LCS-based word alignment that shows missing words in their correct positions
-// With a limited look-ahead window of 20 words to avoid matching too far away
+/**
+ * Optimal word alignment using Dynamic Programming (Wagner-Fischer algorithm)
+ * 
+ * This algorithm finds the minimum edit distance between original and typed words,
+ * producing an optimal alignment that minimizes the total number of operations
+ * (insertions, deletions, and substitutions).
+ * 
+ * Time complexity: O(n*m) where n = original words, m = typed words
+ * Space complexity: O(n*m) for the DP table and backtracking
+ * 
+ * For very long texts (>500 words), falls back to a windowed approach for performance.
+ */
 export function alignWords(
   originalText: string,
   typedText: string,
@@ -49,8 +59,12 @@ export function alignWords(
     .split(/\s+/)
     .filter((w) => w);
 
-  if (originalWords.length === 0 && typedWords.length === 0) return [];
-  if (originalWords.length === 0) {
+  const n = originalWords.length;
+  const m = typedWords.length;
+
+  // Edge cases
+  if (n === 0 && m === 0) return [];
+  if (n === 0) {
     return typedWords.map((w) => ({
       typed: w,
       original: "",
@@ -58,7 +72,7 @@ export function alignWords(
       isError: true,
     }));
   }
-  if (typedWords.length === 0) {
+  if (m === 0) {
     return originalWords.map((w) => ({
       typed: "",
       original: w,
@@ -67,17 +81,180 @@ export function alignWords(
     }));
   }
 
-  // Greedy sequential matching with 30-word look-ahead window
-  // Matches words sequentially - finds first match within window, then proceeds
-  const LOOK_AHEAD_WINDOW = 30;
+  // For very long texts, use windowed DP to avoid memory issues
+  // This splits the text into chunks and aligns each chunk separately
+  const MAX_DP_SIZE = 500;
+  if (n > MAX_DP_SIZE || m > MAX_DP_SIZE) {
+    return alignWordsWindowed(originalWords, typedWords);
+  }
+
+  // Standard DP alignment for normal-sized texts
+  return alignWordsDP(originalWords, typedWords);
+}
+
+/**
+ * Core DP-based alignment algorithm
+ * Uses Wagner-Fischer algorithm to find optimal alignment
+ */
+function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
+  const n = originalWords.length;
+  const m = typedWords.length;
+
+  // Pre-compute normalized words for faster comparison
+  const normalizedOriginal = originalWords.map(normalizeForComparison);
+  const normalizedTyped = typedWords.map(normalizeForComparison);
+
+  // DP table: dp[i][j] = minimum cost to align original[0..i-1] with typed[0..j-1]
+  // Cost scheme: match = 0, substitution = 1, insertion = 1, deletion = 1
+  const dp: number[][] = Array(n + 1).fill(null).map(() => Array(m + 1).fill(0));
+
+  // Initialize base cases
+  for (let i = 0; i <= n; i++) dp[i][0] = i; // Delete all original words
+  for (let j = 0; j <= m; j++) dp[0][j] = j; // Insert all typed words
+
+  // Fill DP table
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const isMatch = normalizedOriginal[i - 1] === normalizedTyped[j - 1];
+      
+      if (isMatch) {
+        dp[i][j] = dp[i - 1][j - 1]; // Match - no cost
+      } else {
+        dp[i][j] = Math.min(
+          dp[i - 1][j - 1] + 1, // Substitution
+          dp[i - 1][j] + 1,     // Deletion (missing word)
+          dp[i][j - 1] + 1      // Insertion (extra word)
+        );
+      }
+    }
+  }
+
+  // Backtrack to build alignment
   const result: AlignmentEntry[] = [];
+  let i = n, j = m;
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0) {
+      const isMatch = normalizedOriginal[i - 1] === normalizedTyped[j - 1];
+      
+      if (isMatch && dp[i][j] === dp[i - 1][j - 1]) {
+        // Match
+        result.unshift({
+          typed: typedWords[j - 1],
+          original: originalWords[i - 1],
+          status: "match",
+          isError: false,
+        });
+        i--; j--;
+      } else if (dp[i][j] === dp[i - 1][j - 1] + 1) {
+        // Substitution
+        result.unshift({
+          typed: typedWords[j - 1],
+          original: originalWords[i - 1],
+          status: "substitution",
+          isError: true,
+        });
+        i--; j--;
+      } else if (dp[i][j] === dp[i - 1][j] + 1) {
+        // Deletion (missing word)
+        result.unshift({
+          typed: "",
+          original: originalWords[i - 1],
+          status: "missing",
+          isError: true,
+        });
+        i--;
+      } else {
+        // Insertion (extra word)
+        result.unshift({
+          typed: typedWords[j - 1],
+          original: "",
+          status: "extra",
+          isError: true,
+        });
+        j--;
+      }
+    } else if (i > 0) {
+      // Remaining original words are missing
+      result.unshift({
+        typed: "",
+        original: originalWords[i - 1],
+        status: "missing",
+        isError: true,
+      });
+      i--;
+    } else {
+      // Remaining typed words are extra
+      result.unshift({
+        typed: typedWords[j - 1],
+        original: "",
+        status: "extra",
+        isError: true,
+      });
+      j--;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Windowed alignment for very long texts
+ * Splits text into chunks and aligns each chunk separately using anchors
+ * This provides near-optimal alignment with O(n) space complexity
+ */
+function alignWordsWindowed(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
+  const WINDOW_SIZE = 200;
+  const OVERLAP = 50;
+  const result: AlignmentEntry[] = [];
+  
   let origIndex = 0;
   let typedIndex = 0;
 
   while (origIndex < originalWords.length || typedIndex < typedWords.length) {
-    // If we've exhausted typed words, remaining original words are missing
-    if (typedIndex >= typedWords.length) {
-      while (origIndex < originalWords.length) {
+    // Extract current window
+    const origEnd = Math.min(origIndex + WINDOW_SIZE, originalWords.length);
+    const typedEnd = Math.min(typedIndex + WINDOW_SIZE, typedWords.length);
+    
+    const origWindow = originalWords.slice(origIndex, origEnd);
+    const typedWindow = typedWords.slice(typedIndex, typedEnd);
+
+    if (origWindow.length === 0 && typedWindow.length === 0) break;
+
+    // Align this window
+    const windowAlignment = alignWordsDP(origWindow, typedWindow);
+    
+    // Find a good anchor point to avoid overlap issues
+    // An anchor is a matched word that appears in both texts
+    let anchorIdx = windowAlignment.length;
+    if (origEnd < originalWords.length || typedEnd < typedWords.length) {
+      // Find last matched word within safe range
+      for (let i = Math.max(0, windowAlignment.length - OVERLAP); i < windowAlignment.length; i++) {
+        if (windowAlignment[i].status === "match") {
+          anchorIdx = i + 1;
+        }
+      }
+    }
+
+    // Add alignment entries up to anchor
+    for (let i = 0; i < anchorIdx; i++) {
+      result.push(windowAlignment[i]);
+    }
+
+    // Calculate how many words we consumed
+    let origConsumed = 0;
+    let typedConsumed = 0;
+    for (let i = 0; i < anchorIdx; i++) {
+      if (windowAlignment[i].original !== "") origConsumed++;
+      if (windowAlignment[i].typed !== "") typedConsumed++;
+    }
+
+    origIndex += origConsumed;
+    typedIndex += typedConsumed;
+
+    // Prevent infinite loop
+    if (origConsumed === 0 && typedConsumed === 0) {
+      if (origIndex < originalWords.length) {
         result.push({
           typed: "",
           original: originalWords[origIndex],
@@ -85,13 +262,7 @@ export function alignWords(
           isError: true,
         });
         origIndex++;
-      }
-      break;
-    }
-
-    // If we've exhausted original words, remaining typed words are extra
-    if (origIndex >= originalWords.length) {
-      while (typedIndex < typedWords.length) {
+      } else if (typedIndex < typedWords.length) {
         result.push({
           typed: typedWords[typedIndex],
           original: "",
@@ -99,76 +270,6 @@ export function alignWords(
           isError: true,
         });
         typedIndex++;
-      }
-      break;
-    }
-
-    const currentTypedWord = normalizeForComparison(typedWords[typedIndex]);
-    
-    // Look for first match within the window, starting from current position
-    let foundMatchAtDistance = -1;
-
-    for (let k = origIndex; k < Math.min(origIndex + LOOK_AHEAD_WINDOW, originalWords.length); k++) {
-      if (normalizeForComparison(originalWords[k]) === currentTypedWord) {
-        foundMatchAtDistance = k - origIndex;
-        break; // Take the FIRST (earliest) match within window
-      }
-    }
-
-    if (foundMatchAtDistance >= 0) {
-      // Mark all words between current position and match as missing
-      for (let m = origIndex; m < origIndex + foundMatchAtDistance; m++) {
-        result.push({
-          typed: "",
-          original: originalWords[m],
-          status: "missing",
-          isError: true,
-        });
-      }
-      
-      // Add the match
-      result.push({
-        typed: typedWords[typedIndex],
-        original: originalWords[origIndex + foundMatchAtDistance],
-        status: "match",
-        isError: false,
-      });
-      
-      origIndex += foundMatchAtDistance + 1;
-      typedIndex++;
-    } else {
-      // No match found within window
-      // Mark as substitution (wrong word) but don't advance origIndex yet
-      // Try to match next typed word from nearby position first
-      result.push({
-        typed: typedWords[typedIndex],
-        original: originalWords[origIndex],
-        status: "substitution",
-        isError: true,
-      });
-      
-      typedIndex++;
-      
-      // Only advance origIndex if there's no next typed word, or if we can't find it nearby
-      if (typedIndex < typedWords.length) {
-        // Check if next typed word can be found nearby (within 20-word window)
-        const nextTypedWord = normalizeForComparison(typedWords[typedIndex]);
-        let canFindNextNearby = false;
-        
-        for (let k = origIndex + 1; k < Math.min(origIndex + LOOK_AHEAD_WINDOW, originalWords.length); k++) {
-          if (normalizeForComparison(originalWords[k]) === nextTypedWord) {
-            canFindNextNearby = true;
-            break;
-          }
-        }
-        
-        // Only advance origIndex if we can't find the next typed word nearby
-        if (!canFindNextNearby) {
-          origIndex++;
-        }
-      } else {
-        // No more typed words, advance origIndex
-        origIndex++;
       }
     }
   }
