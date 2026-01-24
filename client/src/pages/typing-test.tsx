@@ -213,7 +213,7 @@ export default function TypingTestPage() {
     };
   }, [isActive, finishTest]);
   
-  // Handle manual scroll - detect if user scrolled and disable auto-scroll temporarily
+  // Handle manual scroll - detect if user scrolled
   useEffect(() => {
     const container = originalTextRef.current;
     if (!container) return;
@@ -223,7 +223,7 @@ export default function TypingTestPage() {
       if (!isAutoScrollingRef.current) {
         setUserScrolled(true);
       }
-      isAutoScrollingRef.current = false; // Reset the flag after scroll event
+      isAutoScrollingRef.current = false;
       lastScrollTopRef.current = container.scrollTop;
     };
 
@@ -231,55 +231,54 @@ export default function TypingTestPage() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-scroll logic (controlled by per-test setting)
+  // Auto-scroll logic - scrolls original text to follow typing progress
+  // Content moves from bottom to top (current word stays near top of visible area)
   useEffect(() => {
     const autoScrollEnabled = testContent?.autoScroll ?? true;
-    if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current) {
-      const container = originalTextRef.current;
-      const text = testContent.text;
-      const currentLength = typedText.length;
-      
-      // Find the current line number by counting newlines up to cursor position
-      const linesBeforeCursor = text.substring(0, currentLength).split('\n').length - 1;
-      
-      // Calculate approximate line height from the container
-      const lineHeight = parseInt(window.getComputedStyle(container).lineHeight, 10);
-      const containerHeight = container.clientHeight;
-      
-      // Current scroll and cursor positions
-      const currentScroll = container.scrollTop;
-      const cursorBottomPosition = (linesBeforeCursor + 1) * lineHeight;
-      const visibleAreaBottom = currentScroll + containerHeight;
-      
-      // Check if cursor is outside visible area (below the bottom or above the top)
-      const cursorOutOfView = cursorBottomPosition > visibleAreaBottom || cursorBottomPosition < currentScroll;
-      
-      // ONLY auto-scroll if:
-      // 1. User hasn't manually scrolled yet (initial typing), OR
-      // 2. Cursor is WAY out of view (more than full screen below) - emergency auto-scroll
-      const emergencyScrollNeeded = cursorBottomPosition > visibleAreaBottom + containerHeight;
-      
-      if (!userScrolled || emergencyScrollNeeded) {
-        // We want the current line to appear around 40% down the visible area
-        // This ensures 2-3 previous lines remain visible above it
-        const targetScrollPosition = Math.max(
-          0,
-          (linesBeforeCursor * lineHeight) - (containerHeight * 0.35)
-        );
-        
-        const diff = targetScrollPosition - currentScroll;
-        
-        // Use a smooth transition: only move 30% of the distance per update
-        // This makes the scroll feel slower and more natural
-        const newScroll = currentScroll + diff * 0.3;
-        
-        // Mark that we're doing a programmatic scroll
-        isAutoScrollingRef.current = true;
-        container.scrollTop = newScroll;
-        lastScrollTopRef.current = newScroll;
-      }
+    if (!autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
+    if (!isActive) return; // Only scroll when test is active
+    
+    const container = originalTextRef.current;
+    const originalText = testContent.text;
+    
+    // Count words typed by user
+    const typedWords = typedText.trim().split(/\s+/).filter(w => w).length;
+    const originalWords = originalText.trim().split(/\s+/).filter(w => w);
+    const totalOriginalWords = originalWords.length;
+    
+    if (totalOriginalWords === 0) return;
+    
+    // Calculate scroll position based on word progress
+    const scrollableHeight = container.scrollHeight - container.clientHeight;
+    const progress = Math.min(typedWords / totalOriginalWords, 1);
+    
+    // Target position: current word should appear near top (20% from top)
+    // This makes content scroll up as user types (bottom to top feel)
+    const targetScrollPosition = Math.max(0, progress * scrollableHeight);
+    
+    const currentScroll = container.scrollTop;
+    const diff = targetScrollPosition - currentScroll;
+    
+    // Only auto-scroll if difference is significant (more than 5px)
+    // This prevents jittering on every keystroke
+    if (Math.abs(diff) < 5) return;
+    
+    // If user has manually scrolled, only do "catch-up" scrolling
+    // when they fall more than 30% behind the target position
+    if (userScrolled) {
+      const lagThreshold = scrollableHeight * 0.3;
+      if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
     }
-  }, [typedText, testContent, userScrolled]);
+    
+    // Smooth scroll: move 25% of the distance per update
+    const newScroll = currentScroll + diff * 0.25;
+    
+    // Mark as programmatic scroll to avoid triggering manual scroll detection
+    isAutoScrollingRef.current = true;
+    container.scrollTop = newScroll;
+    lastScrollTopRef.current = newScroll;
+    
+  }, [typedText, testContent, userScrolled, isActive]);
 
   const startTest = () => {
     // Reset scroll tracking when test starts
