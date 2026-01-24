@@ -520,22 +520,22 @@ export function calculateShorthandMetrics(
   timeInMinutes: number,
 ) {
   // Use aligned word comparison to handle word splits/joins
-  // Only considers the attempted portion (excludes trailing untyped words)
   const { mistakes, attemptedAlignment } = calculateAlignedMistakes(
     originalText,
     typedText,
   );
 
-  // For Shorthand: Calculate metrics based on TOTAL ORIGINAL WORDS (not typed words)
-  // Count all original words from the attempted portion
-  const totalOriginalWords = attemptedAlignment.filter(
-    (a) => a.original !== ""
-  ).length;
+  // For Shorthand: Calculate metrics based on FULL ORIGINAL TEXT word count
+  // This is the total words in the entire passage, not just what was attempted
+  const fullOriginalWords = (originalText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w).length;
 
   // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
-  // Calculate percentage based on TOTAL ORIGINAL WORDS
+  // Calculate percentage based on FULL ORIGINAL TEXT word count
   const mistakePercentage =
-    totalOriginalWords > 0 ? (mistakes / totalOriginalWords) * 100 : 0;
+    fullOriginalWords > 0 ? (mistakes / fullOriginalWords) * 100 : 0;
   const isPassed = mistakePercentage <= 5;
 
   // Count missing words only from attempted portion (not trailing untyped words)
@@ -568,7 +568,7 @@ export function calculateShorthandMetrics(
   }
 
   return {
-    words: totalOriginalWords,
+    words: fullOriginalWords,
     mistakes,
     halfMistakes,
     result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
