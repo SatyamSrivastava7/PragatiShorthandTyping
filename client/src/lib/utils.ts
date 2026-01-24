@@ -807,6 +807,9 @@ export const generateResultPDF = async (result: Result) => {
     trailingWords = trailingItems.map((item) => item.original).filter((w) => w);
   }
 
+  // Count actual missing words (not trailing)
+  const missingWordsCount = displayAlignment.filter(item => item.status === "missing").length;
+
   let typedHtml = "";
 
   // Generate HTML for typed content with error highlighting
@@ -893,7 +896,7 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Total Mistakes</td><td class="error">${result.mistakes}</td>
-          <td>Missing Words</td><td class="error">${trailingWords.length}</td>
+          <td>Missing Words</td><td class="error">${missingWordsCount}</td>
         </tr>
         ${
           result.contentType === "typing"
