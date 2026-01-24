@@ -10,15 +10,36 @@ export function ResultTextAnalysis({ originalText, typedText, language }: Result
   // Use LCS-based alignment that shows missing words in correct positions
   const alignment = alignWords(originalText, typedText);
 
+  // Track words we've recently shown in brackets to prevent duplication
+  const shownBracketedWords: Set<string> = new Set();
+
   return (
     <div className={cn("text-sm leading-relaxed flex flex-wrap gap-x-1", language === 'hindi' ? "font-mangal" : "")}>
       {alignment.map((item, i) => {
         // Check if next item is a match of the current missing word - if so, skip this missing entry
         if (item.status === 'missing') {
-          const nextItem = alignment[i + 1];
-          if (nextItem && nextItem.status === 'match' && normalizeWord(nextItem.original) === normalizeWord(item.original)) {
-            return null; // Skip showing this missing entry since the next entry is the same word matched
+          const normalizedCurrent = normalizeWord(item.original);
+          
+          // Check if we just showed this word in brackets recently (last 2 items)
+          let isDuplicate = false;
+          for (let j = Math.max(0, i - 2); j < i; j++) {
+            const prevItem = alignment[j];
+            if (prevItem.status === 'missing' && normalizeWord(prevItem.original) === normalizedCurrent) {
+              isDuplicate = true;
+              break;
+            }
+            if ((prevItem.status === 'substitution' || prevItem.status === 'match') && 
+                normalizeWord(prevItem.original) === normalizedCurrent) {
+              isDuplicate = true;
+              break;
+            }
           }
+          
+          if (isDuplicate) {
+            return null; // Skip duplicate bracketed word
+          }
+          
+          shownBracketedWords.add(normalizedCurrent);
           return (
             <span key={i} className="text-green-600 font-medium">[{item.original}]</span>
           );

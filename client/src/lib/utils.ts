@@ -524,12 +524,29 @@ export const generateResultPDF = async (result: Result) => {
   for (let i = 0; i < attemptedAlignment.length; i++) {
     const item = attemptedAlignment[i];
     
-    // Check if next item is a match of the current missing word - if so, skip this missing entry
+    // Check if we've recently shown this word in brackets - if so, skip to avoid duplication
     if (item.status === "missing") {
-      const nextItem = attemptedAlignment[i + 1];
-      if (nextItem && nextItem.status === "match" && normalizeForComparison(nextItem.original) === normalizeForComparison(item.original)) {
-        continue; // Skip showing this missing entry since the next entry is the same word matched
+      const normalizedCurrent = normalizeForComparison(item.original);
+      
+      // Check if we just showed this word in brackets recently (last 2 items)
+      let isDuplicate = false;
+      for (let j = Math.max(0, i - 2); j < i; j++) {
+        const prevItem = attemptedAlignment[j];
+        if (prevItem.status === "missing" && normalizeForComparison(prevItem.original) === normalizedCurrent) {
+          isDuplicate = true;
+          break;
+        }
+        if ((prevItem.status === "substitution" || prevItem.status === "match") && 
+            normalizeForComparison(prevItem.original) === normalizedCurrent) {
+          isDuplicate = true;
+          break;
+        }
       }
+      
+      if (isDuplicate) {
+        continue; // Skip duplicate bracketed word
+      }
+      
       // Missing word - show in green brackets
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
     } else if (item.status === "substitution") {
