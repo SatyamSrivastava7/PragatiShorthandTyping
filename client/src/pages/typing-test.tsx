@@ -233,8 +233,7 @@ export default function TypingTestPage() {
   // Auto-scroll logic (controlled by per-test setting)
   useEffect(() => {
     const autoScrollEnabled = testContent?.autoScroll ?? true;
-    // Only auto-scroll if enabled, typing is active, and user hasn't manually scrolled
-    if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current && !userScrolled) {
+    if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current) {
       const container = originalTextRef.current;
       const text = testContent.text;
       const currentLength = typedText.length;
@@ -256,16 +255,26 @@ export default function TypingTestPage() {
         (linesBeforeCursor * lineHeight) - (containerHeight * 0.35)
       );
       
-      // Smooth scroll with easing for a slower, more natural feel
+      // Only auto-scroll if the cursor has moved past the visible area
+      // or if user hasn't manually scrolled
       const currentScroll = container.scrollTop;
-      const diff = targetScrollPosition - currentScroll;
+      const cursorBottomPosition = (linesBeforeCursor + 1) * lineHeight;
+      const visibleAreaBottom = currentScroll + containerHeight;
       
-      // Use a smooth transition: only move 30% of the distance per update
-      // This makes the scroll feel slower and more natural
-      const newScroll = currentScroll + diff * 0.3;
+      // Check if cursor is outside visible area (below the bottom)
+      const cursorOutOfView = cursorBottomPosition > visibleAreaBottom;
       
-      container.scrollTop = newScroll;
-      lastScrollTopRef.current = container.scrollTop;
+      // Only apply auto-scroll if cursor is out of view, OR user hasn't manually scrolled
+      if (cursorOutOfView || !userScrolled) {
+        const diff = targetScrollPosition - currentScroll;
+        
+        // Use a smooth transition: only move 30% of the distance per update
+        // This makes the scroll feel slower and more natural
+        const newScroll = currentScroll + diff * 0.3;
+        
+        container.scrollTop = newScroll;
+        lastScrollTopRef.current = container.scrollTop;
+      }
     }
   }, [typedText, testContent, userScrolled]);
 
@@ -308,11 +317,6 @@ export default function TypingTestPage() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
-    
-    // Reset userScrolled flag when user starts typing - allows auto-scroll to resume
-    if (userScrolled && e.key.length === 1) {
-      setUserScrolled(false);
-    }
     
     const textarea = e.currentTarget;
     const hasModifier = e.ctrlKey || e.altKey || e.metaKey;

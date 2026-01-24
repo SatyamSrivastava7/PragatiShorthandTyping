@@ -67,137 +67,88 @@ export function alignWords(
     }));
   }
 
-  // Build LCS table for normalized comparison (case-insensitive, dash-normalized)
-  // with a 20-word look-ahead window to prevent matching too far away
-  const m = originalWords.length;
-  const n = typedWords.length;
+  // Greedy sequential matching with 20-word look-ahead window
+  // Matches words sequentially - finds first match within window, then proceeds
   const LOOK_AHEAD_WINDOW = 20;
-  const dp: number[][] = Array(m + 1)
-    .fill(null)
-    .map(() => Array(n + 1).fill(0));
+  const result: AlignmentEntry[] = [];
+  let origIndex = 0;
+  let typedIndex = 0;
 
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      
-      // const windowStart = Math.max(1, j - LOOK_AHEAD_WINDOW);
-      // const isWithinWindow = i >= windowStart && i <= j + LOOK_AHEAD_WINDOW;
-      // Only allow matches if the original word is within look-ahead window of the typed word
-      // This prevents matching words that are too far ahead
-      const isWithinWindow = i >= j && i <= j + LOOK_AHEAD_WINDOW;
-      
-      if (
-        isWithinWindow &&
-        normalizeForComparison(originalWords[i - 1]) ===
-        normalizeForComparison(typedWords[j - 1])
-      ) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+  while (origIndex < originalWords.length || typedIndex < typedWords.length) {
+    // If we've exhausted typed words, remaining original words are missing
+    if (typedIndex >= typedWords.length) {
+      while (origIndex < originalWords.length) {
+        result.push({
+          typed: "",
+          original: originalWords[origIndex],
+          status: "missing",
+          isError: true,
+        });
+        origIndex++;
+      }
+      break;
+    }
+
+    // If we've exhausted original words, remaining typed words are extra
+    if (origIndex >= originalWords.length) {
+      while (typedIndex < typedWords.length) {
+        result.push({
+          typed: typedWords[typedIndex],
+          original: "",
+          status: "extra",
+          isError: true,
+        });
+        typedIndex++;
+      }
+      break;
+    }
+
+    const currentTypedWord = normalizeForComparison(typedWords[typedIndex]);
+    
+    // Look for first match within the window, starting from current position
+    let foundMatchAtDistance = -1;
+
+    for (let k = origIndex; k < Math.min(origIndex + LOOK_AHEAD_WINDOW, originalWords.length); k++) {
+      if (normalizeForComparison(originalWords[k]) === currentTypedWord) {
+        foundMatchAtDistance = k - origIndex;
+        break; // Take the first match, don't look further
       }
     }
-  }
 
-  // Backtrack to build alignment
-  const result: AlignmentEntry[] = [];
-  let i = m,
-    j = n;
-  const tempResult: AlignmentEntry[] = [];
-
-  while (i > 0 || j > 0) {
-    if (
-      i > 0 &&
-      j > 0 &&
-      normalizeForComparison(originalWords[i - 1]) ===
-        normalizeForComparison(typedWords[j - 1])
-    ) {
-      // Match
-      tempResult.push({
-        typed: typedWords[j - 1],
-        original: originalWords[i - 1],
+    if (foundMatchAtDistance >= 0) {
+      // Mark all words between current position and match as missing
+      for (let m = origIndex; m < origIndex + foundMatchAtDistance; m++) {
+        result.push({
+          typed: "",
+          original: originalWords[m],
+          status: "missing",
+          isError: true,
+        });
+      }
+      
+      // Add the match
+      result.push({
+        typed: typedWords[typedIndex],
+        original: originalWords[origIndex + foundMatchAtDistance],
         status: "match",
         isError: false,
       });
-      i--;
-      j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      // Extra typed word (not in original) or substitution
-      tempResult.push({
-        typed: typedWords[j - 1],
-        original: "",
-        status: "extra",
-        isError: true,
-      });
-      j--;
+      
+      origIndex += foundMatchAtDistance + 1;
+      typedIndex++;
     } else {
-      // Missing original word
-      tempResult.push({
-        typed: "",
-        original: originalWords[i - 1],
-        status: "missing",
-        isError: true,
-      });
-      i--;
-    }
-  }
-
-  // Reverse to get correct order
-  tempResult.reverse();
-
-  // Post-process: pair up extra and missing words into substitutions
-  // Each missing word should try to pair with the closest unpaired extra word
-  const extras: { index: number; entry: AlignmentEntry }[] = [];
-  const missings: { index: number; entry: AlignmentEntry }[] = [];
-
-  for (let k = 0; k < tempResult.length; k++) {
-    if (tempResult[k].status === "extra") {
-      extras.push({ index: k, entry: tempResult[k] });
-    } else if (tempResult[k].status === "missing") {
-      missings.push({ index: k, entry: tempResult[k] });
-    }
-  }
-
-  // Pair extras with missings as substitutions - find closest unpaired extra for each missing
-  const paired = new Set<number>();
-  for (const missing of missings) {
-    // Find the closest unpaired extra (prefer before, then after)
-    let bestExtra: { index: number; entry: AlignmentEntry } | null = null;
-    let bestDistance = Infinity;
-
-    for (const extra of extras) {
-      if (paired.has(extra.index)) continue;
-      const distance = Math.abs(extra.index - missing.index);
-      // Only consider extras that are reasonably close (within 3 positions)
-      // and prefer extras that come before the missing word
-      if (distance < bestDistance && distance <= 3) {
-        bestDistance = distance;
-        bestExtra = extra;
-      }
-    }
-
-    if (bestExtra) {
-      paired.add(bestExtra.index);
-      paired.add(missing.index);
-      // Mark them for merging - put at the missing's position (original word position)
-      tempResult[missing.index] = {
-        typed: bestExtra.entry.typed,
-        original: missing.entry.original,
+      // No match found within window
+      // Mark as substitution (wrong word)
+      result.push({
+        typed: typedWords[typedIndex],
+        original: originalWords[origIndex],
         status: "substitution",
         isError: true,
-      };
-      tempResult[bestExtra.index] = {
-        typed: "",
-        original: "",
-        status: "match",
-        isError: false,
-      }; // Will be filtered out
+      });
+      
+      origIndex++;
+      typedIndex++;
     }
-  }
-
-  // Build final result, filtering out empty placeholder entries
-  for (const entry of tempResult) {
-    if (entry.typed === "" && entry.original === "" && entry.status === "match")
-      continue;
-    result.push(entry);
   }
 
   return result;
