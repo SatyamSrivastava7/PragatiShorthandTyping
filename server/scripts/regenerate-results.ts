@@ -297,7 +297,7 @@ async function regenerateResults() {
       continue;
     }
 
-    const timeInMinutes = result.time / 60;
+    const timeInMinutes = result.time; // time is already stored in minutes
     
     try {
       if (result.contentType === "typing") {
