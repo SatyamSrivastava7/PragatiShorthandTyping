@@ -241,22 +241,11 @@ export default function TypingTestPage() {
       // Find the current line number by counting newlines up to cursor position
       const linesBeforeCursor = text.substring(0, currentLength).split('\n').length - 1;
       
-      // Get all lines
-      const allLines = text.split('\n');
-      
       // Calculate approximate line height from the container
       const lineHeight = parseInt(window.getComputedStyle(container).lineHeight, 10);
       const containerHeight = container.clientHeight;
       
-      // We want the current line to appear around 40% down the visible area
-      // This ensures 2-3 previous lines remain visible above it
-      const targetScrollPosition = Math.max(
-        0,
-        (linesBeforeCursor * lineHeight) - (containerHeight * 0.35)
-      );
-      
-      // Only auto-scroll if the cursor has moved past the visible area
-      // or if user hasn't manually scrolled
+      // Current scroll and cursor positions
       const currentScroll = container.scrollTop;
       const cursorBottomPosition = (linesBeforeCursor + 1) * lineHeight;
       const visibleAreaBottom = currentScroll + containerHeight;
@@ -264,8 +253,17 @@ export default function TypingTestPage() {
       // Check if cursor is outside visible area (below the bottom)
       const cursorOutOfView = cursorBottomPosition > visibleAreaBottom;
       
-      // Only apply auto-scroll if cursor is out of view, OR user hasn't manually scrolled
+      // ONLY auto-scroll if:
+      // 1. Cursor is out of view (moved past visible area), OR
+      // 2. User hasn't manually scrolled (first auto-scroll behavior)
       if (cursorOutOfView || !userScrolled) {
+        // We want the current line to appear around 40% down the visible area
+        // This ensures 2-3 previous lines remain visible above it
+        const targetScrollPosition = Math.max(
+          0,
+          (linesBeforeCursor * lineHeight) - (containerHeight * 0.35)
+        );
+        
         const diff = targetScrollPosition - currentScroll;
         
         // Use a smooth transition: only move 30% of the distance per update
@@ -273,6 +271,9 @@ export default function TypingTestPage() {
         const newScroll = currentScroll + diff * 0.3;
         
         container.scrollTop = newScroll;
+        lastScrollTopRef.current = container.scrollTop;
+      } else if (userScrolled) {
+        // User has scrolled manually - update the ref to track where they are
         lastScrollTopRef.current = container.scrollTop;
       }
     }

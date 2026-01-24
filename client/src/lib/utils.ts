@@ -67,7 +67,7 @@ export function alignWords(
     }));
   }
 
-  // Greedy sequential matching with 40-word look-ahead window
+  // Greedy sequential matching with 20-word look-ahead window
   // Matches words sequentially - finds first match within window, then proceeds
   const LOOK_AHEAD_WINDOW = 20;
   const result: AlignmentEntry[] = [];
@@ -151,11 +151,11 @@ export function alignWords(
       
       // Only advance origIndex if there's no next typed word, or if we can't find it nearby
       if (typedIndex < typedWords.length) {
-        // Check if next typed word can be found nearby (within small window of next 10 words)
+        // Check if next typed word can be found nearby (within 20-word window)
         const nextTypedWord = normalizeForComparison(typedWords[typedIndex]);
         let canFindNextNearby = false;
         
-        for (let k = origIndex + 1; k < Math.min(origIndex + 20, originalWords.length); k++) {
+        for (let k = origIndex + 1; k < Math.min(origIndex + LOOK_AHEAD_WINDOW, originalWords.length); k++) {
           if (normalizeForComparison(originalWords[k]) === nextTypedWord) {
             canFindNextNearby = true;
             break;
