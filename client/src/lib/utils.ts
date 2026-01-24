@@ -67,9 +67,9 @@ export function alignWords(
     }));
   }
 
-  // Greedy sequential matching with 40-word look-ahead window
+  // Greedy sequential matching with 80-word look-ahead window
   // Matches words sequentially - finds first match within window, then proceeds
-  const LOOK_AHEAD_WINDOW = 40;
+  const LOOK_AHEAD_WINDOW = 80;
   const result: AlignmentEntry[] = [];
   let origIndex = 0;
   let typedIndex = 0;
