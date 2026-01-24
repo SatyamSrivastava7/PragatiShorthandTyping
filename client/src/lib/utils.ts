@@ -788,8 +788,8 @@ export const generateResultPDF = async (result: Result) => {
     const item = displayAlignment[i];
     
     if (item.status === "trailing") {
-      // Trailing untyped words - show in gray (not counted as errors for typing tests)
-      typedHtml += `<span style="color: #9ca3af;">[${item.original}]</span> `;
+      // Trailing untyped words - skip in PDF for typing tests (not counted as errors)
+      continue;
     } else if (item.status === "missing") {
       // Missing word - show in green brackets
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
