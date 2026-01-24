@@ -51,6 +51,7 @@ export default function TypingTestPage() {
   const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
+  const isAutoScrollingRef = useRef<boolean>(false); // Flag to track if current scroll is programmatic
 
   useEffect(() => {
     if (testContent) {
@@ -218,12 +219,12 @@ export default function TypingTestPage() {
     if (!container) return;
 
     const handleScroll = () => {
-      // If user scrolls and it's not from auto-scroll, mark as manually scrolled
-      if (container.scrollTop !== lastScrollTopRef.current) {
+      // Only mark as manually scrolled if this scroll wasn't triggered by auto-scroll
+      if (!isAutoScrollingRef.current) {
         setUserScrolled(true);
-        // Update the ref to the new scroll position so auto-scroll resumes from here
-        lastScrollTopRef.current = container.scrollTop;
       }
+      isAutoScrollingRef.current = false; // Reset the flag after scroll event
+      lastScrollTopRef.current = container.scrollTop;
     };
 
     container.addEventListener('scroll', handleScroll);
@@ -250,13 +251,15 @@ export default function TypingTestPage() {
       const cursorBottomPosition = (linesBeforeCursor + 1) * lineHeight;
       const visibleAreaBottom = currentScroll + containerHeight;
       
-      // Check if cursor is outside visible area (below the bottom)
-      const cursorOutOfView = cursorBottomPosition > visibleAreaBottom;
+      // Check if cursor is outside visible area (below the bottom or above the top)
+      const cursorOutOfView = cursorBottomPosition > visibleAreaBottom || cursorBottomPosition < currentScroll;
       
       // ONLY auto-scroll if:
-      // 1. Cursor is out of view (moved past visible area), OR
-      // 2. User hasn't manually scrolled (first auto-scroll behavior)
-      if (cursorOutOfView || !userScrolled) {
+      // 1. User hasn't manually scrolled yet (initial typing), OR
+      // 2. Cursor is WAY out of view (more than full screen below) - emergency auto-scroll
+      const emergencyScrollNeeded = cursorBottomPosition > visibleAreaBottom + containerHeight;
+      
+      if (!userScrolled || emergencyScrollNeeded) {
         // We want the current line to appear around 40% down the visible area
         // This ensures 2-3 previous lines remain visible above it
         const targetScrollPosition = Math.max(
@@ -270,16 +273,18 @@ export default function TypingTestPage() {
         // This makes the scroll feel slower and more natural
         const newScroll = currentScroll + diff * 0.3;
         
+        // Mark that we're doing a programmatic scroll
+        isAutoScrollingRef.current = true;
         container.scrollTop = newScroll;
-        lastScrollTopRef.current = container.scrollTop;
-      } else if (userScrolled) {
-        // User has scrolled manually - update the ref to track where they are
-        lastScrollTopRef.current = container.scrollTop;
+        lastScrollTopRef.current = newScroll;
       }
     }
   }, [typedText, testContent, userScrolled]);
 
   const startTest = () => {
+    // Reset scroll tracking when test starts
+    setUserScrolled(false);
+    
     // Check cooldown before starting
     if (cooldownRemaining > 0) {
       toast({

@@ -521,14 +521,20 @@ export const generateResultPDF = async (result: Result) => {
   let typedHtml = "";
 
   // Use attemptedAlignment to exclude trailing missing words from PDF
-  for (const item of attemptedAlignment) {
+  for (let i = 0; i < attemptedAlignment.length; i++) {
+    const item = attemptedAlignment[i];
+    
+    // Check if next item is a match of the current missing word - if so, skip this missing entry
     if (item.status === "missing") {
+      const nextItem = attemptedAlignment[i + 1];
+      if (nextItem && nextItem.status === "match" && normalizeForComparison(nextItem.original) === normalizeForComparison(item.original)) {
+        continue; // Skip showing this missing entry since the next entry is the same word matched
+      }
       // Missing word - show in green brackets
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
     } else if (item.status === "substitution") {
       // Substitution - show correct word in green brackets FIRST, then typed word underlined in red
-      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
+      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span><span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
     } else if (item.status === "extra") {
       // Extra word - show underlined in red
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
