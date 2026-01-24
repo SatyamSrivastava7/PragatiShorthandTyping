@@ -29,53 +29,71 @@ interface AlignmentEntry {
 function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: number): AlignmentEntry[] {
   if (alignment.length === 0) return alignment;
   
+  let result = [...alignment];
+  
   let lastTypedIdx = -1;
-  for (let i = alignment.length - 1; i >= 0; i--) {
-    if (alignment[i].typed !== "") {
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (result[i].typed !== "") {
       lastTypedIdx = i;
       break;
     }
   }
   
-  if (lastTypedIdx === -1) return alignment;
+  if (lastTypedIdx === -1) return result;
   
-  const result: AlignmentEntry[] = [];
-  for (let i = 0; i < alignment.length; i++) {
-    const item = alignment[i];
-    
-    if (i > lastTypedIdx && item.status === "missing") {
-      result.push({ ...item, status: "trailing", isError: false });
-    } else {
-      result.push(item);
+  for (let i = lastTypedIdx + 1; i < result.length; i++) {
+    if (result[i].status === "missing") {
+      result[i] = { ...result[i], status: "trailing", isError: false };
     }
   }
   
-  let consecutiveMissingBeforeLastTyped = 0;
-  for (let i = lastTypedIdx - 1; i >= 0; i--) {
+  let i = 0;
+  while (i < result.length) {
     if (result[i].status === "missing") {
-      consecutiveMissingBeforeLastTyped++;
+      let missingStart = i;
+      let missingCount = 0;
+      
+      while (i < result.length && result[i].status === "missing") {
+        missingCount++;
+        i++;
+      }
+      
+      if (i < result.length && result[i].typed !== "" && result[i].status === "extra" && missingCount > 2) {
+        const typedWord = result[i].typed;
+        const originalWord = result[missingStart].original;
+        
+        result[missingStart] = {
+          typed: typedWord,
+          original: originalWord,
+          status: "substitution",
+          isError: true,
+        };
+        
+        for (let j = missingStart + 1; j < i; j++) {
+          if (result[j].status === "missing") {
+            result[j] = { ...result[j], status: "trailing", isError: false };
+          }
+        }
+        
+        result.splice(i, 1);
+      }
     } else {
+      i++;
+    }
+  }
+  
+  lastTypedIdx = -1;
+  for (let j = result.length - 1; j >= 0; j--) {
+    if (result[j].typed !== "") {
+      lastTypedIdx = j;
       break;
     }
   }
   
-  if (consecutiveMissingBeforeLastTyped > 3 && result[lastTypedIdx].status === "extra") {
-    const typedWord = result[lastTypedIdx].typed;
-    const firstMissingIdx = lastTypedIdx - consecutiveMissingBeforeLastTyped;
-    const originalWord = result[firstMissingIdx].original;
-    
-    result[firstMissingIdx] = {
-      typed: typedWord,
-      original: originalWord,
-      status: "substitution",
-      isError: true,
-    };
-    
-    result.splice(lastTypedIdx, 1);
-    
-    for (let i = firstMissingIdx + 1; i < result.length; i++) {
-      if (result[i].status === "missing") {
-        result[i] = { ...result[i], status: "trailing", isError: false };
+  if (lastTypedIdx !== -1) {
+    for (let j = lastTypedIdx + 1; j < result.length; j++) {
+      if (result[j].status === "missing") {
+        result[j] = { ...result[j], status: "trailing", isError: false };
       }
     }
   }
@@ -252,8 +270,14 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
 }
 
 function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
+  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
-  const rawAlignment = alignWords(originalText, typedText);
+  
+  // For typing tests, only align against original words up to typed count + small buffer
+  const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
+  const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
+  
+  const rawAlignment = alignWords(windowedOriginal, typedText);
   const alignment = fixTrailingErrorPattern(rawAlignment, typedWords.length);
 
   const commaCount = (word: string) => (word.match(/,/g) || []).length;
