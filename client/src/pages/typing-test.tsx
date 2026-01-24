@@ -43,12 +43,14 @@ export default function TypingTestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [selectedVideoWpm, setSelectedVideoWpm] = useState<"60" | "80" | "100" | "120">("80"); // Default to 80 WPM
+  const [userScrolled, setUserScrolled] = useState(false); // Track if user manually scrolled
   
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef<number>(0);
 
   useEffect(() => {
     if (testContent) {
@@ -210,10 +212,29 @@ export default function TypingTestPage() {
     };
   }, [isActive, finishTest]);
   
+  // Handle manual scroll - detect if user scrolled and disable auto-scroll temporarily
+  useEffect(() => {
+    const container = originalTextRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // If user scrolls and it's not from auto-scroll, mark as manually scrolled
+      if (container.scrollTop !== lastScrollTopRef.current) {
+        setUserScrolled(true);
+        // Update the ref to the new scroll position so auto-scroll resumes from here
+        lastScrollTopRef.current = container.scrollTop;
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // Auto-scroll logic (controlled by per-test setting)
   useEffect(() => {
     const autoScrollEnabled = testContent?.autoScroll ?? true;
-    if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current) {
+    // Only auto-scroll if enabled, typing is active, and user hasn't manually scrolled
+    if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current && !userScrolled) {
       const container = originalTextRef.current;
       const text = testContent.text;
       const currentLength = typedText.length;
@@ -244,8 +265,9 @@ export default function TypingTestPage() {
       const newScroll = currentScroll + diff * 0.3;
       
       container.scrollTop = newScroll;
+      lastScrollTopRef.current = container.scrollTop;
     }
-  }, [typedText, testContent]);
+  }, [typedText, testContent, userScrolled]);
 
   const startTest = () => {
     // Check cooldown before starting
@@ -286,6 +308,11 @@ export default function TypingTestPage() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
+    
+    // Reset userScrolled flag when user starts typing - allows auto-scroll to resume
+    if (userScrolled && e.key.length === 1) {
+      setUserScrolled(false);
+    }
     
     const textarea = e.currentTarget;
     const hasModifier = e.ctrlKey || e.altKey || e.metaKey;

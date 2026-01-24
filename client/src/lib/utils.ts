@@ -35,6 +35,7 @@ export interface AlignmentEntry {
 }
 
 // LCS-based word alignment that shows missing words in their correct positions
+// With a limited look-ahead window of 20 words to avoid matching too far away
 export function alignWords(
   originalText: string,
   typedText: string,
@@ -67,15 +68,25 @@ export function alignWords(
   }
 
   // Build LCS table for normalized comparison (case-insensitive, dash-normalized)
+  // with a 20-word look-ahead window to prevent matching too far away
   const m = originalWords.length;
   const n = typedWords.length;
+  const LOOK_AHEAD_WINDOW = 20;
   const dp: number[][] = Array(m + 1)
     .fill(null)
     .map(() => Array(n + 1).fill(0));
 
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
+      
+      // const windowStart = Math.max(1, j - LOOK_AHEAD_WINDOW);
+      // const isWithinWindow = i >= windowStart && i <= j + LOOK_AHEAD_WINDOW;
+      // Only allow matches if the original word is within look-ahead window of the typed word
+      // This prevents matching words that are too far ahead
+      const isWithinWindow = i >= j && i <= j + LOOK_AHEAD_WINDOW;
+      
       if (
+        isWithinWindow &&
         normalizeForComparison(originalWords[i - 1]) ===
         normalizeForComparison(typedWords[j - 1])
       ) {
@@ -441,37 +452,17 @@ export function calculateShorthandMetrics(
     typedText,
   );
 
-  // Count words ONLY from the attempted portion (not trailing missed words)
-  const typedWordsInAttempted = attemptedAlignment.filter(
-    (a) => a.typed !== "" && a.status !== "missing"
+  // For Shorthand: Calculate metrics based on TOTAL ORIGINAL WORDS (not typed words)
+  // Count all original words from the attempted portion
+  const totalOriginalWords = attemptedAlignment.filter(
+    (a) => a.original !== ""
   ).length;
 
-  const totalWordsTyped = typedWordsInAttempted;
-  
-  // Get the last sentence from original text
-  // Split by sentence delimiters (. ! ?) and get the last sentence
-  const sentenceDelimiters = /[.!?]+/;
-  const sentences = originalText.split(sentenceDelimiters).filter((s) => s.trim());
-  const lastSentence = sentences.length > 0 ? sentences[sentences.length - 1].trim() : "";
-  
-  // Get the last sentence words
-  const lastSentenceWords = lastSentence
-    .split(/\s+/)
-    .filter((w) => w)
-    .map((w) => normalizeForComparison(w));
-  
-  // Check if the student attempted the last sentence using the reusable helper
-  const lastSentenceAttempted = isLastSentenceAttempted(originalText, attemptedAlignment);
-  
-  // Check if test is complete (student attempted the last sentence, with any mistakes/variations)
-  const isComplete = lastSentenceAttempted;
-  
   // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
-  // ALSO: If test is incomplete (didn't type last sentence), it's automatically Fail
-  // Calculate percentage based on ATTEMPTED words only
+  // Calculate percentage based on TOTAL ORIGINAL WORDS
   const mistakePercentage =
-    totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
-  const isPassed = !isComplete ? false : mistakePercentage <= 5;
+    totalOriginalWords > 0 ? (mistakes / totalOriginalWords) * 100 : 0;
+  const isPassed = mistakePercentage <= 5;
 
   // Count missing words only from attempted portion (not trailing untyped words)
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
@@ -503,7 +494,7 @@ export function calculateShorthandMetrics(
   }
 
   return {
-    words: totalWordsTyped,
+    words: totalOriginalWords,
     mistakes,
     halfMistakes,
     result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
@@ -540,6 +531,19 @@ export const generateResultPDF = async (result: Result) => {
   // Use calculateAlignedMistakes to get attemptedAlignment (excludes trailing untyped content)
   // This ensures PDF "Typed Content" shows only what student actually attempted
   const { attemptedAlignment, alignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
+
+  // Calculate trailing words (words not attempted after the last typed word) - only for shorthand
+  let trailingWords: string[] = [];
+  if (result.contentType === "shorthand") {
+    const trailingItems = alignment.filter((item) => {
+      // Find items that are not in attemptedAlignment
+      const isInAttempted = attemptedAlignment.some(
+        (a) => a.original === item.original && a.typed === item.typed && a.status === item.status
+      );
+      return !isInAttempted && item.original !== "";
+    });
+    trailingWords = trailingItems.map((item) => item.original).filter((w) => w);
+  }
 
   let typedHtml = "";
 
@@ -619,7 +623,7 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Total Original Words</td><td>${alignment.filter((a) => a.original !== "").length}</td>
-          <td>Total Words Typed</td><td>${result.words}</td>
+          <td>${result.contentType === "typing" ? "Total Words Typed" : "Total Words Attempted"}</td><td>${result.words}</td>
         </tr>
         <tr>
           <td>Total Mistakes</td><td class="error">${result.mistakes}</td>
@@ -647,8 +651,8 @@ export const generateResultPDF = async (result: Result) => {
           <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.words > 0 ? ((parseInt(result.mistakes)*100)/result.words).toFixed(2) : "0.00"}%</td>
         </tr>
         <tr>
+          <td>Left Words</td><td>${trailingWords.length}</td>
           <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          <td>Status</td><td class="${isLastSentenceAttempted(result.originalText || "", attemptedAlignment) ? "success" : "error" }">${isLastSentenceAttempted(result.originalText || "", attemptedAlignment) ? "Complete" : "Incomplete" }</td>
         </tr>
         `
         }
