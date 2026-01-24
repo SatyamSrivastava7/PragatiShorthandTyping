@@ -517,27 +517,37 @@ function LatestNoticeCard() {
   const current = cachedNotices[index];
   const initialHeight = 60 * VISIBLE_COUNT;
 
-  // Auto-advance every 3s
+  // Auto-advance every 3s - scrolls through notices automatically
   useEffect(() => {
-    if (!cachedNotices || cachedNotices.length <= 1) return;
+    const noticeCount = cachedNotices?.length || 0;
+    if (noticeCount <= 1) return;
 
     const id = setInterval(() => {
-      setIndex((prev) => (prev + 1) % cachedNotices.length);
+      setIndex((prev) => (prev + 1) % noticeCount);
     }, 3000);
 
     return () => clearInterval(id);
-  }, [cachedNotices.length]);
+  }, [cachedNotices?.length]);
 
   // Measure first item height and compute container height
   useEffect(() => {
     const el = firstItemRef.current;
     if (!el) return;
+    
     const update = () => {
-      const h = el.clientHeight || 60;
-      setItemHeight(h);
-      setContainerHeight(h * VISIBLE_COUNT);
+      const h = el.getBoundingClientRect().height || el.clientHeight || 60;
+      if (h > 0) {
+        setItemHeight(h);
+        setContainerHeight(h * VISIBLE_COUNT);
+      }
     };
-    setTimeout(update, 0);
+    
+    // Initial measurement after render
+    requestAnimationFrame(() => {
+      update();
+      // Double-check after a short delay for fonts/layout to settle
+      setTimeout(update, 100);
+    });
     
     // Use ResizeObserver with fallback for older browsers
     if (typeof ResizeObserver !== 'undefined') {
@@ -545,11 +555,10 @@ function LatestNoticeCard() {
       ro.observe(el);
       return () => ro.disconnect();
     } else {
-      // Fallback: use window resize listener for older browsers (Windows 7)
       window.addEventListener('resize', update);
       return () => window.removeEventListener('resize', update);
     }
-  }, [VISIBLE_COUNT]);
+  }, [VISIBLE_COUNT, cachedNotices.length]);
 
   // Handle mouse wheel scroll
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
