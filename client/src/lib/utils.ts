@@ -893,7 +893,7 @@ export const generateResultPDF = async (result: Result) => {
         </tr>
         <tr>
           <td>Total Mistakes</td><td class="error">${result.mistakes}</td>
-          <td>${result.contentType === "typing" ? "Trailing Words" : "Missing Words"}</td><td class="error">${trailingWords.length}</td>
+          <td>Missing Words</td><td class="error">${trailingWords.length}</td>
         </tr>
         ${
           result.contentType === "typing"
