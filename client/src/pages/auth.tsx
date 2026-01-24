@@ -408,7 +408,7 @@ export default function AuthPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="regBatch">Subject <span className="text-destructive">*</span></Label>
-                    <Input id="regBatch" value={regBatch} onChange={e => setRegBatch(e.target.value)} placeholder="e.g., 2024-25" required data-testid="input-register-batch" />
+                    <Input id="regBatch" value={regBatch} onChange={e => setRegBatch(e.target.value)} placeholder="e.g., English Shorthand" required data-testid="input-register-batch" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="regEmail">Email (Optional)</Label>
