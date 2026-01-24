@@ -17,13 +17,70 @@ function normalizeForComparison(text: string): string {
     .toLowerCase();
 }
 
-type AlignmentStatus = "match" | "substitution" | "missing" | "extra";
+type AlignmentStatus = "match" | "substitution" | "missing" | "extra" | "trailing";
 
 interface AlignmentEntry {
   typed: string;
   original: string;
   status: AlignmentStatus;
   isError: boolean;
+}
+
+function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: number): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+  
+  let lastTypedIdx = -1;
+  for (let i = alignment.length - 1; i >= 0; i--) {
+    if (alignment[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  
+  if (lastTypedIdx === -1) return alignment;
+  
+  const result: AlignmentEntry[] = [];
+  for (let i = 0; i < alignment.length; i++) {
+    const item = alignment[i];
+    
+    if (i > lastTypedIdx && item.status === "missing") {
+      result.push({ ...item, status: "trailing", isError: false });
+    } else {
+      result.push(item);
+    }
+  }
+  
+  let consecutiveMissingBeforeLastTyped = 0;
+  for (let i = lastTypedIdx - 1; i >= 0; i--) {
+    if (result[i].status === "missing") {
+      consecutiveMissingBeforeLastTyped++;
+    } else {
+      break;
+    }
+  }
+  
+  if (consecutiveMissingBeforeLastTyped > 3 && result[lastTypedIdx].status === "extra") {
+    const typedWord = result[lastTypedIdx].typed;
+    const firstMissingIdx = lastTypedIdx - consecutiveMissingBeforeLastTyped;
+    const originalWord = result[firstMissingIdx].original;
+    
+    result[firstMissingIdx] = {
+      typed: typedWord,
+      original: originalWord,
+      status: "substitution",
+      isError: true,
+    };
+    
+    result.splice(lastTypedIdx, 1);
+    
+    for (let i = firstMissingIdx + 1; i < result.length; i++) {
+      if (result[i].status === "missing") {
+        result[i] = { ...result[i], status: "trailing", isError: false };
+      }
+    }
+  }
+  
+  return result;
 }
 
 function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
@@ -195,13 +252,44 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
 }
 
 function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
-  const { mistakes, attemptedAlignment } = calculateAlignedMistakes(originalText, typedText);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
+  const rawAlignment = alignWords(originalText, typedText);
+  const alignment = fixTrailingErrorPattern(rawAlignment, typedWords.length);
 
-  const typedWordsInAttempted = attemptedAlignment.filter(
-    (a) => a.typed !== "" && a.status !== "missing"
-  ).length;
+  const commaCount = (word: string) => (word.match(/,/g) || []).length;
+  const periodCount = (word: string) => (word.match(/\./g) || []).length;
 
-  const wordCount = typedWordsInAttempted;
+  let mistakes = 0;
+  let halfMistakes = 0;
+  
+  for (const item of alignment) {
+    if (item.status === "trailing") continue;
+    
+    if (item.status === "extra") {
+      mistakes += 1;
+      mistakes += commaCount(item.typed) * 0.25;
+      mistakes += periodCount(item.typed) * 1;
+      halfMistakes += commaCount(item.typed);
+    } else if (item.status === "substitution") {
+      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      if (cleanOriginal !== cleanTyped) mistakes += 1;
+      mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
+      mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
+      halfMistakes += Math.abs(commaCount(item.original) - commaCount(item.typed));
+    } else if (item.status === "match") {
+      mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
+      mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
+      halfMistakes += Math.abs(commaCount(item.original) - commaCount(item.typed));
+    } else if (item.status === "missing") {
+      mistakes += 1;
+      mistakes += commaCount(item.original) * 0.25;
+      mistakes += periodCount(item.original) * 1;
+      halfMistakes += commaCount(item.original);
+    }
+  }
+
+  const wordCount = alignment.filter(a => a.typed !== "").length;
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
   let netSpeed = 0;
@@ -213,25 +301,10 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   }
   netSpeed = Math.max(0, netSpeed);
 
-  const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
-
   const formatSpeed = (speed: number) => {
     const rounded = Math.round(speed * 100) / 100;
     return Number.isInteger(rounded) ? rounded : rounded.toFixed(2);
   };
-
-  let halfMistakes = 0;
-  for (const item of attemptedAlignment) {
-    if (item.status === "missing") {
-      halfMistakes += (item.original.match(/,/g) || []).length;
-    } else if (item.status === "extra") {
-      halfMistakes += (item.typed.match(/,/g) || []).length;
-    } else {
-      halfMistakes += Math.abs(
-        (item.original.match(/,/g) || []).length - (item.typed.match(/,/g) || []).length
-      );
-    }
-  }
 
   return {
     words: wordCount,
@@ -240,7 +313,6 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
     grossSpeed: formatSpeed(grossSpeed),
     netSpeed: formatSpeed(netSpeed),
     backspaces,
-    missingWords,
   };
 }
 
