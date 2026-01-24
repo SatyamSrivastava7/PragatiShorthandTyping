@@ -155,7 +155,7 @@ export function alignWords(
         const nextTypedWord = normalizeForComparison(typedWords[typedIndex]);
         let canFindNextNearby = false;
         
-        for (let k = origIndex + 1; k < Math.min(origIndex + 15, originalWords.length); k++) {
+        for (let k = origIndex + 1; k < Math.min(origIndex + 20, originalWords.length); k++) {
           if (normalizeForComparison(originalWords[k]) === nextTypedWord) {
             canFindNextNearby = true;
             break;
