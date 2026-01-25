@@ -1037,7 +1037,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Backspaces</td><td>${result.backspaces}</td>
         </tr>
         <tr>
-          <td>Accuracy</td><td class="success">${result.words > 0 && parseFloat(String(result.mistakes)) < result.words ? ((parseFloat(String(result.mistakes)) * 100) / result.words).toFixed(2) : "0.00"}%</td>
+          <td>Accuracy</td><td class="success">${result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00"}%</td>
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
         <tr>
