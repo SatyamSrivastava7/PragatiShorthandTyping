@@ -273,57 +273,14 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
-  // Use bidirectional greedy alignment
-  const LOOKAHEAD = 20;
-  const normalizedOriginal = originalWords.map(normalizeForComparison);
-  const normalizedTypedWords = typedWords.map(normalizeForComparison);
+  // Use DP alignment with 1.5x window
+  const windowSize = Math.min(originalWords.length, Math.ceil(typedWords.length * 1.5));
+  const windowedOriginal = originalWords.slice(0, windowSize).join(" ");
   
-  const alignment: AlignmentEntry[] = [];
-  let origIdx = 0;
+  const dpAlignment = alignWords(windowedOriginal, typedText);
   
-  for (let typedIdx = 0; typedIdx < typedWords.length; typedIdx++) {
-    const typedWord = typedWords[typedIdx];
-    const normalizedTyped = normalizedTypedWords[typedIdx];
-    
-    if (origIdx >= originalWords.length) {
-      alignment.push({ typed: typedWord, original: "", status: "extra" as AlignmentStatus, isError: true });
-      continue;
-    }
-    
-    let matchOffset = -1;
-    for (let offset = 0; offset <= LOOKAHEAD && origIdx + offset < originalWords.length; offset++) {
-      if (normalizedOriginal[origIdx + offset] === normalizedTyped) {
-        matchOffset = offset;
-        break;
-      }
-    }
-    
-    if (matchOffset >= 0) {
-      for (let skip = 0; skip < matchOffset; skip++) {
-        alignment.push({ typed: "", original: originalWords[origIdx], status: "missing" as AlignmentStatus, isError: true });
-        origIdx++;
-      }
-      alignment.push({ typed: typedWord, original: originalWords[origIdx], status: "match" as AlignmentStatus, isError: false });
-      origIdx++;
-    } else {
-      const currentOrigNorm = normalizedOriginal[origIdx];
-      let isExtra = false;
-      for (let futureTyped = typedIdx + 1; futureTyped <= typedIdx + LOOKAHEAD && futureTyped < typedWords.length; futureTyped++) {
-        if (normalizedTypedWords[futureTyped] === currentOrigNorm) {
-          isExtra = true;
-          break;
-        }
-      }
-      if (isExtra) {
-        alignment.push({ typed: typedWord, original: "", status: "extra" as AlignmentStatus, isError: true });
-      } else {
-        alignment.push({ typed: typedWord, original: originalWords[origIdx], status: "substitution" as AlignmentStatus, isError: true });
-        origIdx++;
-      }
-    }
-  }
-  
-  for (let i = origIdx; i < originalWords.length; i++) {
+  const alignment: AlignmentEntry[] = [...dpAlignment];
+  for (let i = windowSize; i < originalWords.length; i++) {
     alignment.push({ typed: "", original: originalWords[i], status: "trailing" as AlignmentStatus, isError: false });
   }
 

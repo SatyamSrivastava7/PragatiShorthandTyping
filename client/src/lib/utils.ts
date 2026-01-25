@@ -485,8 +485,8 @@ export function calculateAlignedMistakes(
 }
 
 /**
- * Get alignment for typing tests using bidirectional greedy approach
- * Looks ahead in both original and typed words to handle skipped/extra words
+ * Get alignment for typing tests using DP with 1.5x window
+ * Uses DP alignment for optimal word matching
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -501,91 +501,15 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  const result: AlignmentEntry[] = [];
-  let origIdx = 0;
-  const LOOKAHEAD = 20; // Look up to 20 words ahead to handle skipped lines
+  // Use DP alignment with 1.5x window
+  const windowSize = Math.min(originalWords.length, Math.ceil(typedWords.length * 1.5));
+  const windowedOriginal = originalWords.slice(0, windowSize);
   
-  // Pre-normalize all words for faster comparison
-  const normalizedOriginal = originalWords.map(normalizeForComparison);
-  const normalizedTypedWords = typedWords.map(normalizeForComparison);
-  
-  for (let typedIdx = 0; typedIdx < typedWords.length; typedIdx++) {
-    const typedWord = typedWords[typedIdx];
-    const normalizedTyped = normalizedTypedWords[typedIdx];
-    
-    if (origIdx >= originalWords.length) {
-      result.push({
-        typed: typedWord,
-        original: "",
-        status: "extra",
-        isError: true,
-      });
-      continue;
-    }
-    
-    // Look for typed word in original (forward lookahead)
-    let matchOffset = -1;
-    for (let offset = 0; offset <= LOOKAHEAD && origIdx + offset < originalWords.length; offset++) {
-      if (normalizedOriginal[origIdx + offset] === normalizedTyped) {
-        matchOffset = offset;
-        break;
-      }
-    }
-    
-    if (matchOffset >= 0) {
-      // Found a match - mark any skipped original words as missing
-      for (let skip = 0; skip < matchOffset; skip++) {
-        result.push({
-          typed: "",
-          original: originalWords[origIdx],
-          status: "missing",
-          isError: true,
-        });
-        origIdx++;
-      }
-      // Add the match
-      result.push({
-        typed: typedWord,
-        original: originalWords[origIdx],
-        status: "match",
-        isError: false,
-      });
-      origIdx++;
-    } else {
-      // No match for typed word in original lookahead
-      // Check if current original word matches a future typed word (typed word is extra)
-      const currentOrigNorm = normalizedOriginal[origIdx];
-      let isExtra = false;
-      
-      for (let futureTyped = typedIdx + 1; futureTyped <= typedIdx + LOOKAHEAD && futureTyped < typedWords.length; futureTyped++) {
-        if (normalizedTypedWords[futureTyped] === currentOrigNorm) {
-          isExtra = true;
-          break;
-        }
-      }
-      
-      if (isExtra) {
-        result.push({
-          typed: typedWord,
-          original: "",
-          status: "extra",
-          isError: true,
-        });
-      } else {
-        result.push({
-          typed: typedWord,
-          original: originalWords[origIdx],
-          status: "substitution",
-          isError: true,
-        });
-        origIdx++;
-      }
-    }
-  }
+  const dpAlignment = alignWords(windowedOriginal.join(" "), typedText);
   
   // Mark remaining original words as trailing
-  for (let i = origIdx; i < originalWords.length; i++) {
-    result.push({
+  for (let i = windowSize; i < originalWords.length; i++) {
+    dpAlignment.push({
       typed: "",
       original: originalWords[i],
       status: "trailing",
@@ -593,7 +517,7 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     });
   }
   
-  return result;
+  return dpAlignment;
 }
 
 /**
