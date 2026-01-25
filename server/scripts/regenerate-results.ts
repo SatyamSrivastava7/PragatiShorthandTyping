@@ -72,11 +72,8 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
           isError: true,
         };
         
-        for (let j = missingStart + 1; j < i; j++) {
-          if (result[j].status === "missing") {
-            result[j] = { ...result[j], status: "trailing", isError: false };
-          }
-        }
+        // Keep remaining missing words as "missing" (green) - they are skipped, not trailing
+        // Only words AFTER the last typed position should be trailing
         
         result.splice(i, 1);
       }

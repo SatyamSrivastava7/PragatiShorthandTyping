@@ -96,12 +96,8 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
           isError: true,
         };
         
-        // Mark remaining missing words in this block as trailing
-        for (let j = missingStart + 1; j < i; j++) {
-          if (result[j].status === "missing") {
-            result[j] = { ...result[j], status: "trailing", isError: false };
-          }
-        }
+        // Keep remaining missing words as "missing" (green) - they are skipped, not trailing
+        // Only words AFTER the last typed position should be trailing
         
         // Remove the extra/substitution entry (now merged into the first missing position)
         result.splice(i, 1);
@@ -149,12 +145,8 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         isError: true,
       };
       
-      // Mark remaining missing words and the original typed entry as trailing
-      for (let j = firstMissingIdx + 1; j < lastTyped; j++) {
-        if (result[j].status === "missing") {
-          result[j] = { ...result[j], status: "trailing", isError: false };
-        }
-      }
+      // Keep remaining missing words as "missing" (green) - they are skipped, not trailing
+      // Only words AFTER the last typed position should be trailing
       
       // Remove the original typed word entry (now merged)
       result.splice(lastTyped, 1);
