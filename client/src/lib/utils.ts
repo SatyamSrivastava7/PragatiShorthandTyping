@@ -127,6 +127,46 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
     }
   }
   
+  // NEW: Check if typed words marked as errors exist in trailing section
+  // If a typed word matches a trailing word, it might be correct
+  const trailingWords = result
+    .filter(item => item.status === "trailing")
+    .map(item => item.original.toLowerCase().replace(/[.,!?;:]/g, ""));
+  
+  for (let j = 0; j < result.length; j++) {
+    const item = result[j];
+    // If word is marked as extra or substitution but matches a trailing word
+    if ((item.status === "extra" || item.status === "substitution") && item.typed) {
+      const cleanTyped = item.typed.toLowerCase().replace(/[.,!?;:]/g, "");
+      const trailingIdx = trailingWords.indexOf(cleanTyped);
+      
+      if (trailingIdx !== -1) {
+        // This word exists in trailing - convert to a match with trailing word
+        // Keep it as substitution but mark as match if words are same
+        if (item.status === "extra") {
+          // Extra word that matches trailing - convert to match
+          result[j] = {
+            typed: item.typed,
+            original: item.typed, // Match with itself
+            status: "match",
+            isError: false,
+          };
+        } else if (item.status === "substitution") {
+          // Check if typed actually matches original (just punctuation diff)
+          const cleanOriginal = item.original.toLowerCase().replace(/[.,!?;:]/g, "");
+          if (cleanTyped === cleanOriginal) {
+            result[j] = { ...item, status: "match", isError: false };
+          }
+          // If typed word exists in trailing, it might be correct but in wrong position
+          // We keep it as substitution for now but could be improved
+        }
+        
+        // Remove this word from trailing to avoid duplicate counting
+        trailingWords.splice(trailingIdx, 1);
+      }
+    }
+  }
+  
   return result;
 }
 
@@ -502,24 +542,10 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  // Allow larger window for finding matches when students skip portions
-  // Use at least typedWords * 1.5 + 25 to handle significant skipping
-  const LOOKAHEAD_WINDOW = 25;
-  const alignmentWindow = Math.min(originalWords.length, Math.max(typedWords.length + LOOKAHEAD_WINDOW, Math.floor(typedWords.length * 1.5) + LOOKAHEAD_WINDOW));
-  const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
-  
-  const rawAlignment = alignWords(windowedOriginal, typedText);
+  // Use FULL original text for DP alignment to find all possible matches
+  // This ensures words that appear later in original can be matched
+  const rawAlignment = alignWords(originalText, typedText);
   let result = fixTrailingErrorPattern(rawAlignment, typedWords.length);
-  
-  // Add remaining original words as trailing
-  for (let i = alignmentWindow; i < originalWords.length; i++) {
-    result.push({
-      typed: "",
-      original: originalWords[i],
-      status: "trailing",
-      isError: false,
-    });
-  }
   
   return result;
 }

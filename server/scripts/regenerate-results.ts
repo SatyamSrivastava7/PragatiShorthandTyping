@@ -98,6 +98,43 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
     }
   }
   
+  // Check if typed words marked as errors exist in trailing section
+  // If a typed word matches a trailing word, it might be correct
+  const trailingWords = result
+    .filter(item => item.status === "trailing")
+    .map(item => item.original.toLowerCase().replace(/[.,!?;:]/g, ""));
+  
+  for (let j = 0; j < result.length; j++) {
+    const item = result[j];
+    // If word is marked as extra or substitution but matches a trailing word
+    if ((item.status === "extra" || item.status === "substitution") && item.typed) {
+      const cleanTyped = item.typed.toLowerCase().replace(/[.,!?;:]/g, "");
+      const trailingIdx = trailingWords.indexOf(cleanTyped);
+      
+      if (trailingIdx !== -1) {
+        // This word exists in trailing - convert to a match with trailing word
+        if (item.status === "extra") {
+          // Extra word that matches trailing - convert to match
+          result[j] = {
+            typed: item.typed,
+            original: item.typed,
+            status: "match",
+            isError: false,
+          };
+        } else if (item.status === "substitution") {
+          // Check if typed actually matches original (just punctuation diff)
+          const cleanOriginal = item.original.toLowerCase().replace(/[.,!?;:]/g, "");
+          if (cleanTyped === cleanOriginal) {
+            result[j] = { ...item, status: "match", isError: false };
+          }
+        }
+        
+        // Remove this word from trailing to avoid duplicate counting
+        trailingWords.splice(trailingIdx, 1);
+      }
+    }
+  }
+  
   return result;
 }
 
