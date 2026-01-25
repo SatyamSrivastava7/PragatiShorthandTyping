@@ -440,7 +440,7 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
   }
 
   return {
-    words: fullOriginalWords,
+    words: typedWordCount,
     mistakes,
     halfMistakes,
     result: isPassed ? "Pass" : "Fail",

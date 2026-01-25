@@ -876,12 +876,13 @@ export function calculateShorthandMetrics(
   }
 
   return {
-    words: fullOriginalWords,
+    words: typedWordCount,
     mistakes,
     halfMistakes,
     result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
     missingWords,
     trailingWords,
+    fullOriginalWords,
   };
 }
 
