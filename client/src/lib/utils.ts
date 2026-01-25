@@ -153,28 +153,32 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
     }
   }
   
-  // If the last typed word is incorrect, mark immediately preceding missing words as trailing
-  // Find the last typed word
-  let lastTypedForCheck = -1;
-  for (let j = result.length - 1; j >= 0; j--) {
-    if (result[j].typed !== "") {
-      lastTypedForCheck = j;
-      break;
-    }
+  // If there are consecutive incorrect words at the end, mark preceding missing words as trailing for each
+  // Scan from end to find all consecutive incorrect typed words
+  let scanIdx = result.length - 1;
+  
+  // Skip any trailing (non-typed) entries at the very end
+  while (scanIdx >= 0 && result[scanIdx].typed === "") {
+    scanIdx--;
   }
   
-  if (lastTypedForCheck >= 0) {
-    const lastTypedItem = result[lastTypedForCheck];
-    // Check if last typed word is incorrect (substitution or extra)
-    if (lastTypedItem.status === "substitution" || lastTypedItem.status === "extra") {
+  // Now scan backwards through consecutive incorrect words
+  while (scanIdx >= 0) {
+    const item = result[scanIdx];
+    
+    // If this is an incorrect typed word (substitution or extra)
+    if (item.typed !== "" && (item.status === "substitution" || item.status === "extra")) {
       // Mark immediately preceding missing words as trailing
-      for (let j = lastTypedForCheck - 1; j >= 0; j--) {
-        if (result[j].status === "missing") {
-          result[j] = { ...result[j], status: "trailing", isError: false };
-        } else {
-          break; // Stop at first non-missing word
-        }
+      let prevIdx = scanIdx - 1;
+      while (prevIdx >= 0 && result[prevIdx].status === "missing") {
+        result[prevIdx] = { ...result[prevIdx], status: "trailing", isError: false };
+        prevIdx--;
       }
+      // Move to the position before the missing words we just processed
+      scanIdx = prevIdx;
+    } else {
+      // Stop when we hit a correct word or non-typed entry
+      break;
     }
   }
   
