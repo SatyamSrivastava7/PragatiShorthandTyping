@@ -485,9 +485,8 @@ export function calculateAlignedMistakes(
 }
 
 /**
- * Get alignment for typing tests with positional greedy approach
- * For typing tests, we assume students type in order, so we use a greedy
- * position-based alignment that looks for matches within a small lookahead window
+ * Get alignment for typing tests using bidirectional greedy approach
+ * Looks ahead in both original and typed words to handle skipped/extra words
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -504,7 +503,7 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
   
   const result: AlignmentEntry[] = [];
   let origIdx = 0;
-  const LOOKAHEAD = 5; // Look up to 5 words ahead for a match
+  const LOOKAHEAD = 10; // Look up to 10 words ahead to handle skipped lines
   
   // Pre-normalize all words for faster comparison
   const normalizedOriginal = originalWords.map(normalizeForComparison);
@@ -515,7 +514,6 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     const normalizedTyped = normalizedTypedWords[typedIdx];
     
     if (origIdx >= originalWords.length) {
-      // All original words consumed - remaining typed are extra
       result.push({
         typed: typedWord,
         original: "",
@@ -561,23 +559,19 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
       
       for (let futureTyped = typedIdx + 1; futureTyped <= typedIdx + LOOKAHEAD && futureTyped < typedWords.length; futureTyped++) {
         if (normalizedTypedWords[futureTyped] === currentOrigNorm) {
-          // Current original will match a future typed word, so current typed is EXTRA
           isExtra = true;
           break;
         }
       }
       
       if (isExtra) {
-        // Typed word is extra (not in original)
         result.push({
           typed: typedWord,
           original: "",
           status: "extra",
           isError: true,
         });
-        // Don't advance origIdx
       } else {
-        // Substitution - typed word replaces current original word
         result.push({
           typed: typedWord,
           original: originalWords[origIdx],

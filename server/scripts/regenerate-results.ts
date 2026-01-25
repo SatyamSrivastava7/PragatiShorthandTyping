@@ -269,39 +269,24 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
   return { mistakes, alignment, attemptedAlignment };
 }
 
-/**
- * Greedy positional alignment for typing tests
- * Looks for matches within a small lookahead window to handle skipped words
- */
-function getTypingAlignmentGreedy(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
-  if (typedWords.length === 0) {
-    return originalWords.map(w => ({
-      typed: "",
-      original: w,
-      status: "trailing" as AlignmentStatus,
-      isError: false,
-    }));
-  }
+function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
+  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
-  const result: AlignmentEntry[] = [];
-  let origIdx = 0;
-  const LOOKAHEAD = 5;
-  
-  // Pre-normalize all words
+  // Use bidirectional greedy alignment
+  const LOOKAHEAD = 10;
   const normalizedOriginal = originalWords.map(normalizeForComparison);
   const normalizedTypedWords = typedWords.map(normalizeForComparison);
+  
+  const alignment: AlignmentEntry[] = [];
+  let origIdx = 0;
   
   for (let typedIdx = 0; typedIdx < typedWords.length; typedIdx++) {
     const typedWord = typedWords[typedIdx];
     const normalizedTyped = normalizedTypedWords[typedIdx];
     
     if (origIdx >= originalWords.length) {
-      result.push({
-        typed: typedWord,
-        original: "",
-        status: "extra" as AlignmentStatus,
-        isError: true,
-      });
+      alignment.push({ typed: typedWord, original: "", status: "extra" as AlignmentStatus, isError: true });
       continue;
     }
     
@@ -315,70 +300,32 @@ function getTypingAlignmentGreedy(originalWords: string[], typedWords: string[])
     
     if (matchOffset >= 0) {
       for (let skip = 0; skip < matchOffset; skip++) {
-        result.push({
-          typed: "",
-          original: originalWords[origIdx],
-          status: "missing" as AlignmentStatus,
-          isError: true,
-        });
+        alignment.push({ typed: "", original: originalWords[origIdx], status: "missing" as AlignmentStatus, isError: true });
         origIdx++;
       }
-      result.push({
-        typed: typedWord,
-        original: originalWords[origIdx],
-        status: "match" as AlignmentStatus,
-        isError: false,
-      });
+      alignment.push({ typed: typedWord, original: originalWords[origIdx], status: "match" as AlignmentStatus, isError: false });
       origIdx++;
     } else {
-      // Check if current original matches a future typed word
       const currentOrigNorm = normalizedOriginal[origIdx];
       let isExtra = false;
-      
       for (let futureTyped = typedIdx + 1; futureTyped <= typedIdx + LOOKAHEAD && futureTyped < typedWords.length; futureTyped++) {
         if (normalizedTypedWords[futureTyped] === currentOrigNorm) {
           isExtra = true;
           break;
         }
       }
-      
       if (isExtra) {
-        result.push({
-          typed: typedWord,
-          original: "",
-          status: "extra" as AlignmentStatus,
-          isError: true,
-        });
+        alignment.push({ typed: typedWord, original: "", status: "extra" as AlignmentStatus, isError: true });
       } else {
-        result.push({
-          typed: typedWord,
-          original: originalWords[origIdx],
-          status: "substitution" as AlignmentStatus,
-          isError: true,
-        });
+        alignment.push({ typed: typedWord, original: originalWords[origIdx], status: "substitution" as AlignmentStatus, isError: true });
         origIdx++;
       }
     }
   }
   
   for (let i = origIdx; i < originalWords.length; i++) {
-    result.push({
-      typed: "",
-      original: originalWords[i],
-      status: "trailing" as AlignmentStatus,
-      isError: false,
-    });
+    alignment.push({ typed: "", original: originalWords[i], status: "trailing" as AlignmentStatus, isError: false });
   }
-  
-  return result;
-}
-
-function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
-  
-  // Use greedy positional alignment for typing tests
-  const alignment = getTypingAlignmentGreedy(originalWords, typedWords);
 
   const commaCount = (word: string) => (word.match(/,/g) || []).length;
   const periodCount = (word: string) => (word.match(/\./g) || []).length;
