@@ -13,7 +13,7 @@ if (!process.env.DATABASE_URL) {
 if (!global.pgPool) {
   global.pgPool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 3,
+    max: 4,  // Optimized for ~50 users: handles 3-5 concurrent users + buffer
     idleTimeoutMillis: 60000,
     connectionTimeoutMillis: 10000,
   });
@@ -33,7 +33,7 @@ export async function warmupDatabase() {
     const client = await pool.connect();
     await client.query('SELECT 1');
     client.release();
-    console.log('Database connection warmed up');
+    // Silent warmup - runs every 4 min, no need to log
   } catch (error) {
     console.error('Database warmup failed:', error);
   }
