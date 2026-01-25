@@ -270,8 +270,15 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     }
   }
   
+  // Count trailing words (words after last typed position)
+  let trailingWords = 0;
+  for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
+    if (alignment[i].original) trailingWords++;
+  }
+  
   if (lastTypedIndex === -1) {
-    return { mistakes: 0, alignment, attemptedAlignment: [] };
+    const totalOriginalWords = (originalText || "").trim().split(/\s+/).filter(w => w).length;
+    return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
   let attemptedOriginal = "";
@@ -315,7 +322,7 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     }
   }
 
-  return { mistakes, alignment, attemptedAlignment };
+  return { mistakes, alignment, attemptedAlignment, trailingWords };
 }
 
 function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
@@ -390,12 +397,18 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
 }
 
 function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
-  const { mistakes, attemptedAlignment } = calculateAlignedMistakes(originalText, typedText);
+  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(originalText, typedText);
 
   const fullOriginalWords = (originalText || "").trim().split(/\s+/).filter((w) => w).length;
 
+  // 5% rule for mistakes
   const mistakePercentage = fullOriginalWords > 0 ? (mistakes / fullOriginalWords) * 100 : 0;
-  const isPassed = mistakePercentage <= 5;
+  
+  // 5% rule for left/trailing words
+  const trailingPercentage = fullOriginalWords > 0 ? (trailingWords / fullOriginalWords) * 100 : 0;
+  
+  // Pass only if both mistake percentage AND trailing percentage are <= 5%
+  const isPassed = mistakePercentage <= 5 && trailingPercentage <= 5;
 
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
 

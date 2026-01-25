@@ -472,7 +472,7 @@ function alignWordsWindowed(originalWords: string[], typedWords: string[]): Alig
 export function calculateAlignedMistakes(
   originalText: string,
   typedText: string,
-): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[] } {
+): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[]; trailingWords: number } {
   // Use alignWords to get the correct alignment (same as what's displayed)
   const alignment = alignWords(originalText, typedText);
   
@@ -486,9 +486,16 @@ export function calculateAlignedMistakes(
     }
   }
   
+  // Count trailing words (words after last typed position)
+  let trailingWords = 0;
+  for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
+    if (alignment[i].original) trailingWords++;
+  }
+  
   // If student didn't type anything, return empty attempted alignment
   if (lastTypedIndex === -1) {
-    return { mistakes: 0, alignment, attemptedAlignment: [] };
+    const totalOriginalWords = (originalText || "").trim().split(/\s+/).filter(w => w).length;
+    return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
   // Reconstruct the original and typed text up to the last typed position
@@ -578,7 +585,7 @@ export function calculateAlignedMistakes(
     }
   }
 
-  return { mistakes, alignment, attemptedAlignment };
+  return { mistakes, alignment, attemptedAlignment, trailingWords };
 }
 
 /**
@@ -801,7 +808,7 @@ export function calculateShorthandMetrics(
   timeInMinutes: number,
 ) {
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes, attemptedAlignment } = calculateAlignedMistakes(
+  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(
     originalText,
     typedText,
   );
@@ -813,11 +820,16 @@ export function calculateShorthandMetrics(
     .split(/\s+/)
     .filter((w) => w).length;
 
-  // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
-  // Calculate percentage based on FULL ORIGINAL TEXT word count
+  // 5% rule for mistakes: More than 5% mistakes = Fail
   const mistakePercentage =
     fullOriginalWords > 0 ? (mistakes / fullOriginalWords) * 100 : 0;
-  const isPassed = mistakePercentage <= 5;
+  
+  // 5% rule for left/trailing words: More than 5% left words = Fail
+  const trailingPercentage =
+    fullOriginalWords > 0 ? (trailingWords / fullOriginalWords) * 100 : 0;
+  
+  // Pass only if both mistake percentage AND trailing percentage are <= 5%
+  const isPassed = mistakePercentage <= 5 && trailingPercentage <= 5;
 
   // Count missing words only from attempted portion (not trailing untyped words)
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
@@ -854,6 +866,7 @@ export function calculateShorthandMetrics(
     halfMistakes,
     result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
     missingWords,
+    trailingWords,
   };
 }
 
