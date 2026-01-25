@@ -81,10 +81,11 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         i++;
       }
       
-      // Check if next item is a typed word (extra or doesn't match pattern)
-      if (i < result.length && result[i].typed !== "" && result[i].status === "extra" && missingCount > 2) {
-        // This is the problematic pattern: many missing followed by an "extra"
-        // Convert first missing + extra to substitution
+      // Check if next item is a typed word (extra or substitution) and there are many missing before
+      if (i < result.length && result[i].typed !== "" && 
+          (result[i].status === "extra" || result[i].status === "substitution") && missingCount > 2) {
+        // This is the problematic pattern: many missing followed by a typed word
+        // Convert first missing + typed word to substitution
         const typedWord = result[i].typed;
         const originalWord = result[missingStart].original;
         
@@ -102,12 +103,61 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
           }
         }
         
-        // Remove the extra entry (now merged into substitution)
+        // Remove the extra/substitution entry (now merged into the first missing position)
         result.splice(i, 1);
         // Don't increment i, check same position again
       }
     } else {
       i++;
+    }
+  }
+  
+  // Additional fix: Handle pattern where a wrong word at the end causes many missing before it
+  // Look for: [correct words...] [many missing words] [wrong word] [trailing words...]
+  // Find the last typed word
+  let lastTyped = -1;
+  for (let j = result.length - 1; j >= 0; j--) {
+    if (result[j].typed !== "") {
+      lastTyped = j;
+      break;
+    }
+  }
+  
+  if (lastTyped >= 0) {
+    // Count missing words immediately before the last typed word
+    let missingBeforeLast = 0;
+    let firstMissingIdx = lastTyped;
+    for (let j = lastTyped - 1; j >= 0; j--) {
+      if (result[j].status === "missing") {
+        missingBeforeLast++;
+        firstMissingIdx = j;
+      } else {
+        break;
+      }
+    }
+    
+    // If there are many missing words before the last typed, it's likely a wrong word at end
+    if (missingBeforeLast > 5) {
+      const typedWord = result[lastTyped].typed;
+      const originalWord = result[firstMissingIdx].original;
+      
+      // Convert first missing to substitution with the typed word
+      result[firstMissingIdx] = {
+        typed: typedWord,
+        original: originalWord,
+        status: "substitution",
+        isError: true,
+      };
+      
+      // Mark remaining missing words and the original typed entry as trailing
+      for (let j = firstMissingIdx + 1; j < lastTyped; j++) {
+        if (result[j].status === "missing") {
+          result[j] = { ...result[j], status: "trailing", isError: false };
+        }
+      }
+      
+      // Remove the original typed word entry (now merged)
+      result.splice(lastTyped, 1);
     }
   }
   

@@ -59,7 +59,9 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         i++;
       }
       
-      if (i < result.length && result[i].typed !== "" && result[i].status === "extra" && missingCount > 2) {
+      // Check if next item is a typed word (extra or substitution) and there are many missing before
+      if (i < result.length && result[i].typed !== "" && 
+          (result[i].status === "extra" || result[i].status === "substitution") && missingCount > 2) {
         const typedWord = result[i].typed;
         const originalWord = result[missingStart].original;
         
@@ -80,6 +82,48 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
       }
     } else {
       i++;
+    }
+  }
+  
+  // Additional fix: Handle pattern where a wrong word at the end causes many missing before it
+  let lastTyped = -1;
+  for (let j = result.length - 1; j >= 0; j--) {
+    if (result[j].typed !== "") {
+      lastTyped = j;
+      break;
+    }
+  }
+  
+  if (lastTyped >= 0) {
+    let missingBeforeLast = 0;
+    let firstMissingIdx = lastTyped;
+    for (let j = lastTyped - 1; j >= 0; j--) {
+      if (result[j].status === "missing") {
+        missingBeforeLast++;
+        firstMissingIdx = j;
+      } else {
+        break;
+      }
+    }
+    
+    if (missingBeforeLast > 5) {
+      const typedWord = result[lastTyped].typed;
+      const originalWord = result[firstMissingIdx].original;
+      
+      result[firstMissingIdx] = {
+        typed: typedWord,
+        original: originalWord,
+        status: "substitution",
+        isError: true,
+      };
+      
+      for (let j = firstMissingIdx + 1; j < lastTyped; j++) {
+        if (result[j].status === "missing") {
+          result[j] = { ...result[j], status: "trailing", isError: false };
+        }
+      }
+      
+      result.splice(lastTyped, 1);
     }
   }
   
