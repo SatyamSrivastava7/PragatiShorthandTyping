@@ -462,7 +462,7 @@ async function regenerateResults() {
     .select()
     .from(results)
     .orderBy(desc(results.id))
-    .limit(50);
+    .limit(500);
 
   console.log(`Found ${latestResults.length} results to process.`);
 
