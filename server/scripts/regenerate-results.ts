@@ -14,7 +14,6 @@ function normalizeForComparison(text: string): string {
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-")
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"')
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'")
-    .replace(/[.,!?;:]+$/g, "") // Strip trailing punctuation for word matching
     .toLowerCase();
 }
 
@@ -59,9 +58,7 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         i++;
       }
       
-      // Check if next item is a typed word (extra or substitution) and there are many missing before
-      if (i < result.length && result[i].typed !== "" && 
-          (result[i].status === "extra" || result[i].status === "substitution") && missingCount > 2) {
+      if (i < result.length && result[i].typed !== "" && result[i].status === "extra" && missingCount > 2) {
         const typedWord = result[i].typed;
         const originalWord = result[missingStart].original;
         
@@ -72,55 +69,16 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
           isError: true,
         };
         
-        // Keep remaining missing words as "missing" (green) - they are skipped, not trailing
-        // Only words AFTER the last typed position should be trailing
+        for (let j = missingStart + 1; j < i; j++) {
+          if (result[j].status === "missing") {
+            result[j] = { ...result[j], status: "trailing", isError: false };
+          }
+        }
         
         result.splice(i, 1);
       }
     } else {
       i++;
-    }
-  }
-  
-  // Additional fix: Handle pattern where a wrong word at the end causes many missing before it
-  let lastTyped = -1;
-  for (let j = result.length - 1; j >= 0; j--) {
-    if (result[j].typed !== "") {
-      lastTyped = j;
-      break;
-    }
-  }
-  
-  if (lastTyped >= 0) {
-    let missingBeforeLast = 0;
-    let firstMissingIdx = lastTyped;
-    for (let j = lastTyped - 1; j >= 0; j--) {
-      if (result[j].status === "missing") {
-        missingBeforeLast++;
-        firstMissingIdx = j;
-      } else {
-        break;
-      }
-    }
-    
-    if (missingBeforeLast > 5) {
-      const typedWord = result[lastTyped].typed;
-      const originalWord = result[firstMissingIdx].original;
-      
-      result[firstMissingIdx] = {
-        typed: typedWord,
-        original: originalWord,
-        status: "substitution",
-        isError: true,
-      };
-      
-      for (let j = firstMissingIdx + 1; j < lastTyped; j++) {
-        if (result[j].status === "missing") {
-          result[j] = { ...result[j], status: "trailing", isError: false };
-        }
-      }
-      
-      result.splice(lastTyped, 1);
     }
   }
   
@@ -136,43 +94,6 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
     for (let j = lastTypedIdx + 1; j < result.length; j++) {
       if (result[j].status === "missing") {
         result[j] = { ...result[j], status: "trailing", isError: false };
-      }
-    }
-  }
-  
-  // Check if typed words marked as errors exist in trailing section
-  // If a typed word matches a trailing word, it might be correct
-  const trailingWords = result
-    .filter(item => item.status === "trailing")
-    .map(item => item.original.toLowerCase().replace(/[.,!?;:]/g, ""));
-  
-  for (let j = 0; j < result.length; j++) {
-    const item = result[j];
-    // If word is marked as extra or substitution but matches a trailing word
-    if ((item.status === "extra" || item.status === "substitution") && item.typed) {
-      const cleanTyped = item.typed.toLowerCase().replace(/[.,!?;:]/g, "");
-      const trailingIdx = trailingWords.indexOf(cleanTyped);
-      
-      if (trailingIdx !== -1) {
-        // This word exists in trailing - convert to a match with trailing word
-        if (item.status === "extra") {
-          // Extra word that matches trailing - convert to match
-          result[j] = {
-            typed: item.typed,
-            original: item.typed,
-            status: "match",
-            isError: false,
-          };
-        } else if (item.status === "substitution") {
-          // Check if typed actually matches original (just punctuation diff)
-          const cleanOriginal = item.original.toLowerCase().replace(/[.,!?;:]/g, "");
-          if (cleanTyped === cleanOriginal) {
-            result[j] = { ...item, status: "match", isError: false };
-          }
-        }
-        
-        // Remove this word from trailing to avoid duplicate counting
-        trailingWords.splice(trailingIdx, 1);
       }
     }
   }
@@ -352,10 +273,8 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
-  // Limit search window to prefer earlier occurrences while allowing for skips
-  // Use typed word count * 1.5 + buffer to handle skips
-  const LOOKAHEAD_BUFFER = 20;
-  const alignmentWindow = Math.min(originalWords.length, Math.floor(typedWords.length * 1.5) + LOOKAHEAD_BUFFER);
+  // For typing tests, only align against original words up to typed count + small buffer
+  const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
   const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
   const rawAlignment = alignWords(windowedOriginal, typedText);

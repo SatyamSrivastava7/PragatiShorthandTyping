@@ -21,7 +21,6 @@ function normalizeForComparison(text: string): string {
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-") // Normalize all dash-like characters to hyphen
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"') // Normalize curved/smart double quotes to straight quote
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'") // Normalize curved/smart single quotes to straight quote
-    .replace(/[.,!?;:]+$/g, "") // Strip trailing punctuation for word matching
     .toLowerCase();
 }
 
@@ -81,11 +80,10 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         i++;
       }
       
-      // Check if next item is a typed word (extra or substitution) and there are many missing before
-      if (i < result.length && result[i].typed !== "" && 
-          (result[i].status === "extra" || result[i].status === "substitution") && missingCount > 2) {
-        // This is the problematic pattern: many missing followed by a typed word
-        // Convert first missing + typed word to substitution
+      // Check if next item is a typed word (extra or doesn't match pattern)
+      if (i < result.length && result[i].typed !== "" && result[i].status === "extra" && missingCount > 2) {
+        // This is the problematic pattern: many missing followed by an "extra"
+        // Convert first missing + extra to substitution
         const typedWord = result[i].typed;
         const originalWord = result[missingStart].original;
         
@@ -96,89 +94,19 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
           isError: true,
         };
         
-        // Keep remaining missing words as "missing" (green) - they are skipped, not trailing
-        // Only words AFTER the last typed position should be trailing
+        // Mark remaining missing words in this block as trailing
+        for (let j = missingStart + 1; j < i; j++) {
+          if (result[j].status === "missing") {
+            result[j] = { ...result[j], status: "trailing", isError: false };
+          }
+        }
         
-        // Remove the extra/substitution entry (now merged into the first missing position)
+        // Remove the extra entry (now merged into substitution)
         result.splice(i, 1);
         // Don't increment i, check same position again
       }
     } else {
       i++;
-    }
-  }
-  
-  // Additional fix: Handle pattern where a wrong word at the end causes many missing before it
-  // Look for: [correct words...] [many missing words] [wrong word] [trailing words...]
-  // Find the last typed word
-  let lastTyped = -1;
-  for (let j = result.length - 1; j >= 0; j--) {
-    if (result[j].typed !== "") {
-      lastTyped = j;
-      break;
-    }
-  }
-  
-  if (lastTyped >= 0) {
-    // Count missing words immediately before the last typed word
-    let missingBeforeLast = 0;
-    let firstMissingIdx = lastTyped;
-    for (let j = lastTyped - 1; j >= 0; j--) {
-      if (result[j].status === "missing") {
-        missingBeforeLast++;
-        firstMissingIdx = j;
-      } else {
-        break;
-      }
-    }
-    
-    // If there are many missing words before the last typed, it's likely a wrong word at end
-    if (missingBeforeLast > 5) {
-      const typedWord = result[lastTyped].typed;
-      const originalWord = result[firstMissingIdx].original;
-      
-      // Convert first missing to substitution with the typed word
-      result[firstMissingIdx] = {
-        typed: typedWord,
-        original: originalWord,
-        status: "substitution",
-        isError: true,
-      };
-      
-      // Keep remaining missing words as "missing" (green) - they are skipped, not trailing
-      // Only words AFTER the last typed position should be trailing
-      
-      // Remove the original typed word entry (now merged)
-      result.splice(lastTyped, 1);
-    }
-  }
-  
-  // If there are consecutive incorrect words at the end, mark preceding missing words as trailing for each
-  // Scan from end to find all consecutive incorrect typed words
-  let scanIdx = result.length - 1;
-  
-  // Skip any trailing (non-typed) entries at the very end
-  while (scanIdx >= 0 && result[scanIdx].typed === "") {
-    scanIdx--;
-  }
-  
-  // Now scan backwards through consecutive incorrect words
-  while (scanIdx >= 0) {
-    const item = result[scanIdx];
-    
-    // If this is an incorrect typed word (substitution or extra)
-    if (item.typed !== "" && (item.status === "substitution" || item.status === "extra")) {
-      // Mark immediately preceding missing words as trailing
-      let prevIdx = scanIdx - 1;
-      while (prevIdx >= 0 && result[prevIdx].status === "missing") {
-        result[prevIdx] = { ...result[prevIdx], status: "trailing", isError: false };
-        prevIdx--;
-      }
-      // Move to the position before the missing words we just processed
-      scanIdx = prevIdx;
-    } else {
-      // Stop when we hit a correct word or non-typed entry
-      break;
     }
   }
   
@@ -195,46 +123,6 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
     for (let j = lastTypedIdx + 1; j < result.length; j++) {
       if (result[j].status === "missing") {
         result[j] = { ...result[j], status: "trailing", isError: false };
-      }
-    }
-  }
-  
-  // NEW: Check if typed words marked as errors exist in trailing section
-  // If a typed word matches a trailing word, it might be correct
-  const trailingWords = result
-    .filter(item => item.status === "trailing")
-    .map(item => item.original.toLowerCase().replace(/[.,!?;:]/g, ""));
-  
-  for (let j = 0; j < result.length; j++) {
-    const item = result[j];
-    // If word is marked as extra or substitution but matches a trailing word
-    if ((item.status === "extra" || item.status === "substitution") && item.typed) {
-      const cleanTyped = item.typed.toLowerCase().replace(/[.,!?;:]/g, "");
-      const trailingIdx = trailingWords.indexOf(cleanTyped);
-      
-      if (trailingIdx !== -1) {
-        // This word exists in trailing - convert to a match with trailing word
-        // Keep it as substitution but mark as match if words are same
-        if (item.status === "extra") {
-          // Extra word that matches trailing - convert to match
-          result[j] = {
-            typed: item.typed,
-            original: item.typed, // Match with itself
-            status: "match",
-            isError: false,
-          };
-        } else if (item.status === "substitution") {
-          // Check if typed actually matches original (just punctuation diff)
-          const cleanOriginal = item.original.toLowerCase().replace(/[.,!?;:]/g, "");
-          if (cleanTyped === cleanOriginal) {
-            result[j] = { ...item, status: "match", isError: false };
-          }
-          // If typed word exists in trailing, it might be correct but in wrong position
-          // We keep it as substitution for now but could be improved
-        }
-        
-        // Remove this word from trailing to avoid duplicate counting
-        trailingWords.splice(trailingIdx, 1);
       }
     }
   }
@@ -338,7 +226,6 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
   }
 
   // Backtrack to build alignment
-  // IMPORTANT: Prefer earlier matches - when there's a tie, prefer diagonal (match/sub) over skip
   const result: AlignmentEntry[] = [];
   let i = n, j = m;
 
@@ -346,10 +233,8 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
     if (i > 0 && j > 0) {
       const isMatch = normalizedOriginal[i - 1] === normalizedTyped[j - 1];
       
-      // Priority: 1) Match, 2) Substitution, 3) Deletion, 4) Insertion
-      // This ensures we prefer matching words at earlier positions
       if (isMatch && dp[i][j] === dp[i - 1][j - 1]) {
-        // Match - highest priority
+        // Match
         result.unshift({
           typed: typedWords[j - 1],
           original: originalWords[i - 1],
@@ -358,7 +243,7 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
         });
         i--; j--;
       } else if (dp[i][j] === dp[i - 1][j - 1] + 1) {
-        // Substitution - prefer this over skipping to match later
+        // Substitution
         result.unshift({
           typed: typedWords[j - 1],
           original: originalWords[i - 1],
@@ -601,8 +486,8 @@ export function calculateAlignedMistakes(
 
 /**
  * Get alignment for typing tests with trailing error fix applied
- * Uses DP alignment with a limited window to prefer matching words at earlier positions
- * Window size: typedWords + small buffer to handle minor skips, not the full text
+ * For typing tests, we limit the original text to a reasonable window around typed words
+ * This prevents the DP from going too far ahead looking for matches
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -617,17 +502,16 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  // Limit the search window to force matching with earlier occurrences
-  // Use typed word count * 1.5 + buffer to handle skips while preferring earlier matches
-  const LOOKAHEAD_BUFFER = 20;
-  const windowSize = Math.min(originalWords.length, Math.floor(typedWords.length * 1.5) + LOOKAHEAD_BUFFER);
-  const windowedOriginal = originalWords.slice(0, windowSize).join(" ");
+  // For typing tests, only align against original words up to typed count + small buffer
+  // This prevents DP from searching too far ahead
+  const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
+  const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
   const rawAlignment = alignWords(windowedOriginal, typedText);
   let result = fixTrailingErrorPattern(rawAlignment, typedWords.length);
   
   // Add remaining original words as trailing
-  for (let i = windowSize; i < originalWords.length; i++) {
+  for (let i = alignmentWindow; i < originalWords.length; i++) {
     result.push({
       typed: "",
       original: originalWords[i],
@@ -903,11 +787,23 @@ export const generateResultPDF = async (result: Result) => {
   let trailingWords: string[] = [];
 
   if (result.contentType === "typing") {
-    // Use typing alignment with trailing fix (same as result analysis)
-    displayAlignment = getTypingAlignment(result.originalText || "", result.typedText);
-    trailingWords = displayAlignment
-      .filter(item => item.status === "trailing")
-      .map(item => item.original);
+    // Use same alignment as result analysis for consistency
+    const fullAlignment = alignWords(result.originalText || "", result.typedText);
+    
+    // Find the last typed word position
+    let lastTypedIdx = -1;
+    for (let i = fullAlignment.length - 1; i >= 0; i--) {
+      if (fullAlignment[i].typed !== "") {
+        lastTypedIdx = i;
+        break;
+      }
+    }
+    
+    // Split into display (up to last typed) and trailing (after last typed)
+    displayAlignment = lastTypedIdx >= 0 ? fullAlignment.slice(0, lastTypedIdx + 1) : [];
+    trailingWords = lastTypedIdx >= 0 
+      ? fullAlignment.slice(lastTypedIdx + 1).filter(item => item.original !== "").map(item => item.original)
+      : fullAlignment.filter(item => item.original !== "").map(item => item.original);
   } else {
     // DP alignment for shorthand
     const { attemptedAlignment, alignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);

@@ -1,15 +1,14 @@
-import { cn, getTypingAlignment } from "@/lib/utils";
+import { cn, alignWords } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
   typedText: string;
   language?: 'english' | 'hindi';
-  contentType?: 'typing' | 'shorthand';
 }
 
-export function ResultTextAnalysis({ originalText, typedText, language, contentType = 'typing' }: ResultTextAnalysisProps) {
-  // Use typing alignment with trailing fix for typing tests
-  const alignment = getTypingAlignment(originalText, typedText);
+export function ResultTextAnalysis({ originalText, typedText, language }: ResultTextAnalysisProps) {
+  // Use LCS-based alignment that shows missing words in correct positions
+  const alignment = alignWords(originalText, typedText);
 
   // Track words we've recently shown in brackets to prevent duplication
   const shownBracketedWords: Set<string> = new Set();
@@ -18,13 +17,6 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
     <div className={cn("text-sm leading-relaxed flex flex-wrap gap-x-1", language === 'hindi' ? "font-mangal" : "")}>
       {alignment.map((item, i) => {
         // Check if next item is a match of the current missing word - if so, skip this missing entry
-        if (item.status === 'trailing') {
-          // Show trailing words in gray (not counted as errors)
-          return (
-            <span key={i} className="text-gray-400">[{item.original}]</span>
-          );
-        }
-        
         if (item.status === 'missing') {
           const normalizedCurrent = normalizeWord(item.original);
           
