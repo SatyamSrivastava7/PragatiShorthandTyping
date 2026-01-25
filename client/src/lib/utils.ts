@@ -787,23 +787,11 @@ export const generateResultPDF = async (result: Result) => {
   let trailingWords: string[] = [];
 
   if (result.contentType === "typing") {
-    // Use same alignment as result analysis for consistency
-    const fullAlignment = alignWords(result.originalText || "", result.typedText);
-    
-    // Find the last typed word position
-    let lastTypedIdx = -1;
-    for (let i = fullAlignment.length - 1; i >= 0; i--) {
-      if (fullAlignment[i].typed !== "") {
-        lastTypedIdx = i;
-        break;
-      }
-    }
-    
-    // Split into display (up to last typed) and trailing (after last typed)
-    displayAlignment = lastTypedIdx >= 0 ? fullAlignment.slice(0, lastTypedIdx + 1) : [];
-    trailingWords = lastTypedIdx >= 0 
-      ? fullAlignment.slice(lastTypedIdx + 1).filter(item => item.original !== "").map(item => item.original)
-      : fullAlignment.filter(item => item.original !== "").map(item => item.original);
+    // Use typing alignment with trailing fix (same as result analysis)
+    displayAlignment = getTypingAlignment(result.originalText || "", result.typedText);
+    trailingWords = displayAlignment
+      .filter(item => item.status === "trailing")
+      .map(item => item.original);
   } else {
     // DP alignment for shorthand
     const { attemptedAlignment, alignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
