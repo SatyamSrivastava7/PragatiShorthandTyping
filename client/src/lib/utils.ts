@@ -597,9 +597,9 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
   }
   
   // Limit the search window to force matching with earlier occurrences
-  // Use typed word count + small buffer (10-15 words for minor skips)
-  const LOOKAHEAD_BUFFER = 15;
-  const windowSize = Math.min(originalWords.length, typedWords.length + LOOKAHEAD_BUFFER);
+  // Use typed word count * 1.5 + buffer to handle skips while preferring earlier matches
+  const LOOKAHEAD_BUFFER = 20;
+  const windowSize = Math.min(originalWords.length, Math.floor(typedWords.length * 1.5) + LOOKAHEAD_BUFFER);
   const windowedOriginal = originalWords.slice(0, windowSize).join(" ");
   
   const rawAlignment = alignWords(windowedOriginal, typedText);

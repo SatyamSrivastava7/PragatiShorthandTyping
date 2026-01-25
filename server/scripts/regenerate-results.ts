@@ -355,9 +355,10 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
-  // Limit search window to force matching with earlier occurrences (typedWords + 15 buffer)
-  const LOOKAHEAD_BUFFER = 15;
-  const alignmentWindow = Math.min(originalWords.length, typedWords.length + LOOKAHEAD_BUFFER);
+  // Limit search window to prefer earlier occurrences while allowing for skips
+  // Use typed word count * 1.5 + buffer to handle skips
+  const LOOKAHEAD_BUFFER = 20;
+  const alignmentWindow = Math.min(originalWords.length, Math.floor(typedWords.length * 1.5) + LOOKAHEAD_BUFFER);
   const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
   const rawAlignment = alignWords(windowedOriginal, typedText);
