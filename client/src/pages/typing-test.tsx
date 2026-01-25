@@ -535,36 +535,6 @@ export default function TypingTestPage() {
               />
               <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
             </div>
-
-            {/* Video Speed Selector for Shorthand Tests */}
-            {testContent.type === 'shorthand' && (
-              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
-                <label className="text-xs font-medium whitespace-nowrap">Audio Speed:</label>
-                <Select value={selectedVideoWpm} onValueChange={(val) => setSelectedVideoWpm(val as "60" | "80" | "100" | "120")}>
-                  <SelectTrigger className="w-24 h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="60" disabled={!video60Available}>60 WPM</SelectItem>
-                    <SelectItem value="80" disabled={!video80Available}>80 WPM</SelectItem>
-                    <SelectItem value="100" disabled={!video100Available}>100 WPM</SelectItem>
-                    <SelectItem value="120" disabled={!video120Available}>120 WPM</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                {/* Video Link - Click to open in new tab */}
-                {selectedVideoUrl && (
-                  <a 
-                    href={selectedVideoUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:text-blue-800 underline font-medium whitespace-nowrap"
-                  >
-                    Open Audio
-                  </a>
-                )}
-              </div>
-            )}
           </div>
 
           <div className={cn(
@@ -597,7 +567,7 @@ export default function TypingTestPage() {
                  
                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
                    <div className="flex items-center gap-2">
-                     <label className="text-sm font-semibold text-orange-900 dark:text-orange-100 whitespace-nowrap">Speed:</label>
+                     <label className="text-sm font-semibold text-orange-900 dark:text-orange-100 whitespace-nowrap">Audio Speed:</label>
                      <Select value={selectedVideoWpm} onValueChange={(val) => setSelectedVideoWpm(val as "60" | "80" | "100" | "120")}>
                        <SelectTrigger className="w-28 h-10 bg-white dark:bg-slate-800">
                          <SelectValue />
