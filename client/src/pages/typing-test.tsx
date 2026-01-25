@@ -580,25 +580,62 @@ export default function TypingTestPage() {
       {/* Main Workspace - Vertical Layout */}
       <div className="flex-1 flex flex-col gap-6 min-h-0">
         
-        {/* Shorthand Video Player - Prominent at top */}
+        {/* Shorthand Audio Controls - More Visible for All Devices */}
         {testContent.type === 'shorthand' && (video60Available || video80Available || video100Available || video120Available) && (
-           <Card className="bg-muted/30 border-2 border-orange-200 shrink-0">
-             <CardContent className="p-4 flex flex-col gap-4">
-               <div className="flex items-center gap-3">
-                 <div className="p-3 bg-orange-100 rounded-full text-orange-600">
-                   <Music size={24} />
+           <Card className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-2 border-orange-300 shadow-md shrink-0">
+             <CardContent className="p-4">
+               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                 <div className="flex items-center gap-3 flex-1">
+                   <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full text-orange-600 dark:text-orange-300 flex-shrink-0">
+                     <Music size={24} />
+                   </div>
+                   <div>
+                     <h3 className="font-semibold text-lg text-orange-900 dark:text-orange-100">Dictation Audio</h3>
+                     <p className="text-sm text-orange-700 dark:text-orange-200">Select audio speed below and click "Open Audio" to play</p>
+                   </div>
                  </div>
-                 <div>
-                   <h3 className="font-semibold text-lg">Dictation Audio</h3>
-                   <p className="text-sm text-muted-foreground">Select the audio speed from the header and listen the dictation audio.</p>
+                 
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+                   <div className="flex items-center gap-2">
+                     <label className="text-sm font-semibold text-orange-900 dark:text-orange-100 whitespace-nowrap">Speed:</label>
+                     <Select value={selectedVideoWpm} onValueChange={(val) => setSelectedVideoWpm(val as "60" | "80" | "100" | "120")}>
+                       <SelectTrigger className="w-28 h-10 bg-white dark:bg-slate-800">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="60" disabled={!video60Available}>60 WPM</SelectItem>
+                         <SelectItem value="80" disabled={!video80Available}>80 WPM</SelectItem>
+                         <SelectItem value="100" disabled={!video100Available}>100 WPM</SelectItem>
+                         <SelectItem value="120" disabled={!video120Available}>120 WPM</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   
+                   {/* Audio Link Button - Prominent and Clickable */}
+                   {selectedVideoUrl ? (
+                     <a 
+                       href={selectedVideoUrl} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-md transition-colors flex items-center gap-2 whitespace-nowrap"
+                     >
+                       <Music size={16} />
+                       Open Audio
+                     </a>
+                   ) : (
+                     <Button disabled className="whitespace-nowrap">
+                       <Music size={16} />
+                       Audio Unavailable
+                     </Button>
+                   )}
                  </div>
                </div>
 
                {/* Audio Not Found Message */}
                {!selectedVideoUrl && (
-                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md">
-                   <AlertCircle size={18} className="text-red-600" />
-                   <span className="text-sm text-red-700 font-medium">Audio not available for {selectedVideoWpm} WPM. Please select a different speed.</span>
+                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md mt-3">
+                   <AlertCircle size={18} className="text-red-600 dark:text-red-400 flex-shrink-0" />
+                   <span className="text-sm text-red-700 dark:text-red-200 font-medium">Audio not available for {selectedVideoWpm} WPM. Please select a different speed.</span>
                  </div>
                )}
              </CardContent>
