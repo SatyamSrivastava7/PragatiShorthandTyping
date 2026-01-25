@@ -485,8 +485,9 @@ export function calculateAlignedMistakes(
 }
 
 /**
- * Get alignment for typing tests using DP with proper trailing detection
- * Uses DP alignment then marks words after last typed word as trailing
+ * Get alignment for typing tests with trailing error fix applied
+ * For typing tests, we limit the original text to a reasonable window around typed words
+ * This prevents the DP from going too far ahead looking for matches
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -501,40 +502,16 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  // Use DP alignment with window = typed count + small buffer for missing words
-  const buffer = Math.min(10, Math.ceil(typedWords.length * 0.1));
-  const windowSize = Math.min(originalWords.length, typedWords.length + buffer);
-  const windowedOriginal = originalWords.slice(0, windowSize);
+  // For typing tests, only align against original words up to typed count + small buffer
+  // This prevents DP from searching too far ahead
+  const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
+  const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
-  const dpAlignment = alignWords(windowedOriginal.join(" "), typedText);
-  
-  // Find the last position where student actually typed something
-  let lastTypedIdx = -1;
-  for (let i = dpAlignment.length - 1; i >= 0; i--) {
-    if (dpAlignment[i].typed !== "") {
-      lastTypedIdx = i;
-      break;
-    }
-  }
-  
-  // Mark words after last typed position as trailing (not missing)
-  const result: AlignmentEntry[] = [];
-  for (let i = 0; i < dpAlignment.length; i++) {
-    if (i <= lastTypedIdx) {
-      result.push(dpAlignment[i]);
-    } else {
-      // Words after last typed are trailing, not missing
-      result.push({
-        typed: "",
-        original: dpAlignment[i].original,
-        status: "trailing",
-        isError: false,
-      });
-    }
-  }
+  const rawAlignment = alignWords(windowedOriginal, typedText);
+  let result = fixTrailingErrorPattern(rawAlignment, typedWords.length);
   
   // Add remaining original words as trailing
-  for (let i = windowSize; i < originalWords.length; i++) {
+  for (let i = alignmentWindow; i < originalWords.length; i++) {
     result.push({
       typed: "",
       original: originalWords[i],

@@ -19,10 +19,8 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
       {alignment.map((item, i) => {
         // Check if next item is a match of the current missing word - if so, skip this missing entry
         if (item.status === 'trailing') {
-          // Show trailing words in gray (unattempted)
-          return (
-            <span key={i} className="text-gray-400">[{item.original}]</span>
-          );
+          // Skip trailing words - they're not part of the attempted portion
+          return null;
         }
         
         if (item.status === 'missing') {
