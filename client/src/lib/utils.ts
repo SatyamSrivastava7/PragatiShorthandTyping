@@ -35,6 +35,40 @@ export interface AlignmentEntry {
 }
 
 /**
+ * Helper function to fix preceding missing words as trailing when last typed word is incorrect
+ * Used for shorthand tests where we need to apply the same logic
+ */
+function fixPrecedingMissingAsTrailing(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+  
+  const result = [...alignment];
+  
+  // Find the last typed word position
+  let lastTypedIdx = -1;
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (result[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  
+  if (lastTypedIdx === -1) return result;
+  
+  // If the last typed word is incorrect (substitution), mark immediately preceding missing words as trailing
+  if (result[lastTypedIdx].status === "substitution") {
+    for (let j = lastTypedIdx - 1; j >= 0; j--) {
+      if (result[j].status === "missing") {
+        result[j] = { ...result[j], status: "trailing", isError: false };
+      } else {
+        break;
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
  * Post-process alignment to fix trailing error pattern
  * 
  * When the DP algorithm can't find a match for a word at the end, it may mark
