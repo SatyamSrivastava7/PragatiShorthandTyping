@@ -16,6 +16,7 @@ async getResultCounts(studentId?: number): Promise<Record<string, number>> {
   }
   return resultObj;
 }
+
 ```
 
 **Impact**: 
