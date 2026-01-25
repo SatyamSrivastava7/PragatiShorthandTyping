@@ -3039,6 +3039,7 @@ export default function AdminDashboard() {
                                                   | "english"
                                                   | "hindi") || "english"
                                               }
+                                              contentType={result.contentType as 'typing' | 'shorthand'}
                                             />
                                           </div>
 

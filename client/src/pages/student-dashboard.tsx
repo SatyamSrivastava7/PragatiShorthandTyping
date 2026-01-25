@@ -1181,6 +1181,7 @@ export default function StudentDashboard() {
                                           originalText={result.originalText || ""}
                                           typedText={result.typedText}
                                           language={(result.language as 'english' | 'hindi') || undefined}
+                                          contentType={result.contentType as 'typing' | 'shorthand'}
                                         />
                                       </div>
 
