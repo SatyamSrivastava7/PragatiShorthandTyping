@@ -575,6 +575,11 @@ export function calculateTypingMistakes(
       attemptedWords++;
       mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
       mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
+    } else if (item.status === "missing") {
+      // Missing word = 1 mistake + punctuation in original
+      mistakes += 1;
+      mistakes += commaCount(item.original) * 0.25;
+      mistakes += periodCount(item.original) * 1;
     }
   }
 
