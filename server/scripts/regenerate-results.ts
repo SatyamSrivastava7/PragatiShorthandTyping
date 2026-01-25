@@ -401,6 +401,20 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 
   const fullOriginalWords = (originalText || "").trim().split(/\s+/).filter((w) => w).length;
 
+  // Count words actually typed by student
+  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w).length;
+  
+  // If student typed 0 words, automatic fail
+  if (typedWordCount === 0) {
+    return {
+      words: fullOriginalWords,
+      mistakes: 0,
+      halfMistakes: 0,
+      result: "Fail",
+      missingWords: 0,
+    };
+  }
+  
   // 5% rule for mistakes
   const mistakePercentage = fullOriginalWords > 0 ? (mistakes / fullOriginalWords) * 100 : 0;
   
