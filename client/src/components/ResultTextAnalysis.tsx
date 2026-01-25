@@ -22,9 +22,11 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
   return (
     <div className={cn("text-sm leading-relaxed flex flex-wrap gap-x-1", language === 'hindi' ? "font-mangal" : "")}>
       {alignment.map((item, i) => {
-        // Skip trailing words (not attempted by user) for typing tests
+        // Show trailing words (not attempted by user) in gray
         if (item.status === 'trailing') {
-          return null;
+          return (
+            <span key={i} className="text-muted-foreground/50">{item.original}</span>
+          );
         }
         
         // Missing word - show in green brackets
