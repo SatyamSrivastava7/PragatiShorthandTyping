@@ -486,8 +486,8 @@ export function calculateAlignedMistakes(
 
 /**
  * Get alignment for typing tests with trailing error fix applied
- * For typing tests, we limit the original text to a reasonable window around typed words
- * This prevents the DP from going too far ahead looking for matches
+ * Uses DP alignment with a lookahead window of 20-25 words to find matches
+ * If a word isn't found within the lookahead, it's marked as incorrect
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -502,9 +502,10 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  // For typing tests, only align against original words up to typed count + small buffer
-  // This prevents DP from searching too far ahead
-  const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
+  // Allow larger window for finding matches when students skip portions
+  // Use at least typedWords * 1.5 + 25 to handle significant skipping
+  const LOOKAHEAD_WINDOW = 25;
+  const alignmentWindow = Math.min(originalWords.length, Math.max(typedWords.length + LOOKAHEAD_WINDOW, Math.floor(typedWords.length * 1.5) + LOOKAHEAD_WINDOW));
   const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
   const rawAlignment = alignWords(windowedOriginal, typedText);
