@@ -317,6 +317,7 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
   }
 
   // Backtrack to build alignment
+  // IMPORTANT: Prefer earlier matches - when there's a tie, prefer diagonal (match/sub) over skip
   const result: AlignmentEntry[] = [];
   let i = n, j = m;
 
@@ -324,8 +325,10 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
     if (i > 0 && j > 0) {
       const isMatch = normalizedOriginal[i - 1] === normalizedTyped[j - 1];
       
+      // Priority: 1) Match, 2) Substitution, 3) Deletion, 4) Insertion
+      // This ensures we prefer matching words at earlier positions
       if (isMatch && dp[i][j] === dp[i - 1][j - 1]) {
-        // Match
+        // Match - highest priority
         result.unshift({
           typed: typedWords[j - 1],
           original: originalWords[i - 1],
@@ -334,7 +337,7 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
         });
         i--; j--;
       } else if (dp[i][j] === dp[i - 1][j - 1] + 1) {
-        // Substitution
+        // Substitution - prefer this over skipping to match later
         result.unshift({
           typed: typedWords[j - 1],
           original: originalWords[i - 1],
@@ -577,8 +580,8 @@ export function calculateAlignedMistakes(
 
 /**
  * Get alignment for typing tests with trailing error fix applied
- * Uses DP alignment with a lookahead window of 20-25 words to find matches
- * If a word isn't found within the lookahead, it's marked as incorrect
+ * Uses DP alignment with a limited window to prefer matching words at earlier positions
+ * Window size: typedWords + small buffer to handle minor skips, not the full text
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -593,10 +596,24 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  // Use FULL original text for DP alignment to find all possible matches
-  // This ensures words that appear later in original can be matched
-  const rawAlignment = alignWords(originalText, typedText);
+  // Limit the search window to force matching with earlier occurrences
+  // Use typed word count + small buffer (10-15 words for minor skips)
+  const LOOKAHEAD_BUFFER = 15;
+  const windowSize = Math.min(originalWords.length, typedWords.length + LOOKAHEAD_BUFFER);
+  const windowedOriginal = originalWords.slice(0, windowSize).join(" ");
+  
+  const rawAlignment = alignWords(windowedOriginal, typedText);
   let result = fixTrailingErrorPattern(rawAlignment, typedWords.length);
+  
+  // Add remaining original words as trailing
+  for (let i = windowSize; i < originalWords.length; i++) {
+    result.push({
+      typed: "",
+      original: originalWords[i],
+      status: "trailing",
+      isError: false,
+    });
+  }
   
   return result;
 }
