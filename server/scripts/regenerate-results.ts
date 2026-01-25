@@ -108,6 +108,43 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         }
       }
     }
+    
+    // Fix: If last typed word is substitution with a very short original (likely wrong match),
+    // re-pair it with the original word at the typed position based on word count
+    if (result[lastTypedIdx].status === "substitution" || result[lastTypedIdx].status === "extra") {
+      const lastTypedWord = result[lastTypedIdx].typed;
+      const currentOriginal = result[lastTypedIdx].original || "";
+      
+      // Look for the original word at position = typedCount in the trailing words
+      // that might be a better match (starts with same prefix)
+      const lastTypedNormalized = lastTypedWord.replace(/[.,]/g, "").toLowerCase();
+      
+      // Check trailing words for a better match
+      for (let j = lastTypedIdx + 1; j < result.length; j++) {
+        if (result[j].status === "trailing" && result[j].original) {
+          const trailingNormalized = result[j].original.replace(/[.,]/g, "").toLowerCase();
+          
+          // Check if typed word is a prefix of trailing word (student was typing it)
+          if (trailingNormalized.startsWith(lastTypedNormalized.substring(0, 3)) || 
+              lastTypedNormalized.startsWith(trailingNormalized.substring(0, 3))) {
+            // Re-pair: swap the original words
+            const betterOriginal = result[j].original;
+            
+            // Update the last typed entry with the better original
+            result[lastTypedIdx] = {
+              typed: lastTypedWord,
+              original: betterOriginal,
+              status: "substitution",
+              isError: true,
+            };
+            
+            // Remove this trailing entry since we used it
+            result.splice(j, 1);
+            break;
+          }
+        }
+      }
+    }
   }
   
   return result;
