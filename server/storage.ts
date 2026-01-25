@@ -313,60 +313,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getResultCounts(studentId?: number): Promise<Record<string, number>> {
-    // Use single GROUP BY query instead of looping (avoids N+1 query problem)
-    const conditions: any[] = [];
-    if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
-    
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    
-    // Single query with GROUP BY for better performance
-    const rows: any = await db
-      .select({
-        contentType: results.contentType,
-        cnt: sql`count(*)`.as('cnt')
-      })
-      .from(results)
-      .where(whereClause)
-      .groupBy(results.contentType);
-
+    const types = ['typing', 'shorthand'];
     const resultObj: Record<string, number> = {};
-    rows.forEach((row: any) => {
-      resultObj[row.contentType] = Number(row.cnt ?? 0);
-    });
-    
-    // Ensure both types exist in result
-    if (!resultObj['typing']) resultObj['typing'] = 0;
-    if (!resultObj['shorthand']) resultObj['shorthand'] = 0;
-    
+
+    for (const t of types) {
+      const conditions: any[] = [eq(results.contentType, t)];
+      if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(results).where(whereClause);
+      const [row] = await q;
+      resultObj[t] = Number(row?.cnt ?? 0);
+    }
+
     return resultObj;
   }
 
   async getContentCounts(enabled?: boolean): Promise<Record<string, number>> {
-    // Use single GROUP BY query instead of looping (avoids N+1 query problem)
-    const conditions: any[] = [];
-    if (typeof enabled === 'boolean') conditions.push(eq(content.isEnabled, !!enabled));
-    
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    
-    // Single query with GROUP BY for better performance
-    const rows: any = await db
-      .select({
-        type: content.type,
-        cnt: sql`count(*)`.as('cnt')
-      })
-      .from(content)
-      .where(whereClause)
-      .groupBy(content.type);
-
+    const types = ['typing', 'shorthand'];
     const result: Record<string, number> = {};
-    rows.forEach((row: any) => {
-      result[row.type] = Number(row.cnt ?? 0);
-    });
-    
-    // Ensure both types exist in result
-    if (!result['typing']) result['typing'] = 0;
-    if (!result['shorthand']) result['shorthand'] = 0;
-    
+
+    for (const t of types) {
+      const conditions: any[] = [eq(content.type, t)];
+      if (typeof enabled === 'boolean') conditions.push(eq(content.isEnabled, !!enabled));
+      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(content).where(whereClause);
+      const [row] = await q;
+      result[t] = Number(row?.cnt ?? 0);
+    }
+
     return result;
   }
 
