@@ -273,13 +273,32 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
-  // Use DP alignment with 1.5x window
-  const windowSize = Math.min(originalWords.length, Math.ceil(typedWords.length * 1.5));
+  // Use DP alignment with window = typed count + small buffer
+  const buffer = Math.min(10, Math.ceil(typedWords.length * 0.1));
+  const windowSize = Math.min(originalWords.length, typedWords.length + buffer);
   const windowedOriginal = originalWords.slice(0, windowSize).join(" ");
   
   const dpAlignment = alignWords(windowedOriginal, typedText);
   
-  const alignment: AlignmentEntry[] = [...dpAlignment];
+  // Find the last position where student actually typed something
+  let lastTypedIdx = -1;
+  for (let i = dpAlignment.length - 1; i >= 0; i--) {
+    if (dpAlignment[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  
+  // Mark words after last typed position as trailing (not missing)
+  const alignment: AlignmentEntry[] = [];
+  for (let i = 0; i < dpAlignment.length; i++) {
+    if (i <= lastTypedIdx) {
+      alignment.push(dpAlignment[i]);
+    } else {
+      alignment.push({ typed: "", original: dpAlignment[i].original, status: "trailing" as AlignmentStatus, isError: false });
+    }
+  }
+  
   for (let i = windowSize; i < originalWords.length; i++) {
     alignment.push({ typed: "", original: originalWords[i], status: "trailing" as AlignmentStatus, isError: false });
   }

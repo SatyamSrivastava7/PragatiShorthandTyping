@@ -485,8 +485,8 @@ export function calculateAlignedMistakes(
 }
 
 /**
- * Get alignment for typing tests using DP with 1.5x window
- * Uses DP alignment for optimal word matching
+ * Get alignment for typing tests using DP with proper trailing detection
+ * Uses DP alignment then marks words after last typed word as trailing
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -501,15 +501,41 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  // Use DP alignment with 1.5x window
-  const windowSize = Math.min(originalWords.length, Math.ceil(typedWords.length * 1.5));
+  // Use DP alignment with window = typed count + small buffer for missing words
+  const buffer = Math.min(10, Math.ceil(typedWords.length * 0.1));
+  const windowSize = Math.min(originalWords.length, typedWords.length + buffer);
   const windowedOriginal = originalWords.slice(0, windowSize);
   
   const dpAlignment = alignWords(windowedOriginal.join(" "), typedText);
   
-  // Mark remaining original words as trailing
+  // Find the last position where student actually typed something
+  let lastTypedIdx = -1;
+  for (let i = dpAlignment.length - 1; i >= 0; i--) {
+    if (dpAlignment[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  
+  // Mark words after last typed position as trailing (not missing)
+  const result: AlignmentEntry[] = [];
+  for (let i = 0; i < dpAlignment.length; i++) {
+    if (i <= lastTypedIdx) {
+      result.push(dpAlignment[i]);
+    } else {
+      // Words after last typed are trailing, not missing
+      result.push({
+        typed: "",
+        original: dpAlignment[i].original,
+        status: "trailing",
+        isError: false,
+      });
+    }
+  }
+  
+  // Add remaining original words as trailing
   for (let i = windowSize; i < originalWords.length; i++) {
-    dpAlignment.push({
+    result.push({
       typed: "",
       original: originalWords[i],
       status: "trailing",
@@ -517,7 +543,7 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     });
   }
   
-  return dpAlignment;
+  return result;
 }
 
 /**
