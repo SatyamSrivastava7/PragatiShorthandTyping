@@ -485,9 +485,9 @@ export function calculateAlignedMistakes(
 }
 
 /**
- * Get alignment for typing tests with trailing error fix applied
- * For typing tests, we limit the original text to a reasonable window around typed words
- * This prevents the DP from going too far ahead looking for matches
+ * Get alignment for typing tests with positional greedy approach
+ * For typing tests, we assume students type in order, so we use a greedy
+ * position-based alignment that looks for matches within a small lookahead window
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
@@ -502,16 +502,95 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
     }));
   }
   
-  // For typing tests, only align against original words up to typed count + small buffer
-  // This prevents DP from searching too far ahead
-  const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
-  const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
+  const result: AlignmentEntry[] = [];
+  let origIdx = 0;
+  const LOOKAHEAD = 5; // Look up to 5 words ahead for a match
   
-  const rawAlignment = alignWords(windowedOriginal, typedText);
-  let result = fixTrailingErrorPattern(rawAlignment, typedWords.length);
+  // Pre-normalize all words for faster comparison
+  const normalizedOriginal = originalWords.map(normalizeForComparison);
+  const normalizedTypedWords = typedWords.map(normalizeForComparison);
   
-  // Add remaining original words as trailing
-  for (let i = alignmentWindow; i < originalWords.length; i++) {
+  for (let typedIdx = 0; typedIdx < typedWords.length; typedIdx++) {
+    const typedWord = typedWords[typedIdx];
+    const normalizedTyped = normalizedTypedWords[typedIdx];
+    
+    if (origIdx >= originalWords.length) {
+      // All original words consumed - remaining typed are extra
+      result.push({
+        typed: typedWord,
+        original: "",
+        status: "extra",
+        isError: true,
+      });
+      continue;
+    }
+    
+    // Look for typed word in original (forward lookahead)
+    let matchOffset = -1;
+    for (let offset = 0; offset <= LOOKAHEAD && origIdx + offset < originalWords.length; offset++) {
+      if (normalizedOriginal[origIdx + offset] === normalizedTyped) {
+        matchOffset = offset;
+        break;
+      }
+    }
+    
+    if (matchOffset >= 0) {
+      // Found a match - mark any skipped original words as missing
+      for (let skip = 0; skip < matchOffset; skip++) {
+        result.push({
+          typed: "",
+          original: originalWords[origIdx],
+          status: "missing",
+          isError: true,
+        });
+        origIdx++;
+      }
+      // Add the match
+      result.push({
+        typed: typedWord,
+        original: originalWords[origIdx],
+        status: "match",
+        isError: false,
+      });
+      origIdx++;
+    } else {
+      // No match for typed word in original lookahead
+      // Check if current original word matches a future typed word (typed word is extra)
+      const currentOrigNorm = normalizedOriginal[origIdx];
+      let isExtra = false;
+      
+      for (let futureTyped = typedIdx + 1; futureTyped <= typedIdx + LOOKAHEAD && futureTyped < typedWords.length; futureTyped++) {
+        if (normalizedTypedWords[futureTyped] === currentOrigNorm) {
+          // Current original will match a future typed word, so current typed is EXTRA
+          isExtra = true;
+          break;
+        }
+      }
+      
+      if (isExtra) {
+        // Typed word is extra (not in original)
+        result.push({
+          typed: typedWord,
+          original: "",
+          status: "extra",
+          isError: true,
+        });
+        // Don't advance origIdx
+      } else {
+        // Substitution - typed word replaces current original word
+        result.push({
+          typed: typedWord,
+          original: originalWords[origIdx],
+          status: "substitution",
+          isError: true,
+        });
+        origIdx++;
+      }
+    }
+  }
+  
+  // Mark remaining original words as trailing
+  for (let i = origIdx; i < originalWords.length; i++) {
     result.push({
       typed: "",
       original: originalWords[i],
