@@ -503,7 +503,7 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
   
   const result: AlignmentEntry[] = [];
   let origIdx = 0;
-  const LOOKAHEAD = 10; // Look up to 10 words ahead to handle skipped lines
+  const LOOKAHEAD = 20; // Look up to 20 words ahead to handle skipped lines
   
   // Pre-normalize all words for faster comparison
   const normalizedOriginal = originalWords.map(normalizeForComparison);

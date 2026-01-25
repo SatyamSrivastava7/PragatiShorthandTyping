@@ -274,7 +274,7 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
   // Use bidirectional greedy alignment
-  const LOOKAHEAD = 10;
+  const LOOKAHEAD = 20;
   const normalizedOriginal = originalWords.map(normalizeForComparison);
   const normalizedTypedWords = typedWords.map(normalizeForComparison);
   
