@@ -153,6 +153,31 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
     }
   }
   
+  // If the last typed word is incorrect, mark immediately preceding missing words as trailing
+  // Find the last typed word
+  let lastTypedForCheck = -1;
+  for (let j = result.length - 1; j >= 0; j--) {
+    if (result[j].typed !== "") {
+      lastTypedForCheck = j;
+      break;
+    }
+  }
+  
+  if (lastTypedForCheck >= 0) {
+    const lastTypedItem = result[lastTypedForCheck];
+    // Check if last typed word is incorrect (substitution or extra)
+    if (lastTypedItem.status === "substitution" || lastTypedItem.status === "extra") {
+      // Mark immediately preceding missing words as trailing
+      for (let j = lastTypedForCheck - 1; j >= 0; j--) {
+        if (result[j].status === "missing") {
+          result[j] = { ...result[j], status: "trailing", isError: false };
+        } else {
+          break; // Stop at first non-missing word
+        }
+      }
+    }
+  }
+  
   // Final pass: mark all words after the last actual typed position as trailing
   lastTypedIdx = -1;
   for (let j = result.length - 1; j >= 0; j--) {
