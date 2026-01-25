@@ -21,6 +21,7 @@ function normalizeForComparison(text: string): string {
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-") // Normalize all dash-like characters to hyphen
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"') // Normalize curved/smart double quotes to straight quote
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'") // Normalize curved/smart single quotes to straight quote
+    .replace(/[.,!?;:]+$/g, "") // Strip trailing punctuation for word matching
     .toLowerCase();
 }
 

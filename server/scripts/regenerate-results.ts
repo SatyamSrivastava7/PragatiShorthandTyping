@@ -14,6 +14,7 @@ function normalizeForComparison(text: string): string {
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-")
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"')
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'")
+    .replace(/[.,!?;:]+$/g, "") // Strip trailing punctuation for word matching
     .toLowerCase();
 }
 
