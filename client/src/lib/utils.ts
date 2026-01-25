@@ -125,6 +125,18 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         result[j] = { ...result[j], status: "trailing", isError: false };
       }
     }
+    
+    // If the last typed word is incorrect (substitution), mark immediately preceding missing words as trailing
+    if (result[lastTypedIdx].status === "substitution") {
+      for (let j = lastTypedIdx - 1; j >= 0; j--) {
+        if (result[j].status === "missing") {
+          result[j] = { ...result[j], status: "trailing", isError: false };
+        } else {
+          // Stop at first non-missing word
+          break;
+        }
+      }
+    }
   }
   
   return result;
@@ -417,7 +429,10 @@ export function calculateAlignedMistakes(
   
   // Re-run alignWords on just the attempted portions
   // This ensures the same error pairing and representation as the full alignment
-  const attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
+  let attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
+  
+  // Apply trailing fix for preceding missing words if last typed word is incorrect
+  attemptedAlignment = fixPrecedingMissingAsTrailing(attemptedAlignment);
 
   let mistakes = 0;
   

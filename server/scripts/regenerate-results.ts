@@ -96,6 +96,18 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
         result[j] = { ...result[j], status: "trailing", isError: false };
       }
     }
+    
+    // If the last typed word is incorrect (substitution), mark immediately preceding missing words as trailing
+    if (result[lastTypedIdx].status === "substitution") {
+      for (let j = lastTypedIdx - 1; j >= 0; j--) {
+        if (result[j].status === "missing") {
+          result[j] = { ...result[j], status: "trailing", isError: false };
+        } else {
+          // Stop at first non-missing word
+          break;
+        }
+      }
+    }
   }
   
   return result;
