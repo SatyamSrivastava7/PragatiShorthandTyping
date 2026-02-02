@@ -958,8 +958,8 @@ export const generateResultPDF = async (result: Result) => {
       // Missing word - show in green brackets
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
     } else if (item.status === "substitution") {
-      // Substitution - show correct word in green brackets FIRST, then typed word underlined in red
-      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span><span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
+      // Substitution - show typed (errored) word FIRST (underlined red), then the correct word in green brackets
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
     } else if (item.status === "extra") {
       // Extra word - show underlined in red
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;

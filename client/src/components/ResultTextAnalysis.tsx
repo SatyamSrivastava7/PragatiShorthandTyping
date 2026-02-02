@@ -36,14 +36,14 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
           );
         }
         
-        // Substitution - show correct word in green brackets FIRST, then typed word underlined in red
+        // Substitution - show typed (errored) word FIRST, then correct word in green brackets
         if (item.status === 'substitution') {
           return (
             <span key={i}>
-              <span className="text-green-600 font-medium">[{item.original}]</span>
-              <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
+              <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1">
                 {item.typed}
               </span>
+              <span className="text-green-600 font-medium">[{item.original}]</span>
             </span>
           );
         }
