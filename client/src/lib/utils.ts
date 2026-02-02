@@ -827,24 +827,28 @@ export function calculateShorthandMetrics(
   if (typedWordCount === 0) {
     return {
       words: fullOriginalWords,
-      mistakes: 0,
+      mistakes: fullOriginalWords, // everything left is a mistake
       halfMistakes: 0,
       result: "Fail" as "Pass" | "Fail",
       missingWords: 0,
       trailingWords: fullOriginalWords,
+      fullOriginalWords,
     };
   }
-  
+
+  // Include trailing (left) words as mistakes for shorthand
+  const totalMistakes = mistakes + trailingWords;
+
   // 5% rule for mistakes: More than 5% mistakes = Fail
   const mistakePercentage =
-    fullOriginalWords > 0 ? (mistakes / fullOriginalWords) * 100 : 0;
+    fullOriginalWords > 0 ? (totalMistakes / fullOriginalWords) * 100 : 0;
   
   // 5% rule for left/trailing words: More than 5% left words = Fail
   const trailingPercentage =
     fullOriginalWords > 0 ? (trailingWords / fullOriginalWords) * 100 : 0;
   
   // Pass only if both mistake percentage AND trailing percentage are <= 5%
-  const isPassed = mistakePercentage <= 5 && trailingPercentage <= 5;
+  const isPassed = mistakePercentage <= 5;
 
   // Count missing words only from attempted portion (not trailing untyped words)
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
@@ -877,13 +881,13 @@ export function calculateShorthandMetrics(
 
   return {
     words: typedWordCount,
-    mistakes,
+    mistakes: totalMistakes,
     halfMistakes,
     result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
     missingWords,
     trailingWords,
     fullOriginalWords,
-  };
+  }; 
 }
 
 export const generateResultPDF = async (result: Result) => {
@@ -964,6 +968,9 @@ export const generateResultPDF = async (result: Result) => {
       typedHtml += `<span>${item.typed}</span> `;
     }
   }
+
+  // Total original words (useful for shorthand mistake percentage)
+  const totalOriginalWords = (result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length;
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -1048,7 +1055,7 @@ export const generateResultPDF = async (result: Result) => {
             : `
         <tr>
           <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
-          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.words > 0 ? ((parseInt(result.mistakes)*100)/result.words).toFixed(2) : "0.00"}%</td>
+          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${totalOriginalWords > 0 ? ((Number(result.mistakes) * 100) / totalOriginalWords).toFixed(2) : "0.00"}%</td>
         </tr>
         <tr>
           <td>Left Words</td><td>${trailingWords.length}</td>

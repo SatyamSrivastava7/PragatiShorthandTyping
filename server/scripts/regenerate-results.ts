@@ -408,15 +408,20 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
   if (typedWordCount === 0) {
     return {
       words: fullOriginalWords,
-      mistakes: 0,
+      mistakes: fullOriginalWords, // everything left is a mistake
       halfMistakes: 0,
       result: "Fail",
       missingWords: 0,
+      trailingWords: fullOriginalWords,
+      fullOriginalWords,
     };
   }
-  
+
+  // Include trailing (left) words as mistakes for shorthand
+  const totalMistakes = mistakes + trailingWords;
+
   // 5% rule for mistakes
-  const mistakePercentage = fullOriginalWords > 0 ? (mistakes / fullOriginalWords) * 100 : 0;
+  const mistakePercentage = fullOriginalWords > 0 ? (totalMistakes / fullOriginalWords) * 100 : 0;
   
   // 5% rule for left/trailing words
   const trailingPercentage = fullOriginalWords > 0 ? (trailingWords / fullOriginalWords) * 100 : 0;
@@ -441,10 +446,12 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 
   return {
     words: typedWordCount,
-    mistakes,
+    mistakes: totalMistakes,
     halfMistakes,
     result: isPassed ? "Pass" : "Fail",
     missingWords,
+    trailingWords,
+    fullOriginalWords,
   };
 }
 
