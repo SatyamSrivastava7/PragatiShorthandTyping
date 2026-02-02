@@ -15,8 +15,18 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
   if (contentType === 'typing') {
     alignment = getTypingAlignment(originalText, typedText);
   } else {
-    const { attemptedAlignment } = calculateAlignedMistakes(originalText, typedText);
-    alignment = attemptedAlignment;
+    const { attemptedAlignment, alignment: fullAlignment } = calculateAlignedMistakes(originalText, typedText);
+
+    // Include trailing (left) words after the attempted alignment so shorthand analysis
+    // shows both the attempted portion and the left words that were not attempted.
+    const trailingItems = fullAlignment.filter((item) => {
+      const isInAttempted = attemptedAlignment.some(
+        (a) => a.original === item.original && a.typed === item.typed && a.status === item.status
+      );
+      return !isInAttempted && item.original !== "";
+    });
+
+    alignment = [...attemptedAlignment, ...trailingItems];
   }
 
   return (
