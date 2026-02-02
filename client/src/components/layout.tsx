@@ -78,7 +78,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Top Bar */}
-      <header className="w-full bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
+      <header className="w-full bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>

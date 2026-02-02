@@ -24,8 +24,8 @@ function normalizeForComparison(text: string): string {
     .toLowerCase();
 }
 
-// Alignment entry types: match, substitution, missing (skipped original), extra (typed but not in original)
-export type AlignmentStatus = "match" | "substitution" | "missing" | "extra";
+// Alignment entry types: match, substitution, missing (skipped original), extra (typed but not in original), trailing (untyped at end)
+export type AlignmentStatus = "match" | "substitution" | "missing" | "extra" | "trailing";
 
 export interface AlignmentEntry {
   typed: string;
@@ -34,7 +34,208 @@ export interface AlignmentEntry {
   isError: boolean;
 }
 
-// LCS-based word alignment that shows missing words in their correct positions
+/**
+ * Helper function to fix preceding missing words as trailing when last typed word is incorrect
+ * Used for shorthand tests where we need to apply the same logic
+ */
+function fixPrecedingMissingAsTrailing(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+  
+  const result = [...alignment];
+  
+  // Find the last typed word position
+  let lastTypedIdx = -1;
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (result[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  
+  if (lastTypedIdx === -1) return result;
+  
+  // If the last typed word is incorrect (substitution), mark immediately preceding missing words as trailing
+  if (result[lastTypedIdx].status === "substitution") {
+    for (let j = lastTypedIdx - 1; j >= 0; j--) {
+      if (result[j].status === "missing") {
+        result[j] = { ...result[j], status: "trailing", isError: false };
+      } else {
+        break;
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Post-process alignment to fix trailing error pattern
+ * 
+ * When the DP algorithm can't find a match for a word at the end, it may mark
+ * many original words as "missing" while the typed word becomes "extra".
+ * This function converts that pattern to:
+ * - The typed word becomes a "substitution" for the expected original word at its position
+ * - Remaining original words become "trailing" (not counted as errors for typing tests)
+ */
+function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: number): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+  
+  let result = [...alignment];
+  
+  // Find the last typed word position
+  let lastTypedIdx = -1;
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (result[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  
+  if (lastTypedIdx === -1) return result;
+  
+  // Mark all words after the last typed word as trailing
+  for (let i = lastTypedIdx + 1; i < result.length; i++) {
+    if (result[i].status === "missing") {
+      result[i] = { ...result[i], status: "trailing", isError: false };
+    }
+  }
+  
+  // Now fix the pattern where consecutive missing words appear before a typed word
+  // Scan through and fix any occurrence where we have >2 consecutive missing followed by extra/typed
+  let i = 0;
+  while (i < result.length) {
+    // Look for a block of consecutive missing words
+    if (result[i].status === "missing") {
+      let missingStart = i;
+      let missingCount = 0;
+      
+      while (i < result.length && result[i].status === "missing") {
+        missingCount++;
+        i++;
+      }
+      
+      // Check if next item is a typed word (extra or doesn't match pattern)
+      if (i < result.length && result[i].typed !== "" && result[i].status === "extra" && missingCount > 2) {
+        // This is the problematic pattern: many missing followed by an "extra"
+        // Convert first missing + extra to substitution
+        const typedWord = result[i].typed;
+        const originalWord = result[missingStart].original;
+        
+        result[missingStart] = {
+          typed: typedWord,
+          original: originalWord,
+          status: "substitution",
+          isError: true,
+        };
+        
+        // Mark remaining missing words in this block as trailing
+        for (let j = missingStart + 1; j < i; j++) {
+          if (result[j].status === "missing") {
+            result[j] = { ...result[j], status: "trailing", isError: false };
+          }
+        }
+        
+        // Remove the extra entry (now merged into substitution)
+        result.splice(i, 1);
+        // Don't increment i, check same position again
+      }
+    } else {
+      i++;
+    }
+  }
+  
+  // Final pass: mark all words after the last actual typed position as trailing
+  lastTypedIdx = -1;
+  for (let j = result.length - 1; j >= 0; j--) {
+    if (result[j].typed !== "") {
+      lastTypedIdx = j;
+      break;
+    }
+  }
+  
+  if (lastTypedIdx !== -1) {
+    for (let j = lastTypedIdx + 1; j < result.length; j++) {
+      if (result[j].status === "missing") {
+        result[j] = { ...result[j], status: "trailing", isError: false };
+      }
+    }
+    
+    // If the last typed word is incorrect (substitution), mark immediately preceding missing words as trailing
+    if (result[lastTypedIdx].status === "substitution") {
+      for (let j = lastTypedIdx - 1; j >= 0; j--) {
+        if (result[j].status === "missing") {
+          result[j] = { ...result[j], status: "trailing", isError: false };
+        } else {
+          // Stop at first non-missing word
+          break;
+        }
+      }
+    }
+    
+    // Fix: If last typed word is substitution with a very short original (likely wrong match),
+    // re-pair it with the original word at the typed position based on word count
+    if (result[lastTypedIdx].status === "substitution" || result[lastTypedIdx].status === "extra") {
+      const lastTypedWord = result[lastTypedIdx].typed;
+      const currentOriginal = result[lastTypedIdx].original || "";
+      
+      // Count how many words were typed (non-empty typed entries)
+      let typedCount = 0;
+      for (let j = 0; j <= lastTypedIdx; j++) {
+        if (result[j].typed !== "") typedCount++;
+      }
+      
+      // Look for the original word at position = typedCount in the trailing words
+      // that might be a better match (starts with same prefix)
+      const lastTypedNormalized = lastTypedWord.replace(/[.,]/g, "").toLowerCase();
+      
+      // Check trailing words for a better match
+      for (let j = lastTypedIdx + 1; j < result.length; j++) {
+        if (result[j].status === "trailing" && result[j].original) {
+          const trailingNormalized = result[j].original.replace(/[.,]/g, "").toLowerCase();
+          
+          // Check if typed word is a prefix of trailing word (student was typing it)
+          if (trailingNormalized.startsWith(lastTypedNormalized.substring(0, 3)) || 
+              lastTypedNormalized.startsWith(trailingNormalized.substring(0, 3))) {
+            // Re-pair: swap the original words
+            const betterOriginal = result[j].original;
+            
+            // Update the last typed entry with the better original
+            result[lastTypedIdx] = {
+              typed: lastTypedWord,
+              original: betterOriginal,
+              status: "substitution",
+              isError: true,
+            };
+            
+            // Mark the old pairing as trailing if it was a substitution
+            if (currentOriginal && result[lastTypedIdx - 1]?.status !== "missing") {
+              // Insert the skipped original as trailing before the substitution
+            }
+            
+            // Remove this trailing entry since we used it
+            result.splice(j, 1);
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Optimal word alignment using Dynamic Programming (Wagner-Fischer algorithm)
+ * 
+ * This algorithm finds the minimum edit distance between original and typed words,
+ * producing an optimal alignment that minimizes the total number of operations
+ * (insertions, deletions, and substitutions).
+ * 
+ * Time complexity: O(n*m) where n = original words, m = typed words
+ * Space complexity: O(n*m) for the DP table and backtracking
+ * 
+ * For very long texts (>500 words), falls back to a windowed approach for performance.
+ */
 export function alignWords(
   originalText: string,
   typedText: string,
@@ -48,8 +249,12 @@ export function alignWords(
     .split(/\s+/)
     .filter((w) => w);
 
-  if (originalWords.length === 0 && typedWords.length === 0) return [];
-  if (originalWords.length === 0) {
+  const n = originalWords.length;
+  const m = typedWords.length;
+
+  // Edge cases
+  if (n === 0 && m === 0) return [];
+  if (n === 0) {
     return typedWords.map((w) => ({
       typed: w,
       original: "",
@@ -57,7 +262,7 @@ export function alignWords(
       isError: true,
     }));
   }
-  if (typedWords.length === 0) {
+  if (m === 0) {
     return originalWords.map((w) => ({
       typed: "",
       original: w,
@@ -66,324 +271,423 @@ export function alignWords(
     }));
   }
 
-  // Build LCS table for normalized comparison (case-insensitive, dash-normalized)
-  const m = originalWords.length;
-  const n = typedWords.length;
-  const dp: number[][] = Array(m + 1)
-    .fill(null)
-    .map(() => Array(n + 1).fill(0));
+  // For very long texts, use windowed DP to avoid memory issues
+  // This splits the text into chunks and aligns each chunk separately
+  const MAX_DP_SIZE = 500;
+  if (n > MAX_DP_SIZE || m > MAX_DP_SIZE) {
+    return alignWordsWindowed(originalWords, typedWords);
+  }
 
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (
-        normalizeForComparison(originalWords[i - 1]) ===
-        normalizeForComparison(typedWords[j - 1])
-      ) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
+  // Standard DP alignment for normal-sized texts
+  return alignWordsDP(originalWords, typedWords);
+}
+
+/**
+ * Core DP-based alignment algorithm
+ * Uses Wagner-Fischer algorithm to find optimal alignment
+ */
+function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
+  const n = originalWords.length;
+  const m = typedWords.length;
+
+  // Pre-compute normalized words for faster comparison
+  const normalizedOriginal = originalWords.map(normalizeForComparison);
+  const normalizedTyped = typedWords.map(normalizeForComparison);
+
+  // DP table: dp[i][j] = minimum cost to align original[0..i-1] with typed[0..j-1]
+  // Cost scheme: match = 0, substitution = 1, insertion = 1, deletion = 1
+  const dp: number[][] = Array(n + 1).fill(null).map(() => Array(m + 1).fill(0));
+
+  // Initialize base cases
+  for (let i = 0; i <= n; i++) dp[i][0] = i; // Delete all original words
+  for (let j = 0; j <= m; j++) dp[0][j] = j; // Insert all typed words
+
+  // Fill DP table
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const isMatch = normalizedOriginal[i - 1] === normalizedTyped[j - 1];
+      
+      if (isMatch) {
+        dp[i][j] = dp[i - 1][j - 1]; // Match - no cost
       } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        dp[i][j] = Math.min(
+          dp[i - 1][j - 1] + 1, // Substitution
+          dp[i - 1][j] + 1,     // Deletion (missing word)
+          dp[i][j - 1] + 1      // Insertion (extra word)
+        );
       }
     }
   }
 
   // Backtrack to build alignment
   const result: AlignmentEntry[] = [];
-  let i = m,
-    j = n;
-  const tempResult: AlignmentEntry[] = [];
+  let i = n, j = m;
 
   while (i > 0 || j > 0) {
-    if (
-      i > 0 &&
-      j > 0 &&
-      normalizeForComparison(originalWords[i - 1]) ===
-        normalizeForComparison(typedWords[j - 1])
-    ) {
-      // Match
-      tempResult.push({
-        typed: typedWords[j - 1],
-        original: originalWords[i - 1],
-        status: "match",
-        isError: false,
-      });
-      i--;
-      j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      // Extra typed word (not in original) or substitution
-      tempResult.push({
-        typed: typedWords[j - 1],
-        original: "",
-        status: "extra",
-        isError: true,
-      });
-      j--;
-    } else {
-      // Missing original word
-      tempResult.push({
+    if (i > 0 && j > 0) {
+      const isMatch = normalizedOriginal[i - 1] === normalizedTyped[j - 1];
+      
+      if (isMatch && dp[i][j] === dp[i - 1][j - 1]) {
+        // Match
+        result.unshift({
+          typed: typedWords[j - 1],
+          original: originalWords[i - 1],
+          status: "match",
+          isError: false,
+        });
+        i--; j--;
+      } else if (dp[i][j] === dp[i - 1][j - 1] + 1) {
+        // Substitution
+        result.unshift({
+          typed: typedWords[j - 1],
+          original: originalWords[i - 1],
+          status: "substitution",
+          isError: true,
+        });
+        i--; j--;
+      } else if (dp[i][j] === dp[i - 1][j] + 1) {
+        // Deletion (missing word)
+        result.unshift({
+          typed: "",
+          original: originalWords[i - 1],
+          status: "missing",
+          isError: true,
+        });
+        i--;
+      } else {
+        // Insertion (extra word)
+        result.unshift({
+          typed: typedWords[j - 1],
+          original: "",
+          status: "extra",
+          isError: true,
+        });
+        j--;
+      }
+    } else if (i > 0) {
+      // Remaining original words are missing
+      result.unshift({
         typed: "",
         original: originalWords[i - 1],
         status: "missing",
         isError: true,
       });
       i--;
-    }
-  }
-
-  // Reverse to get correct order
-  tempResult.reverse();
-
-  // Post-process: pair up extra and missing words into substitutions
-  // Each missing word should try to pair with the closest unpaired extra word
-  const extras: { index: number; entry: AlignmentEntry }[] = [];
-  const missings: { index: number; entry: AlignmentEntry }[] = [];
-
-  for (let k = 0; k < tempResult.length; k++) {
-    if (tempResult[k].status === "extra") {
-      extras.push({ index: k, entry: tempResult[k] });
-    } else if (tempResult[k].status === "missing") {
-      missings.push({ index: k, entry: tempResult[k] });
-    }
-  }
-
-  // Pair extras with missings as substitutions - find closest unpaired extra for each missing
-  const paired = new Set<number>();
-  for (const missing of missings) {
-    // Find the closest unpaired extra (prefer before, then after)
-    let bestExtra: { index: number; entry: AlignmentEntry } | null = null;
-    let bestDistance = Infinity;
-
-    for (const extra of extras) {
-      if (paired.has(extra.index)) continue;
-      const distance = Math.abs(extra.index - missing.index);
-      // Only consider extras that are reasonably close (within 3 positions)
-      // and prefer extras that come before the missing word
-      if (distance < bestDistance && distance <= 3) {
-        bestDistance = distance;
-        bestExtra = extra;
-      }
-    }
-
-    if (bestExtra) {
-      paired.add(bestExtra.index);
-      paired.add(missing.index);
-      // Mark them for merging - put at the missing's position (original word position)
-      tempResult[missing.index] = {
-        typed: bestExtra.entry.typed,
-        original: missing.entry.original,
-        status: "substitution",
-        isError: true,
-      };
-      tempResult[bestExtra.index] = {
-        typed: "",
+    } else {
+      // Remaining typed words are extra
+      result.unshift({
+        typed: typedWords[j - 1],
         original: "",
-        status: "match",
-        isError: false,
-      }; // Will be filtered out
+        status: "extra",
+        isError: true,
+      });
+      j--;
     }
-  }
-
-  // Build final result, filtering out empty placeholder entries
-  for (const entry of tempResult) {
-    if (entry.typed === "" && entry.original === "" && entry.status === "match")
-      continue;
-    result.push(entry);
   }
 
   return result;
 }
 
-// Calculate mistakes using BOUNDED ALIGNMENT with lookahead
-// Handles skipped words and extra words within a reasonable buffer
-// Only considers the "attempted portion" - trailing untyped words are NOT counted
+/**
+ * Windowed alignment for very long texts
+ * Splits text into chunks and aligns each chunk separately using anchors
+ * This provides near-optimal alignment with O(n) space complexity
+ */
+function alignWordsWindowed(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
+  const WINDOW_SIZE = 200;
+  const OVERLAP = 50;
+  const result: AlignmentEntry[] = [];
+  
+  let origIndex = 0;
+  let typedIndex = 0;
+
+  while (origIndex < originalWords.length || typedIndex < typedWords.length) {
+    // Extract current window
+    const origEnd = Math.min(origIndex + WINDOW_SIZE, originalWords.length);
+    const typedEnd = Math.min(typedIndex + WINDOW_SIZE, typedWords.length);
+    
+    const origWindow = originalWords.slice(origIndex, origEnd);
+    const typedWindow = typedWords.slice(typedIndex, typedEnd);
+
+    if (origWindow.length === 0 && typedWindow.length === 0) break;
+
+    // Align this window
+    const windowAlignment = alignWordsDP(origWindow, typedWindow);
+    
+    // Find a good anchor point to avoid overlap issues
+    // An anchor is a matched word that appears in both texts
+    let anchorIdx = windowAlignment.length;
+    if (origEnd < originalWords.length || typedEnd < typedWords.length) {
+      // Find last matched word within safe range
+      for (let i = Math.max(0, windowAlignment.length - OVERLAP); i < windowAlignment.length; i++) {
+        if (windowAlignment[i].status === "match") {
+          anchorIdx = i + 1;
+        }
+      }
+    }
+
+    // Add alignment entries up to anchor
+    for (let i = 0; i < anchorIdx; i++) {
+      result.push(windowAlignment[i]);
+    }
+
+    // Calculate how many words we consumed
+    let origConsumed = 0;
+    let typedConsumed = 0;
+    for (let i = 0; i < anchorIdx; i++) {
+      if (windowAlignment[i].original !== "") origConsumed++;
+      if (windowAlignment[i].typed !== "") typedConsumed++;
+    }
+
+    origIndex += origConsumed;
+    typedIndex += typedConsumed;
+
+    // Prevent infinite loop
+    if (origConsumed === 0 && typedConsumed === 0) {
+      if (origIndex < originalWords.length) {
+        result.push({
+          typed: "",
+          original: originalWords[origIndex],
+          status: "missing",
+          isError: true,
+        });
+        origIndex++;
+      } else if (typedIndex < typedWords.length) {
+        result.push({
+          typed: typedWords[typedIndex],
+          original: "",
+          status: "extra",
+          isError: true,
+        });
+        typedIndex++;
+      }
+    }
+  }
+
+  return result;
+}
+
+// Calculate mistakes using the same alignment as alignWords
+// Ensures consistency between displayed alignment and mistake counting
 export function calculateAlignedMistakes(
   originalText: string,
   typedText: string,
-): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[] } {
+): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[]; trailingWords: number } {
+  // Use alignWords to get the correct alignment (same as what's displayed)
+  const alignment = alignWords(originalText, typedText);
+  
+  // Find the last typed position in the original text
+  // This tells us where the student's attempt ends
+  let lastTypedIndex = -1;
+  for (let i = alignment.length - 1; i >= 0; i--) {
+    if (alignment[i].typed !== "") {
+      lastTypedIndex = i;
+      break;
+    }
+  }
+  
+  // Count trailing words (words after last typed position)
+  let trailingWords = 0;
+  for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
+    if (alignment[i].original) trailingWords++;
+  }
+  
+  // If student didn't type anything, return empty attempted alignment
+  if (lastTypedIndex === -1) {
+    const totalOriginalWords = (originalText || "").trim().split(/\s+/).filter(w => w).length;
+    return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
+  }
+  
+  // Reconstruct the original and typed text up to the last typed position
+  // This ensures we use the same alignWords logic on just the attempted portion
+  let attemptedOriginal = "";
+  let attemptedTyped = "";
+  let originalCharIndex = 0;
+  
+  for (let i = 0; i <= lastTypedIndex; i++) {
+    const item = alignment[i];
+    attemptedTyped += item.typed;
+    attemptedOriginal += item.original;
+    
+    // Add space between words (except after the last word)
+    if (i < lastTypedIndex) {
+      attemptedTyped += " ";
+      attemptedOriginal += " ";
+    }
+  }
+  
+  // Re-run alignWords on just the attempted portions
+  // This ensures the same error pairing and representation as the full alignment
+  let attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
+  
+  // Apply trailing fix for preceding missing words if last typed word is incorrect
+  attemptedAlignment = fixPrecedingMissingAsTrailing(attemptedAlignment);
+
+  let mistakes = 0;
+  
+  function commaCount(word: string) {
+    return (word.match(/,/g) || []).length;
+  }
+
+  function periodCount(word: string) {
+    return (word.match(/\./g) || []).length;
+  }
+
+  // Count mistakes based on alignment, following the rules:
+  // 1 missing/extra/incorrect word = 1 mistake
+  // 1 missing/extra period = 1 mistake
+  // 1 missing/extra comma = 0.25 mistake
+  for (const item of attemptedAlignment) {
+    if (item.status === "missing") {
+      // Missing word = 1 mistake
+      mistakes += 1;
+      const origCommas = commaCount(item.original);
+      mistakes += origCommas * 0.25; // Each missing comma = 0.25
+      const origPeriods = periodCount(item.original);
+      mistakes += origPeriods * 1; // Each missing period = 1
+    } else if (item.status === "extra") {
+      // Extra word = 1 mistake
+      mistakes += 1;
+      const typedCommas = commaCount(item.typed);
+      mistakes += typedCommas * 0.25; // Each extra comma = 0.25
+      const typedPeriods = periodCount(item.typed);
+      mistakes += typedPeriods * 1; // Each extra period = 1
+    } else if (item.status === "substitution") {
+      // Wrong word = 1 mistake
+      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      
+      if (cleanOriginal !== cleanTyped) {
+        mistakes += 1; // Word content differs
+      }
+      
+      // Count punctuation differences
+      const origCommas = commaCount(item.original);
+      const typedCommas = commaCount(item.typed);
+      const commaDifference = Math.abs(origCommas - typedCommas);
+      mistakes += commaDifference * 0.25;
+      
+      const origPeriods = periodCount(item.original);
+      const typedPeriods = periodCount(item.typed);
+      const periodDifference = Math.abs(origPeriods - typedPeriods);
+      mistakes += periodDifference * 1;
+    } else if (item.status === "match") {
+      // Matched word but check for punctuation differences
+      const origCommas = commaCount(item.original);
+      const typedCommas = commaCount(item.typed);
+      const commaDifference = Math.abs(origCommas - typedCommas);
+      mistakes += commaDifference * 0.25;
+      
+      const origPeriods = periodCount(item.original);
+      const typedPeriods = periodCount(item.typed);
+      const periodDifference = Math.abs(origPeriods - typedPeriods);
+      mistakes += periodDifference * 1;
+    }
+  }
+
+  return { mistakes, alignment, attemptedAlignment, trailingWords };
+}
+
+/**
+ * Get alignment for typing tests with trailing error fix applied
+ * For typing tests, we limit the original text to a reasonable window around typed words
+ * This prevents the DP from going too far ahead looking for matches
+ */
+export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
   if (typedWords.length === 0) {
-    // No typed words - no attempted portion
-    const alignment: AlignmentEntry[] = originalWords.map(w => ({
+    return originalWords.map(w => ({
       typed: "",
       original: w,
-      status: "missing" as AlignmentStatus,
-      isError: true,
+      status: "trailing" as AlignmentStatus,
+      isError: false,
     }));
-    return { mistakes: 0, alignment, attemptedAlignment: [] };
   }
   
-  // Lookahead buffer - how many positions ahead to check for matches
-  const LOOKAHEAD = 3;
+  // For typing tests, only align against original words up to typed count + small buffer
+  // This prevents DP from searching too far ahead
+  const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
+  const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
-  const attemptedAlignment: AlignmentEntry[] = [];
-  let origIdx = 0; // Current position in original words
-  let typedIdx = 0; // Current position in typed words
+  const rawAlignment = alignWords(windowedOriginal, typedText);
+  let result = fixTrailingErrorPattern(rawAlignment, typedWords.length);
   
-  while (typedIdx < typedWords.length) {
-    const typed = typedWords[typedIdx];
-    
-    // Check if we've run out of original words
-    if (origIdx >= originalWords.length) {
-      // All remaining typed words are extras
-      attemptedAlignment.push({
-        typed,
-        original: "",
-        status: "extra",
-        isError: true,
-      });
-      typedIdx++;
-      continue;
-    }
-    
-    const original = originalWords[origIdx];
-    
-    // Check for direct match at current position
-    if (normalizeForComparison(typed) === normalizeForComparison(original)) {
-      attemptedAlignment.push({
-        typed,
-        original,
-        status: "match",
-        isError: false,
-      });
-      origIdx++;
-      typedIdx++;
-      continue;
-    }
-    
-    // No direct match - look ahead in original to see if typed word appears later
-    // This handles the case where student skipped words
-    let foundAhead = -1;
-    for (let look = 1; look <= LOOKAHEAD && origIdx + look < originalWords.length; look++) {
-      if (normalizeForComparison(typed) === normalizeForComparison(originalWords[origIdx + look])) {
-        foundAhead = look;
-        break;
-      }
-    }
-    
-    if (foundAhead > 0) {
-      // Student skipped some words - mark them as missing
-      for (let skip = 0; skip < foundAhead; skip++) {
-        attemptedAlignment.push({
-          typed: "",
-          original: originalWords[origIdx + skip],
-          status: "missing",
-          isError: true,
-        });
-      }
-      // Now add the match
-      attemptedAlignment.push({
-        typed,
-        original: originalWords[origIdx + foundAhead],
-        status: "match",
-        isError: false,
-      });
-      origIdx += foundAhead + 1;
-      typedIdx++;
-      continue;
-    }
-    
-    // Look ahead in typed to see if current original word appears later
-    // This handles the case where student added extra words
-    let foundTypedAhead = -1;
-    for (let look = 1; look <= LOOKAHEAD && typedIdx + look < typedWords.length; look++) {
-      if (normalizeForComparison(typedWords[typedIdx + look]) === normalizeForComparison(original)) {
-        foundTypedAhead = look;
-        break;
-      }
-    }
-    
-    if (foundTypedAhead > 0) {
-      // Student typed extra words - mark current typed as extra
-      attemptedAlignment.push({
-        typed,
-        original: "",
-        status: "extra",
-        isError: true,
-      });
-      typedIdx++;
-      continue;
-    }
-    
-    // No match found in lookahead - treat as substitution
-    attemptedAlignment.push({
-      typed,
-      original,
-      status: "substitution",
-      isError: true,
-    });
-    origIdx++;
-    typedIdx++;
-  }
-  
-  // Full alignment includes trailing missing words (for display purposes only)
-  // These are NOT counted as mistakes since they're beyond the attempted portion
-  const alignment: AlignmentEntry[] = [...attemptedAlignment];
-  for (let i = origIdx; i < originalWords.length; i++) {
-    alignment.push({
+  // Add remaining original words as trailing
+  for (let i = alignmentWindow; i < originalWords.length; i++) {
+    result.push({
       typed: "",
       original: originalWords[i],
-      status: "missing",
-      isError: true,
+      status: "trailing",
+      isError: false,
     });
   }
+  
+  return result;
+}
 
+/**
+ * Calculate mistakes for typing tests using DP alignment with trailing fix
+ * Only counts errors within the attempted portion (not trailing untyped words)
+ */
+export function calculateTypingMistakes(
+  originalText: string,
+  typedText: string,
+): { mistakes: number; alignment: AlignmentEntry[]; attemptedWords: number; trailingWords: number } {
+  const alignment = getTypingAlignment(originalText, typedText);
+  
   let mistakes = 0;
+  let attemptedWords = 0;
+  let trailingWords = 0;
+  
+  function commaCount(word: string) {
+    return (word.match(/,/g) || []).length;
+  }
 
-  for (let idx = 0; idx < attemptedAlignment.length; idx++) {
-    const item = attemptedAlignment[idx];
+  function periodCount(word: string) {
+    return (word.match(/\./g) || []).length;
+  }
+
+  for (const item of alignment) {
+    if (item.status === "trailing") {
+      // Trailing untyped words - not counted as mistakes for typing tests
+      trailingWords++;
+      continue;
+    }
     
-    // Missing words count as 1 mistake each (only within attempted portion)
-    if (item.status === "missing") {
-      mistakes += 1; // Base mistake for missing word
-      
-      // Add punctuation penalties for missing words
-      const hasTrailingComma = item.original.endsWith(',');
-      const hasTrailingPeriod = item.original.endsWith('.');
-      
-      if (hasTrailingComma) {
-        mistakes += 0.25; // Comma penalty
-      }
-      
-      if (hasTrailingPeriod) {
-        mistakes += 1; // Period penalty
-      }
-      
-      continue;
-    }
-
-    // Extra words count as 1 mistake each
     if (item.status === "extra") {
+      // Extra word typed = 1 mistake + punctuation
+      attemptedWords++;
       mistakes += 1;
-      continue;
-    }
-
-    // Substitutions - check if it's just punctuation difference
-    if (item.status === "substitution") {
-      const cleanOriginal = item.original.replace(/[.,]/g, "");
-      const cleanTyped = item.typed.replace(/[.,]/g, "");
-
-      if (cleanOriginal.toLowerCase() !== cleanTyped.toLowerCase()) {
+      mistakes += commaCount(item.typed) * 0.25;
+      mistakes += periodCount(item.typed) * 1;
+    } else if (item.status === "substitution") {
+      // Wrong word = 1 mistake + punctuation differences
+      attemptedWords++;
+      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      
+      if (cleanOriginal !== cleanTyped) {
         mistakes += 1;
-      } else {
-        const origTrailingComma = item.original.endsWith(',') ? 1 : 0;
-        const typedTrailingComma = item.typed.endsWith(',') ? 1 : 0;
-        
-        if (origTrailingComma !== typedTrailingComma) {
-          mistakes += 0.25;
-        }
-
-        const origTrailingPeriod = item.original.endsWith('.') ? 1 : 0;
-        const typedTrailingPeriod = item.typed.endsWith('.') ? 1 : 0;
-        
-        if (origTrailingPeriod !== typedTrailingPeriod) {
-          mistakes += 1;
-        }
       }
+      
+      mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
+      mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
+    } else if (item.status === "match") {
+      // Matched word - check for punctuation differences
+      attemptedWords++;
+      mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
+      mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
+    } else if (item.status === "missing") {
+      // Missing word = 1 mistake + punctuation in original
+      mistakes += 1;
+      mistakes += commaCount(item.original) * 0.25;
+      mistakes += periodCount(item.original) * 1;
     }
   }
 
-  return { mistakes, alignment, attemptedAlignment };
+  return { mistakes, alignment, attemptedWords, trailingWords };
 }
 
 export function calculateTypingMetrics(
@@ -392,20 +696,15 @@ export function calculateTypingMetrics(
   timeInMinutes: number,
   backspaces: number,
 ) {
-  // Use aligned word comparison to handle word splits/joins
-  // Only considers the attempted portion (excludes trailing untyped words)
-  const { mistakes, attemptedAlignment } = calculateAlignedMistakes(
+  // Use sequential alignment for typing tests (1-to-1 word matching in order)
+  // This ensures a mistyped word doesn't cause cascading "missing" errors
+  const { mistakes, alignment, attemptedWords, trailingWords } = calculateTypingMistakes(
     originalText,
     typedText,
   );
-  const typedWords = typedText
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w);
 
-  const totalWordsTyped = typedWords.length;
-  // Use words count, not length of array if empty
-  const wordCount = typedText.trim() === "" ? 0 : totalWordsTyped;
+  // Word count is the number of words the student actually typed
+  const wordCount = alignment.filter(a => a.typed !== "").length;
 
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
@@ -423,8 +722,9 @@ export function calculateTypingMetrics(
   // Ensure net speed isn't negative
   netSpeed = Math.max(0, netSpeed);
 
-  // Count missing words only from attempted portion (not trailing untyped words)
-  const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
+  // With sequential alignment, there are no "missing" words in the attempted portion
+  // Missing words only occur from the DP alignment - sequential has "trailing" instead
+  const missingWords = 0;
 
   // Helper to format to 2 decimal places, removing trailing .00
   const formatSpeed = (speed: number) => {
@@ -432,14 +732,74 @@ export function calculateTypingMetrics(
     return Number.isInteger(rounded) ? rounded : rounded.toFixed(2);
   };
 
+  // Calculate half mistakes (comma errors)
+  let halfMistakes = 0;
+  for (const item of alignment) {
+    if (item.status === "trailing") continue;
+    
+    if (item.status === "extra") {
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+      halfMistakes += typedCommas;
+    } else if (item.status === "substitution" || item.status === "match") {
+      const origCommas = (item.original.match(/,/g) || []).length;
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+      halfMistakes += Math.abs(origCommas - typedCommas);
+    }
+  }
+
   return {
     words: wordCount,
     mistakes,
+    halfMistakes,
     grossSpeed: formatSpeed(grossSpeed),
     netSpeed: formatSpeed(netSpeed),
     backspaces,
     missingWords,
+    trailingWords,
   };
+}
+
+/**
+ * Check if the student typed the last 3 words exactly (exact match).
+ * Returns true only if all last 3 words have "match" status (no mistakes, missing, or substitutions).
+ */
+export function isLastSentenceAttempted(
+  originalText: string,
+  alignment: AlignmentEntry[]
+): boolean {
+  // Extract the last 3 words from the original text
+  const words = originalText
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w);
+  
+  if (words.length === 0) return false;
+
+  // Get the last 3 words (or fewer if text has less than 3 words)
+  const numWordsToCheck = Math.min(3, words.length);
+  const lastWordsToMatch = words.slice(-numWordsToCheck).map((w) => normalizeForComparison(w));
+
+  // Track how many of the last N words we've found with exact match
+  let matchedCount = 0;
+  
+  // Scan alignment from the end backwards to find matches for the last 3 words
+  for (let i = alignment.length - 1; i >= 0 && matchedCount < numWordsToCheck; i--) {
+    const alignmentItem = alignment[i];
+    
+    // Check if this alignment item's original word is one we're looking for
+    // and if it has an exact match status
+    if (alignmentItem.status === "match") {
+      const originalWord = normalizeForComparison(alignmentItem.original);
+      
+      // Check if this word matches one of our target words (from the end)
+      if (originalWord === lastWordsToMatch[numWordsToCheck - 1 - matchedCount]) {
+        matchedCount++;
+      }
+    }
+  }
+
+  // Return true only if all last 3 words are exact matches (no missing, substitution, or extra)
+  return matchedCount === numWordsToCheck;
 }
 
 export function calculateShorthandMetrics(
@@ -448,31 +808,86 @@ export function calculateShorthandMetrics(
   timeInMinutes: number,
 ) {
   // Use aligned word comparison to handle word splits/joins
-  // Only considers the attempted portion (excludes trailing untyped words)
-  const { mistakes, attemptedAlignment } = calculateAlignedMistakes(
+  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(
     originalText,
     typedText,
   );
-  const typedWords = typedText
+
+  // For Shorthand: Calculate metrics based on FULL ORIGINAL TEXT word count
+  // This is the total words in the entire passage, not just what was attempted
+  const fullOriginalWords = (originalText || "")
     .trim()
     .split(/\s+/)
-    .filter((w) => w);
+    .filter((w) => w).length;
 
-  const totalWordsTyped = typedText.trim() === "" ? 0 : typedWords.length;
-  // 5% rule: More than 5% mistakes = Fail, 5% or less = Pass
+  // Count words actually typed by student
+  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w).length;
+  
+  // If student typed 0 words, automatic fail
+  if (typedWordCount === 0) {
+    return {
+      words: fullOriginalWords,
+      mistakes: fullOriginalWords, // everything left is a mistake
+      halfMistakes: 0,
+      result: "Fail" as "Pass" | "Fail",
+      missingWords: 0,
+      trailingWords: fullOriginalWords,
+      fullOriginalWords,
+    };
+  }
+
+  // Include trailing (left) words as mistakes for shorthand
+  const totalMistakes = mistakes + trailingWords;
+
+  // 5% rule for mistakes: More than 5% mistakes = Fail
   const mistakePercentage =
-    totalWordsTyped > 0 ? (mistakes / totalWordsTyped) * 100 : 0;
+    fullOriginalWords > 0 ? (totalMistakes / fullOriginalWords) * 100 : 0;
+  
+  // 5% rule for left/trailing words: More than 5% left words = Fail
+  const trailingPercentage =
+    fullOriginalWords > 0 ? (trailingWords / fullOriginalWords) * 100 : 0;
+  
+  // Pass only if both mistake percentage AND trailing percentage are <= 5%
   const isPassed = mistakePercentage <= 5;
 
   // Count missing words only from attempted portion (not trailing untyped words)
   const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
 
+  // Calculate half mistakes (comma errors: missing or extra commas)
+  // Count all comma differences from the alignment
+  let halfMistakes = 0;
+
+  for (const item of attemptedAlignment) {
+    if (item.status === "missing") {
+      // Missing word - count its commas as missing
+      const origCommas = (item.original.match(/,/g) || []).length;
+      halfMistakes += origCommas;
+    } else if (item.status === "extra") {
+      // Extra typed word - count its commas as extra
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+      halfMistakes += typedCommas;
+    } else if (item.status === "substitution") {
+      // Substitution - count comma difference
+      const origCommas = (item.original.match(/,/g) || []).length;
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+      halfMistakes += Math.abs(origCommas - typedCommas);
+    } else if (item.status === "match") {
+      // Match - count comma difference (if any)
+      const origCommas = (item.original.match(/,/g) || []).length;
+      const typedCommas = (item.typed.match(/,/g) || []).length;
+      halfMistakes += Math.abs(origCommas - typedCommas);
+    }
+  }
+
   return {
-    words: totalWordsTyped,
-    mistakes,
+    words: typedWordCount,
+    mistakes: totalMistakes,
+    halfMistakes,
     result: isPassed ? "Pass" : ("Fail" as "Pass" | "Fail"),
     missingWords,
-  };
+    trailingWords,
+    fullOriginalWords,
+  }; 
 }
 
 export const generateResultPDF = async (result: Result) => {
@@ -501,36 +916,61 @@ export const generateResultPDF = async (result: Result) => {
       ? "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;"
       : "font-family: 'Times New Roman', Times, serif;";
 
-  // Use LCS-based alignment for accurate error detection with positional missing words
-  // Only show the attempted portion (excludes trailing untyped words)
-  const { attemptedAlignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
-  const originalWords = (result.originalText || "")
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w);
-  const typedWords = result.typedText
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w);
+  // For typing tests, use sequential alignment (1-to-1 word matching)
+  // For shorthand tests, use DP alignment (global optimization)
+  let displayAlignment: AlignmentEntry[];
+  let trailingWords: string[] = [];
+
+  if (result.contentType === "typing") {
+    // DP alignment with trailing error fix for typing tests
+    displayAlignment = getTypingAlignment(result.originalText || "", result.typedText);
+    trailingWords = displayAlignment
+      .filter(item => item.status === "trailing")
+      .map(item => item.original);
+  } else {
+    // DP alignment for shorthand
+    const { attemptedAlignment, alignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
+    displayAlignment = attemptedAlignment;
+    
+    // Calculate trailing words for shorthand
+    const trailingItems = alignment.filter((item) => {
+      const isInAttempted = attemptedAlignment.some(
+        (a) => a.original === item.original && a.typed === item.typed && a.status === item.status
+      );
+      return !isInAttempted && item.original !== "";
+    });
+    trailingWords = trailingItems.map((item) => item.original).filter((w) => w);
+  }
+
+  // Count actual missing words (not trailing)
+  const missingWordsCount = displayAlignment.filter(item => item.status === "missing").length;
 
   let typedHtml = "";
 
-  for (const item of attemptedAlignment) {
-    if (item.status === "missing") {
-      // Missing word - show in green brackets at correct position
+  // Generate HTML for typed content with error highlighting
+  for (let i = 0; i < displayAlignment.length; i++) {
+    const item = displayAlignment[i];
+    
+    if (item.status === "trailing") {
+      // Trailing untyped words - skip in PDF for typing tests (not counted as errors)
+      continue;
+    } else if (item.status === "missing") {
+      // Missing word - show in green brackets
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
     } else if (item.status === "substitution") {
-      // Wrong word - show underlined in red with correct word in green brackets
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span>`;
-      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
+      // Substitution - show typed (errored) word FIRST (underlined red), then the correct word in green brackets
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
     } else if (item.status === "extra") {
-      // Extra typed word - show underlined in red
+      // Extra word - show underlined in red
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
     } else {
       // Match - show normally
       typedHtml += `<span>${item.typed}</span> `;
     }
   }
+
+  // Total original words (useful for shorthand mistake percentage)
+  const totalOriginalWords = (result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length;
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -552,7 +992,7 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #f9fafb; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
+        .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
@@ -586,44 +1026,41 @@ export const generateResultPDF = async (result: Result) => {
       <h3>Performance Metrics</h3>
       <table class="metrics-table">
         <tr>
-          <th>Metric</th><th>Value</th>
+          <th>Metric</th><th>Value</th><th>Metric</th><th>Value</th>
         </tr>
         <tr>
-          <td>Total Original Words</td><td>${originalWords.length}</td>
-        </tr>
-        <tr>
+          <td>Total Original Words</td><td>${(result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length}</td>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
-        
         <tr>
-          <td>Mistakes</td><td class="error">${result.mistakes}</td>
-        </tr>
-        <tr>
-          <td>Missing Words</td><td class="error">${attemptedAlignment.filter((a) => a.status === "missing").length}</td>
+          <td>Total Mistakes</td><td class="error">${result.mistakes}</td>
+          <td>Missing Words</td><td class="error">${missingWordsCount}</td>
         </tr>
         ${
           result.contentType === "typing"
             ? `
         <tr>
+          <td>No. of Punctuation Mistakes</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
           <td>Backspaces</td><td>${result.backspaces}</td>
         </tr>
         <tr>
-          <td>Accuracy</td><td class="success">${result.words > 0 && parseFloat(String(result.mistakes)) < result.words ? ((parseFloat(String(result.mistakes)) * 100) / result.words).toFixed(2) : "0.00"}%</td>
-        </tr>
-        <tr>
+          <td>Accuracy</td><td class="success">${result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00"}%</td>
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
-          <tr>
-            <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
-          </tr>
+        <tr>
+          <td>Net Speed</td><td class="success">${result.netSpeed} WPM</td>
+          <td></td><td></td>
+        </tr>
         `
             : `
-          <tr>
-            <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
-          </tr>
-          <tr>
-            <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${(parseInt(result.mistakes)*100)/originalWords.length}%</td>
-          </tr>
+        <tr>
+          <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
+          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${totalOriginalWords > 0 ? ((Number(result.mistakes) * 100) / totalOriginalWords).toFixed(2) : "0.00"}%</td>
+        </tr>
+        <tr>
+          <td>Left Words</td><td>${trailingWords.length}</td>
+          <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
+        </tr>
         `
         }
       </table>

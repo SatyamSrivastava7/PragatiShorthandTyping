@@ -19,8 +19,12 @@ import {
   useSettings,
   useGallery,
   useSelectedCandidates,
-  useDictations,
+  useTestFolders,
+  useDeleteTestFolder,
 } from "@/lib/hooks";
+import { useNotices } from "@/lib/hooks/useNotice";
+import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
+import { contentApi } from "@/lib/api";
 import type { User, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +53,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
@@ -56,6 +61,7 @@ import {
   Search,
   FileUp,
   Eye,
+  Edit,
   FolderPlus,
   Upload,
   Music,
@@ -71,6 +77,9 @@ import {
   Keyboard,
   Menu,
   RefreshCw,
+  ChevronDown,
+  Bell,
+  Star,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -81,12 +90,80 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Spinner } from "@/components/ui/spinner";
 import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
+import { FolderSelector } from "@/components/FolderSelector";
 import { queryClient } from "@/lib/queryClient";
 
-// Preview Dialog Component - Loads full content on-demand (including text and mediaUrl)
+// Delete Folder Button Component
+function DeleteFolderButton({ 
+  folderId, 
+  onDeleteSuccess 
+}: { 
+  folderId: number; 
+  onDeleteSuccess: () => void;
+}) {
+  const deleteMutation = useDeleteTestFolder();
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(folderId);
+      onDeleteSuccess();
+      setShowConfirm(false);
+    } catch (error) {
+      // Error handling is done in the mutation hook
+    }
+  };
+
+  if (showConfirm) {
+    return (
+      <div className="flex gap-2">
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+        >
+          {deleteMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Deleting...
+            </>
+          ) : (
+            <>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Confirm Delete
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowConfirm(false)}
+          disabled={deleteMutation.isPending}
+        >
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="destructive"
+      size="sm"
+      onClick={() => setShowConfirm(true)}
+    >
+      <Trash2 className="h-4 w-4 mr-2" />
+      Delete Folder
+    </Button>
+  );
+}
+
+// Preview Dialog Component - Loads full content on-demand (including text and audioUrl)
 // Only fetches when dialog is actually opened to avoid loading all audio files
 function PreviewDialog({ contentId, title }: { contentId: number; title: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -112,11 +189,6 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           ) : (
             <>
               <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
-              {fullContent?.mediaUrl && (
-                <div className="mt-2 text-xs text-blue-600 flex items-center gap-1">
-                  <Music size={12} /> Audio Attached
-                </div>
-              )}
             </>
           )}
         </div>
@@ -125,21 +197,334 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
   );
 }
 
+// Edit Test Modal Component
+interface EditTestModalProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  testId: number | null;
+  content: any[];
+  editTitle: string;
+  setEditTitle: (title: string) => void;
+  editDuration: string;
+  setEditDuration: (duration: string) => void;
+  editDateFor: string;
+  setEditDateFor: (date: string) => void;
+  editLanguage: 'english' | 'hindi';
+  setEditLanguage: (lang: 'english' | 'hindi') => void;
+  editTextContent: string;
+  setEditTextContent: (text: string) => void;
+  editAutoScroll: boolean;
+  setEditAutoScroll: (scroll: boolean) => void;
+  editVideo60wpmLink: string;
+  setEditVideo60wpmLink: (link: string) => void;
+  editVideo80wpmLink: string;
+  setEditVideo80wpmLink: (link: string) => void;
+  editVideo100wpmLink: string;
+  setEditVideo100wpmLink: (link: string) => void;
+  editVideo120wpmLink: string;
+  setEditVideo120wpmLink: (link: string) => void;
+  editSelectedTestFolderId: number | null;
+  setEditSelectedTestFolderId: (folderId: number | null) => void;
+  isEditingTest: boolean;
+  isLoadingTestData: boolean;
+  onSubmit: (e: React.FormEvent) => Promise<void>;
+}
+
+function EditTestModalComponent({
+  isOpen,
+  onOpenChange,
+  testId,
+  content,
+  editTitle,
+  setEditTitle,
+  editDuration,
+  setEditDuration,
+  editDateFor,
+  setEditDateFor,
+  editLanguage,
+  setEditLanguage,
+  editTextContent,
+  setEditTextContent,
+  editAutoScroll,
+  setEditAutoScroll,
+  editVideo60wpmLink,
+  setEditVideo60wpmLink,
+  editVideo80wpmLink,
+  setEditVideo80wpmLink,
+  editVideo100wpmLink,
+  setEditVideo100wpmLink,
+  editVideo120wpmLink,
+  setEditVideo120wpmLink,
+  editSelectedTestFolderId,
+  setEditSelectedTestFolderId,
+  isEditingTest,
+  isLoadingTestData,
+  onSubmit,
+}: EditTestModalProps) {
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Keyboard className="h-5 w-5 text-blue-600" />
+            </div>
+            Edit Test
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoadingTestData ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+            <span className="text-muted-foreground">Loading test details...</span>
+          </div>
+        ) : (
+        <form onSubmit={onSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Test Title</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Enter title"
+                required
+                className="bg-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Schedule Date</Label>
+              <Input
+                type="date"
+                value={editDateFor}
+                onChange={(e) => setEditDateFor(e.target.value)}
+                required
+                className="bg-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Language</Label>
+              <Select
+                value={editLanguage}
+                onValueChange={(v: any) => setEditLanguage(v)}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="english">English</SelectItem>
+                  <SelectItem value="hindi">Hindi (Mangal)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Duration (2-60 min)
+              </Label>
+              <Select value={editDuration} onValueChange={setEditDuration}>
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="2">2 Minutes</SelectItem>
+                  <SelectItem value="4">4 Minutes</SelectItem>
+                  <SelectItem value="5">5 Minutes</SelectItem>
+                  <SelectItem value="10">10 Minutes</SelectItem>
+                  <SelectItem value="15">15 Minutes</SelectItem>
+                  <SelectItem value="20">20 Minutes</SelectItem>
+                  <SelectItem value="25">25 Minutes</SelectItem>
+                  <SelectItem value="30">30 Minutes</SelectItem>
+                  <SelectItem value="35">35 Minutes</SelectItem>
+                  <SelectItem value="40">40 Minutes</SelectItem>
+                  <SelectItem value="45">45 Minutes</SelectItem>
+                  <SelectItem value="50">50 Minutes</SelectItem>
+                  <SelectItem value="55">55 Minutes</SelectItem>
+                  <SelectItem value="60">60 Minutes</SelectItem>
+                  <SelectItem value="70">70 Minutes</SelectItem>
+                  <SelectItem value="80">80 Minutes</SelectItem>
+                  <SelectItem value="90">90 Minutes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {testId && content.find(c => c.id === testId)?.type === 'typing' && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Auto-scroll</Label>
+              <div className="flex items-center gap-2 h-9">
+                <Switch
+                  id="edit-auto-scroll"
+                  checked={editAutoScroll}
+                  onCheckedChange={setEditAutoScroll}
+                />
+                <Label
+                  htmlFor="edit-auto-scroll"
+                  className="text-sm text-muted-foreground"
+                >
+                  {editAutoScroll ? "Enabled" : "Disabled"}
+                </Label>
+              </div>
+            </div>
+            )}
+          </div>
+
+          {/* Folder Selector */}
+          <FolderSelector
+            language={editLanguage}
+            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" || "typing"}
+            selectedFolderId={editSelectedTestFolderId}
+            onFolderSelect={setEditSelectedTestFolderId}
+          />
+
+          {/* Video link section for shorthand tests */}
+          {testId && content.find(c => c.id === testId)?.type === 'shorthand' && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+              <h3 className="font-medium text-blue-900 flex items-center gap-2">
+                <Keyboard className="h-4 w-4" />
+                YouTube Video Links (Optional)
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    60 WPM Video Link
+                  </Label>
+                  <Input
+                    type="url"
+                    value={editVideo60wpmLink}
+                    onChange={(e) => setEditVideo60wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    80 WPM Video Link
+                  </Label>
+                  <Input
+                    type="url"
+                    value={editVideo80wpmLink}
+                    onChange={(e) => setEditVideo80wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    100 WPM Video Link
+                  </Label>
+                  <Input
+                    type="url"
+                    value={editVideo100wpmLink}
+                    onChange={(e) => setEditVideo100wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    120 WPM Video Link
+                  </Label>
+                  <Input
+                    type="url"
+                    value={editVideo120wpmLink}
+                    onChange={(e) => setEditVideo120wpmLink(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="bg-white mt-1"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Content Text (Transcript)
+            </Label>
+            <Textarea
+              value={editTextContent}
+              onChange={(e) => setEditTextContent(e.target.value)}
+              placeholder="Edit the text content here..."
+              className={cn(
+                "min-h-[200px] font-mono bg-white border-2 focus:border-primary/50",
+                editLanguage === "hindi" ? "font-mangal" : "",
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              {editTextContent.split(/\s+/).filter(Boolean).length} words |{" "}
+              {editTextContent.length} characters
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isEditingTest}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isEditingTest}
+              className="bg-gradient-to-r from-blue-500 to-blue-600"
+            >
+              {isEditingTest ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" /> Update Test
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminDashboard() {
   usePrefetchContent();
+
+  // Declare activeTab first so it can be used in hooks
+  const [activeTab, setActiveTab] = useState("students");
+  const [gallerySubTab, setGallerySubTab] = useState("gallery_images");
+
+  // PDF Store State - declare early for usePdf hook
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  
+  // Track if results tab has been visited to prevent initial load
+  const [hasVisitedResults, setHasVisitedResults] = useState(false);
+  
+  // Gallery featured images selection
+  const [selectedImageIds, setSelectedImageIds] = useState<number[]>([]);
+
   const {
     content,
     createContent,
     createContentWithFile,
     toggleContent,
     deleteContent,
+    updateContent,
     isLoading: isContentLoading,
     error: contentError,
     isCreating,
     isCreatingWithFile,
   } = useContent();
-  const { results, deleteResult } = useResults();
-  const { users, updateUser, deleteUser } = useUsers();
+  const { results: typingResults, counts, isLoading: isResultsLoading, refetchResults, fetchNextPage: fetchNextTyping, isFetchingNextPage: isFetchingNextTyping, hasNextPage: hasNextTyping } = useResults(
+    undefined,
+    activeTab === "results" && hasVisitedResults,
+    { type: 'typing', limit: 50 }
+  );
+  const { results: shorthandResults, fetchNextPage: fetchNextShorthand, isFetchingNextPage: isFetchingNextShorthand, hasNextPage: hasNextShorthand } = useResults(
+    undefined,
+    activeTab === "results" && hasVisitedResults,
+    { type: 'shorthand', limit: 50 }
+  );
+  const { deleteResult } = useResults(undefined, false);
+  const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
     folders: pdfFolders,
     resources: pdfResources,
@@ -147,24 +532,52 @@ export default function AdminDashboard() {
     createResource: addPdfResource,
     deleteResource: deletePdfResource,
     deleteFolder: deletePdfFolder,
-  } = usePdf();
+  } = usePdf(true, selectedFolderId?.toString());
   const { settings, updateSettings } = useSettings();
   const {
     images: galleryImages,
+    imagesWithId: galleryImagesWithId,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
     addImage: addGalleryImage,
+    isLoading: isGalleryLoading,
     deleteImage: removeGalleryImage,
-  } = useGallery();
+  } = useGallery(activeTab === "gallery");
+  const { featuredImages, updateImageOrder: updateFeaturedImageOrder, isUpdating: isUpdatingFeaturedOrder } = useFeaturedGallery(activeTab === "gallery");
+  
+  // Get unique languages from content to minimize API calls
+  const contentLanguages = Array.from(new Set(content.map(c => c.language || 'english'))) as Array<'english' | 'hindi'>;
+  
+  // Get unique types from content to minimize API calls
+  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand'>;
+  
+  // Only fetch test folders for languages and types that have content
+  // This avoids unnecessary API calls
+  const { data: englishTypingFolders = [] } = useTestFolders('english', 'typing');
+  const { data: englishShorthandFolders = [] } = useTestFolders('english', 'shorthand');
+  const { data: hindiTypingFolders = [] } = useTestFolders('hindi', 'typing');
+  const { data: hindiShorthandFolders = [] } = useTestFolders('hindi', 'shorthand');
+  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...hindiTypingFolders, ...hindiShorthandFolders];
+  
+  // Helper function to get folder name by ID (with memoization to avoid recalculating)
+  const getFolderNameById = (folderId: number | null | undefined): string => {
+    if (!folderId) return '-';
+    const folder = allTestFolders.find(f => f.id === folderId);
+    return folder?.name || `Folder #${folderId}`;
+  };
+  
   const {
     candidates: selectedCandidates,
+    hasNextPage: hasNextCandidate,
+    fetchNextPage: fetchNextCandidate,
+    isFetchingNextPage: isFetchingNextCandidate,
+    isLoading: isCandidatesLoading,
     addCandidate: addSelectedCandidate,
     deleteCandidate: removeSelectedCandidate,
-  } = useSelectedCandidates();
-  const {
-    dictations,
-    createDictation: addDictation,
-    toggleDictation,
-    deleteDictation,
-  } = useDictations();
+  } = useSelectedCandidates(activeTab === "gallery" && gallerySubTab === "selected_candidates");
+  // useNotices will be called later (after visibleNoticesCount declaration)
+
   const { toast } = useToast();
 
   const registrationFee = settings?.registrationFee || 0;
@@ -176,6 +589,19 @@ export default function AdminDashboard() {
     setLocalRegFee(registrationFee);
   }, [registrationFee]);
 
+  // Initialize selected image IDs from featured images
+  useEffect(() => {
+    if (featuredImages && featuredImages.length > 0) {
+      const featuredIds = featuredImages.map((img: any) => img.id);
+      console.log('Initializing/updating selected images from featured:', featuredIds);
+      setSelectedImageIds(featuredIds);
+    } else {
+      console.log('No featured images found, clearing selection');
+      // Don't clear selectedImageIds here - user might have just selected new ones
+      // Only update if we have fresh featured images from the API
+    }
+  }, [featuredImages]);
+
   useEffect(() => {
     if (localRegFee === registrationFee) return;
     const timer = setTimeout(() => {
@@ -183,8 +609,6 @@ export default function AdminDashboard() {
     }, 3000);
     return () => clearTimeout(timer);
   }, [localRegFee]);
-
-  const [activeTab, setActiveTab] = useState("students");
 
   // Lazy Loading State for Manage Tests
   const ITEMS_PER_BATCH = 100; // Initial batch size for admin table
@@ -202,12 +626,19 @@ export default function AdminDashboard() {
     }
   }, [activeTab, content.length]);
 
+  // Track when user visits results tab to enable API calls
+  useEffect(() => {
+    if (activeTab === "results" && !hasVisitedResults) {
+      setHasVisitedResults(true);
+    }
+  }, [activeTab, hasVisitedResults]);
+
   // Get filtered and sorted content for each type
   const getTypingTests = () => {
     return content
       .filter((c) => c.type === "typing")
       .sort((a, b) => {
-        if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+        // Sort by creation date (newest first), regardless of enabled/disabled status
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   };
@@ -216,7 +647,7 @@ export default function AdminDashboard() {
     return content
       .filter((c) => c.type === "shorthand")
       .sort((a, b) => {
-        if (a.isEnabled !== b.isEnabled) return b.isEnabled ? 1 : -1;
+        // Sort by creation date (newest first), regardless of enabled/disabled status
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
   };
@@ -256,6 +687,21 @@ export default function AdminDashboard() {
     const currentRef = typingObserverRef.current;
     if (!currentRef || !hasMoreTyping) return;
 
+    // Check if IntersectionObserver is available
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback for older browsers: load more on scroll
+      const handleScroll = () => {
+        if (hasMoreTyping && !isLoadingMore) {
+          const rect = currentRef?.getBoundingClientRect();
+          if (rect && rect.bottom < window.innerHeight + 100) {
+            loadMoreTyping();
+          }
+        }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMoreTyping && !isLoadingMore) {
@@ -279,6 +725,21 @@ export default function AdminDashboard() {
     if (activeTab !== "manage") return;
     const currentRef = shorthandObserverRef.current;
     if (!currentRef || !hasMoreShorthand) return;
+
+    // Check if IntersectionObserver is available
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback for older browsers: load more on scroll
+      const handleScroll = () => {
+        if (hasMoreShorthand && !isLoadingMore) {
+          const rect = currentRef?.getBoundingClientRect();
+          if (rect && rect.bottom < window.innerHeight + 100) {
+            loadMoreShorthand();
+          }
+        }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -307,24 +768,84 @@ export default function AdminDashboard() {
   const [duration, setDuration] = useState("5");
   const [dateFor, setDateFor] = useState(format(new Date(), "yyyy-MM-dd"));
   const [language, setLanguage] = useState<"english" | "hindi">("english");
-  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  
+  // Video link states for shorthand tests
+  const [video60wpmLink, setVideo60wpmLink] = useState("");
+  const [video80wpmLink, setVideo80wpmLink] = useState("");
+  const [video100wpmLink, setVideo100wpmLink] = useState("");
+  const [video120wpmLink, setVideo120wpmLink] = useState("");
 
-  // Filter State
+  // Folder state for organizing tests
+  const [selectedTestFolderId, setSelectedTestFolderId] = useState<number | null>(null);
+  const [editSelectedTestFolderId, setEditSelectedTestFolderId] = useState<number | null>(null);
+
+  // Edit Test State
+  const [editingTestId, setEditingTestId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDuration, setEditDuration] = useState("5");
+  const [editDateFor, setEditDateFor] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [editLanguage, setEditLanguage] = useState<"english" | "hindi">("english");
+  const [editTextContent, setEditTextContent] = useState("");
+  const [editAutoScroll, setEditAutoScroll] = useState(true);
+  
+  // Edit video link states for shorthand tests
+  const [editVideo60wpmLink, setEditVideo60wpmLink] = useState("");
+  const [editVideo80wpmLink, setEditVideo80wpmLink] = useState("");
+  const [editVideo100wpmLink, setEditVideo100wpmLink] = useState("");
+  const [editVideo120wpmLink, setEditVideo120wpmLink] = useState("");
+  
+  const [isTestEditModalOpen, setIsTestEditModalOpen] = useState(false);
+  const [isEditingTest, setIsEditingTest] = useState(false);
+  const [isLoadingTestData, setIsLoadingTestData] = useState(false);
+
+  // Cache for edit modal data - avoid redundant API calls
+  const [editCachedData, setEditCachedData] = useState<{ [testId: number]: any }>({});
+  const [lastEditedTestId, setLastEditedTestId] = useState<number | null>(null);
+  const [hasEditChanges, setHasEditChanges] = useState(false);
+
+  // Track changes in edit modal form fields
+  useEffect(() => {
+    if (!editingTestId || !editCachedData[editingTestId]) {
+      return; // Don't track changes if modal isn't open or cache doesn't exist
+    }
+
+    const cachedData = editCachedData[editingTestId];
+    
+    // Check if any form field has changed from cached value
+    const hasChanges = 
+      editTitle !== cachedData.title ||
+      editDuration !== cachedData.duration ||
+      editDateFor !== cachedData.dateFor ||
+      editLanguage !== cachedData.language ||
+      editTextContent !== cachedData.text ||
+      editAutoScroll !== cachedData.autoScroll ||
+      editSelectedTestFolderId !== (cachedData.folderId || null) ||
+      editVideo60wpmLink !== (cachedData.video60wpm || "") ||
+      editVideo80wpmLink !== (cachedData.video80wpm || "") ||
+      editVideo100wpmLink !== (cachedData.video100wpm || "") ||
+      editVideo120wpmLink !== (cachedData.video120wpm || "");
+
+    if (hasChanges && !hasEditChanges) {
+      setHasEditChanges(true);
+    } else if (!hasChanges && hasEditChanges) {
+      setHasEditChanges(false);
+    }
+  }, [editingTestId, editTitle, editDuration, editDateFor, editLanguage, editTextContent, editAutoScroll, editSelectedTestFolderId, editVideo60wpmLink, editVideo80wpmLink, editVideo100wpmLink, editVideo120wpmLink, editCachedData, hasEditChanges]);
+
+  // Reset folder selection when content type changes (to avoid cross-type folder mismatches)
+  useEffect(() => {
+    setSelectedTestFolderId(null);
+  }, [contentType]);
+
   const [studentFilter, setStudentFilter] = useState("");
   const [studentListSearch, setStudentListSearch] = useState("");
-
   // PDF Store State
   const [newFolderName, setNewFolderName] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [pdfName, setPdfName] = useState("");
   const [pdfPageCount, setPdfPageCount] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [viewPdfId, setViewPdfId] = useState<number | null>(null);
-
-  // Dictation State - Merged into Upload
-  const [dictationFile, setDictationFile] = useState<File | null>(null);
-  const dictationFileInputRef = useRef<HTMLInputElement>(null);
 
   // Upload Loading State - use mutation state instead of local state
   const isUploading = isCreating || isCreatingWithFile;
@@ -343,6 +864,20 @@ export default function AdminDashboard() {
   const [candidateYear, setCandidateYear] = useState("");
   const [candidateImage, setCandidateImage] = useState<File | null>(null);
 
+  // Notices State
+  const [noticeHeading, setNoticeHeading] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
+  const [noticePdfFile, setNoticePdfFile] = useState<File | null>(null);
+  const noticePdfInputRef = useRef<HTMLInputElement>(null);
+  const [visibleNoticesCount, setVisibleNoticesCount] = useState(10); // Show 10 at a time
+  const [isLoadingMoreNotices, setIsLoadingMoreNotices] = useState(false);
+  const [editingNotice, setEditingNotice] = useState<any>(null);
+  const [editHeading, setEditHeading] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editPdfFile, setEditPdfFile] = useState<File | null>(null);
+  const editPdfInputRef = useRef<HTMLInputElement>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   const handleAddCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidateName || !candidateImage) {
@@ -354,24 +889,45 @@ export default function AdminDashboard() {
       return;
     }
 
-    const imageUrl = await fileToBase64(candidateImage);
-    addSelectedCandidate({
-      name: candidateName,
-      designation: candidateDesignation,
-      year: candidateYear,
-      imageUrl: imageUrl,
-    });
+    try {
+      const imageUrl = await fileToBase64(candidateImage);
+      await addSelectedCandidate({
+        name: candidateName,
+        designation: candidateDesignation,
+        year: candidateYear,
+        imageUrl: imageUrl,
+      });
 
-    toast({
-      variant: "success",
-      title: "Success",
-      description: "Candidate added",
-    });
-    setCandidateName("");
-    setCandidateDesignation("");
-    setCandidateYear("");
-    setCandidateImage(null);
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Candidate added",
+      });
+      setCandidateName("");
+      setCandidateDesignation("");
+      setCandidateYear("");
+      setCandidateImage(null);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add candidate",
+      });
+    }
   };
+
+  // Notices hook (paged) - include inactive for admin
+  const {
+    notices: allNotices,
+    isLoading: isLoadingNotices,
+    refetch: refetchAllNotices,
+    createNoticeWithFile,
+    updateNoticeAsync,
+    deleteNoticeAsync,
+    isCreating: isCreatingNotice,
+    isUpdating: isUpdatingNotice,
+    isDeleting: isDeletingNotice,
+  } = useNotices({ enabled: true, limit: visibleNoticesCount, offset: 0, includeInactive: true });
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -391,36 +947,27 @@ export default function AdminDashboard() {
     });
 
     try {
-      // Check if we have a file to upload
-      const hasFile = contentType === "shorthand" && dictationFile;
+      // Build upload data with optional video links
+      const createData: any = {
+        title,
+        type: contentType,
+        text: textContent,
+        duration: parseInt(duration),
+        dateFor,
+        language: language || 'english',
+        autoScroll: contentType === "typing" ? autoScroll : true,
+      };
 
-      if (hasFile) {
-        // Use FormData for file uploads (faster - no client-side base64 conversion)
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('type', contentType);
-        formData.append('text', textContent);
-        formData.append('duration', duration);
-        formData.append('dateFor', dateFor);
-        formData.append('language', language || 'english');
-        // For shorthand with file, autoScroll is always true
-        formData.append('autoScroll', 'true');
-        formData.append('audioFile', dictationFile);
+      // Add folder ID if selected
+      if (selectedTestFolderId) createData.folderId = selectedTestFolderId;
 
-        // Use FormData upload endpoint (server converts to base64)
-        await createContentWithFile(formData);
-      } else {
-        // Use JSON endpoint for uploads without files (more efficient)
-        await createContent({
-          title,
-          type: contentType,
-          text: textContent,
-          duration: parseInt(duration),
-          dateFor,
-          language: language || 'english',
-          autoScroll: contentType === "typing" ? autoScroll : true,
-        } as any);
-      }
+      // Add video links if they are provided (optional)
+      if (video60wpmLink) createData.video60wpm = video60wpmLink;
+      if (video80wpmLink) createData.video80wpm = video80wpmLink;
+      if (video100wpmLink) createData.video100wpm = video100wpmLink;
+      if (video120wpmLink) createData.video120wpm = video120wpmLink;
+
+      await createContent(createData as any);
 
       toast({
         variant: "success",
@@ -429,10 +976,11 @@ export default function AdminDashboard() {
       });
       setTitle("");
       setTextContent("");
-      setDictationFile(null);
-      if (dictationFileInputRef.current) {
-        dictationFileInputRef.current.value = "";
-      }
+      setVideo60wpmLink("");
+      setVideo80wpmLink("");
+      setVideo100wpmLink("");
+      setVideo120wpmLink("");
+      setSelectedTestFolderId(null);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -473,15 +1021,199 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCreateFolder = () => {
+  const handleOpenEditModal = async (testId: number) => {
+    // Find the test to edit
+    const testToEdit = content.find(c => c.id === testId);
+    if (!testToEdit) return;
+
+    // Check if we have cached data for this test and no changes were made to the previous test
+    const hasCachedData = editCachedData[testId];
+    const shouldUseCachedData = hasCachedData && (lastEditedTestId === testId || !hasEditChanges);
+
+    if (shouldUseCachedData) {
+      // Use cached data
+      const cachedData = editCachedData[testId];
+      setEditingTestId(testId);
+      setEditTitle(cachedData.title);
+      setEditDuration(cachedData.duration);
+      setEditDateFor(cachedData.dateFor);
+      setEditLanguage(cachedData.language);
+      setEditTextContent(cachedData.text);
+      setEditAutoScroll(cachedData.autoScroll);
+      setEditSelectedTestFolderId(cachedData.folderId || null);
+      setEditVideo60wpmLink(cachedData.video60wpm || "");
+      setEditVideo80wpmLink(cachedData.video80wpm || "");
+      setEditVideo100wpmLink(cachedData.video100wpm || "");
+      setEditVideo120wpmLink(cachedData.video120wpm || "");
+      setIsTestEditModalOpen(true);
+      setLastEditedTestId(testId);
+      setHasEditChanges(false);
+      return;
+    }
+
+    // Set loading state and open modal
+    setIsLoadingTestData(true);
+    setIsTestEditModalOpen(true);
+    setEditingTestId(testId);
+    setLastEditedTestId(testId);
+    setHasEditChanges(false);
+
+    // Fetch the full content (with text and video links)
+    try {
+      const fullContent = await contentApi.getById(testId);
+      
+      // Cache the fetched data
+      setEditCachedData(prev => ({
+        ...prev,
+        [testId]: {
+          title: fullContent.title,
+          duration: fullContent.duration.toString(),
+          dateFor: fullContent.dateFor,
+          language: fullContent.language || 'english',
+          text: fullContent.text,
+          autoScroll: fullContent.autoScroll || true,
+          video60wpm: fullContent.video60wpm || null,
+          video80wpm: fullContent.video80wpm || null,
+          video100wpm: fullContent.video100wpm || null,
+          video120wpm: fullContent.video120wpm || null,
+          folderId: fullContent.folderId || null,
+        }
+      }));
+
+      // Set the edit state with the fetched content
+      setEditTitle(fullContent.title);
+      setEditDuration(fullContent.duration.toString());
+      setEditDateFor(fullContent.dateFor);
+      setEditLanguage((fullContent.language || 'english') as 'english' | 'hindi');
+      setEditTextContent(fullContent.text);
+      setEditAutoScroll(fullContent.autoScroll || true);
+      setEditSelectedTestFolderId(fullContent.folderId || null);
+      
+      // Set video links
+      setEditVideo60wpmLink(fullContent.video60wpm || "");
+      setEditVideo80wpmLink(fullContent.video80wpm || "");
+      setEditVideo100wpmLink(fullContent.video100wpm || "");
+      setEditVideo120wpmLink(fullContent.video120wpm || "");
+      
+      setIsLoadingTestData(false);
+    } catch (error) {
+      setIsLoadingTestData(false);
+      setIsTestEditModalOpen(false);
+      setEditingTestId(null);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load test details for editing",
+      });
+    }
+  };
+
+  const handleUpdateTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTestId || !editTextContent.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Title and content are required",
+      });
+      return;
+    }
+
+    try {
+      setIsEditingTest(true);
+
+      // Build the update data
+      const updateData: any = {
+        title: editTitle,
+        duration: parseInt(editDuration),
+        dateFor: editDateFor,
+        language: editLanguage,
+        text: editTextContent,
+        autoScroll: editAutoScroll,
+      };
+
+      // Include folder ID if selected
+      if (editSelectedTestFolderId) updateData.folderId = editSelectedTestFolderId;
+
+      // Include video links if present
+      if (editVideo60wpmLink) updateData.video60wpm = editVideo60wpmLink;
+      if (editVideo80wpmLink) updateData.video80wpm = editVideo80wpmLink;
+      if (editVideo100wpmLink) updateData.video100wpm = editVideo100wpmLink;
+      if (editVideo120wpmLink) updateData.video120wpm = editVideo120wpmLink;
+
+      const updatedContent = await updateContent({
+        id: editingTestId,
+        data: updateData,
+      });
+
+      // Update the cache with the new data from the API response and clear the hasEditChanges flag
+      // This ensures preview dialog and preview data stay in sync
+      setEditCachedData(prev => ({
+        ...prev,
+        [editingTestId]: {
+          title: updatedContent.title,
+          duration: updatedContent.duration.toString(),
+          dateFor: updatedContent.dateFor,
+          language: updatedContent.language || 'english',
+          text: updatedContent.text,
+          autoScroll: updatedContent.autoScroll || true,
+          video60wpm: updatedContent.video60wpm || null,
+          video80wpm: updatedContent.video80wpm || null,
+          video100wpm: updatedContent.video100wpm || null,
+          video120wpm: updatedContent.video120wpm || null,
+          folderId: updatedContent.folderId || null,
+        }
+      }));
+      setHasEditChanges(false);
+
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Test updated successfully",
+      });
+
+      setIsTestEditModalOpen(false);
+      setEditingTestId(null);
+      setEditTitle("");
+      setEditDuration("5");
+      setEditDateFor(format(new Date(), "yyyy-MM-dd"));
+      setEditLanguage("english");
+      setEditTextContent("");
+      setEditAutoScroll(true);
+      setEditVideo60wpmLink("");
+      setEditVideo80wpmLink("");
+      setEditVideo100wpmLink("");
+      setEditVideo120wpmLink("");
+      setEditSelectedTestFolderId(null);
+      setIsEditingTest(false);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update test",
+      });
+    } finally {
+      setIsEditingTest(false);
+    }
+  };
+
+  const handleCreateFolder = async () => {
     if (!newFolderName) return;
-    addPdfFolder(newFolderName);
-    setNewFolderName("");
-    toast({
-      variant: "success",
-      title: "Success",
-      description: "Folder created",
-    });
+    try {
+      await addPdfFolder(newFolderName);
+      setNewFolderName("");
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Folder created",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create folder",
+      });
+    }
   };
 
   const handleUploadPdf = async () => {
@@ -517,15 +1249,40 @@ export default function AdminDashboard() {
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     if (e.target.files) {
+      let successCount = 0;
+      let errorCount = 0;
+      
       for (const file of Array.from(e.target.files)) {
-        const url = await fileToBase64(file);
-        addGalleryImage(url);
+        try {
+          const url = await fileToBase64(file);
+          await addGalleryImage(url);
+          successCount++;
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          errorCount++;
+        }
       }
-      toast({
-        variant: "success",
-        title: "Success",
-        description: "Images uploaded to gallery",
-      });
+      
+      if (successCount > 0) {
+        toast({
+          variant: "success",
+          title: "Success",
+          description: `${successCount} image(s) uploaded to gallery`,
+        });
+      }
+      
+      if (errorCount > 0) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to upload ${errorCount} image(s)`,
+        });
+      }
+      
+      // Reset file input
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 
@@ -534,6 +1291,44 @@ export default function AdminDashboard() {
       const url = await fileToBase64(e.target.files[0]);
       setQrCodeUrl(url);
       toast({ title: "Updated", description: "QR Code updated successfully" });
+    }
+  };
+
+  // Gallery featured images handlers
+  const toggleImageSelection = (imageId: number) => {
+    setSelectedImageIds(prev => {
+      if (prev.includes(imageId)) {
+        return prev.filter(id => id !== imageId);
+      } else {
+        // Limit to 10 images
+        if (prev.length >= 10) {
+          toast({
+            variant: "destructive",
+            title: "Limit Reached",
+            description: "You can select a maximum of 10 images for the landing page",
+          });
+          return prev;
+        }
+        return [...prev, imageId];
+      }
+    });
+  };
+
+  const handleSaveFeaturedImages = async () => {
+    try {
+      await updateFeaturedImageOrder(selectedImageIds);
+      toast({
+        variant: "success",
+        title: "Success",
+        description: `${selectedImageIds.length} image(s) set as featured for landing page`,
+      });
+    } catch (error) {
+      console.error('Error saving featured images:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update featured images",
+      });
     }
   };
 
@@ -548,18 +1343,24 @@ export default function AdminDashboard() {
     generateResultPDF(result);
   };
 
-  const filteredResults = results
-    .filter(
-      (r) =>
-        r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
-        (r.studentDisplayId?.toLowerCase() || "").includes(
-          studentFilter.toLowerCase(),
-        ),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
-    );
+  // Filter results by student name/ID for display
+  const filterResultsByStudent = (results: typeof typingResults) =>
+    results
+      .filter(
+        (r) =>
+          r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
+          (r.studentDisplayId?.toLowerCase() || "").includes(
+            studentFilter.toLowerCase(),
+          ),
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.submittedAt).getTime() -
+          new Date(a.submittedAt).getTime(),
+      );
+
+  const displayTypingResults = filterResultsByStudent(typingResults);
+  const displayShorthandResults = filterResultsByStudent(shorthandResults);
 
   const filteredStudents = users
     .filter(
@@ -581,8 +1382,6 @@ export default function AdminDashboard() {
     (u) => u.role === "student" && u.isPaymentCompleted,
   ).length;
   const disabledStudents = totalStudents - enabledStudents;
-
-  console.log("content ****", content);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -732,6 +1531,7 @@ export default function AdminDashboard() {
                     disabled={isRefreshingStudents}
                     onClick={async () => {
                       setIsRefreshingStudents(true);
+                      // Invalidate all user-related caches
                       await queryClient.invalidateQueries({
                         queryKey: ["users"],
                       });
@@ -1071,29 +1871,72 @@ export default function AdminDashboard() {
                     )}
                   </div>
 
+                  {/* Folder Selector */}
+                  {language && (
+                    <FolderSelector
+                      language={language}
+                      type={contentType}
+                      selectedFolderId={selectedTestFolderId}
+                      onFolderSelect={setSelectedTestFolderId}
+                    />
+                  )}
+
                   {contentType === "shorthand" && (
-                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                      <div className="flex items-center gap-3 mb-3">
-                        <Music className="h-5 w-5 text-orange-600" />
-                        <Label className="text-sm font-medium text-orange-800">
-                          Audio File (Optional)
-                        </Label>
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+                      <h3 className="font-medium text-blue-900 flex items-center gap-2">
+                        <Keyboard className="h-4 w-4" />
+                        YouTube Video Links (Optional)
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            60 WPM Video Link
+                          </Label>
+                          <Input
+                            type="url"
+                            value={video60wpmLink}
+                            onChange={(e) => setVideo60wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            80 WPM Video Link
+                          </Label>
+                          <Input
+                            type="url"
+                            value={video80wpmLink}
+                            onChange={(e) => setVideo80wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            100 WPM Video Link
+                          </Label>
+                          <Input
+                            type="url"
+                            value={video100wpmLink}
+                            onChange={(e) => setVideo100wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700">
+                            120 WPM Video Link
+                          </Label>
+                          <Input
+                            type="url"
+                            value={video120wpmLink}
+                            onChange={(e) => setVideo120wpmLink(e.target.value)}
+                            placeholder="https://youtube.com/watch?v=..."
+                            className="bg-white mt-1"
+                          />
+                        </div>
                       </div>
-                      <Input
-                        type="file"
-                        accept="audio/*"
-                        onChange={(e) =>
-                          setDictationFile(e.target.files?.[0] || null)
-                        }
-                        ref={dictationFileInputRef}
-                        className="bg-white"
-                      />
-                      {dictationFile && (
-                        <p className="mt-2 text-sm text-orange-700 flex items-center gap-1">
-                          <CheckCircle className="h-4 w-4" />{" "}
-                          {dictationFile.name}
-                        </p>
-                      )}
                     </div>
                   )}
 
@@ -1267,6 +2110,9 @@ export default function AdminDashboard() {
                                   Lang
                                 </TableHead>
                                 <TableHead className="font-semibold">
+                                  Folder
+                                </TableHead>
+                                <TableHead className="font-semibold">
                                   Duration
                                 </TableHead>
                                 <TableHead className="font-semibold">
@@ -1295,6 +2141,9 @@ export default function AdminDashboard() {
                                   <TableCell className="capitalize">
                                     {item.language}
                                   </TableCell>
+                                  <TableCell className="text-sm">
+                                    {getFolderNameById(item.folderId)}
+                                  </TableCell>
                                   <TableCell>{item.duration} min</TableCell>
                                   <TableCell>
                                     {item.isEnabled ? (
@@ -1307,11 +2156,80 @@ export default function AdminDashboard() {
                                       </span>
                                     )}
                                   </TableCell>
-                                    <TableCell>
-                                      <PreviewDialog contentId={item.id} title={item.title} />
-                                    </TableCell>
+                                  <TableCell>
+                                    <PreviewDialog contentId={item.id} title={item.title} />
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                                        onClick={() =>
+                                          handleOpenEditModal(item.id)
+                                        }
+                                        title="Edit test"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Dialog>
+                                        <DialogTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-purple-600 hover:bg-purple-50"
+                                            title="Change folder"
+                                          >
+                                            <FolderPlus className="h-4 w-4" />
+                                          </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                          <DialogHeader>
+                                            <DialogTitle>Change Test Folder</DialogTitle>
+                                          </DialogHeader>
+                                          <div className="space-y-4">
+                                            <FolderSelector
+                                              language={item.language || 'english'}
+                                              type={item.type as "typing" | "shorthand"}
+                                              selectedFolderId={item.folderId || null}
+                                              onFolderSelect={async (folderId) => {
+                                                try {
+                                                  await updateContent({
+                                                    id: item.id,
+                                                    data: { folderId: folderId } as any,
+                                                  });
+                                                  toast({
+                                                    variant: "success",
+                                                    title: "Success",
+                                                    description: "Folder updated successfully",
+                                                  });
+                                                } catch (error) {
+                                                  toast({
+                                                    variant: "destructive",
+                                                    title: "Error",
+                                                    description: error instanceof Error ? error.message : "Failed to update folder",
+                                                  });
+                                                }
+                                              }}
+                                            />
+                                            {item.folderId && (
+                                              <div className="border-t pt-4">
+                                                <p className="text-sm text-gray-600 mb-2">Delete this folder from the system</p>
+                                                <DeleteFolderButton
+                                                  folderId={item.folderId}
+                                                  onDeleteSuccess={() => {
+                                                    toast({
+                                                      variant: "success",
+                                                      title: "Success",
+                                                      description: "Folder deleted successfully",
+                                                    });
+                                                  }}
+                                                />
+                                              </div>
+                                            )}
+                                          </div>
+                                        </DialogContent>
+                                      </Dialog>
                                       <Switch
                                         checked={item.isEnabled}
                                         onCheckedChange={async () => {
@@ -1486,13 +2404,13 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 bg-white border rounded-full text-muted-foreground">
+                            {/* <span className="text-xs px-2 py-1 bg-white border rounded-full text-muted-foreground">
                               {
                                 pdfResources.filter((p) => p.folderId === f.id)
                                   .length
                               }{" "}
                               files
-                            </span>
+                            </span> */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1836,7 +2754,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-indigo-100">Total Results</p>
                       <p className="text-3xl font-bold mt-1">
-                        {results.length}
+                        {(counts.typing || 0) + (counts.shorthand || 0)}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1851,10 +2769,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-blue-100">Typing Tests</p>
                       <p className="text-3xl font-bold mt-1">
-                        {
-                          results.filter((r) => r.contentType === "typing")
-                            .length
-                        }
+                        {counts.typing || 0}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1869,10 +2784,7 @@ export default function AdminDashboard() {
                     <div>
                       <p className="text-sm text-orange-100">Shorthand Tests</p>
                       <p className="text-3xl font-bold mt-1">
-                        {
-                          results.filter((r) => r.contentType === "shorthand")
-                            .length
-                        }
+                        {counts.shorthand || 0}
                       </p>
                     </div>
                     <div className="p-3 bg-white/20 rounded-xl">
@@ -1955,9 +2867,8 @@ export default function AdminDashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredResults
-                              .filter((r) => r.contentType === type)
-                              .map((result) => (
+                            {(type === "typing" ? displayTypingResults : displayShorthandResults)?.map(
+                              (result) => (
                                 <TableRow
                                   key={result.id}
                                   className="hover:bg-slate-50/50"
@@ -2128,6 +3039,7 @@ export default function AdminDashboard() {
                                                   | "english"
                                                   | "hindi") || "english"
                                               }
+                                              contentType={result.contentType as 'typing' | 'shorthand'}
                                             />
                                           </div>
 
@@ -2179,23 +3091,68 @@ export default function AdminDashboard() {
                                     </Button>
                                   </TableCell>
                                 </TableRow>
-                              ))}
-                            {filteredResults.filter(
-                              (r) => r.contentType === type,
+                              )
+                            )}
+                            {(type === "typing"
+                              ? displayTypingResults
+                              : displayShorthandResults
                             ).length === 0 && (
-                                <TableRow>
-                                  <TableCell
-                                    colSpan={6}
-                                    className="text-center py-12 text-muted-foreground"
-                                  >
-                                    <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                    No {type} results found
-                                  </TableCell>
-                                </TableRow>
-                              )}
+                              <TableRow>
+                                <TableCell
+                                  colSpan={6}
+                                  className="text-center py-12 text-muted-foreground"
+                                >
+                                  <BarChart className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                  No {type} results found
+                                </TableCell>
+                              </TableRow>
+                            )}
                           </TableBody>
                         </Table>
                       </div>
+                      {/* Load More Button - Only show if more data available */}
+                      {type === "typing" && hasNextTyping && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextTyping()}
+                            disabled={isFetchingNextTyping}
+                          >
+                            {isFetchingNextTyping ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Typing Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      {type === "shorthand" && hasNextShorthand && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextShorthand()}
+                            disabled={isFetchingNextShorthand}
+                          >
+                            {isFetchingNextShorthand ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Shorthand Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </TabsContent>
                   ))}
                 </Tabs>
@@ -2223,7 +3180,7 @@ export default function AdminDashboard() {
 
             <Card className="shadow-lg border-0">
               <CardContent className="p-0">
-                <Tabs key="gallery-tabs" defaultValue="gallery_images">
+                <Tabs key="gallery-tabs" defaultValue="gallery_images" onValueChange={setGallerySubTab}>
                   <div className="px-6 pt-4 border-b bg-slate-50">
                     <TabsList className="bg-white shadow-sm">
                       <TabsTrigger
@@ -2268,42 +3225,175 @@ export default function AdminDashboard() {
                         />
                       </div>
 
-                      {galleryImages.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-3">
-                            {galleryImages.length} images uploaded
-                          </p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {galleryImages.map((url, idx) => (
-                              <div
-                                key={idx}
-                                className="relative group aspect-square rounded-xl overflow-hidden border-2 shadow-sm hover:shadow-md transition-shadow"
-                              >
-                                <img
-                                  src={url}
-                                  alt="Gallery"
-                                  className="w-full h-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={() => removeGalleryImage(url)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                      {isGalleryLoading && activeTab === "gallery" && gallerySubTab === "gallery_images" ? (
+                        <div className="flex items-center justify-center p-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+                          <span className="ml-3 text-muted-foreground">Loading gallery...</span>
+                        </div>
+                      ) : (
+                        <>
+                          {galleryImages.length > 0 && (
+                            <div className="space-y-6">
+                              {/* Featured Images Section */}
+                              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h3 className="font-semibold text-orange-800 flex items-center gap-2">
+                                    <Star className="h-5 w-5" /> 
+                                    Featured Images for Landing Page ({selectedImageIds.length}/10)
+                                    {isUpdatingFeaturedOrder && <Loader2 className="h-4 w-4 animate-spin text-orange-500" />}
+                                  </h3>
+                                  {selectedImageIds.length > 0 && selectedImageIds.length !== featuredImages.length && (
+                                    <Button
+                                      onClick={handleSaveFeaturedImages}
+                                      disabled={isUpdatingFeaturedOrder}
+                                      size="sm"
+                                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                                    >
+                                      {isUpdatingFeaturedOrder ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Saving...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Star className="h-4 w-4 mr-2" />
+                                          Save Featured Images
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
                                 </div>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Check images below to feature them on the landing page carousel. {isUpdatingFeaturedOrder && '(Updating...)'}
+                                </p>
+                                
+                                {selectedImageIds.length > 0 ? (
+                                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    {(galleryImagesWithId || [])
+                                      .filter((img: any) => selectedImageIds.includes(img.id))
+                                      .map((img: any) => (
+                                        <div
+                                          key={img.id}
+                                          className="relative aspect-square rounded-xl overflow-hidden border-2 border-orange-300 shadow-md group cursor-pointer hover:shadow-lg transition-all"
+                                          onClick={() => toggleImageSelection(img.id)}
+                                          title="Click to remove from featured"
+                                        >
+                                          <img
+                                            src={img.url}
+                                            alt="Featured"
+                                            className="w-full h-full object-cover"
+                                          />
+                                          <div className="absolute top-2 left-2 bg-orange-500 rounded-full p-1">
+                                            <Star className="h-4 w-4 text-white fill-white" />
+                                          </div>
+                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                            <span className="text-white text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Remove</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-center py-8 text-muted-foreground">
+                                    <Star className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                    <p className="text-sm">No featured images selected. Check images below to add.</p>
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
-                      {galleryImages.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                          <p>No images uploaded yet</p>
-                        </div>
+                              {/* All Images Management Section with Checkboxes */}
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-3">
+                                  {galleryImages.length} images uploaded • Check to feature on landing page
+                                </p>
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                  {(galleryImagesWithId || []).map((img: any) => {
+                                    const isSelected = selectedImageIds.includes(img.id);
+                                    return (
+                                      <div
+                                        key={img.id}
+                                        className={`relative group aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                                          isSelected
+                                            ? 'border-orange-400 ring-2 ring-orange-200 shadow-lg'
+                                            : 'border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
+                                        }`}
+                                      >
+                                        <img
+                                          src={img.url}
+                                          alt="Gallery"
+                                          className="w-full h-full object-cover"
+                                        />
+                                        
+                                        {/* Checkbox Overlay */}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-between p-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleImageSelection(img.id);
+                                            }}
+                                            className={`flex items-center justify-center w-6 h-6 rounded border-2 transition-all ${
+                                              isSelected
+                                                ? 'bg-orange-500 border-orange-500'
+                                                : 'bg-white/80 border-white/80 hover:bg-white hover:border-white'
+                                            }`}
+                                            title={isSelected ? 'Remove from featured' : 'Add to featured'}
+                                          >
+                                            {isSelected && (
+                                              <CheckCircle className="h-4 w-4 text-white fill-white" />
+                                            )}
+                                          </button>
+                                          
+                                          {/* Delete Button */}
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeGalleryImage(img.url);
+                                            }}
+                                            className="flex items-center justify-center w-6 h-6 rounded bg-red-500/80 hover:bg-red-600 transition-colors"
+                                            title="Delete image"
+                                          >
+                                            <Trash2 className="h-4 w-4 text-white" />
+                                          </button>
+                                        </div>
+
+                                        {/* Visual Indicator for Featured */}
+                                        {isSelected && (
+                                          <div className="absolute top-2 right-2 bg-orange-500 rounded-full p-1 shadow-md">
+                                            <Star className="h-4 w-4 text-white fill-white" />
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {hasNextPage && (
+                                  <div className="flex justify-center mt-6">
+                                    <Button
+                                      onClick={() => fetchNextPage()}
+                                      disabled={isFetchingNextPage}
+                                      className="px-6"
+                                    >
+                                      {isFetchingNextPage ? (
+                                        <>
+                                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                          Loading...
+                                        </>
+                                      ) : (
+                                        'Load More Images'
+                                      )}
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {galleryImages.length === 0 && (
+                            <div className="text-center py-8 text-muted-foreground">
+                              <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                              <p>No images uploaded yet</p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </TabsContent>
@@ -2383,91 +3473,645 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="rounded-xl border overflow-hidden">
-                        <Table>
-                          <TableHeader className="bg-slate-50">
-                            <TableRow>
-                              <TableHead className="font-semibold">
-                                Photo
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Name
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Designation
-                              </TableHead>
-                              <TableHead className="font-semibold">
-                                Year
-                              </TableHead>
-                              <TableHead className="font-semibold text-right">
-                                Action
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {[...selectedCandidates]
-                              .sort((a, b) => {
-                                const yearA = parseInt(a.year) || 0;
-                                const yearB = parseInt(b.year) || 0;
-                                return yearB - yearA;
-                              })
-                              .map((candidate) => (
-                                <TableRow
-                                  key={candidate.id}
-                                  className="hover:bg-slate-50/50"
-                                >
-                                  <TableCell>
-                                    <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
-                                      <img
-                                        src={candidate.imageUrl}
-                                        alt={candidate.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="font-medium">
-                                    {candidate.name}
-                                  </TableCell>
-                                  <TableCell className="text-muted-foreground">
-                                    {candidate.designation}
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="inline-flex items-center px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                                      {candidate.year}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-destructive hover:bg-red-50"
-                                      onClick={() =>
-                                        removeSelectedCandidate(candidate.id)
-                                      }
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </TableCell>
+                        {isCandidatesLoading && activeTab === "gallery" && gallerySubTab === "selected_candidates" ? (
+                          <div className="flex items-center justify-center p-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                            <span className="ml-3 text-muted-foreground">Loading candidates...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <Table>
+                              <TableHeader className="bg-slate-50">
+                                <TableRow>
+                                  <TableHead className="font-semibold">
+                                    Photo
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Name
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Designation
+                                  </TableHead>
+                                  <TableHead className="font-semibold">
+                                    Year
+                                  </TableHead>
+                                  <TableHead className="font-semibold text-right">
+                                    Action
+                                  </TableHead>
                                 </TableRow>
-                              ))}
-                            {selectedCandidates.length === 0 && (
-                              <TableRow>
-                                <TableCell
-                                  colSpan={5}
-                                  className="text-center py-12 text-muted-foreground"
+                              </TableHeader>
+                              <TableBody>
+                                {[...selectedCandidates]
+                                  .sort((a, b) => {
+                                    const yearA = parseInt(a.year) || 0;
+                                    const yearB = parseInt(b.year) || 0;
+                                    return yearB - yearA;
+                                  })
+                                  .map((candidate) => (
+                                    <TableRow
+                                      key={candidate.id}
+                                      className="hover:bg-slate-50/50"
+                                    >
+                                      <TableCell>
+                                        <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-purple-200 shadow-sm">
+                                          <img
+                                            src={candidate.imageUrl}
+                                            alt={candidate.name}
+                                            className="h-full w-full object-cover"
+                                          />
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="font-medium">
+                                        {candidate.name}
+                                      </TableCell>
+                                      <TableCell className="text-muted-foreground">
+                                        {candidate.designation}
+                                      </TableCell>
+                                      <TableCell>
+                                        <span className="inline-flex items-center px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                          {candidate.year}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="text-destructive hover:bg-red-50"
+                                          onClick={() =>
+                                            removeSelectedCandidate(candidate.id)
+                                          }
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                {selectedCandidates.length === 0 && !isCandidatesLoading && (
+                                  <TableRow>
+                                    <TableCell
+                                      colSpan={5}
+                                      className="text-center py-12 text-muted-foreground"
+                                    >
+                                      <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                      No candidates added yet
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                            {hasNextCandidate && (
+                              <div className="flex justify-center p-4 border-t">
+                                <Button
+                                  onClick={() => fetchNextCandidate()}
+                                  disabled={isFetchingNextCandidate}
+                                  className="px-6"
                                 >
-                                  <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                                  No candidates added yet
-                                </TableCell>
-                              </TableRow>
+                                  {isFetchingNextCandidate ? 'Loading...' : 'Load More'}
+                                </Button>
+                              </div>
                             )}
-                          </TableBody>
-                        </Table>
+                          </>
+                        )}
                       </div>
                     </div>
                   </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
+          </div>
+        );
+      case "notices":
+        return (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg">
+                <Bell className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Manage Notices
+                </h2>
+                <p className="text-muted-foreground">
+                  Create and manage notices for the landing page
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Form Section */}
+              <Card className="shadow-lg border-0 lg:col-span-1">
+                <CardHeader className="bg-gradient-to-r from-yellow-50 to-amber-50 border-b">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <Bell className="h-4 w-4 text-yellow-600" />
+                    </div>
+                    Create Notice
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!noticeHeading.trim() || !noticeContent.trim()) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Heading and content are required",
+                        });
+                        return;
+                      }
+
+                      try {
+                        await createNoticeWithFile(
+                          {
+                            heading: noticeHeading,
+                            content: noticeContent,
+                            pdfUrl: null,
+                          },
+                          noticePdfFile || undefined
+                        );
+
+                        toast({
+                          variant: "success",
+                          title: "Success",
+                          description: "Notice published successfully",
+                        });
+
+                        // Reset form
+                        setNoticeHeading("");
+                        setNoticeContent("");
+                        setNoticePdfFile(null);
+                        if (noticePdfInputRef.current) {
+                          noticePdfInputRef.current.value = "";
+                        }
+
+                        // Refresh notices
+                        await refetchAllNotices();
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to create notice",
+                        });
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Heading
+                      </Label>
+                      <Input
+                        value={noticeHeading}
+                        onChange={(e) => setNoticeHeading(e.target.value)}
+                        placeholder="e.g., System Maintenance"
+                        className="bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Content
+                      </Label>
+                      <Textarea
+                        value={noticeContent}
+                        onChange={(e) => setNoticeContent(e.target.value)}
+                        placeholder="Enter notice details here..."
+                        className="min-h-[150px] bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Attachment (Optional PDF)
+                      </Label>
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) =>
+                          setNoticePdfFile(e.target.files?.[0] || null)
+                        }
+                        ref={noticePdfInputRef}
+                        className="bg-white"
+                      />
+                      {noticePdfFile && (
+                        <p className="mt-2 text-sm text-yellow-700 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" />{" "}
+                          {noticePdfFile.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isCreatingNotice}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-md hover:shadow-lg transition-all"
+                    >
+                      {isCreatingNotice ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Publishing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="mr-2 h-4 w-4" /> Publish Notice
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Notices List Section */}
+              <Card className="shadow-lg border-0 lg:col-span-2">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Bell className="h-5 w-5 text-yellow-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">
+                          Active Notices
+                        </CardTitle>
+                        <CardDescription>
+                          Showing {allNotices.length} notice{allNotices.length !== 1 ? 's' : ''}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => refetchAllNotices()}
+                      disabled={isLoadingNotices}
+                    >
+                      <RefreshCw
+                        className={cn(
+                          "h-4 w-4",
+                          isLoadingNotices && "animate-spin"
+                        )}
+                      />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="max-h-[500px] overflow-auto">
+                    {isLoadingNotices ? (
+                      <div className="flex items-center justify-center p-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <span className="ml-3 text-muted-foreground">
+                          Loading notices...
+                        </span>
+                      </div>
+                    ) : allNotices.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-12 text-center">
+                        <Bell className="h-10 w-10 text-muted-foreground opacity-30 mb-3" />
+                        <p className="text-muted-foreground">
+                          No notices yet
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Create your first notice to get started
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {/* allNotices are already sorted by latest first from the API */}
+                        {allNotices.map((notice) => (
+                          <div
+                            key={notice.id}
+                            className="p-4 hover:bg-amber-50/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-gray-900 mb-1 break-words">
+                                  {notice.heading}
+                                </h4>
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {notice.content}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  {notice.pdfUrl && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                      📎 PDF Attached
+                                    </span>
+                                  )}
+                                  {notice.isActive ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                      ✓ Active
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                                      ○ Inactive
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-gray-500">
+                                    {format(
+                                      new Date(notice.createdAt),
+                                      "MMM d, yyyy h:mm a"
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingNotice(notice);
+                                    setEditHeading(notice.heading);
+                                    setEditContent(notice.content);
+                                    setEditPdfFile(null);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  className="text-xs hover:bg-blue-50"
+                                >
+                                  Edit
+                                </Button>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={notice.isActive}
+                                    onCheckedChange={async (checked) => {
+                                      try {
+                                        await updateNoticeAsync({
+                                          id: notice.id,
+                                          isActive: checked,
+                                        });
+                                        toast({
+                                          title: "Updated",
+                                          description: `Notice ${checked ? "activated" : "deactivated"}`,
+                                        });
+                                      } catch (error) {
+                                        toast({
+                                          variant: "destructive",
+                                          title: "Error",
+                                          description: "Failed to update notice",
+                                        });
+                                      }
+                                    }}
+                                    disabled={isUpdatingNotice}
+                                  />
+                                  <span className="text-xs text-gray-500 min-w-12">
+                                    {notice.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive hover:bg-red-50"
+                                  onClick={async () => {
+                                    if (
+                                      confirm(
+                                        "Are you sure you want to delete this notice?"
+                                      )
+                                    ) {
+                                      try {
+                                        await deleteNoticeAsync(notice.id);
+                                        toast({
+                                          title: "Deleted",
+                                          description: "Notice removed",
+                                        });
+                                      } catch (error) {
+                                        toast({
+                                          variant: "destructive",
+                                          title: "Error",
+                                          description: "Failed to delete notice",
+                                        });
+                                      }
+                                    }
+                                  }}
+                                  disabled={isDeletingNotice}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* Load More Button */}
+                        {allNotices.length >= visibleNoticesCount && (
+                          <div className="p-4 flex justify-center border-t bg-gray-50">
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setIsLoadingMoreNotices(true);
+                                setTimeout(() => {
+                                  setVisibleNoticesCount((prev) => prev + 10);
+                                  setIsLoadingMoreNotices(false);
+                                }, 300);
+                              }}
+                              disabled={isLoadingMoreNotices}
+                              className="min-w-48"
+                            >
+                              {isLoadingMoreNotices ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Loading...
+                                </>
+                              ) : (
+                                `Load More (10 more)`
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Edit Notice Modal */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Notice</DialogTitle>
+                </DialogHeader>
+                {editingNotice && (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!editHeading.trim() || !editContent.trim()) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Heading and content are required",
+                        });
+                        return;
+                      }
+
+                      try {
+                        // Build the update object
+                        const updateData: any = {
+                          heading: editHeading,
+                          content: editContent,
+                        };
+
+                        // If a new PDF was selected, we'll need to upload it
+                        if (editPdfFile) {
+                          const formData = new FormData();
+                          formData.append('heading', editHeading);
+                          formData.append('content', editContent);
+                          formData.append('pdf', editPdfFile);
+                          
+                          // Call the update with file
+                          await fetch(`/api/notices/${editingNotice.id}`, {
+                            method: 'PATCH',
+                            body: formData,
+                          }).then(res => {
+                            if (!res.ok) throw new Error('Failed to update notice');
+                            return res.json();
+                          });
+                        } else {
+                          // Just update the text fields
+                          await updateNoticeAsync({
+                            id: editingNotice.id,
+                            heading: editHeading,
+                            content: editContent,
+                          });
+                        }
+
+                        toast({
+                          variant: "success",
+                          title: "Success",
+                          description: "Notice updated successfully",
+                        });
+
+                        // Reset form and close modal
+                        setEditingNotice(null);
+                        setEditHeading("");
+                        setEditContent("");
+                        setEditPdfFile(null);
+                        if (editPdfInputRef.current) {
+                          editPdfInputRef.current.value = "";
+                        }
+                        setIsEditModalOpen(false);
+
+                        // Refresh notices
+                        await refetchAllNotices();
+                      } catch (error) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description:
+                            error instanceof Error
+                              ? error.message
+                              : "Failed to update notice",
+                        });
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Heading
+                      </Label>
+                      <Input
+                        value={editHeading}
+                        onChange={(e) => setEditHeading(e.target.value)}
+                        placeholder="e.g., System Maintenance"
+                        className="bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Notice Content
+                      </Label>
+                      <Textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        placeholder="Enter notice details here..."
+                        className="min-h-[150px] bg-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Attachment (Optional PDF)
+                      </Label>
+                      {editingNotice.pdfUrl && !editPdfFile && (
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
+                          <span className="text-sm text-blue-700">
+                            📎 Current PDF attached
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              // Note: This would require a remove PDF endpoint
+                              toast({
+                                title: "Info",
+                                description: "Upload a new PDF to replace the existing one",
+                              });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      )}
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) =>
+                          setEditPdfFile(e.target.files?.[0] || null)
+                        }
+                        ref={editPdfInputRef}
+                        className="bg-white"
+                      />
+                      {editPdfFile && (
+                        <p className="mt-2 text-sm text-yellow-700 flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4" /> {editPdfFile.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingNotice(null);
+                          setEditHeading("");
+                          setEditContent("");
+                          setEditPdfFile(null);
+                          if (editPdfInputRef.current) {
+                            editPdfInputRef.current.value = "";
+                          }
+                          setIsEditModalOpen(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={isUpdatingNotice}
+                        className="bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-md hover:shadow-lg transition-all"
+                      >
+                        {isUpdatingNotice ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         );
       default:
@@ -2517,6 +4161,13 @@ export default function AdminDashboard() {
       icon: ImageIcon,
       color: "text-pink-600",
       bg: "bg-pink-100",
+    },
+    {
+      id: "notices",
+      label: "Notices",
+      icon: Bell,
+      color: "text-yellow-600",
+      bg: "bg-yellow-100",
     },
   ];
 
@@ -2588,7 +4239,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-4rem)]">
-        {/* Mobile Header */}
+      {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-3 border-b bg-gradient-to-r from-blue-700 to-indigo-600">
         <h2 className="text-lg font-bold text-white">Admin Panel</h2>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -2618,6 +4269,39 @@ export default function AdminDashboard() {
       <main className="flex-1 p-3 md:p-6 overflow-auto bg-gradient-to-br from-slate-50 to-blue-50/30">
         {renderContent()}
       </main>
+
+      {/* Edit Test Modal */}
+      <EditTestModalComponent
+        isOpen={isTestEditModalOpen}
+        onOpenChange={setIsTestEditModalOpen}
+        testId={editingTestId}
+        content={content}
+        editTitle={editTitle}
+        setEditTitle={setEditTitle}
+        editDuration={editDuration}
+        setEditDuration={setEditDuration}
+        editDateFor={editDateFor}
+        setEditDateFor={setEditDateFor}
+        editLanguage={editLanguage}
+        setEditLanguage={setEditLanguage}
+        editTextContent={editTextContent}
+        setEditTextContent={setEditTextContent}
+        editAutoScroll={editAutoScroll}
+        setEditAutoScroll={setEditAutoScroll}
+        editVideo60wpmLink={editVideo60wpmLink}
+        setEditVideo60wpmLink={setEditVideo60wpmLink}
+        editVideo80wpmLink={editVideo80wpmLink}
+        setEditVideo80wpmLink={setEditVideo80wpmLink}
+        editVideo100wpmLink={editVideo100wpmLink}
+        setEditVideo100wpmLink={setEditVideo100wpmLink}
+        editVideo120wpmLink={editVideo120wpmLink}
+        setEditVideo120wpmLink={setEditVideo120wpmLink}
+        editSelectedTestFolderId={editSelectedTestFolderId}
+        setEditSelectedTestFolderId={setEditSelectedTestFolderId}
+        isEditingTest={isEditingTest}
+        isLoadingTestData={isLoadingTestData}
+        onSubmit={handleUpdateTest}
+      />
     </div>
   );
 }

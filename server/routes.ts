@@ -9,10 +9,10 @@ import {
   insertResultSchema,
   insertPdfFolderSchema,
   insertPdfResourceSchema,
-  insertDictationSchema,
   insertSelectedCandidateSchema,
   insertGalleryImageSchema,
   insertSettingSchema,
+  insertNoticeSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -68,21 +68,7 @@ export async function registerRoutes(
         try {
           // Generate student ID (PIPS + year + sequential number)
           const year = new Date().getFullYear().toString().slice(-2);
-          const allUsers = await storage.getAllUsers();
-          const prefix = `PIPS${year}`;
-          
-          // Find the highest existing student ID number for this year
-          let maxNum = 0;
-          for (const u of allUsers) {
-            if (u.studentId && u.studentId.startsWith(prefix)) {
-              const numStr = u.studentId.slice(prefix.length);
-              const num = parseInt(numStr, 10);
-              if (!isNaN(num) && num > maxNum) {
-                maxNum = num;
-              }
-            }
-          }
-          const studentId = `${prefix}${(maxNum + 1).toString().padStart(4, '0')}`;
+          const studentId = await storage.getNextStudentId(year);
           
           // Create user with isPaymentCompleted = false (requires admin approval)
           user = await storage.createUser({
@@ -256,6 +242,13 @@ export async function registerRoutes(
         return res.json({ user: null });
       }
       
+      // Check if student is disabled by admin
+      if (user.role === 'student' && !user.isPaymentCompleted) {
+        // Destroy session immediately
+        req.session.destroy(() => {});
+        return res.json({ user: null, disabled: true, message: "Your access has been disabled. Please contact the administrator." });
+      }
+      
       // Check if student access has expired (30 days validity)
       if (user.role === 'student' && user.validUntil) {
         const now = new Date();
@@ -321,6 +314,16 @@ export async function registerRoutes(
   // Get all users (admin only)
   app.get("/api/users", async (req, res) => {
     try {
+      // Check if user is authenticated and is an admin
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+      
       const role = req.query.role as string | undefined;
       const users = await storage.getAllUsers(role);
       
@@ -415,6 +418,89 @@ export async function registerRoutes(
     }
   });
   
+  // ==================== TEST FOLDER ROUTES ====================
+  
+  // Get latest test folders by language (for student dashboard - limited to 6)
+  app.get("/api/test-folders/latest", async (req, res) => {
+    try {
+      const language = req.query.language as string | undefined;
+      const type = req.query.type as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 6;
+      const offset = parseInt(req.query.offset as string) || 0;
+      if (!language) {
+        return res.status(400).json({ message: "language parameter is required" });
+      }
+      // For student dashboard, only show folders with enabled content
+      const folders = await storage.getLatestTestFoldersByLanguage(language, limit, offset, type, true);
+      res.json(folders);
+    } catch (error) {
+      console.error("Error fetching latest test folders:", error);
+      res.status(500).json({ message: "Failed to fetch latest test folders" });
+    }
+  });
+
+  // Get test folders by language
+  app.get("/api/test-folders", async (req, res) => {
+    try {
+      const language = req.query.language as string | undefined;
+      const type = req.query.type as string | undefined;
+      if (!language) {
+        return res.status(400).json({ message: "language parameter is required" });
+      }
+      const folders = await storage.getTestFoldersByLanguage(language, type);
+      res.json(folders || []);
+    } catch (error) {
+      console.error("Error fetching test folders:", error);
+      res.status(500).json({ message: "Failed to fetch test folders", error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // Create test folder
+  app.post("/api/test-folders", async (req, res) => {
+    try {
+      const { name, language, type } = req.body;
+      if (!name || !language) {
+        return res.status(400).json({ message: "name and language are required" });
+      }
+      const folder = await storage.createTestFolder({ name, language, type: type || "typing" });
+      res.status(201).json(folder);
+    } catch (error) {
+      console.error("Error creating test folder:", error);
+      res.status(500).json({ message: "Failed to create test folder" });
+    }
+  });
+
+  // Update test folder
+  app.patch("/api/test-folders/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ message: "name is required" });
+      }
+      const folder = await storage.updateTestFolder(id, { name });
+      if (!folder) {
+        return res.status(404).json({ message: "Folder not found" });
+      }
+      res.json(folder);
+    } catch (error) {
+      console.error("Error updating test folder:", error);
+      res.status(500).json({ message: "Failed to update test folder" });
+    }
+  });
+
+  // Delete test folder
+  app.delete("/api/test-folders/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTestFolder(id);
+      res.json({ message: "Folder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting test folder:", error);
+      res.status(500).json({ message: "Failed to delete test folder" });
+    }
+  });
+
   // ==================== CONTENT ROUTES ====================
   
   // Get all content list (lightweight - excludes text field)
@@ -432,11 +518,38 @@ export async function registerRoutes(
   // Get enabled content list (lightweight - excludes text field)
   app.get("/api/content/enabled/list", async (req, res) => {
     try {
+      const type = req.query.type as string | undefined;
+      const language = req.query.language as string | undefined;
+      const folderId = req.query.folderId ? Number(req.query.folderId as string) : undefined;
+      let limit = req.query.limit ? Number(req.query.limit as string) : undefined;
+      let offset = req.query.offset ? Number(req.query.offset as string) : undefined;
+      if (!Number.isFinite(limit as number)) limit = undefined;
+      if (!Number.isFinite(offset as number)) offset = undefined;
+
+      // If pagination or filters provided, use paged method
+      if (type || language || folderId || typeof limit === 'number' || typeof offset === 'number') {
+        const content = await storage.getEnabledContentListPaged(type, language, folderId, limit, offset);
+        return res.json(content);
+      }
+
       const content = await storage.getEnabledContentList();
       res.json(content);
     } catch (error) {
       console.error("Error fetching enabled content list:", error);
       res.status(500).json({ message: "Failed to get content", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Get content counts grouped by type (optionally only enabled)
+  app.get("/api/content/counts", async (req, res) => {
+    try {
+      const enabledParam = req.query.enabled as string | undefined;
+      const enabled = enabledParam === undefined ? undefined : (enabledParam === 'true');
+      const counts = await storage.getContentCounts(enabled as any);
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching content counts:", error);
+      res.status(500).json({ message: "Failed to get content counts", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -492,8 +605,6 @@ export async function registerRoutes(
     try {
       const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
       const formData: Record<string, string> = {};
-      let audioFileBuffer: Buffer | null = null;
-      let audioMimeType: string | null = null;
       let fileSize = 0;
 
       return new Promise<void>((resolve, reject) => {
@@ -504,38 +615,10 @@ export async function registerRoutes(
           }
         });
 
-        // Handle file field
-        bb.on('file', (name: string, file: any, info: { filename: string; encoding: string; mimeType: string }) => {
-          const { mimeType } = info;
-          
-          if (name === 'audioFile') {
-            audioMimeType = mimeType || 'audio/mpeg';
-            const chunks: Buffer[] = [];
-
-            file.on('data', (chunk: Buffer) => {
-              fileSize += chunk.length;
-              if (fileSize > MAX_FILE_SIZE) {
-                file.destroy();
-                if (!res.headersSent) {
-                  res.status(400).json({ message: 'File size exceeds 100MB limit' });
-                }
-                reject(new Error('File size exceeds 100MB limit'));
-                return;
-              }
-              chunks.push(chunk);
-            });
-
-            file.on('end', () => {
-              audioFileBuffer = Buffer.concat(chunks);
-            });
-
-            file.on('error', (err: Error) => {
-              reject(new Error(`File upload error: ${err.message}`));
-            });
-          } else {
-            // Ignore other files
-            file.resume();
-          }
+        // Skip file handling - audio uploads are no longer supported
+        bb.on('file', (name: string, file: any) => {
+          // Ignore all files - no audio uploads
+          file.resume();
         });
 
         // Handle form fields
@@ -546,12 +629,12 @@ export async function registerRoutes(
         // Handle form completion
         bb.on('finish', async () => {
           try {
-            // Convert audio file to base64 if present
-            let mediaUrl: string | null = null;
-            if (audioFileBuffer) {
-              const base64 = audioFileBuffer.toString('base64');
-              mediaUrl = `data:${audioMimeType || 'audio/mpeg'};base64,${base64}`;
-            }
+            // Parse video links if provided
+            const videoData: Record<string, string | undefined> = {};
+            if (formData.video60wpm) videoData.video60wpm = formData.video60wpm;
+            if (formData.video80wpm) videoData.video80wpm = formData.video80wpm;
+            if (formData.video100wpm) videoData.video100wpm = formData.video100wpm;
+            if (formData.video120wpm) videoData.video120wpm = formData.video120wpm;
 
             const validatedData = insertContentSchema.parse({
               title: formData.title,
@@ -560,8 +643,8 @@ export async function registerRoutes(
               duration: parseInt(formData.duration),
               dateFor: formData.dateFor,
               language: formData.language || 'english',
-              mediaUrl,
               autoScroll: formData.autoScroll === 'true',
+              ...videoData,
             });
 
             const content = await storage.createContent(validatedData);
@@ -630,7 +713,7 @@ export async function registerRoutes(
     }
   });
   
-  // Toggle content (lightweight - only returns id and isEnabled, no text/mediaUrl)
+  // Toggle content (lightweight - only returns id and isEnabled, no text/audioUrl)
   // Supports both POST and PATCH
   app.post("/api/content/:id/toggle", async (req, res) => {
     try {
@@ -641,7 +724,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // Return only id and isEnabled (no large fields like text/audioUrl)
       // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {
@@ -659,7 +742,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Return only id and isEnabled (no large fields like text/mediaUrl)
+      // Return only id and isEnabled (no large fields like text/audioUrl)
       // This prevents downloading large audio files on toggle
       res.json(result);
     } catch (error) {
@@ -695,27 +778,53 @@ export async function registerRoutes(
     try {
       const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
       const contentId = req.query.contentId ? parseInt(req.query.contentId as string) : undefined;
-      
-      let results;
-      if (studentId) {
-        results = await storage.getResultsByStudent(studentId);
-      } else if (contentId) {
-        results = await storage.getResultsByContent(contentId);
-      } else {
-        results = await storage.getAllResults();
+      const type = req.query.type as string | undefined;
+      let limit = req.query.limit ? Number(req.query.limit as string) : undefined;
+      let offset = req.query.offset ? Number(req.query.offset as string) : undefined;
+      if (!Number.isFinite(limit as number)) limit = undefined;
+      if (!Number.isFinite(offset as number)) offset = undefined;
+
+      // If filters or pagination provided, use paged method
+      if (type || typeof limit === 'number' || typeof offset === 'number' || typeof studentId === 'number') {
+        const paged = await storage.getResultsPaged(type, studentId, limit, offset);
+        return res.json(paged);
       }
-      
-      res.json(results);
+
+      // Backwards-compatible behavior
+      if (studentId) {
+        const r = await storage.getResultsByStudent(studentId, type);
+        return res.json(r);
+      }
+      if (contentId) {
+        const r = await storage.getResultsByContent(contentId);
+        return res.json(r);
+      }
+
+      const all = await storage.getAllResults();
+      res.json(all);
     } catch (error) {
       res.status(500).json({ message: "Failed to get results" });
     }
   });
 
-  // Get results by student ID (URL pattern)
+  // Get results counts (grouped by content type) - optional studentId
+  app.get("/api/results/counts", async (req, res) => {
+    try {
+      const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
+      const counts = await storage.getResultCounts(studentId);
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching result counts:", error);
+      res.status(500).json({ message: "Failed to get result counts", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Get results by student ID (URL pattern) - supports ?type=typing or ?type=shorthand
   app.get("/api/results/student/:studentId", async (req, res) => {
     try {
       const studentId = parseInt(req.params.studentId);
-      const results = await storage.getResultsByStudent(studentId);
+      const contentType = req.query.type as string | undefined;
+      const results = await storage.getResultsByStudent(studentId, contentType);
       res.json(results);
     } catch (error) {
       res.status(500).json({ message: "Failed to get results" });
@@ -1043,74 +1152,7 @@ export async function registerRoutes(
     }
   });
   
-  // ==================== DICTATION ROUTES ====================
   
-  app.get("/api/dictations", async (req, res) => {
-    try {
-      const dictations = await storage.getAllDictations();
-      res.json(dictations);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get dictations" });
-    }
-  });
-  
-  app.post("/api/dictations", async (req, res) => {
-    try {
-      const validatedData = insertDictationSchema.parse(req.body);
-      const dictation = await storage.createDictation(validatedData);
-      res.status(201).json(dictation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).message });
-      }
-      res.status(500).json({ message: "Failed to create dictation" });
-    }
-  });
-  
-  app.patch("/api/dictations/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const dictation = await storage.updateDictation(id, req.body);
-      
-      if (!dictation) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json(dictation);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update dictation" });
-    }
-  });
-  
-  app.post("/api/dictations/:id/toggle", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const dictation = await storage.toggleDictation(id);
-      
-      if (!dictation) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json(dictation);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to toggle dictation" });
-    }
-  });
-  
-  app.delete("/api/dictations/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const success = await storage.deleteDictation(id);
-      
-      if (!success) {
-        return res.status(404).json({ message: "Dictation not found" });
-      }
-      
-      res.json({ message: "Dictation deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete dictation" });
-    }
-  });
   
   // ==================== SELECTED CANDIDATES ROUTES ====================
   
@@ -1155,7 +1197,10 @@ export async function registerRoutes(
   
   app.get("/api/gallery", async (req, res) => {
     try {
-      const images = await storage.getAllGalleryImages();
+      const limit = req.query.limit ? Number(req.query.limit as string) : 18;
+      const offset = req.query.offset ? Number(req.query.offset as string) : 0;
+      
+      const images = await storage.getGalleryImagesPaged(limit, offset);
       res.json(images);
     } catch (error) {
       res.status(500).json({ message: "Failed to get images" });
@@ -1166,7 +1211,7 @@ export async function registerRoutes(
     try {
       const validatedData = insertGalleryImageSchema.parse(req.body);
       const image = await storage.createGalleryImage(validatedData);
-      res.status(201).json(image);
+      res.status(201).json({ url: image.url });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
@@ -1214,6 +1259,61 @@ export async function registerRoutes(
       res.json({ message: "Image deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete image" });
+    }
+  });
+
+  // Get featured gallery images (first 10)
+  app.get("/api/gallery/featured", async (req, res) => {
+    try {
+      const images = await storage.getFeaturedGalleryImages();
+      console.log('Featured gallery images fetched:', {
+        count: images.length,
+        images: images.map((img: any) => ({ id: img.id, order: img.order, hasUrl: !!img.url, urlLength: img.url?.length }))
+      });
+      // Ensure response has all fields
+      res.json(images.map((img: any) => ({
+        id: img.id,
+        url: img.url,
+        order: img.order,
+        createdAt: img.createdAt,
+      })));
+    } catch (error) {
+      console.error('Error fetching featured gallery images:', error);
+      res.status(500).json({ message: "Failed to get featured images" });
+    }
+  });
+
+  // Update gallery image order (admin only)
+  app.post("/api/gallery/order", async (req, res) => {
+    try {
+      // Check if user is authenticated and is admin
+      if (!req.session.userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { imageIds } = req.body;
+      if (!Array.isArray(imageIds)) {
+        return res.status(400).json({ message: "imageIds must be an array" });
+      }
+
+      // Limit to 10 images
+      if (imageIds.length > 10) {
+        return res.status(400).json({ message: "Maximum 10 images allowed" });
+      }
+
+      const success = await storage.updateGalleryImageOrder(imageIds);
+      if (success) {
+        res.json({ message: "Gallery order updated successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to update order" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update order" });
     }
   });
   
@@ -1288,6 +1388,222 @@ export async function registerRoutes(
       res.json(settingsObj);
     } catch (error) {
       res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // ==================== NOTICES ROUTES ====================
+
+  // Get all active notices (public endpoint)
+  app.get("/api/notices", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+      const includeInactive = req.query.include_inactive === 'true' || req.query.include_inactive === '1';
+
+      if (includeInactive) {
+        // require admin
+        if (!req.session.userId) return res.status(401).json({ message: 'Unauthorized' });
+        const user = await storage.getUser(req.session.userId);
+        if (user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
+        const notices = await storage.getAllNotices(limit, offset);
+        return res.json(notices);
+      }
+
+      const notices = await storage.getActiveNotices(limit, offset);
+      res.json(notices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notices" });
+    }
+  });
+
+  // Get all notices (admin only)
+  app.get("/api/notices/all", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const notices = await storage.getAllNotices();
+      res.json(notices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notices" });
+    }
+  });
+
+  // Create notice (admin only)
+  app.post("/api/notices", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      // Handle both JSON and multipart/form-data (for PDF uploads)
+      let noticeData: any = {};
+
+      if (req.is('multipart/form-data')) {
+        // Parse multipart data
+        const bb = busboy({ headers: req.headers });
+        const fields: Record<string, string> = {};
+        let pdfFile: Buffer | null = null;
+        let pdfMimeType: string | null = null;
+
+        await new Promise((resolve, reject) => {
+          bb.on('file', (fieldname, file, info) => {
+            if (fieldname === 'pdf') {
+              const chunks: Buffer[] = [];
+              file.on('data', (data) => chunks.push(data));
+              file.on('end', () => {
+                pdfFile = Buffer.concat(chunks);
+                pdfMimeType = info.mimeType;
+              });
+            }
+          });
+
+          bb.on('field', (fieldname, val) => {
+            fields[fieldname] = val;
+          });
+
+          bb.on('close', resolve);
+          bb.on('error', reject);
+          
+          req.pipe(bb);
+        });
+
+        noticeData = {
+          heading: fields.heading,
+          content: fields.content,
+          pdfUrl: pdfFile ? `data:${pdfMimeType};base64,${(pdfFile as Buffer).toString('base64')}` : null,
+        };
+      } else {
+        // JSON request
+        noticeData = {
+          heading: req.body.heading,
+          content: req.body.content,
+          pdfUrl: req.body.pdfUrl || null,
+        };
+      }
+
+      const validatedData = insertNoticeSchema.parse(noticeData);
+      const notice = await storage.createNotice(validatedData);
+      res.json(notice);
+    } catch (error) {
+      console.error('Notice creation error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ message: `Failed to create notice: ${errorMessage}` });
+    }
+  });
+
+  // Update notice (admin only)
+  app.patch("/api/notices/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid notice ID" });
+      }
+
+      // Handle both JSON and multipart/form-data (for PDF uploads)
+      let updates: any = {};
+
+      if (req.is('multipart/form-data')) {
+        // Parse multipart data
+        const bb = busboy({ headers: req.headers });
+        const fields: Record<string, string> = {};
+        let pdfFile: Buffer | null = null;
+        let pdfMimeType: string | null = null;
+
+        await new Promise((resolve, reject) => {
+          bb.on('file', (fieldname, file, info) => {
+            if (fieldname === 'pdf') {
+              const chunks: Buffer[] = [];
+              file.on('data', (data) => chunks.push(data));
+              file.on('end', () => {
+                pdfFile = Buffer.concat(chunks);
+                pdfMimeType = info.mimeType;
+              });
+            }
+          });
+
+          bb.on('field', (fieldname, val) => {
+            fields[fieldname] = val;
+          });
+
+          bb.on('close', resolve);
+          bb.on('error', reject);
+          
+          req.pipe(bb);
+        });
+
+        if (fields.heading) updates.heading = fields.heading;
+        if (fields.content) updates.content = fields.content;
+        if (pdfFile) {
+          updates.pdfUrl = `data:${pdfMimeType};base64,${(pdfFile as Buffer).toString('base64')}`;
+        }
+      } else {
+        // JSON request
+        if (req.body.heading) updates.heading = req.body.heading;
+        if (req.body.content) updates.content = req.body.content;
+        if ('isActive' in req.body) updates.isActive = req.body.isActive;
+        if (req.body.pdfUrl) updates.pdfUrl = req.body.pdfUrl;
+      }
+
+      const notice = await storage.updateNotice(id, updates);
+      if (!notice) {
+        return res.status(404).json({ message: "Notice not found" });
+      }
+
+      res.json(notice);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update notice" });
+    }
+  });
+
+  // Delete notice (admin only)
+  app.delete("/api/notices/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const user = await storage.getUser(req.session.userId);
+      if (user?.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid notice ID" });
+      }
+
+      const deleted = await storage.deleteNotice(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Notice not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete notice" });
     }
   });
 

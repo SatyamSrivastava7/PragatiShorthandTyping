@@ -1,14 +1,16 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useAuth, useGallery, useSelectedCandidates } from "@/lib/hooks";
+import { useAuth, useSelectedCandidates } from "@/lib/hooks";
+import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
+import { useNotices } from "@/lib/hooks/useNotice";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, MapPin, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu } from "lucide-react";
+import { ArrowRight, Keyboard, FileText, Award, Image as ImageIcon, Phone, Mail, Send, Youtube, Smartphone, Users, BookOpen, Trophy, GraduationCap, Menu, Bell, Download } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import heroImage from "@assets/generated_images/modern_professional_typing_institute_classroom.png";
 import logoImage from "@assets/WhatsApp_Image_2025-12-12_at_7.30.52_PM_(1)_1765980168956.jpeg";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import Autoplay from "embla-carousel-autoplay";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 import {
   Carousel,
   CarouselContent,
@@ -19,8 +21,8 @@ import {
 
 export default function LandingPage() {
   const { user: currentUser } = useAuth();
-  const { images: galleryImages } = useGallery();
-  const { candidates: selectedCandidates } = useSelectedCandidates();
+  const { featuredImages } = useFeaturedGallery(); // Get featured images (first 10 selected) - ONLY API call for gallery
+  const { candidates: selectedCandidates } = useSelectedCandidates(true); // Landing page always displays candidates
   const { toast } = useToast();
   
   const openLink = (url: string) => {
@@ -28,11 +30,57 @@ export default function LandingPage() {
   };
 
   const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "Copied!",
-      description: `${label} copied to clipboard.`
-    });
+    // Use modern clipboard API if available, otherwise use fallback
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        toast({
+          title: "Copied!",
+          description: `${label} copied to clipboard.`
+        });
+      }).catch(() => {
+        // Fallback if clipboard API fails
+        copyToClipboardFallback(text, label);
+      });
+    } else {
+      // Fallback for older browsers (Windows 7)
+      copyToClipboardFallback(text, label);
+    }
+  };
+
+  const copyToClipboardFallback = (text: string, label: string) => {
+    // Create a temporary textarea element
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    
+    try {
+      textarea.select();
+      textarea.setSelectionRange(0, 99999); // For mobile devices
+      const successful = document.execCommand('copy');
+      if (successful) {
+        toast({
+          title: "Copied!",
+          description: `${label} copied to clipboard.`
+        });
+      } else {
+        toast({
+          title: "Failed to copy",
+          description: "Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Failed to copy",
+        description: "Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      document.body.removeChild(textarea);
+    }
   };
 
   const getStartedLink = currentUser 
@@ -42,7 +90,7 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Main Header/Navigation */}
-      <header className="w-full bg-white/95 backdrop-blur-md border-b sticky top-0 z-50 shadow-sm">
+      <header className="w-full bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full overflow-hidden border-2 border-primary/20 shadow-md bg-white shrink-0">
@@ -134,8 +182,55 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Gallery Hero Section - Featured Images Only */}
+      {featuredImages.length > 0 ? (
+        <section className="w-full bg-black relative h-[550px] overflow-hidden">
+          <Carousel
+            plugins={[
+              Autoplay({
+                delay: 4000,
+              }),
+            ]}
+            className="w-full h-full"
+          >
+            <CarouselContent className="m-0 h-full">
+              {featuredImages.map((image: any, idx) => (
+                <CarouselItem key={idx} className="pl-0 h-full">
+                  <div className="relative w-full h-full overflow-hidden flex items-center justify-center bg-black">
+                    <img src={image.url} alt={`Featured ${idx}`} className="w-full h-full object-contain" />
+                    <div className="absolute inset-0 bg-black/20" />
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
+            <CarouselNext className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-10 w-10 border-2 border-white bg-white/20 hover:bg-white/40 text-white" />
+          </Carousel>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+            <Link href="/gallery">
+              <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-6 py-2 text-sm">
+                View All Gallery →
+              </Button>
+            </Link>
+          </div>
+        </section>
+      ) : (
+        <section className="w-full bg-gradient-to-br from-gray-900 to-black relative py-12">
+          <div className="container mx-auto px-4 flex flex-col items-center justify-center text-center">
+            <ImageIcon className="h-16 w-16 text-gray-600 mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Featured Gallery Coming Soon</h2>
+            <p className="text-gray-400 mb-6">Check back soon or explore our full gallery</p>
+            <Link href="/gallery">
+              <Button className="bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg transition-all text-white px-6 py-2">
+                View All Gallery →
+              </Button>
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* Hero Section */}
-      <section className="w-full py-16 md:py-24 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex justify-center text-center relative overflow-hidden">
+      <section className="w-full py-12 md:py-16 lg:py-20 bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex justify-center text-center relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-200/30 rounded-full blur-3xl" />
@@ -144,53 +239,12 @@ export default function LandingPage() {
         <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-green-400/40 rounded-full animate-pulse delay-500" />
         
         <div className="container px-4 md:px-6 relative z-10">
-          <div className="flex flex-col items-center gap-8">
-            {/* Main Hero Content */}
-            <div className="flex-1 flex flex-col items-center space-y-4 max-w-4xl">
-              <div className="space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl xl:text-6xl bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
-                  Master Shorthand & Typing with Pragati
-                </h1>
-                <p className="max-w-[700px] mx-auto text-muted-foreground md:text-xl leading-relaxed">
-                  Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence.
-                </p>
-                <div className="flex items-center justify-center gap-3 pt-2">
-                  <span className="bg-gradient-to-r from-primary to-blue-600 text-white px-4 py-1.5 rounded-full text-sm font-semibold tracking-wide shadow-md">
-                    Since 2008
-                  </span>
-                  <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-semibold">
-                    5000+ Students
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 min-[400px]:flex-row justify-center pt-6">
-                <Link href={getStartedLink}>
-                  <Button size="lg" className="px-8 h-12 text-base shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0">
-                    {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-                <Link href="/gallery">
-                  <Button variant="outline" size="lg" className="h-12 px-8 text-base border-2 hover:bg-primary/5">
-                    <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            
-            <div className="relative mt-8 w-full max-w-5xl">
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-blue-400/20 to-indigo-400/20 rounded-2xl blur-xl" />
-              <img
-                src={heroImage}
-                alt="Hero"
-                className="relative mx-auto aspect-video overflow-hidden rounded-2xl object-cover object-center w-full shadow-2xl border-4 border-white"
-              />
-            </div>
-          </div>
+          <HeroSection currentUser={currentUser} getStartedLink={getStartedLink} />
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="w-full py-12 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-white">
+      <section className="w-full py-8 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-white">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div className="flex flex-col items-center text-center">
@@ -226,7 +280,7 @@ export default function LandingPage() {
       </section>
 
       {/* About Section */}
-      <section id="about" className="w-full py-16 md:py-24 bg-gradient-to-b from-white to-slate-50">
+      <section id="about" className="w-full py-12 md:py-16 bg-gradient-to-b from-white to-slate-50">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <span className="text-primary font-semibold text-sm uppercase tracking-wider">What We Offer</span>
@@ -236,7 +290,7 @@ export default function LandingPage() {
               Our platform offers realistic test environments, detailed performance analytics, and comprehensive study materials.
             </p>
           </div>
-          <div className="mx-auto grid max-w-5xl items-stretch gap-8 py-12 lg:grid-cols-3">
+          <div className="mx-auto grid max-w-5xl items-stretch gap-8 py-8 lg:grid-cols-3">
             <Card className="shadow-lg border-0 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white group">
               <CardContent className="flex flex-col items-center justify-center p-8 space-y-4">
                 <div className="p-5 bg-gradient-to-br from-orange-100 to-orange-50 rounded-2xl group-hover:scale-110 transition-transform duration-300">
@@ -275,9 +329,9 @@ export default function LandingPage() {
       </section>
 
       {/* Selected Candidates Section */}
-      <section id="candidates" className="w-full py-16 md:py-24 bg-gradient-to-b from-slate-50 to-white">
+      <section id="candidates" className="w-full py-12 md:py-16 bg-gradient-to-b from-slate-50 to-white">
         <div className="container px-4 md:px-6 mx-auto">
-           <div className="text-center mb-12">
+           <div className="text-center mb-8">
              <span className="text-primary font-semibold text-sm uppercase tracking-wider">Success Stories</span>
              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Our Selected Candidates</h2>
            </div>
@@ -318,63 +372,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Gallery Section */}
-      <section className="w-full py-16 md:py-24 bg-gradient-to-b from-white to-slate-50">
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-primary font-semibold text-sm uppercase tracking-wider">Our Moments</span>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mt-2">Photo Gallery</h2>
-          </div>
-          {galleryImages.length > 0 ? (
-            <div className="w-full max-w-5xl mx-auto px-12">
-              <Carousel
-                plugins={[
-                  Autoplay({
-                    delay: 2000,
-                  }),
-                ]}
-                className="w-full"
-              >
-                <CarouselContent>
-                  {galleryImages.map((url, idx) => (
-                    <CarouselItem key={idx} className="md:basis-1/2 lg:basis-1/3">
-                      <div className="p-2">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <div className="relative group aspect-square rounded-xl overflow-hidden cursor-pointer shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] bg-white p-1">
-                              <img src={url} alt={`Gallery ${idx}`} className="w-full h-full object-cover rounded-lg" />
-                              <div className="absolute inset-1 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg" />
-                            </div>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none shadow-none">
-                            <img src={url} alt={`Gallery ${idx}`} className="w-full h-auto max-h-[90vh] object-contain rounded-md" />
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="border-2" />
-                <CarouselNext className="border-2" />
-              </Carousel>
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-muted/30 rounded-lg border-2 border-dashed">
-              <p className="text-muted-foreground">No images uploaded yet.</p>
-            </div>
-          )}
-          {galleryImages.length > 0 && (
-            <div className="mt-10 text-center">
-              <Link href="/gallery">
-                 <Button variant="outline" size="lg" className="border-2">View All Images</Button>
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer id="contact" className="w-full py-12 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
+      <footer id="contact" className="w-full py-8 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col items-center md:items-start">
@@ -427,6 +426,272 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Notice Slider - appears at bottom when notices exist */}
+      {/* <NoticeSlider /> */}
+    </div>
+  );
+}
+
+function HeroSection({ currentUser, getStartedLink }: any) {
+  // Don't fetch notices on landing page - only show latest notice if available from cache
+  // Notices will only be fetched when user navigates to the notice page
+
+  return (
+    <div className="w-full space-y-8">
+      {/* Top Row: Content on left, Notice on right */}
+      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+        {/* Left/Main Content - Takes 8/12 on large screens */}
+        <div className="lg:col-span-8 flex flex-col space-y-6">
+          {/* Text Content */}
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-tight bg-gradient-to-r from-gray-900 via-primary to-blue-800 bg-clip-text text-transparent">
+                Master Shorthand & Typing with Pragati Institute
+              </h1>
+            </div>
+            <p className="text-base lg:text-lg text-gray-700 leading-relaxed max-w-2xl justify-center mx-auto">
+              Professional assessment platform for stenography and typing skills. Join thousands of students achieving excellence since 2008.
+            </p>
+            
+            {/* Stats Pills */}
+            <div className="flex flex-wrap gap-3 pt-2 justify-center mx-auto">
+              <div className="px-4 py-2 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full text-sm font-semibold shadow-md">
+                Since 2008
+              </div>
+              <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                5000+ Students
+              </div>
+              <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
+                1000+ Govt Jobs
+              </div>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center mx-auto">
+            <Link href={getStartedLink}>
+              <Button size="lg" className="px-10 h-14 text-base font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all bg-gradient-to-r from-primary to-blue-600 border-0 whitespace-nowrap">
+                {currentUser ? "Go to Dashboard" : "Get Started"} <ArrowRight className="ml-3 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/gallery">
+              <Button variant="outline" size="lg" className="px-10 h-14 text-base font-semibold border-2 hover:bg-primary/5 whitespace-nowrap">
+                <ImageIcon className="mr-2 h-5 w-5" /> View Gallery
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Notice Card - Only show if notices already cached */}
+        <LatestNoticeCard />
+      </div>
+
+      {/* Hero Image - Below, full width */}
+      {/* <div className="w-full">
+        <div className="relative">
+          <div className="absolute -inset-6 bg-gradient-to-r from-primary/15 via-blue-400/15 to-indigo-400/15 rounded-3xl blur-2xl" />
+          <img
+            src={heroImage}
+            alt="Professional Typing Institute Classroom"
+            className="relative w-full aspect-video overflow-hidden rounded-3xl object-cover shadow-2xl border-4 border-white"
+          />
+        </div>
+      </div> */}
+    </div>
+  );
+}
+
+// Latest Notice Card Component for Hero Section
+function LatestNoticeCard() {
+  // All hooks must be called unconditionally at the top
+  const { notices, isLoading } = useNotices({ enabled: true, limit: 10, offset: 0 });
+  const [index, setIndex] = useState(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const firstItemRef = useRef<HTMLDivElement | null>(null);
+  const [itemHeight, setItemHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  
+  const VISIBLE_COUNT = 5;
+  const cachedNotices = notices || [];
+  const current = cachedNotices[index];
+  const initialHeight = 60 * VISIBLE_COUNT;
+
+  // Auto-advance every 3s - scrolls through notices automatically
+  useEffect(() => {
+    const noticeCount = cachedNotices?.length || 0;
+    if (noticeCount <= 1) return;
+
+    const id = setInterval(() => {
+      setIndex((prev) => (prev + 1) % noticeCount);
+    }, 3000);
+
+    return () => clearInterval(id);
+  }, [cachedNotices?.length]);
+
+  // Measure first item height and compute container height
+  useEffect(() => {
+    const el = firstItemRef.current;
+    if (!el) return;
+    
+    const update = () => {
+      const h = el.getBoundingClientRect().height || el.clientHeight || 60;
+      if (h > 0) {
+        setItemHeight(h);
+        setContainerHeight(h * VISIBLE_COUNT);
+      }
+    };
+    
+    // Initial measurement after render
+    requestAnimationFrame(() => {
+      update();
+      // Double-check after a short delay for fonts/layout to settle
+      setTimeout(update, 100);
+    });
+    
+    // Use ResizeObserver with fallback for older browsers
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(update);
+      ro.observe(el);
+      return () => ro.disconnect();
+    } else {
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
+  }, [VISIBLE_COUNT, cachedNotices.length]);
+
+  // Handle mouse wheel scroll
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (cachedNotices.length <= VISIBLE_COUNT) return;
+    e.preventDefault();
+    
+    if (e.deltaY > 0) {
+      setIndex((prev) => (prev + 1) % cachedNotices.length);
+    } else {
+      setIndex((prev) => (prev - 1 + cachedNotices.length) % cachedNotices.length);
+    }
+  };
+
+  // Early return only after all hooks
+  if (isLoading || cachedNotices.length === 0) {
+    return (
+      <div className="lg:col-span-4 w-full">
+        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg">
+          <div className="flex items-start gap-3 mb-4">
+            <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
+            <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
+          </div>
+          <p className="text-sm text-gray-600">{isLoading ? 'Loading announcements...' : 'No announcements available'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="lg:col-span-4 w-full" style={{ minHeight: '300px' }}>
+      <div
+        className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow h-full flex flex-col"
+      >
+        <div className="flex items-start gap-3 mb-4">
+          <div className="mt-0.5">
+            <Bell className="h-6 w-6 text-yellow-600 animate-bounce shrink-0" />
+          </div>
+          <h3 className="font-bold text-lg text-yellow-900">Latest Notice</h3>
+        </div>
+
+        <div className="space-y-3">
+          <div
+            ref={containerRef}
+            className="overflow-hidden"
+            style={{ height: containerHeight || initialHeight }}
+            onWheel={handleWheel}
+          ><div
+              aria-live="polite"
+              className="flex flex-col transform-gpu"
+              style={{
+                transform: `translateY(-${index * itemHeight}px)`,
+                transition: 'transform 900ms cubic-bezier(.2,.9,.2,1)'
+              }}
+            >
+              {cachedNotices.map((n, i) => (
+                <div
+                  key={n.id}
+                  ref={i === 0 ? firstItemRef : undefined}
+                  className="flex-shrink-0 px-1 py-2"
+                  style={{ height: itemHeight || undefined }}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="font-semibold text-gray-900 text-sm truncate">
+                      {n.heading}
+                    </h4>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-gray-500">{format(new Date(n.createdAt), "MMM d, yyyy")}</span>
+                      {n.pdfUrl && (
+                        <button
+                          onClick={() => {
+                            const link = document.createElement("a");
+                            link.href = n.pdfUrl!;
+                            link.download = "notice.pdf";
+                            link.click();
+                          }}
+                          className="text-yellow-600 hover:text-yellow-700 transition-colors"
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-700 truncate mt-1">{n.content}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            {/* {current.pdfUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                onClick={() => {
+                  const link = document.createElement("a");
+                  link.href = current.pdfUrl!;
+                  link.download = "notice.pdf";
+                  link.click();
+                }}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+            )} */}
+            <Link href="/notice" className="w-full">
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
+              >
+                View All Notices
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+
+          {cachedNotices.length > 1 && (
+            <p className="text-xs text-gray-600 text-center pt-2 border-t border-yellow-200">
+              {cachedNotices.length} total announcements
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LatestNoticeCardWrapper() {
+  return (
+    <div className="flex-shrink-0 hidden lg:flex w-80 items-start">
+      <LatestNoticeCard />
     </div>
   );
 }

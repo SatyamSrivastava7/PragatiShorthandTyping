@@ -1,18 +1,44 @@
-import { cn, alignWords } from "@/lib/utils";
+import { cn, alignWords, getTypingAlignment, calculateAlignedMistakes } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
   typedText: string;
   language?: 'english' | 'hindi';
+  contentType?: 'typing' | 'shorthand';
 }
 
-export function ResultTextAnalysis({ originalText, typedText, language }: ResultTextAnalysisProps) {
-  // Use LCS-based alignment that shows missing words in correct positions
-  const alignment = alignWords(originalText, typedText);
+export function ResultTextAnalysis({ originalText, typedText, language, contentType = 'typing' }: ResultTextAnalysisProps) {
+  // Use appropriate alignment based on content type
+  // For typing tests: use windowed alignment that limits search scope
+  // For shorthand tests: use full DP alignment
+  let alignment;
+  if (contentType === 'typing') {
+    alignment = getTypingAlignment(originalText, typedText);
+  } else {
+    const { attemptedAlignment, alignment: fullAlignment } = calculateAlignedMistakes(originalText, typedText);
+
+    // Include trailing (left) words after the attempted alignment so shorthand analysis
+    // shows both the attempted portion and the left words that were not attempted.
+    const trailingItems = fullAlignment.filter((item) => {
+      const isInAttempted = attemptedAlignment.some(
+        (a) => a.original === item.original && a.typed === item.typed && a.status === item.status
+      );
+      return !isInAttempted && item.original !== "";
+    });
+
+    alignment = [...attemptedAlignment, ...trailingItems];
+  }
 
   return (
     <div className={cn("text-sm leading-relaxed flex flex-wrap gap-x-1", language === 'hindi' ? "font-mangal" : "")}>
       {alignment.map((item, i) => {
+        // Show trailing words (not attempted by user) in gray
+        if (item.status === 'trailing') {
+          return (
+            <span key={i} className="text-muted-foreground/50">{item.original}</span>
+          );
+        }
+        
         // Missing word - show in green brackets
         if (item.status === 'missing') {
           return (
@@ -20,15 +46,14 @@ export function ResultTextAnalysis({ originalText, typedText, language }: Result
           );
         }
         
-        // Substitution - show correct word in green brackets FIRST, then typed word underlined in red
+        // Substitution - show typed (errored) word FIRST, then correct word in green brackets
         if (item.status === 'substitution') {
           return (
             <span key={i}>
-              <span className="text-green-600 font-medium">[{item.original}]</span>
-              {' '}
-              <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
+              <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1">
                 {item.typed}
               </span>
+              <span className="text-green-600 font-medium">[{item.original}]</span>
             </span>
           );
         }
@@ -47,4 +72,9 @@ export function ResultTextAnalysis({ originalText, typedText, language }: Result
       })}
     </div>
   );
+}
+
+// Helper function to normalize words for comparison
+function normalizeWord(word: string): string {
+  return word.replace(/[.,]/g, "").toLowerCase();
 }

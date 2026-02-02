@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRoute, useLocation, Link } from "wouter";
-import { useAuth, useContentById, useResults, useSettings } from "@/lib/hooks";
+import { useRoute, Link } from "wouter";
+import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Timer, EyeOff, Save, CheckCircle, Music, ArrowLeft, Settings, Maximize, Minimize, Type, RefreshCw, Loader2 } from "lucide-react";
+import { Timer, Save, CheckCircle, Music, ArrowLeft, Maximize, Minimize, Type, RefreshCw, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -18,14 +16,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
-  const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
   const { data: testContent, isLoading: isContentLoading } = useContentById(params?.id ? Number(params.id) : undefined);
-  const { createResult } = useResults();
-  const { settings } = useSettings();
+  const { createResult } = useResults(undefined, false); // Only use POST, disable GET query
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
@@ -39,12 +42,16 @@ export default function TypingTestPage() {
   const [submissionFailed, setSubmissionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [selectedVideoWpm, setSelectedVideoWpm] = useState<"60" | "80" | "100" | "120">("80"); // Default to 80 WPM
+  const [userScrolled, setUserScrolled] = useState(false); // Track if user manually scrolled
   
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef<number>(0);
+  const isAutoScrollingRef = useRef<boolean>(false); // Flag to track if current scroll is programmatic
 
   useEffect(() => {
     if (testContent) {
@@ -109,6 +116,7 @@ export default function TypingTestPage() {
     let result: 'Pass' | 'Fail';
     let grossSpeed: string | undefined;
     let netSpeed: string | undefined;
+    let halfMistakes: string | undefined;
 
     if (testContent.type === 'typing') {
       metrics = calculateTypingMetrics(testContent.text, typedText, testContent.duration, backspaces);
@@ -117,11 +125,13 @@ export default function TypingTestPage() {
       result = mistakePercentage > 5 ? 'Fail' : 'Pass';
       grossSpeed = String(metrics.grossSpeed);
       netSpeed = String(metrics.netSpeed);
+      halfMistakes = String(metrics.halfMistakes ?? 0);
     } else {
       metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;
+      halfMistakes = String(metrics.halfMistakes ?? 0);
     }
 
     try {
@@ -131,6 +141,7 @@ export default function TypingTestPage() {
         words: metrics.words,
         time: testContent.duration,
         mistakes: String(metrics.mistakes),
+        halfMistakes,
         backspaces: backspaces,
         grossSpeed: grossSpeed,
         netSpeed: netSpeed,
@@ -202,24 +213,77 @@ export default function TypingTestPage() {
     };
   }, [isActive, finishTest]);
   
-  // Auto-scroll logic (controlled by per-test setting)
+  // Handle manual scroll - detect if user scrolled
+  useEffect(() => {
+    const container = originalTextRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // Only mark as manually scrolled if this scroll wasn't triggered by auto-scroll
+      if (!isAutoScrollingRef.current) {
+        setUserScrolled(true);
+      }
+      isAutoScrollingRef.current = false;
+      lastScrollTopRef.current = container.scrollTop;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll logic - scrolls original text to follow typing progress
+  // Content moves from bottom to top (current word stays near top of visible area)
   useEffect(() => {
     const autoScrollEnabled = testContent?.autoScroll ?? true;
-    if (autoScrollEnabled && testContent?.type === 'typing' && originalTextRef.current) {
-      // Very basic sync: Scroll original text based on progress
-      const totalLength = testContent.text.length;
-      const currentLength = typedText.length;
-      const progress = currentLength / totalLength;
-      
-      const scrollHeight = originalTextRef.current.scrollHeight;
-      const clientHeight = originalTextRef.current.clientHeight;
-      
-      // Scroll proportional to progress
-      originalTextRef.current.scrollTop = (scrollHeight - clientHeight) * progress;
+    if (!autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
+    if (!isActive) return; // Only scroll when test is active
+    
+    const container = originalTextRef.current;
+    const originalText = testContent.text;
+    
+    // Count words typed by user
+    const typedWords = typedText.trim().split(/\s+/).filter(w => w).length;
+    const originalWords = originalText.trim().split(/\s+/).filter(w => w);
+    const totalOriginalWords = originalWords.length;
+    
+    if (totalOriginalWords === 0) return;
+    
+    // Calculate scroll position based on word progress
+    const scrollableHeight = container.scrollHeight - container.clientHeight;
+    const progress = Math.min(typedWords / totalOriginalWords, 1);
+    
+    // Target position: current word should appear near top (20% from top)
+    // This makes content scroll up as user types (bottom to top feel)
+    const targetScrollPosition = Math.max(0, progress * scrollableHeight);
+    
+    const currentScroll = container.scrollTop;
+    const diff = targetScrollPosition - currentScroll;
+    
+    // Only auto-scroll if difference is significant (more than 5px)
+    // This prevents jittering on every keystroke
+    if (Math.abs(diff) < 5) return;
+    
+    // If user has manually scrolled, only do "catch-up" scrolling
+    // when they fall more than 30% behind the target position
+    if (userScrolled) {
+      const lagThreshold = scrollableHeight * 0.3;
+      if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
     }
-  }, [typedText, testContent]);
+    
+    // Smooth scroll: move 25% of the distance per update
+    const newScroll = currentScroll + diff * 0.25;
+    
+    // Mark as programmatic scroll to avoid triggering manual scroll detection
+    isAutoScrollingRef.current = true;
+    container.scrollTop = newScroll;
+    lastScrollTopRef.current = newScroll;
+    
+  }, [typedText, testContent, userScrolled, isActive]);
 
   const startTest = () => {
+    // Reset scroll tracking when test starts
+    setUserScrolled(false);
+    
     // Check cooldown before starting
     if (cooldownRemaining > 0) {
       toast({
@@ -259,114 +323,119 @@ export default function TypingTestPage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
-    // Shorthand tests allow free editing - no restrictions
-    if (testContent?.type === 'shorthand') {
-      // Only track backspaces for shorthand
-      if (e.key === 'Backspace') {
-        setBackspaceCount(prev => prev + 1);
-      }
+    const textarea = e.currentTarget;
+    const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
+    
+    // Block any modifier combinations (Ctrl, Alt, Cmd) - for all test types
+    if (hasModifier) {
+      e.preventDefault();
       return;
     }
     
-    // Typing test restrictions below
-    const textarea = e.currentTarget;
-    const cursorPos = textarea.selectionStart;
-    const wordBoundary = getWordBoundary(typedText);
-    const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
-    
-    // Block Delete key when cursor is before word boundary
+    // Block Delete key entirely - for all test types
     if (e.key === 'Delete') {
-      if (cursorPos < wordBoundary) {
+      e.preventDefault();
+      return;
+    }
+    
+    // Track backspaces for all test types
+    if (e.key === 'Backspace') {
+      setBackspaceCount(prev => prev + 1);
+    }
+    
+    // Typing test specific restrictions
+    if (testContent?.type === 'typing') {
+      // Only allow: Shift, Enter, Space, and regular characters (letters, numbers, punctuation)
+      const allowedKeys = ['Shift', 'Enter', ' ', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowDown'];
+      const isRegularCharacter = e.key.length === 1; // Single character key (letters, numbers, punctuation)
+      
+      // Block all keys except the allowed ones and regular characters
+      if (!allowedKeys.includes(e.key) && !isRegularCharacter) {
         e.preventDefault();
         return;
       }
-    }
-    
-    if (e.key === 'Backspace') {
-      // Block any modifier+backspace (Ctrl+Backspace deletes whole word)
-      if (hasModifier) {
+
+      const cursorPos = textarea.selectionStart;
+      const wordBoundary = getWordBoundary(typedText);
+      
+      if (e.key === 'Backspace') {
+        // Can only backspace within current word (after the word boundary)
+        if (cursorPos <= wordBoundary) {
+          e.preventDefault();
+          return;
+        }
+      }
+      
+      if (e.key === 'ArrowLeft') {
+        // Block if at boundary
+        if (cursorPos <= wordBoundary) {
+          e.preventDefault();
+        }
+      }
+      
+      // Block Home key - would jump to start of line/text - only for typing
+      if (e.key === 'Home') {
+        e.preventDefault();
+        textarea.setSelectionRange(wordBoundary, wordBoundary);
+      }
+      
+      // Block ArrowUp - would move to previous line - only for typing
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+      }
+      
+      // Block Tab key - move to next element - only for typing
+      if (e.key === 'Tab') {
+        e.preventDefault();
+      }
+    } else if (testContent?.type === 'shorthand') {
+      // For shorthand tests: block Tab and Home keys
+      if (e.key === 'Tab') {
         e.preventDefault();
         return;
       }
       
-      // Simple rule: can only backspace within current word (after the word boundary)
-      // Once you type a space/enter, the previous word is locked
-      if (cursorPos <= wordBoundary) {
+      if (e.key === 'Home') {
         e.preventDefault();
         return;
       }
-      setBackspaceCount(prev => prev + 1);
-    }
-    
-    // Block modifier+Delete (Ctrl+Delete deletes word forward)
-    if (e.key === 'Delete' && hasModifier) {
-      e.preventDefault();
-      return;
-    }
-    
-    if (e.key === 'ArrowLeft') {
-      // Block if at boundary or if using modifier (which could jump words)
-      if (cursorPos <= wordBoundary || hasModifier) {
-        e.preventDefault();
-        if (hasModifier) {
-          textarea.setSelectionRange(wordBoundary, wordBoundary);
-        }
-      }
-    }
-    
-    // Block Home key - would jump to start of line/text
-    if (e.key === 'Home') {
-      e.preventDefault();
-      textarea.setSelectionRange(wordBoundary, wordBoundary);
-    }
-    
-    // Block ArrowUp - would move to previous line
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-    }
-    
-    // Block Ctrl+A (select all) to prevent selecting previous words
-    if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      textarea.setSelectionRange(wordBoundary, typedText.length);
-    }
-    
-    // Block Ctrl+Z (undo) to prevent restoring previous state
-    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
     }
   };
 
   const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
-    // Shorthand tests allow free selection - no restrictions
-    if (testContent?.type === 'shorthand') return;
-    
     const textarea = e.currentTarget;
-    const wordBoundary = getWordBoundary(typedText);
     
-    // If selection starts before word boundary, adjust it
-    if (textarea.selectionStart < wordBoundary) {
-      textarea.setSelectionRange(wordBoundary, Math.max(wordBoundary, textarea.selectionEnd));
+    // For typing tests - restrict selection to word boundary
+    if (testContent?.type === 'typing') {
+      const wordBoundary = getWordBoundary(typedText);
+      
+      // If selection starts before word boundary, adjust it
+      if (textarea.selectionStart < wordBoundary) {
+        textarea.setSelectionRange(wordBoundary, Math.max(wordBoundary, textarea.selectionEnd));
+      }
     }
+    // For shorthand tests - allow free selection
   };
 
   const handleClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
     
-    // Shorthand tests allow free cursor movement - no restrictions
-    if (testContent?.type === 'shorthand') return;
-    
     const textarea = e.currentTarget;
-    const wordBoundary = getWordBoundary(typedText);
     
-    // If clicked before word boundary, move cursor to boundary
-    setTimeout(() => {
-      if (textarea.selectionStart < wordBoundary) {
-        textarea.setSelectionRange(wordBoundary, wordBoundary);
-      }
-    }, 0);
+    // For typing tests - restrict cursor movement to word boundary
+    if (testContent?.type === 'typing') {
+      const wordBoundary = getWordBoundary(typedText);
+      
+      // If clicked before word boundary, move cursor to boundary
+      setTimeout(() => {
+        if (textarea.selectionStart < wordBoundary) {
+          textarea.setSelectionRange(wordBoundary, wordBoundary);
+        }
+      }, 0);
+    }
+    // For shorthand tests - allow free cursor movement
   };
 
   const toggleFullScreen = () => {
@@ -378,6 +447,30 @@ export default function TypingTestPage() {
        }
      }
   };
+
+  // Video functionality - Get the video URL based on selected WPM
+  const getSelectedVideoUrl = () => {
+    if (!testContent) return null;
+    
+    // Map selected WPM to the corresponding video field
+    const videoFieldMap: Record<"60" | "80" | "100" | "120", keyof typeof testContent> = {
+      "60": "video60wpm",
+      "80": "video80wpm",
+      "100": "video100wpm",
+      "120": "video120wpm",
+    };
+    
+    const videoField = videoFieldMap[selectedVideoWpm];
+    const value = testContent[videoField];
+    return typeof value === 'string' ? value : null;
+  };
+
+  // Check which video speeds are available
+  const video60Available = testContent?.video60wpm ? true : false;
+  const video80Available = testContent?.video80wpm ? true : false;
+  const video100Available = testContent?.video100wpm ? true : false;
+  const video120Available = testContent?.video120wpm ? true : false;
+  const selectedVideoUrl = getSelectedVideoUrl();
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -457,26 +550,64 @@ export default function TypingTestPage() {
       {/* Main Workspace - Vertical Layout */}
       <div className="flex-1 flex flex-col gap-6 min-h-0">
         
-        {/* Shorthand Audio Player - Prominent at top */}
-        {testContent.type === 'shorthand' && testContent.mediaUrl && (
-           <Card className="bg-muted/30 border-2 border-orange-200 shrink-0">
-             <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-               <div className="flex items-center gap-3">
-                 <div className="p-3 bg-orange-100 rounded-full text-orange-600">
-                   <Music size={24} />
+        {/* Shorthand Audio Controls - More Visible for All Devices */}
+        {testContent.type === 'shorthand' && (video60Available || video80Available || video100Available || video120Available) && (
+           <Card className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950 border-2 border-orange-300 shadow-md shrink-0">
+             <CardContent className="p-4">
+               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                 <div className="flex items-center gap-3 flex-1">
+                   <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full text-orange-600 dark:text-orange-300 flex-shrink-0">
+                     <Music size={24} />
+                   </div>
+                   <div>
+                     <h3 className="font-semibold text-lg text-orange-900 dark:text-orange-100">Dictation Audio</h3>
+                     <p className="text-sm text-orange-700 dark:text-orange-200">Select audio speed below and click "Open Audio" to play</p>
+                   </div>
                  </div>
-                 <div>
-                   <h3 className="font-semibold text-lg">Dictation Audio</h3>
-                   <p className="text-sm text-muted-foreground">Listen carefully, write on your shorthand pad, then type below.</p>
+                 
+                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+                   <div className="flex items-center gap-2">
+                     <label className="text-sm font-semibold text-orange-900 dark:text-orange-100 whitespace-nowrap">Audio Speed:</label>
+                     <Select value={selectedVideoWpm} onValueChange={(val) => setSelectedVideoWpm(val as "60" | "80" | "100" | "120")}>
+                       <SelectTrigger className="w-28 h-10 bg-white dark:bg-slate-800">
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="60" disabled={!video60Available}>60 WPM</SelectItem>
+                         <SelectItem value="80" disabled={!video80Available}>80 WPM</SelectItem>
+                         <SelectItem value="100" disabled={!video100Available}>100 WPM</SelectItem>
+                         <SelectItem value="120" disabled={!video120Available}>120 WPM</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   
+                   {/* Audio Link Button - Prominent and Clickable */}
+                   {selectedVideoUrl ? (
+                     <a 
+                       href={selectedVideoUrl} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-md transition-colors flex items-center gap-2 whitespace-nowrap"
+                     >
+                       <Music size={16} />
+                       Open Audio
+                     </a>
+                   ) : (
+                     <Button disabled className="whitespace-nowrap">
+                       <Music size={16} />
+                       Audio Unavailable
+                     </Button>
+                   )}
                  </div>
                </div>
-               <audio 
-                 id="shorthand-audio" 
-                 src={testContent.mediaUrl} 
-                 controls 
-                 className="w-full md:w-96"
-                 controlsList="nodownload" 
-               />
+
+               {/* Audio Not Found Message */}
+               {!selectedVideoUrl && (
+                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md mt-3">
+                   <AlertCircle size={18} className="text-red-600 dark:text-red-400 flex-shrink-0" />
+                   <span className="text-sm text-red-700 dark:text-red-200 font-medium">Audio not available for {selectedVideoWpm} WPM. Please select a different speed.</span>
+                 </div>
+               )}
              </CardContent>
            </Card>
         )}
@@ -529,7 +660,7 @@ export default function TypingTestPage() {
              
              {/* Overlay for inactive state */}
              {!isActive && !isFinished && (
-               <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-10">
+               <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
                  {cooldownRemaining > 0 ? (
                    <div className="text-center space-y-2">
                      <div className="text-lg font-semibold text-orange-600">Cooldown Active</div>

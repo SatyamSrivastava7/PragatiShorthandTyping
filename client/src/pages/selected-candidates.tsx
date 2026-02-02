@@ -5,7 +5,7 @@ import { useSelectedCandidates } from "@/lib/hooks";
 import { ArrowLeft } from "lucide-react";
 
 export default function SelectedCandidatesPage() {
-  const { candidates: selectedCandidates } = useSelectedCandidates();
+  const { candidates: selectedCandidates } = useSelectedCandidates(true); // Selected candidates page always enabled
 
   // Sort candidates by batch year in descending order
   const sortedCandidates = [...selectedCandidates].sort((a, b) => {

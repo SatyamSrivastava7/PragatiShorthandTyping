@@ -58,6 +58,14 @@ Key tables:
 
 **Shorthand Tests**: Pass/fail based on 5% error tolerance rule.
 
+### Word Alignment Algorithm
+The system uses a **dynamic programming (Wagner-Fischer)** algorithm for optimal word alignment between original text and typed text. This provides more accurate mistake counting than greedy approaches:
+
+- **Time Complexity**: O(n*m) where n = original words, m = typed words
+- **For long texts (>500 words)**: Uses windowed DP approach for memory efficiency
+- **Operations tracked**: Match (0 cost), Substitution (1 cost), Missing/Extra (1 cost)
+- **Backtracking**: Builds optimal alignment from DP table for display
+
 ## External Dependencies
 
 ### Third-Party Libraries
