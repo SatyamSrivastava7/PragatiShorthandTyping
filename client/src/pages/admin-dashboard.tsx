@@ -1071,7 +1071,7 @@ export default function AdminDashboard() {
           dateFor: fullContent.dateFor,
           language: fullContent.language || 'english',
           text: fullContent.text,
-          autoScroll: fullContent.autoScroll || true,
+          autoScroll: fullContent.autoScroll ?? true,
           video60wpm: fullContent.video60wpm || null,
           video80wpm: fullContent.video80wpm || null,
           video100wpm: fullContent.video100wpm || null,
@@ -1086,7 +1086,7 @@ export default function AdminDashboard() {
       setEditDateFor(fullContent.dateFor);
       setEditLanguage((fullContent.language || 'english') as 'english' | 'hindi');
       setEditTextContent(fullContent.text);
-      setEditAutoScroll(fullContent.autoScroll || true);
+      setEditAutoScroll(fullContent.autoScroll ?? true);
       setEditSelectedTestFolderId(fullContent.folderId || null);
       
       // Set video links
