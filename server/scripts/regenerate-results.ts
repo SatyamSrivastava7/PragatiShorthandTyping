@@ -11,6 +11,7 @@ const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
 function normalizeForComparison(text: string): string {
   return text
+    .replace(/\.\.\./g, "…")
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-")
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"')
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'")
@@ -298,8 +299,9 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
 
   let mistakes = 0;
   
-  const commaCount = (word: string) => (word.match(/,/g) || []).length;
-  const periodCount = (word: string) => (word.match(/\./g) || []).length;
+  const normalizeEllipsis = (word: string) => word.replace(/\.\.\./g, "…");
+  const commaCount = (word: string) => (normalizeEllipsis(word).match(/,/g) || []).length;
+  const periodCount = (word: string) => (normalizeEllipsis(word).match(/\./g) || []).length;
 
   for (const item of attemptedAlignment) {
     if (item.status === "missing") {
@@ -311,8 +313,8 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
       mistakes += commaCount(item.typed) * 0.25;
       mistakes += periodCount(item.typed) * 1;
     } else if (item.status === "substitution") {
-      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
-      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      const cleanOriginal = normalizeEllipsis(item.original).replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = normalizeEllipsis(item.typed).replace(/[.,]/g, "").toLowerCase();
       if (cleanOriginal !== cleanTyped) mistakes += 1;
       mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
       mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
@@ -336,8 +338,9 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   const rawAlignment = alignWords(windowedOriginal, typedText);
   const alignment = fixTrailingErrorPattern(rawAlignment, typedWords.length);
 
-  const commaCount = (word: string) => (word.match(/,/g) || []).length;
-  const periodCount = (word: string) => (word.match(/\./g) || []).length;
+  const normalizeEllipsis2 = (word: string) => word.replace(/\.\.\./g, "…");
+  const commaCount = (word: string) => (normalizeEllipsis2(word).match(/,/g) || []).length;
+  const periodCount = (word: string) => (normalizeEllipsis2(word).match(/\./g) || []).length;
 
   let mistakes = 0;
   let halfMistakes = 0;
@@ -351,8 +354,8 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
       mistakes += periodCount(item.typed) * 1;
       halfMistakes += commaCount(item.typed);
     } else if (item.status === "substitution") {
-      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
-      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      const cleanOriginal = normalizeEllipsis2(item.original).replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = normalizeEllipsis2(item.typed).replace(/[.,]/g, "").toLowerCase();
       if (cleanOriginal !== cleanTyped) mistakes += 1;
       mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
       mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;

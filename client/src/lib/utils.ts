@@ -18,6 +18,7 @@ const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 // - Quotes: " (left double U+201C), " (right double U+201D), ' (left single U+2018), ' (right single U+2019), etc.
 function normalizeForComparison(text: string): string {
   return text
+    .replace(/\.\.\./g, "…") // Normalize three dots to unicode ellipsis
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-") // Normalize all dash-like characters to hyphen
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"') // Normalize curved/smart double quotes to straight quote
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'") // Normalize curved/smart single quotes to straight quote
@@ -525,63 +526,40 @@ export function calculateAlignedMistakes(
 
   let mistakes = 0;
   
+  function normalizeEllipsis(word: string) {
+    return word.replace(/\.\.\./g, "…");
+  }
+
   function commaCount(word: string) {
-    return (word.match(/,/g) || []).length;
+    return (normalizeEllipsis(word).match(/,/g) || []).length;
   }
 
   function periodCount(word: string) {
-    return (word.match(/\./g) || []).length;
+    return (normalizeEllipsis(word).match(/\./g) || []).length;
   }
 
-  // Count mistakes based on alignment, following the rules:
-  // 1 missing/extra/incorrect word = 1 mistake
-  // 1 missing/extra period = 1 mistake
-  // 1 missing/extra comma = 0.25 mistake
   for (const item of attemptedAlignment) {
     if (item.status === "missing") {
-      // Missing word = 1 mistake
       mistakes += 1;
-      const origCommas = commaCount(item.original);
-      mistakes += origCommas * 0.25; // Each missing comma = 0.25
-      const origPeriods = periodCount(item.original);
-      mistakes += origPeriods * 1; // Each missing period = 1
+      mistakes += commaCount(item.original) * 0.25;
+      mistakes += periodCount(item.original) * 1;
     } else if (item.status === "extra") {
-      // Extra word = 1 mistake
       mistakes += 1;
-      const typedCommas = commaCount(item.typed);
-      mistakes += typedCommas * 0.25; // Each extra comma = 0.25
-      const typedPeriods = periodCount(item.typed);
-      mistakes += typedPeriods * 1; // Each extra period = 1
+      mistakes += commaCount(item.typed) * 0.25;
+      mistakes += periodCount(item.typed) * 1;
     } else if (item.status === "substitution") {
-      // Wrong word = 1 mistake
-      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
-      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      const cleanOriginal = normalizeEllipsis(item.original).replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = normalizeEllipsis(item.typed).replace(/[.,]/g, "").toLowerCase();
       
       if (cleanOriginal !== cleanTyped) {
-        mistakes += 1; // Word content differs
+        mistakes += 1;
       }
       
-      // Count punctuation differences
-      const origCommas = commaCount(item.original);
-      const typedCommas = commaCount(item.typed);
-      const commaDifference = Math.abs(origCommas - typedCommas);
-      mistakes += commaDifference * 0.25;
-      
-      const origPeriods = periodCount(item.original);
-      const typedPeriods = periodCount(item.typed);
-      const periodDifference = Math.abs(origPeriods - typedPeriods);
-      mistakes += periodDifference * 1;
+      mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
+      mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
     } else if (item.status === "match") {
-      // Matched word but check for punctuation differences
-      const origCommas = commaCount(item.original);
-      const typedCommas = commaCount(item.typed);
-      const commaDifference = Math.abs(origCommas - typedCommas);
-      mistakes += commaDifference * 0.25;
-      
-      const origPeriods = periodCount(item.original);
-      const typedPeriods = periodCount(item.typed);
-      const periodDifference = Math.abs(origPeriods - typedPeriods);
-      mistakes += periodDifference * 1;
+      mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
+      mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
     }
   }
 
@@ -641,32 +619,33 @@ export function calculateTypingMistakes(
   let attemptedWords = 0;
   let trailingWords = 0;
   
+  function normalizeEllipsis(word: string) {
+    return word.replace(/\.\.\./g, "…");
+  }
+
   function commaCount(word: string) {
-    return (word.match(/,/g) || []).length;
+    return (normalizeEllipsis(word).match(/,/g) || []).length;
   }
 
   function periodCount(word: string) {
-    return (word.match(/\./g) || []).length;
+    return (normalizeEllipsis(word).match(/\./g) || []).length;
   }
 
   for (const item of alignment) {
     if (item.status === "trailing") {
-      // Trailing untyped words - not counted as mistakes for typing tests
       trailingWords++;
       continue;
     }
     
     if (item.status === "extra") {
-      // Extra word typed = 1 mistake + punctuation
       attemptedWords++;
       mistakes += 1;
       mistakes += commaCount(item.typed) * 0.25;
       mistakes += periodCount(item.typed) * 1;
     } else if (item.status === "substitution") {
-      // Wrong word = 1 mistake + punctuation differences
       attemptedWords++;
-      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
-      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      const cleanOriginal = normalizeEllipsis(item.original).replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = normalizeEllipsis(item.typed).replace(/[.,]/g, "").toLowerCase();
       
       if (cleanOriginal !== cleanTyped) {
         mistakes += 1;
@@ -675,12 +654,10 @@ export function calculateTypingMistakes(
       mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
       mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
     } else if (item.status === "match") {
-      // Matched word - check for punctuation differences
       attemptedWords++;
       mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
       mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
     } else if (item.status === "missing") {
-      // Missing word = 1 mistake + punctuation in original
       mistakes += 1;
       mistakes += commaCount(item.original) * 0.25;
       mistakes += periodCount(item.original) * 1;
@@ -857,24 +834,24 @@ export function calculateShorthandMetrics(
   // Count all comma differences from the alignment
   let halfMistakes = 0;
 
+  function normalizeEllipsisSH(word: string) {
+    return word.replace(/\.\.\./g, "…");
+  }
+
   for (const item of attemptedAlignment) {
     if (item.status === "missing") {
-      // Missing word - count its commas as missing
-      const origCommas = (item.original.match(/,/g) || []).length;
+      const origCommas = (normalizeEllipsisSH(item.original).match(/,/g) || []).length;
       halfMistakes += origCommas;
     } else if (item.status === "extra") {
-      // Extra typed word - count its commas as extra
-      const typedCommas = (item.typed.match(/,/g) || []).length;
+      const typedCommas = (normalizeEllipsisSH(item.typed).match(/,/g) || []).length;
       halfMistakes += typedCommas;
     } else if (item.status === "substitution") {
-      // Substitution - count comma difference
-      const origCommas = (item.original.match(/,/g) || []).length;
-      const typedCommas = (item.typed.match(/,/g) || []).length;
+      const origCommas = (normalizeEllipsisSH(item.original).match(/,/g) || []).length;
+      const typedCommas = (normalizeEllipsisSH(item.typed).match(/,/g) || []).length;
       halfMistakes += Math.abs(origCommas - typedCommas);
     } else if (item.status === "match") {
-      // Match - count comma difference (if any)
-      const origCommas = (item.original.match(/,/g) || []).length;
-      const typedCommas = (item.typed.match(/,/g) || []).length;
+      const origCommas = (normalizeEllipsisSH(item.original).match(/,/g) || []).length;
+      const typedCommas = (normalizeEllipsisSH(item.typed).match(/,/g) || []).length;
       halfMistakes += Math.abs(origCommas - typedCommas);
     }
   }
