@@ -897,6 +897,8 @@ export const generateResultPDF = async (result: Result) => {
   // For shorthand tests, use DP alignment (global optimization)
   let displayAlignment: AlignmentEntry[];
   let trailingWords: string[] = [];
+  let shorthandRecalcMistakes = 0;
+  let shorthandRecalcTrailing = 0;
 
   if (result.contentType === "typing") {
     // DP alignment with trailing error fix for typing tests
@@ -906,8 +908,10 @@ export const generateResultPDF = async (result: Result) => {
       .map(item => item.original);
   } else {
     // DP alignment for shorthand
-    const { attemptedAlignment, alignment } = calculateAlignedMistakes(result.originalText || "", result.typedText);
+    const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(result.originalText || "", result.typedText);
     displayAlignment = attemptedAlignment;
+    shorthandRecalcMistakes = recalcMistakes;
+    shorthandRecalcTrailing = recalcTrailing;
     
     // Calculate trailing words for shorthand
     const trailingItems = alignment.filter((item) => {
@@ -1010,7 +1014,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>
-          <td>Total Mistakes</td><td class="error">${result.mistakes}</td>
+          <td>Total Mistakes</td><td class="error">${result.contentType === "shorthand" ? shorthandRecalcMistakes : result.mistakes}</td>
           <td>Missing Words</td><td class="error">${missingWordsCount}</td>
         </tr>
         ${
@@ -1032,11 +1036,11 @@ export const generateResultPDF = async (result: Result) => {
             : `
         <tr>
           <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
-          <td>Mistake%</td><td class="${result.result === "Pass" ? "success" : "error"}">${totalOriginalWords > 0 ? ((Number(result.mistakes) * 100) / totalOriginalWords).toFixed(2) : "0.00"}%</td>
+          <td>Left Words</td><td>${shorthandRecalcTrailing}</td>
         </tr>
         <tr>
-          <td>Left Words</td><td>${trailingWords.length}</td>
-          <td>Result</td><td class="${result.result === "Pass" ? "success" : "error"}">${result.result}</td>
+          <td>Mistake%</td><td class="${totalOriginalWords > 0 && ((shorthandRecalcMistakes + shorthandRecalcTrailing) / totalOriginalWords * 100) <= 5 ? "success" : "error"}">${totalOriginalWords > 0 ? (((shorthandRecalcMistakes + shorthandRecalcTrailing) * 100) / totalOriginalWords).toFixed(2) : "0.00"}%</td>
+          <td>Result</td><td>${totalOriginalWords > 0 && ((shorthandRecalcMistakes + shorthandRecalcTrailing) / totalOriginalWords * 100) <= 5 ? '<span class="success">Pass</span>' : '<span class="error">Fail</span>'}</td>
         </tr>
         `
         }
