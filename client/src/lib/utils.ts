@@ -1014,7 +1014,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>
-          <td>Total Mistakes</td><td class="error">${result.contentType === "shorthand" ? shorthandRecalcMistakes : result.mistakes}</td>
+          <td>Total Mistakes</td><td class="error">${result.contentType === "shorthand" ? (shorthandRecalcMistakes + shorthandRecalcTrailing) : result.mistakes}</td>
           <td>Missing Words</td><td class="error">${missingWordsCount}</td>
         </tr>
         ${
