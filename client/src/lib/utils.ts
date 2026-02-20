@@ -276,11 +276,12 @@ export function alignWords(
   // This splits the text into chunks and aligns each chunk separately
   const MAX_DP_SIZE = 500;
   if (n > MAX_DP_SIZE || m > MAX_DP_SIZE) {
-    return alignWordsWindowed(originalWords, typedWords);
+    const windowed = alignWordsWindowed(originalWords, typedWords);
+    return fixLocalMisalignment(windowed);
   }
 
   // Standard DP alignment for normal-sized texts
-  return alignWordsDP(originalWords, typedWords);
+  return fixLocalMisalignment(alignWordsDP(originalWords, typedWords));
 }
 
 /**
@@ -383,6 +384,70 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
         isError: true,
       });
       j--;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Post-process alignment to fix locally misaligned blocks.
+ * 
+ * When the windowed DP approach (or any alignment) produces a block of consecutive
+ * extra/missing entries where some words actually match, this function detects
+ * those blocks and re-aligns them locally using DP to produce the optimal alignment.
+ * 
+ * Example fix: Instead of marking "the" as extra + "the" as missing separately,
+ * this will correctly pair them as a match.
+ */
+function fixLocalMisalignment(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+
+  const result: AlignmentEntry[] = [];
+  let i = 0;
+
+  while (i < alignment.length) {
+    if (alignment[i].status === "match" || alignment[i].status === "trailing") {
+      result.push(alignment[i]);
+      i++;
+      continue;
+    }
+
+    // Found a non-match entry - collect the full block of consecutive non-match entries
+    const blockStart = i;
+    while (i < alignment.length && alignment[i].status !== "match" && alignment[i].status !== "trailing") {
+      i++;
+    }
+    const block = alignment.slice(blockStart, i);
+
+    // Extract the original and typed words from this block
+    const blockOriginals: string[] = [];
+    const blockTyped: string[] = [];
+    for (const entry of block) {
+      if (entry.original) blockOriginals.push(entry.original);
+      if (entry.typed) blockTyped.push(entry.typed);
+    }
+
+    // If block has both typed and original words, and has potential matches,
+    // re-align them locally with DP
+    if (blockOriginals.length > 0 && blockTyped.length > 0) {
+      const normalizedOrig = blockOriginals.map(normalizeForComparison);
+      const normalizedTyp = blockTyped.map(normalizeForComparison);
+
+      // Check if there are any matchable words between the two sets
+      const hasMatchableWords = normalizedTyp.some(tw => normalizedOrig.includes(tw));
+
+      if (hasMatchableWords && (blockOriginals.length > 1 || blockTyped.length > 1)) {
+        // Re-align this block using DP for optimal local alignment
+        const localAlignment = alignWordsDP(blockOriginals, blockTyped);
+        result.push(...localAlignment);
+      } else {
+        // No benefit from re-alignment, keep original block
+        result.push(...block);
+      }
+    } else {
+      // Only extras or only missing - nothing to re-align
+      result.push(...block);
     }
   }
 
