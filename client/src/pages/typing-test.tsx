@@ -485,6 +485,32 @@ export default function TypingTestPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Highlight the next word to type
+  const getHighlightedContent = () => {
+    if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
+
+    const plainText = testContent.text.replace(/<[^>]*>/g, '');
+    const typedWords = typedText.trim().split(/\s+/).filter(w => w).length;
+    const words = plainText.trim().split(/\s+/);
+
+    if (typedWords >= words.length) {
+      return testContent.text; // All words typed, return original
+    }
+
+    // Find the current word that needs to be highlighted
+    const currentWord = words[typedWords];
+    
+    if (!currentWord) {
+      return testContent.text;
+    }
+
+    // Replace current word with highlighted version (wrapped in a span with yellow background)
+    const escapedWord = currentWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escapedWord}\\b`);
+    
+    return testContent.text.replace(regex, `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${currentWord}</span>`);
+  };
+
   if (isContentLoading) {
     return (
       <div className="p-8 flex items-center justify-center">
@@ -653,7 +679,7 @@ export default function TypingTestPage() {
               <div 
                 className={cn("leading-relaxed select-none transition-all", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
-                dangerouslySetInnerHTML={{ __html: testContent.text }}
+                dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
               />
             </CardContent>
           </Card>
