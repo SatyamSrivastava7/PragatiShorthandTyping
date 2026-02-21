@@ -1452,9 +1452,8 @@ export default function AdminDashboard() {
         // Prefer DB-stored fields. If some fields are missing, we fall back conservatively.
         head = [[
           'Name',
-          'Total Mistakes',
+          'Mistake Count',
           'Total Words Typed',
-          'Total Original Words',
           'Accuracy',
           'Gross Speed (WPM)',
           'Net Speed (WPM)'
@@ -1464,7 +1463,7 @@ export default function AdminDashboard() {
           const totalMistakes = result.mistakes ?? 'N/A';
           const totalWordsTyped = result.words ?? 'N/A';
           // Use DB fields where available. originalText may be present in DB; avoid heavy recalculation.
-          const totalOriginalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
+          // const totalOriginalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
           // Accuracy: if DB provides a field named `accuracy` use it, else leave as N/A to avoid re-calculation here.
           // (If you want strict DB-only values, add an `accuracy` field on the server side.)
           const accuracy = (result as any).accuracy ?? 'N/A';
@@ -1475,7 +1474,6 @@ export default function AdminDashboard() {
             result.studentName ?? 'Unknown',
             totalMistakes,
             totalWordsTyped,
-            totalOriginalWords,
             accuracy,
             grossSpeed,
             netSpeed,
@@ -1494,9 +1492,8 @@ export default function AdminDashboard() {
 
         body = sortedResults.map(result => {
           const mistakes = Number(result.mistakes) || 0;
-          const words = Number(result.words) || 1;
-          const mistakePercentage = words > 0 ? ((mistakes / words) * 100).toFixed(2) : 'N/A';
           const originalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
+          const mistakePercentage = originalWords > 0 ? ((mistakes / originalWords) * 100).toFixed(2) : 'N/A';
 
           return [
             result.studentName ?? 'Unknown',
