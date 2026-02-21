@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Toggle } from "@/components/ui/toggle";
+import { Label } from "@/components/ui/label";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -44,6 +46,7 @@ export default function TypingTestPage() {
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [selectedVideoWpm, setSelectedVideoWpm] = useState<"60" | "80" | "100" | "120">("80"); // Default to 80 WPM
   const [userScrolled, setUserScrolled] = useState(false); // Track if user manually scrolled
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null); // Null until testContent loads
   
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,6 +59,8 @@ export default function TypingTestPage() {
   useEffect(() => {
     if (testContent) {
       setTimeLeft(testContent.duration * 60);
+      // Initialize autoScrollEnabled from testContent
+      setAutoScrollEnabled(testContent.autoScroll ?? true);
     }
   }, [testContent]);
 
@@ -234,8 +239,7 @@ export default function TypingTestPage() {
   // Auto-scroll logic - scrolls original text to follow typing progress
   // Content moves from bottom to top (current word stays near top of visible area)
   useEffect(() => {
-    const autoScrollEnabled = testContent?.autoScroll ?? true;
-    if (!autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
+    if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
     if (!isActive) return; // Only scroll when test is active
     
     const container = originalTextRef.current;
@@ -270,15 +274,15 @@ export default function TypingTestPage() {
       if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
     }
     
-    // Smooth scroll: move 25% of the distance per update
-    const newScroll = currentScroll + diff * 0.25;
+    // Smooth scroll: move 15% of the distance per update (slowed down from 25%)
+    const newScroll = currentScroll + diff * 0.15;
     
     // Mark as programmatic scroll to avoid triggering manual scroll detection
     isAutoScrollingRef.current = true;
     container.scrollTop = newScroll;
     lastScrollTopRef.current = newScroll;
     
-  }, [typedText, testContent, userScrolled, isActive]);
+  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled]);
 
   const startTest = () => {
     // Reset scroll tracking when test starts
@@ -535,6 +539,21 @@ export default function TypingTestPage() {
               />
               <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
             </div>
+
+            {/* Auto-scroll Toggle for Typing Tests */}
+            {testContent.type === 'typing' && autoScrollEnabled !== null && (
+              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+                <Toggle
+                  pressed={autoScrollEnabled}
+                  onPressedChange={setAutoScrollEnabled}
+                  title={autoScrollEnabled ? "Disable auto-scroll" : "Enable auto-scroll"}
+                  className="hover:bg-muted"
+                  size="sm"
+                >
+                  <span className="text-xs font-medium">Auto-scroll</span>
+                </Toggle>
+              </div>
+            )}
           </div>
 
           <div className={cn(
