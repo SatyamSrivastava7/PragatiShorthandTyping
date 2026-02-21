@@ -11,6 +11,7 @@ import {
   AlignRight,
   List,
   ListOrdered,
+  Maximize2,
 } from "lucide-react";
 import {
   Select,
@@ -42,6 +43,7 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState("16");
+  const [lineSpacing, setLineSpacing] = useState("1.5");
   const [isEditing, setIsEditing] = useState(false);
 
   // Initialize editor content from value prop
@@ -57,10 +59,30 @@ export function RichTextEditor({
   const execCommand = (command: string, value?: string) => {
     // Ensure the editor is focused before executing command
     if (editorRef.current) {
+      // Save the current selection before focusing
+      const selection = window.getSelection();
+      let savedRange = null;
+      
+      if (selection && selection.rangeCount > 0) {
+        savedRange = selection.getRangeAt(0);
+      }
+      
       editorRef.current.focus();
+      
+      // Restore the selection if we had one
+      if (savedRange) {
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(savedRange);
+        }
+      }
+      
       // Use a small delay to ensure focus is applied before command
       setTimeout(() => {
         document.execCommand(command, false, value);
+        // Ensure cursor stays in editor after command
+        editorRef.current?.focus();
       }, 0);
     }
   };
@@ -100,7 +122,10 @@ export function RichTextEditor({
       variant="outline"
       size="sm"
       className="h-8 w-8 p-0"
-      onClick={() => execCommand(command, value)}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        execCommand(command, value);
+      }}
       title={title}
     >
       {icon}
@@ -143,6 +168,25 @@ export function RichTextEditor({
               <SelectItem value="5">24px</SelectItem>
               <SelectItem value="6">32px</SelectItem>
               <SelectItem value="7">48px</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Line Spacing */}
+        <div className="flex items-center gap-2 border-r pr-2">
+          <Maximize2 className="h-4 w-4 text-muted-foreground" />
+          <Select value={lineSpacing} onValueChange={setLineSpacing}>
+            <SelectTrigger className="h-8 w-24 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="min-w-0">
+              <SelectItem value="1">1</SelectItem>
+              <SelectItem value="1.25">1.25</SelectItem>
+              <SelectItem value="1.5">1.5</SelectItem>
+              <SelectItem value="1.75">1.75</SelectItem>
+              <SelectItem value="2">2</SelectItem>
+              <SelectItem value="2.5">2.5</SelectItem>
+              <SelectItem value="3">3</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -198,7 +242,7 @@ export function RichTextEditor({
           fontClass,
           className
         )}
-        style={{ fontSize: fontSize === "3" ? "16px" : undefined }}
+        style={{ fontSize: fontSize === "3" ? "16px" : undefined, lineHeight: lineSpacing }}
       />
 
       {/* Word Count */}
