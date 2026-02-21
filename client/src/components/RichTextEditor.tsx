@@ -209,20 +209,6 @@ export function RichTextEditor({
             "Align Right"
           )}
         </div>
-
-        {/* Lists */}
-        <div className="flex gap-1">
-          {formatButton(
-            <List className="h-4 w-4" />,
-            "insertUnorderedList",
-            "Bullet List"
-          )}
-          {formatButton(
-            <ListOrdered className="h-4 w-4" />,
-            "insertOrderedList",
-            "Numbered List"
-          )}
-        </div>
       </div>
 
       {/* Editor Area */}

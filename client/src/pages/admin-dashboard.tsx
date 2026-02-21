@@ -491,6 +491,9 @@ export default function AdminDashboard() {
   
   // Gallery featured images selection
   const [selectedImageIds, setSelectedImageIds] = useState<number[]>([]);
+  
+  // Selected results for download
+  const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
 
   const {
     content,
@@ -1332,6 +1335,124 @@ export default function AdminDashboard() {
 
   const handleDownloadResult = (result: Result) => {
     generateResultPDF(result);
+  };
+
+  const handleDownloadSelectedResults = (type: 'typing' | 'shorthand') => {
+    const allResults = type === 'typing' ? typingResults : shorthandResults;
+    const selectedResults = allResults.filter(r => selectedResultIds.includes(r.id));
+    
+    if (selectedResults.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Selection",
+        description: "Please select at least one result to download.",
+      });
+      return;
+    }
+
+    // Sort by mistake count (ascending)
+    const sortedResults = [...selectedResults].sort((a, b) => {
+      const mistakesA = Number(a.mistakes) || 0;
+      const mistakesB = Number(b.mistakes) || 0;
+      return mistakesA - mistakesB;
+    });
+
+    // Use jsPDF and autoTable for generating the PDF
+    const { jsPDF } = require('jspdf');
+    const autoTable = require('jspdf-autotable');
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Institute Header
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Pragati Institute of Professional Studies', pageWidth / 2, 10, { align: 'center' });
+    
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text('Prayagraj | Email: pragatiprofessionalstudies@gmail.com | Phone: +91 9026212705', pageWidth / 2, 15, { align: 'center' });
+    
+    // Divider line
+    doc.setDrawColor(100, 100, 100);
+    doc.line(14, 17, pageWidth - 14, 17);
+    
+    // Title
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text(`${type === 'typing' ? 'Typing' : 'Shorthand'} Test Results Report`, pageWidth / 2, 25, { align: 'center' });
+    
+    // Summary
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
+    doc.text(`Total Students: ${sortedResults.length}`, 14, 40);
+    
+    // Table data
+    const tableData = sortedResults.map(result => {
+      const mistakes = Number(result.mistakes) || 0;
+      const words = Number(result.words) || 1;
+      const mistakePercentage = ((mistakes / words) * 100).toFixed(2);
+      
+      return [
+        result.studentName,
+        mistakes.toString(),
+        `${mistakePercentage}%`,
+        result.result || 'N/A',
+        result.words?.toString() || 'N/A',
+        type === 'typing' ? (result.originalText?.split(/\s+/).filter((w:string) => w).length || 'N/A') : 'N/A',
+      ];
+    });
+
+    // Generate table
+    autoTable(doc, {
+      head: [['Student Name', 'Mistakes Count', 'Mistake%', 'Result', 'Total Words Typed', 'Total Original Words']],
+      body: tableData,
+      startY: 45,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [59, 130, 246], // Blue color
+        textColor: 255,
+        fontStyle: 'bold',
+        halign: 'center',
+        padding: 8,
+      },
+      bodyStyles: {
+        textColor: 0,
+        padding: 6,
+      },
+      alternateRowStyles: {
+        fillColor: [242, 242, 242],
+      },
+      columnStyles: {
+        0: { halign: 'left' },
+        1: { halign: 'center' },
+        2: { halign: 'center' },
+        3: { halign: 'center' },
+        4: { halign: 'center' },
+        5: { halign: 'center' },
+      },
+      margin: 14,
+      didDrawPage: (data: any) => {
+        // Footer
+        const pageCount = doc.internal.pages.length;
+        doc.setFontSize(8);
+        doc.text(
+          `Page ${data.pageNumber} of ${pageCount}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+      },
+    });
+
+    doc.save(`results_${type}_${new Date().getTime()}.pdf`);
+    
+    toast({
+      title: "Success",
+      description: `Downloaded ${sortedResults.length} results as PDF.`,
+    });
   };
 
   // Filter results by student name/ID for display
@@ -2819,6 +2940,20 @@ export default function AdminDashboard() {
                         )}
                       />
                     </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => {
+                        // Determine which tab is active
+                        const activeResultsTab = document.querySelector('[value="typing"][data-state="active"]') ? 'typing' : 'shorthand';
+                        handleDownloadSelectedResults(activeResultsTab as 'typing' | 'shorthand');
+                      }}
+                      disabled={selectedResultIds.length === 0}
+                      className="ml-2 gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Selected ({selectedResultIds.length})
+                    </Button>
                   </div>
 
                   {["typing", "shorthand"].map((type) => (
@@ -2827,6 +2962,22 @@ export default function AdminDashboard() {
                         <Table>
                           <TableHeader className="bg-slate-50 sticky top-0">
                             <TableRow>
+                              <TableHead className="w-12">
+                                <Checkbox
+                                  checked={selectedResultIds.length > 0 && selectedResultIds.length === (type === "typing" ? displayTypingResults?.length : displayShorthandResults?.length)}
+                                  onCheckedChange={(checked) => {
+                                    const results = type === "typing" ? displayTypingResults : displayShorthandResults;
+                                    if (checked) {
+                                      const resultIds = results?.map(r => r.id) || [];
+                                      const combined = [...selectedResultIds, ...resultIds];
+                                      setSelectedResultIds(Array.from(new Set(combined)));
+                                    } else {
+                                      const resultIds = new Set(results?.map(r => r.id) || []);
+                                      setSelectedResultIds(selectedResultIds.filter(id => !resultIds.has(id)));
+                                    }
+                                  }}
+                                />
+                              </TableHead>
                               <TableHead className="font-semibold">
                                 Student
                               </TableHead>
@@ -2854,6 +3005,18 @@ export default function AdminDashboard() {
                                   key={result.id}
                                   className="hover:bg-slate-50/50"
                                 >
+                                  <TableCell className="w-12">
+                                    <Checkbox
+                                      checked={selectedResultIds.includes(result.id)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setSelectedResultIds([...selectedResultIds, result.id]);
+                                        } else {
+                                          setSelectedResultIds(selectedResultIds.filter(id => id !== result.id));
+                                        }
+                                      }}
+                                    />
+                                  </TableCell>
                                   <TableCell>
                                     <div className="font-medium">
                                       {result.studentName}
