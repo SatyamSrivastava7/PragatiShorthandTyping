@@ -8,14 +8,17 @@ interface ResultTextAnalysisProps {
 }
 
 export function ResultTextAnalysis({ originalText, typedText, language, contentType = 'typing' }: ResultTextAnalysisProps) {
+  // Strip HTML tags from originalText for alignment calculations (comparison uses plain text)
+  const plainOriginalText = originalText.replace(/<[^>]*>/g, '');
+  
   // Use appropriate alignment based on content type
   // For typing tests: use windowed alignment that limits search scope
   // For shorthand tests: use full DP alignment
   let alignment;
   if (contentType === 'typing') {
-    alignment = getTypingAlignment(originalText, typedText);
+    alignment = getTypingAlignment(plainOriginalText, typedText);
   } else {
-    const { attemptedAlignment, alignment: fullAlignment } = calculateAlignedMistakes(originalText, typedText);
+    const { attemptedAlignment, alignment: fullAlignment } = calculateAlignedMistakes(plainOriginalText, typedText);
 
     // Include trailing (left) words after the attempted alignment so shorthand analysis
     // shows both the attempted portion and the left words that were not attempted.

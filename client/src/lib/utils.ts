@@ -539,8 +539,11 @@ export function calculateAlignedMistakes(
   originalText: string,
   typedText: string,
 ): { mistakes: number; alignment: AlignmentEntry[]; attemptedAlignment: AlignmentEntry[]; trailingWords: number } {
+  // Strip HTML tags from original text before processing
+  const plainOriginalText = (originalText || "").replace(/<[^>]*>/g, '');
+  
   // Use alignWords to get the correct alignment (same as what's displayed)
-  const alignment = alignWords(originalText, typedText);
+  const alignment = alignWords(plainOriginalText, typedText);
   
   // Find the last typed position in the original text
   // This tells us where the student's attempt ends
@@ -560,7 +563,7 @@ export function calculateAlignedMistakes(
   
   // If student didn't type anything, return empty attempted alignment
   if (lastTypedIndex === -1) {
-    const totalOriginalWords = (originalText || "").trim().split(/\s+/).filter(w => w).length;
+    const totalOriginalWords = (plainOriginalText || "").trim().split(/\s+/).filter(w => w).length;
     return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
@@ -637,7 +640,9 @@ export function calculateAlignedMistakes(
  * This prevents the DP from going too far ahead looking for matches
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
+  // Strip HTML tags from original text before processing
+  const plainOriginalText = (originalText || "").replace(/<[^>]*>/g, '');
+  const originalWords = (plainOriginalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
   if (typedWords.length === 0) {
@@ -976,13 +981,17 @@ export const generateResultPDF = async (result: Result) => {
 
   if (result.contentType === "typing") {
     // DP alignment with trailing error fix for typing tests
-    displayAlignment = getTypingAlignment(result.originalText || "", result.typedText);
+    // Strip HTML tags from original text for alignment
+    const plainOriginalText = (result.originalText || "").replace(/<[^>]*>/g, '');
+    displayAlignment = getTypingAlignment(plainOriginalText, result.typedText);
     trailingWords = displayAlignment
       .filter(item => item.status === "trailing")
       .map(item => item.original);
   } else {
     // DP alignment for shorthand
-    const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(result.originalText || "", result.typedText);
+    // Strip HTML tags from original text for alignment
+    const plainOriginalText = (result.originalText || "").replace(/<[^>]*>/g, '');
+    const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, result.typedText);
     displayAlignment = attemptedAlignment;
     shorthandRecalcMistakes = recalcMistakes;
     shorthandRecalcTrailing = recalcTrailing;
@@ -1024,8 +1033,8 @@ export const generateResultPDF = async (result: Result) => {
     }
   }
 
-  // Total original words (useful for shorthand mistake percentage)
-  const totalOriginalWords = (result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length;
+  // Total original words (useful for shorthand mistake percentage) - strip HTML tags
+  const totalOriginalWords = (result.originalText || "").replace(/<[^>]*>/g, '').trim().split(/\s+/).filter((w: string) => w).length;
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -1084,7 +1093,7 @@ export const generateResultPDF = async (result: Result) => {
           <th>Metric</th><th>Value</th><th>Metric</th><th>Value</th>
         </tr>
         <tr>
-          <td>Total Original Words</td><td>${(result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length}</td>
+          <td>Total Original Words</td><td>${(result.originalText || "").replace(/<[^>]*>/g, '').trim().split(/\s+/).filter((w: string) => w).length}</td>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>

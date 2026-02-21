@@ -3321,16 +3321,15 @@ export default function AdminDashboard() {
                                             <h4 className="font-semibold mb-2">
                                               Original Text
                                             </h4>
-                                            <p
+                                            <div
                                               className={cn(
                                                 "text-sm whitespace-pre-wrap",
                                                 result.language === "hindi"
                                                   ? "font-mangal"
                                                   : "",
                                               )}
-                                            >
-                                              {result.originalText}
-                                            </p>
+                                              dangerouslySetInnerHTML={{ __html: result.originalText || "" }}
+                                            />
                                           </div>
 
                                           <div className="flex justify-end pt-4">
