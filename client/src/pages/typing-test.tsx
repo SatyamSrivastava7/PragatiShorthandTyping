@@ -489,19 +489,16 @@ export default function TypingTestPage() {
   const getHighlightedContent = () => {
     if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
 
+    // Extract plain text to find words
     const plainText = testContent.text.replace(/<[^>]*>/g, '');
     const words = plainText.trim().split(/\s+/).filter(w => w);
 
-    // Determine which word index corresponds to the word currently being typed.
-    // If typedText is empty -> highlight first word (index 0).
-    // If typedText ends with whitespace -> user is between words (not actively typing) -> don't highlight.
-    // Otherwise highlight the last partial token the user is typing.
+    // Determine which word index corresponds to the word currently being typed
     const tokens = typedText.split(/\s+/).filter(w => w);
     let currentIndex: number | null = null;
     if (typedText.trim() === "") {
       currentIndex = 0;
     } else if (/\s$/.test(typedText)) {
-      // Trailing space -> user has completed the current word; highlight the next word
       currentIndex = tokens.length;
     } else {
       currentIndex = Math.max(0, tokens.length - 1);
@@ -514,18 +511,32 @@ export default function TypingTestPage() {
     const currentWord = words[currentIndex];
     if (!currentWord) return testContent.text;
 
-    // Build the highlighted content by replacing the Nth word occurrence
+    // Parse HTML and find the Nth word occurrence, preserving HTML structure
     let wordCount = 0;
-    const highlighted = testContent.text.replace(/\b([^\s<>]+(?:['-][^\s<>]+)?)\b/g, (match) => {
-      if (wordCount === currentIndex) {
+    let foundWord = false;
+    let htmlContent = testContent.text;
+    
+    // Use a more sophisticated approach: walk through text nodes only
+    // Replace only plain text words, not HTML tags
+    const result = htmlContent.replace(/([^<>]*?)(<[^>]+>|$)/g, (fullMatch, textPart, tag) => {
+      if (!textPart) return tag; // Just the tag, no text
+      
+      // Process the text part, looking for word boundaries
+      const processedText = textPart.replace(/\b([^\s<>]+(?:['-][^\s<>]+)?)\b/g, (word: string) => {
+        if (foundWord) return word; // Already found the word
+        
+        if (wordCount === currentIndex) {
+          foundWord = true;
+          return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${word}</span>`;
+        }
         wordCount++;
-        return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${match}</span>`;
-      }
-      wordCount++;
-      return match;
+        return word;
+      });
+      
+      return processedText + tag;
     });
 
-    return highlighted;
+    return result;
   };
 
   if (isContentLoading) {
