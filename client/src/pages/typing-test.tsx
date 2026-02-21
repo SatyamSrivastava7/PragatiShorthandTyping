@@ -47,6 +47,7 @@ export default function TypingTestPage() {
   const [selectedVideoWpm, setSelectedVideoWpm] = useState<"60" | "80" | "100" | "120">("80"); // Default to 80 WPM
   const [userScrolled, setUserScrolled] = useState(false); // Track if user manually scrolled
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null); // Null until testContent loads
+  const [highlighterEnabled, setHighlighterEnabled] = useState<boolean>(true); // Enable/disable word highlighting
   
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -489,6 +490,11 @@ export default function TypingTestPage() {
   const getHighlightedContent = () => {
     if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
 
+    // If highlighter is disabled, return original content as-is
+    if (!highlighterEnabled) {
+      return testContent.text;
+    }
+
     // Extract plain text to find words
     const plainText = testContent.text.replace(/<[^>]*>/g, '');
     const words = plainText.trim().split(/\s+/).filter(w => w);
@@ -639,6 +645,29 @@ export default function TypingTestPage() {
                   <ArrowDown size={16} />
                   <span className="text-xs font-medium">
                     {autoScrollEnabled ? "Auto-scroll ON" : "Auto-scroll OFF"}
+                  </span>
+                </Button>
+              </div>
+            )}
+
+            {testContent.type === 'typing' && (
+              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+                <Button
+                  type="button"
+                  variant={highlighterEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHighlighterEnabled(!highlighterEnabled)}
+                  className={cn(
+                    "gap-2 transition-all",
+                    highlighterEnabled 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md" 
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  title={highlighterEnabled ? "Click to disable word highlighting" : "Click to enable word highlighting"}
+                >
+                  <Type size={16} />
+                  <span className="text-xs font-medium">
+                    {highlighterEnabled ? "Highlight ON" : "Highlight OFF"}
                   </span>
                 </Button>
               </div>

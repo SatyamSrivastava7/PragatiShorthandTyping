@@ -9,6 +9,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignJustify,
   List,
   ListOrdered,
   Maximize2,
@@ -207,6 +208,11 @@ export function RichTextEditor({
             <AlignRight className="h-4 w-4" />,
             "justifyRight",
             "Align Right"
+          )}
+          {formatButton(
+            <AlignJustify className="h-4 w-4" />,
+            "justifyFull",
+            "Justify"
           )}
         </div>
       </div>
