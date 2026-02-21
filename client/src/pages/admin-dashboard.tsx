@@ -1452,6 +1452,7 @@ export default function AdminDashboard() {
       if (type === 'typing') {
         // Prefer DB-stored fields. If some fields are missing, we fall back conservatively.
         head = [[
+          'Rank',
           'Name',
           'Mistake Count',
           'Total Words Typed',
@@ -1460,18 +1461,17 @@ export default function AdminDashboard() {
           'Net Speed (WPM)'
         ]];
 
-        body = sortedResults.map(result => {
+        body = sortedResults.map((result, idx) => {
+          const rank = idx + 1;
           const totalMistakes = result.mistakes ?? 'N/A';
           const totalWordsTyped = result.words ?? 'N/A';
           // Use DB fields where available. originalText may be present in DB; avoid heavy recalculation.
-          // const totalOriginalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
-          // Accuracy: if DB provides a field named `accuracy` use it, else leave as N/A to avoid re-calculation here.
-          // (If you want strict DB-only values, add an `accuracy` field on the server side.)
           const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
           const grossSpeed = result.grossSpeed ?? 'N/A';
           const netSpeed = result.netSpeed ?? 'N/A';
 
           return [
+            rank,
             result.studentName ?? 'Unknown',
             totalMistakes,
             totalWordsTyped,
@@ -1483,6 +1483,7 @@ export default function AdminDashboard() {
       } else {
         // Shorthand: keep previous columns (Mistakes %, Result, etc.) but use DB fields where possible
         head = [[
+          'Rank',
           'Student Name',
           'Mistakes Count',
           'Mistake%',
@@ -1491,12 +1492,14 @@ export default function AdminDashboard() {
           'Total Original Words'
         ]];
 
-        body = sortedResults.map(result => {
+        body = sortedResults.map((result, idx) => {
+          const rank = idx + 1;
           const mistakes = Number(result.mistakes) || 0;
           const originalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
           const mistakePercentage = originalWords > 0 ? ((mistakes / originalWords) * 100).toFixed(2) : 'N/A';
 
           return [
+            rank,
             result.studentName ?? 'Unknown',
             mistakes.toString(),
             `${mistakePercentage}%`,
