@@ -191,7 +191,10 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
             </div>
           ) : (
             <>
-              <p className="whitespace-pre-wrap">{fullContent?.text || "Content not available"}</p>
+              <div 
+                className={cn("whitespace-pre-wrap", fullContent?.language === "hindi" ? "font-mangal" : "")}
+                dangerouslySetInnerHTML={{ __html: fullContent?.text || "Content not available" }}
+              />
             </>
           )}
         </div>
