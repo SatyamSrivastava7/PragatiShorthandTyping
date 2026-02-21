@@ -1035,6 +1035,8 @@ export const generateResultPDF = async (result: Result) => {
 
   // Total original words (useful for shorthand mistake percentage) - strip HTML tags
   const totalOriginalWords = (result.originalText || "").replace(/<[^>]*>/g, '').trim().split(/\s+/).filter((w: string) => w).length;
+  const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
+  const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -1108,7 +1110,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Backspaces</td><td>${result.backspaces}</td>
         </tr>
         <tr>
-          <td>Accuracy</td><td class="success">${result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00"}%</td>
+          <td>Accuracy</td><td class="success">${accurancyDisplay}</td>
           <td>Gross Speed</td><td>${result.grossSpeed} WPM</td>
         </tr>
         <tr>
