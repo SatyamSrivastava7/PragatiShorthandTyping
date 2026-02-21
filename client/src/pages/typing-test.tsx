@@ -508,35 +508,58 @@ export default function TypingTestPage() {
       return testContent.text;
     }
 
-    const currentWord = words[currentIndex];
-    if (!currentWord) return testContent.text;
+    const targetWord = words[currentIndex];
+    if (!targetWord) return testContent.text;
 
-    // Parse HTML and find the Nth word occurrence, preserving HTML structure
-    let wordCount = 0;
-    let foundWord = false;
-    let htmlContent = testContent.text;
+    // For Hindi and other scripts, use a more robust approach:
+    // Replace the exact target word string, counting occurrences
+    // We need to be careful to only replace in text content, not in HTML tags
     
-    // Use a more sophisticated approach: walk through text nodes only
-    // Replace only plain text words, not HTML tags
-    const result = htmlContent.replace(/([^<>]*?)(<[^>]+>|$)/g, (fullMatch, textPart, tag) => {
-      if (!textPart) return tag; // Just the tag, no text
+    let wordOccurrenceCount = 0;
+    let foundTargetWord = false;
+    
+    const htmlContent = testContent.text;
+    
+    // Split by HTML tags, process only text nodes
+    const parts = htmlContent.split(/(<[^>]+>)/);
+    
+    const processedParts = parts.map((part) => {
+      if (part.startsWith('<')) {
+        // This is an HTML tag, return as-is
+        return part;
+      }
       
-      // Process the text part, looking for word boundaries
-      const processedText = textPart.replace(/\b([^\s<>]+(?:['-][^\s<>]+)?)\b/g, (word: string) => {
-        if (foundWord) return word; // Already found the word
-        
-        if (wordCount === currentIndex) {
-          foundWord = true;
-          return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${word}</span>`;
+      if (foundTargetWord || !part) {
+        // Already found the word, or empty part
+        return part;
+      }
+      
+      // This is a text node - count words and replace
+      const textWords = part.split(/(\s+)/); // Split preserving whitespace
+      
+      return textWords.map((segment) => {
+        if (foundTargetWord || !segment || /^\s+$/.test(segment)) {
+          // Already found, or just whitespace
+          return segment;
         }
-        wordCount++;
-        return word;
-      });
-      
-      return processedText + tag;
-    });
+        
+        // Check if this segment is a word and matches our target
+        if (segment === targetWord) {
+          if (wordOccurrenceCount === currentIndex) {
+            foundTargetWord = true;
+            return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${segment}</span>`;
+          }
+          wordOccurrenceCount++;
+        } else if (!/^\s+$/.test(segment)) {
+          // Count non-whitespace segments as word occurrences for proper indexing
+          wordOccurrenceCount++;
+        }
+        
+        return segment;
+      }).join('');
+    }).join('');
 
-    return result;
+    return processedParts;
   };
 
   if (isContentLoading) {
