@@ -1481,7 +1481,7 @@ export default function AdminDashboard() {
           'Name',
           'Total Words Typed',
           'Accuracy',
-          'Mistake Count',
+          'Mistakes',
           'Gross Speed (WPM)',
           'Net Speed (WPM)'
         ]];
@@ -1512,7 +1512,7 @@ export default function AdminDashboard() {
           'Student Name',
           'Total Original Words',
           'Total Words Typed',
-          'Mistakes Count',
+          'Mistakes',
           'Mistake%',
           'Result'
         ]];
