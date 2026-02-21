@@ -55,9 +55,13 @@ export function RichTextEditor({
   }, [value, isEditing]);
 
   const execCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
+    // Ensure the editor is focused before executing command
     if (editorRef.current) {
       editorRef.current.focus();
+      // Use a small delay to ensure focus is applied before command
+      setTimeout(() => {
+        document.execCommand(command, false, value);
+      }, 0);
     }
   };
 
@@ -66,6 +70,17 @@ export function RichTextEditor({
       setIsEditing(true);
       onChange(editorRef.current.innerHTML);
       setTimeout(() => setIsEditing(false), 100);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Allow keyboard shortcuts to work properly
+    if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+      e.preventDefault();
+      document.execCommand("undo");
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
+      e.preventDefault();
+      document.execCommand("redo");
     }
   };
 
@@ -170,6 +185,7 @@ export function RichTextEditor({
       <div
         ref={editorRef}
         onInput={handleInput}
+        onKeyDown={handleKeyDown}
         onBlur={() => {
           if (editorRef.current) {
             onChange(editorRef.current.innerHTML);
