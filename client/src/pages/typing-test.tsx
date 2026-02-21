@@ -490,62 +490,40 @@ export default function TypingTestPage() {
     if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
 
     const plainText = testContent.text.replace(/<[^>]*>/g, '');
-    const typedWords = typedText.trim().split(/\s+/).filter(w => w).length;
-    const words = plainText.trim().split(/\s+/);
+    const words = plainText.trim().split(/\s+/).filter(w => w);
 
-    if (typedWords >= words.length) {
-      return testContent.text; // All words typed, return original
+    // Determine which word index corresponds to the word currently being typed.
+    // If typedText is empty -> highlight first word (index 0).
+    // If typedText ends with whitespace -> user is between words (not actively typing) -> don't highlight.
+    // Otherwise highlight the last partial token the user is typing.
+    const tokens = typedText.split(/\s+/).filter(w => w);
+    let currentIndex: number | null = null;
+    if (typedText.trim() === "") {
+      currentIndex = 0;
+    } else if (/\s$/.test(typedText)) {
+      // Trailing space -> no active word being typed
+      return testContent.text;
+    } else {
+      currentIndex = Math.max(0, tokens.length - 1);
     }
 
-    // Get the current word that needs to be highlighted (based on word count)
-    const currentWord = words[typedWords];
-    
-    if (!currentWord) {
+    if (currentIndex === null || currentIndex >= words.length) {
       return testContent.text;
     }
 
-    // Escape special regex characters
-    const escapedWord = currentWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    
-    // Find the Nth occurrence of this word in the original text
-    // Count how many times we've seen this word before
-    let occurrenceCount = 0;
-    let matchIndex = 0;
-    const regex = new RegExp(`\\b${escapedWord}\\b`, 'g');
-    let match;
-    
-    while ((match = regex.exec(plainText)) !== null) {
-      if (occurrenceCount === typedWords - words.slice(0, typedWords).lastIndexOf(currentWord)) {
-        matchIndex = match.index;
-        break;
-      }
-      occurrenceCount++;
-    }
+    const currentWord = words[currentIndex];
+    if (!currentWord) return testContent.text;
 
-    // Build the highlighted content more carefully
-    let highlighted = testContent.text;
-    let plainIndex = 0;
-    const parts: string[] = [];
-    let lastIndex = 0;
-
-    // Split by word boundaries and rebuild
-    const wordRegex = /\b\w+(?:['-]\w+)?\b|\S/g;
+    // Build the highlighted content by replacing the Nth word occurrence
     let wordCount = 0;
-    let htmlMatch;
-    
-    // Create a version that tracks both plain text and highlighted text
-    highlighted = testContent.text.replace(
-      /\b([^\s<>]+(?:['-][^\s<>]+)?)\b/g,
-      (match, word, offset) => {
-        // Check if we're at the word that should be highlighted
-        if (wordCount === typedWords) {
-          wordCount++;
-          return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${match}</span>`;
-        }
+    const highlighted = testContent.text.replace(/\b([^\s<>]+(?:['-][^\s<>]+)?)\b/g, (match) => {
+      if (wordCount === currentIndex) {
         wordCount++;
-        return match;
+        return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${match}</span>`;
       }
-    );
+      wordCount++;
+      return match;
+    });
 
     return highlighted;
   };
