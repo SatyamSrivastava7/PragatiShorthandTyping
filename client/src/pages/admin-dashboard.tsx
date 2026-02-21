@@ -1367,8 +1367,23 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Fetch authoritative DB records for selected IDs
-      const resp = await fetch('/api/results/bulk', {
+      const fetchWithRetry = async (url: string, options: RequestInit, retries = 2): Promise<Response> => {
+        for (let attempt = 0; attempt <= retries; attempt++) {
+          const resp = await fetch(url, options);
+          const contentType = resp.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            return resp;
+          }
+          if (attempt < retries) {
+            await new Promise(r => setTimeout(r, 1000));
+          } else {
+            throw new Error('Server returned unexpected response. Please try again.');
+          }
+        }
+        throw new Error('Failed after retries');
+      };
+
+      const resp = await fetchWithRetry('/api/results/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedResultIds }),
