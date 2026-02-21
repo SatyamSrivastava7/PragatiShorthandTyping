@@ -1492,6 +1492,7 @@ export default function AdminDashboard() {
           const totalWordsTyped = result.words ?? 'N/A';
           // Use DB fields where available. originalText may be present in DB; avoid heavy recalculation.
           const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
+          const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
           const grossSpeed = result.grossSpeed ?? 'N/A';
           const netSpeed = result.netSpeed ?? 'N/A';
 
@@ -1499,7 +1500,7 @@ export default function AdminDashboard() {
             rank,
             result.studentName ?? 'Unknown',
             totalWordsTyped,
-            accuracy,
+            accurancyDisplay,
             totalMistakes,
             grossSpeed,
             netSpeed,
