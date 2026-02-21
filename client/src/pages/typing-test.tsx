@@ -497,18 +497,57 @@ export default function TypingTestPage() {
       return testContent.text; // All words typed, return original
     }
 
-    // Find the current word that needs to be highlighted
+    // Get the current word that needs to be highlighted (based on word count)
     const currentWord = words[typedWords];
     
     if (!currentWord) {
       return testContent.text;
     }
 
-    // Replace current word with highlighted version (wrapped in a span with yellow background)
+    // Escape special regex characters
     const escapedWord = currentWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${escapedWord}\\b`);
     
-    return testContent.text.replace(regex, `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${currentWord}</span>`);
+    // Find the Nth occurrence of this word in the original text
+    // Count how many times we've seen this word before
+    let occurrenceCount = 0;
+    let matchIndex = 0;
+    const regex = new RegExp(`\\b${escapedWord}\\b`, 'g');
+    let match;
+    
+    while ((match = regex.exec(plainText)) !== null) {
+      if (occurrenceCount === typedWords - words.slice(0, typedWords).lastIndexOf(currentWord)) {
+        matchIndex = match.index;
+        break;
+      }
+      occurrenceCount++;
+    }
+
+    // Build the highlighted content more carefully
+    let highlighted = testContent.text;
+    let plainIndex = 0;
+    const parts: string[] = [];
+    let lastIndex = 0;
+
+    // Split by word boundaries and rebuild
+    const wordRegex = /\b\w+(?:['-]\w+)?\b|\S/g;
+    let wordCount = 0;
+    let htmlMatch;
+    
+    // Create a version that tracks both plain text and highlighted text
+    highlighted = testContent.text.replace(
+      /\b([^\s<>]+(?:['-][^\s<>]+)?)\b/g,
+      (match, word, offset) => {
+        // Check if we're at the word that should be highlighted
+        if (wordCount === typedWords) {
+          wordCount++;
+          return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${match}</span>`;
+        }
+        wordCount++;
+        return match;
+      }
+    );
+
+    return highlighted;
   };
 
   if (isContentLoading) {
