@@ -3082,7 +3082,7 @@ export default function AdminDashboard() {
                       className="ml-2 gap-2 bg-green-600 hover:bg-green-700"
                     >
                       <Download className="h-4 w-4" />
-                      Download Selected ({selectedResultIds.length})
+                      Get Results ({selectedResultIds.length})
                     </Button>
                   </div>
 
