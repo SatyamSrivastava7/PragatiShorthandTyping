@@ -1408,12 +1408,34 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Sort by mistake count (ascending) using DB mistakes field
-      const sortedResults = [...selectedResults].sort((a, b) => {
-        const mistakesA = Number(a.mistakes) || 0;
-        const mistakesB = Number(b.mistakes) || 0;
-        return mistakesA - mistakesB;
-      });
+      // Sort according to requested type:
+      // - typing: highest netSpeed first (descending)
+      // - shorthand: lowest mistake% first (ascending)
+      const sortedResults = [...selectedResults];
+      if (type === 'typing') {
+        sortedResults.sort((a, b) => {
+          const netA = Number(a.netSpeed) || 0;
+          const netB = Number(b.netSpeed) || 0;
+          return netB - netA; // descending: highest net speed first
+        });
+      } else {
+        const calcMistakePercent = (r: any) => {
+          const mistakes = Number(r.mistakes) || 0;
+          let originalWords = 0;
+          if (r.originalText) {
+            originalWords = r.originalText.replace(/<[^>]*>/g, '').trim().split(/\s+/).filter((w: string) => w).length;
+          } else {
+            originalWords = Number(r.words) || 0;
+          }
+          return originalWords > 0 ? (mistakes / originalWords) * 100 : Number.POSITIVE_INFINITY;
+        };
+
+        sortedResults.sort((a, b) => {
+          const pctA = calcMistakePercent(a);
+          const pctB = calcMistakePercent(b);
+          return pctA - pctB; // ascending: lowest mistake% first
+        });
+      }
 
       // Generate PDF
       const doc = new jsPDF();
