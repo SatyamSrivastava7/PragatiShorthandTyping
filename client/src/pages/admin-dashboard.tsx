@@ -1438,11 +1438,12 @@ export default function AdminDashboard() {
       doc.setFont('helvetica', 'bold');
       doc.text(`${type === 'typing' ? 'Typing' : 'Shorthand'} Test Results Report`, pageWidth / 2, 25, { align: 'center' });
       
-      // Summary
+      // Summary - left and right on same line
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
-      doc.text(`Total Students: ${sortedResults.length}`, 14, 40);
+      const summaryY = 33;
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, summaryY);
+      doc.text(`Total Students: ${sortedResults.length}`, pageWidth - 14, summaryY, { align: 'right' });
       
       // Table data and headers
       let head: string[][] = [];
@@ -1512,16 +1513,17 @@ export default function AdminDashboard() {
         body: body,
         startY: 45,
         theme: 'grid',
+        // Reduce cell padding to make table rows shorter
         headStyles: {
           fillColor: [59, 130, 246], // Blue color
           textColor: 255,
           fontStyle: 'bold',
           halign: 'center',
-          cellPadding: 8,
+          cellPadding: 4,
         } as any,
         bodyStyles: {
           textColor: 0,
-          cellPadding: 6,
+          cellPadding: 3,
         } as any,
         alternateRowStyles: {
           fillColor: [242, 242, 242],
