@@ -1479,7 +1479,7 @@ export default function AdminDashboard() {
         head = [[
           'Rank',
           'Name',
-          'Total Words Typed',
+          'Words Typed',
           'Accuracy',
           'Mistakes',
           'Gross Speed (WPM)',
@@ -1510,8 +1510,8 @@ export default function AdminDashboard() {
         head = [[
           'Rank',
           'Student Name',
-          'Total Original Words',
-          'Total Words Typed',
+          'Original Words',
+          'Words Typed',
           'Mistakes',
           'Mistake%',
           'Result'
