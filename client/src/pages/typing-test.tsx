@@ -501,8 +501,8 @@ export default function TypingTestPage() {
     if (typedText.trim() === "") {
       currentIndex = 0;
     } else if (/\s$/.test(typedText)) {
-      // Trailing space -> no active word being typed
-      return testContent.text;
+      // Trailing space -> user has completed the current word; highlight the next word
+      currentIndex = tokens.length;
     } else {
       currentIndex = Math.max(0, tokens.length - 1);
     }
