@@ -1337,9 +1337,25 @@ export default function AdminDashboard() {
     generateResultPDF(result);
   };
 
+  // Filter results by student name/ID for display
+  const filterResultsByStudent = (results: typeof typingResults) =>
+    results
+      .filter(
+        (r) =>
+          r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
+          (r.studentDisplayId?.toLowerCase() || "").includes(
+            studentFilter.toLowerCase(),
+          ),
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.submittedAt).getTime() -
+          new Date(a.submittedAt).getTime(),
+      );
+
   const handleDownloadSelectedResults = (type: 'typing' | 'shorthand') => {
-    const allResults = type === 'typing' ? typingResults : shorthandResults;
-    const selectedResults = allResults.filter(r => selectedResultIds.includes(r.id));
+    const displayResults = type === 'typing' ? filterResultsByStudent(typingResults) : filterResultsByStudent(shorthandResults);
+    const selectedResults = displayResults.filter(r => selectedResultIds.includes(r.id));
     
     if (selectedResults.length === 0) {
       toast({
@@ -1454,22 +1470,6 @@ export default function AdminDashboard() {
       description: `Downloaded ${sortedResults.length} results as PDF.`,
     });
   };
-
-  // Filter results by student name/ID for display
-  const filterResultsByStudent = (results: typeof typingResults) =>
-    results
-      .filter(
-        (r) =>
-          r.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
-          (r.studentDisplayId?.toLowerCase() || "").includes(
-            studentFilter.toLowerCase(),
-          ),
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.submittedAt).getTime() -
-          new Date(a.submittedAt).getTime(),
-      );
 
   const displayTypingResults = filterResultsByStudent(typingResults);
   const displayShorthandResults = filterResultsByStudent(shorthandResults);
