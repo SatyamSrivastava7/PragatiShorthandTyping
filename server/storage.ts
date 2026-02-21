@@ -484,13 +484,13 @@ export class DatabaseStorage implements IStorage {
   async getResultsByIds(ids: number[]): Promise<Result[]> {
     if (!ids || ids.length === 0) return [];
     // Ensure all ids are numbers
-    const numericIds = ids.map((i) => Number(i)).filter((i) => !Number.isNaN(i));
+    const numericIds = ids.map((i) => Number(i)).filter((i) => Number.isFinite(i));
     if (numericIds.length === 0) return [];
 
-    // Use raw SQL IN clause safely with numbers
-    const idList = numericIds.join(',');
-    const q: any = db.select().from(results).where(sql`${results.id} IN (${idList})`).orderBy(desc(results.submittedAt));
-    return await q;
+    // Fetch each result individually to avoid SQL dialect issues and keep code simple/safe
+    const promises = numericIds.map((id) => this.getResult(id));
+    const resultsArr = await Promise.all(promises);
+    return resultsArr.filter((r): r is Result => !!r);
   }
 
   async getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]> {
