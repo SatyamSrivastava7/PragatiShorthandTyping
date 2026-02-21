@@ -1476,9 +1476,9 @@ export default function AdminDashboard() {
         head = [[
           'Rank',
           'Name',
-          'Mistake Count',
           'Total Words Typed',
           'Accuracy',
+          'Mistake Count',
           'Gross Speed (WPM)',
           'Net Speed (WPM)'
         ]];
@@ -1495,9 +1495,9 @@ export default function AdminDashboard() {
           return [
             rank,
             result.studentName ?? 'Unknown',
-            totalMistakes,
             totalWordsTyped,
             accuracy,
+            totalMistakes,
             grossSpeed,
             netSpeed,
           ];
@@ -1507,11 +1507,11 @@ export default function AdminDashboard() {
         head = [[
           'Rank',
           'Student Name',
+          'Total Original Words',
+          'Total Words Typed',
           'Mistakes Count',
           'Mistake%',
-          'Result',
-          'Total Words Typed',
-          'Total Original Words'
+          'Result'
         ]];
 
         body = sortedResults.map((result, idx) => {
@@ -1523,11 +1523,11 @@ export default function AdminDashboard() {
           return [
             rank,
             result.studentName ?? 'Unknown',
+            originalWords,
+            result.words?.toString() || 'N/A',
             mistakes.toString(),
             `${mistakePercentage}%`,
             result.result || 'N/A',
-            result.words?.toString() || 'N/A',
-            originalWords,
           ];
         });
       }
@@ -1548,20 +1548,21 @@ export default function AdminDashboard() {
         } as any,
         bodyStyles: {
           textColor: 0,
-          cellPadding: 3,
+          cellPadding: 2,
         } as any,
         alternateRowStyles: {
           fillColor: [242, 242, 242],
         } as any,
         columnStyles: {
-          0: { halign: 'left' },
-          1: { halign: 'center' },
-          2: { halign: 'center' },
-          3: { halign: 'center' },
-          4: { halign: 'center' },
-          5: { halign: 'center' },
+          0: { halign: 'center', columnWidth: 12 },
+          1: { halign: 'left', columnWidth: 'wrap' },
+          2: { halign: 'center', columnWidth: 18 },
+          3: { halign: 'center', columnWidth: 16 },
+          4: { halign: 'center', columnWidth: 16 },
+          5: { halign: 'center', columnWidth: 16 },
+          6: { halign: 'center', columnWidth: 14 },
         } as any,
-        margin: 14,
+        margin: 12,
         didDrawPage: (data: any) => {
           // Footer
           const pageCount = (doc as any).internal.pages.length;

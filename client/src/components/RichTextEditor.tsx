@@ -50,8 +50,9 @@ export function RichTextEditor({
   useEffect(() => {
     if (editorRef.current && !isEditing) {
       // Only update if not currently editing to avoid cursor displacement
-      if (editorRef.current.innerHTML !== value) {
-        editorRef.current.innerHTML = value || "";
+      // Store plain text only (no HTML formatting)
+      if (editorRef.current.innerText !== value) {
+        editorRef.current.innerText = value || "";
       }
     }
   }, [value, isEditing]);
@@ -90,7 +91,9 @@ export function RichTextEditor({
   const handleInput = () => {
     if (editorRef.current) {
       setIsEditing(true);
-      onChange(editorRef.current.innerHTML);
+      // Extract plain text without HTML tags
+      const plainText = editorRef.current.innerText || "";
+      onChange(plainText);
       setTimeout(() => setIsEditing(false), 100);
     }
   };
@@ -218,7 +221,9 @@ export function RichTextEditor({
         onKeyDown={handleKeyDown}
         onBlur={() => {
           if (editorRef.current) {
-            onChange(editorRef.current.innerHTML);
+            // Extract plain text without HTML tags when saving
+            const plainText = editorRef.current.innerText || "";
+            onChange(plainText);
           }
         }}
         contentEditable
