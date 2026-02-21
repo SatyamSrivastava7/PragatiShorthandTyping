@@ -1356,12 +1356,9 @@ export default function AdminDashboard() {
           new Date(a.submittedAt).getTime(),
       );
 
-  const handleDownloadSelectedResults = (type: 'typing' | 'shorthand') => {
+  const handleDownloadSelectedResults = async (type: 'typing' | 'shorthand') => {
     try {
-      const displayResults = type === 'typing' ? filterResultsByStudent(typingResults) : filterResultsByStudent(shorthandResults);
-      const selectedResults = displayResults.filter(r => selectedResultIds.includes(r.id));
-      
-      if (selectedResults.length === 0) {
+      if (!selectedResultIds || selectedResultIds.length === 0) {
         toast({
           variant: "destructive",
           title: "No Selection",
@@ -1370,7 +1367,33 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Sort by mistake count (ascending)
+      // Fetch authoritative DB records for selected IDs
+      const resp = await fetch('/api/results/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedResultIds }),
+      });
+
+      if (!resp.ok) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch results from server.' });
+        return;
+      }
+
+      const dbResults: any[] = await resp.json();
+
+      // Ensure we only use results matching the requested type
+      const selectedResults = dbResults.filter(r => (r.contentType || r.contentType === type) ? r.contentType === type : true);
+
+      if (!selectedResults || selectedResults.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "No Selection",
+          description: "Please select at least one result of the requested type to download.",
+        });
+        return;
+      }
+
+      // Sort by mistake count (ascending) using DB mistakes field
       const sortedResults = [...selectedResults].sort((a, b) => {
         const mistakesA = Number(a.mistakes) || 0;
         const mistakesB = Number(b.mistakes) || 0;
@@ -1406,29 +1429,75 @@ export default function AdminDashboard() {
       doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 33);
       doc.text(`Total Students: ${sortedResults.length}`, 14, 40);
       
-      // Table data
-      const tableData = sortedResults.map(result => {
-        const mistakes = Number(result.mistakes) || 0;
-        const words = Number(result.words) || 1;
-        const mistakePercentage = ((mistakes / words) * 100).toFixed(2);
-        const originalWords = result.originalText 
-          ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length 
-          : 'N/A';
-        
-        return [
-          result.studentName || 'Unknown',
-          mistakes.toString(),
-          `${mistakePercentage}%`,
-          result.result || 'N/A',
-          result.words?.toString() || 'N/A',
-          type === 'typing' ? originalWords : 'N/A',
-        ];
-      });
+      // Table data and headers
+      let head: string[][] = [];
+      let body: Array<string[] | (string | number)[]> = [];
+
+      if (type === 'typing') {
+        // Prefer DB-stored fields. If some fields are missing, we fall back conservatively.
+        head = [[
+          'Name',
+          'Total Mistakes',
+          'Total Words Typed',
+          'Total Original Words',
+          'Accuracy',
+          'Gross Speed (WPM)',
+          'Net Speed (WPM)'
+        ]];
+
+        body = sortedResults.map(result => {
+          const totalMistakes = result.mistakes ?? 'N/A';
+          const totalWordsTyped = result.words ?? 'N/A';
+          // Use DB fields where available. originalText may be present in DB; avoid heavy recalculation.
+          const totalOriginalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
+          // Accuracy: if DB provides a field named `accuracy` use it, else leave as N/A to avoid re-calculation here.
+          // (If you want strict DB-only values, add an `accuracy` field on the server side.)
+          const accuracy = (result as any).accuracy ?? 'N/A';
+          const grossSpeed = result.grossSpeed ?? 'N/A';
+          const netSpeed = result.netSpeed ?? 'N/A';
+
+          return [
+            result.studentName ?? 'Unknown',
+            totalMistakes,
+            totalWordsTyped,
+            totalOriginalWords,
+            accuracy,
+            grossSpeed,
+            netSpeed,
+          ];
+        });
+      } else {
+        // Shorthand: keep previous columns (Mistakes %, Result, etc.) but use DB fields where possible
+        head = [[
+          'Student Name',
+          'Mistakes Count',
+          'Mistake%',
+          'Result',
+          'Total Words Typed',
+          'Total Original Words'
+        ]];
+
+        body = sortedResults.map(result => {
+          const mistakes = Number(result.mistakes) || 0;
+          const words = Number(result.words) || 1;
+          const mistakePercentage = words > 0 ? ((mistakes / words) * 100).toFixed(2) : 'N/A';
+          const originalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
+
+          return [
+            result.studentName ?? 'Unknown',
+            mistakes.toString(),
+            `${mistakePercentage}%`,
+            result.result || 'N/A',
+            result.words?.toString() || 'N/A',
+            originalWords,
+          ];
+        });
+      }
 
       // Generate table using autoTable
       autoTable(doc, {
-        head: [['Student Name', 'Mistakes Count', 'Mistake%', 'Result', 'Total Words Typed', 'Total Original Words']],
-        body: tableData,
+        head: head,
+        body: body,
         startY: 45,
         theme: 'grid',
         headStyles: {

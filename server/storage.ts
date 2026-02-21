@@ -66,6 +66,7 @@ export interface IStorage {
   
   // Results methods
   getResult(id: number): Promise<Result | undefined>;
+  getResultsByIds(ids: number[]): Promise<Result[]>;
   getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]>;
   getResultsByContent(contentId: number): Promise<Result[]>;
   getAllResults(): Promise<Result[]>;
@@ -478,6 +479,18 @@ export class DatabaseStorage implements IStorage {
   async getResult(id: number): Promise<Result | undefined> {
     const [result] = await db.select().from(results).where(eq(results.id, id));
     return result || undefined;
+  }
+
+  async getResultsByIds(ids: number[]): Promise<Result[]> {
+    if (!ids || ids.length === 0) return [];
+    // Ensure all ids are numbers
+    const numericIds = ids.map((i) => Number(i)).filter((i) => !Number.isNaN(i));
+    if (numericIds.length === 0) return [];
+
+    // Use raw SQL IN clause safely with numbers
+    const idList = numericIds.join(',');
+    const q: any = db.select().from(results).where(sql`${results.id} IN (${idList})`).orderBy(desc(results.submittedAt));
+    return await q;
   }
 
   async getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]> {

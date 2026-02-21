@@ -846,6 +846,26 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get result" });
     }
   });
+
+  // Bulk fetch results by IDs (POST) - returns authoritative DB records for given result IDs
+  app.post("/api/results/bulk", async (req, res) => {
+    try {
+      const ids = req.body?.ids;
+      if (!Array.isArray(ids)) {
+        return res.status(400).json({ message: "Invalid payload, expected { ids: number[] }" });
+      }
+
+      // Convert to numbers and filter invalid
+      const numericIds = ids.map((i: any) => Number(i)).filter((n: number) => Number.isFinite(n));
+      if (numericIds.length === 0) return res.json([]);
+
+      const results = await storage.getResultsByIds(numericIds);
+      res.json(results);
+    } catch (error) {
+      console.error("Error in bulk results fetch:", error);
+      res.status(500).json({ message: "Failed to fetch results" });
+    }
+  });
   
   // Create result
   app.post("/api/results", async (req, res) => {
