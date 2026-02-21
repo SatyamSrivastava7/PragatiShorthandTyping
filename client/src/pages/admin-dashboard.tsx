@@ -1556,10 +1556,10 @@ export default function AdminDashboard() {
         columnStyles: {
           0: { halign: 'center', columnWidth: 12 },
           1: { halign: 'left', columnWidth: 'wrap' },
-          2: { halign: 'center', columnWidth: 18 },
+          2: { halign: 'center', columnWidth: 16 },
           3: { halign: 'center', columnWidth: 16 },
           4: { halign: 'center', columnWidth: 16 },
-          5: { halign: 'center', columnWidth: 16 },
+          5: { halign: 'center', columnWidth: 14 },
           6: { halign: 'center', columnWidth: 14 },
         } as any,
         margin: 12,
