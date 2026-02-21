@@ -1466,7 +1466,7 @@ export default function AdminDashboard() {
           // const totalOriginalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
           // Accuracy: if DB provides a field named `accuracy` use it, else leave as N/A to avoid re-calculation here.
           // (If you want strict DB-only values, add an `accuracy` field on the server side.)
-          const accuracy = (result as any).accuracy ?? 'N/A';
+          const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
           const grossSpeed = result.grossSpeed ?? 'N/A';
           const netSpeed = result.netSpeed ?? 'N/A';
 
