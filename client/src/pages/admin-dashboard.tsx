@@ -95,6 +95,7 @@ import { generateResultPDF } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { FolderSelector } from "@/components/FolderSelector";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { queryClient } from "@/lib/queryClient";
 
 // Delete Folder Button Component
@@ -433,24 +434,14 @@ function EditTestModalComponent({
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Content Text (Transcript)
-            </Label>
-            <Textarea
-              value={editTextContent}
-              onChange={(e) => setEditTextContent(e.target.value)}
-              placeholder="Edit the text content here..."
-              className={cn(
-                "min-h-[200px] font-mono bg-white border-2 focus:border-primary/50",
-                editLanguage === "hindi" ? "font-mangal" : "",
-              )}
-            />
-            <p className="text-xs text-muted-foreground">
-              {editTextContent.split(/\s+/).filter(Boolean).length} words |{" "}
-              {editTextContent.length} characters
-            </p>
-          </div>
+          <RichTextEditor
+            label="Content Text (Transcript)"
+            value={editTextContent}
+            onChange={setEditTextContent}
+            placeholder="Edit the text content here..."
+            fontClass={editLanguage === "hindi" ? "font-mangal" : ""}
+            showWordCount={true}
+          />
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button
@@ -1940,24 +1931,14 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Content Text (Transcript)
-                    </Label>
-                    <Textarea
-                      value={textContent}
-                      onChange={(e) => setTextContent(e.target.value)}
-                      placeholder="Paste the text content here..."
-                      className={cn(
-                        "min-h-[200px] font-mono bg-white border-2 focus:border-primary/50",
-                        language === "hindi" ? "font-mangal" : "",
-                      )}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {textContent.split(/\s+/).filter(Boolean).length} words |{" "}
-                      {textContent.length} characters
-                    </p>
-                  </div>
+                  <RichTextEditor
+                    label="Content Text (Transcript)"
+                    value={textContent}
+                    onChange={setTextContent}
+                    placeholder="Paste the text content here..."
+                    fontClass={language === "hindi" ? "font-mangal" : ""}
+                    showWordCount={true}
+                  />
 
                   <div className="flex justify-end pt-4 border-t">
                     <Button

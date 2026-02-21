@@ -5,7 +5,7 @@ import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/uti
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Timer, Save, CheckCircle, Music, ArrowLeft, Maximize, Minimize, Type, RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { Timer, Save, CheckCircle, Music, ArrowLeft, Maximize, Minimize, Type, RefreshCw, Loader2, AlertCircle, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -245,9 +245,12 @@ export default function TypingTestPage() {
     const container = originalTextRef.current;
     const originalText = testContent.text;
     
+    // Strip HTML tags to get plain text for word counting
+    const plainText = originalText.replace(/<[^>]*>/g, '');
+    
     // Count words typed by user
     const typedWords = typedText.trim().split(/\s+/).filter(w => w).length;
-    const originalWords = originalText.trim().split(/\s+/).filter(w => w);
+    const originalWords = plainText.trim().split(/\s+/).filter(w => w);
     const totalOriginalWords = originalWords.length;
     
     if (totalOriginalWords === 0) return;
@@ -543,15 +546,24 @@ export default function TypingTestPage() {
             {/* Auto-scroll Toggle for Typing Tests */}
             {testContent.type === 'typing' && autoScrollEnabled !== null && (
               <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
-                <Toggle
-                  pressed={autoScrollEnabled}
-                  onPressedChange={setAutoScrollEnabled}
-                  title={autoScrollEnabled ? "Disable auto-scroll" : "Enable auto-scroll"}
-                  className="hover:bg-muted"
+                <Button
+                  type="button"
+                  variant={autoScrollEnabled ? "default" : "outline"}
                   size="sm"
+                  onClick={() => setAutoScrollEnabled(!autoScrollEnabled)}
+                  className={cn(
+                    "gap-2 transition-all",
+                    autoScrollEnabled 
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md" 
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  title={autoScrollEnabled ? "Click to disable auto-scroll" : "Click to enable auto-scroll"}
                 >
-                  <span className="text-xs font-medium">Auto-scroll</span>
-                </Toggle>
+                  <ArrowDown size={16} />
+                  <span className="text-xs font-medium">
+                    {autoScrollEnabled ? "Auto-scroll ON" : "Auto-scroll OFF"}
+                  </span>
+                </Button>
               </div>
             )}
           </div>
@@ -639,12 +651,10 @@ export default function TypingTestPage() {
             </CardHeader>
             <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef}>
               <div 
-                className={cn("leading-relaxed whitespace-pre-wrap select-none transition-all", fontClass)}
+                className={cn("leading-relaxed select-none transition-all", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
-              >
-                {/* Highlight Logic could go here, for now simpler implementation */}
-                {testContent.text}
-              </div>
+                dangerouslySetInnerHTML={{ __html: testContent.text }}
+              />
             </CardContent>
           </Card>
         )}

@@ -738,10 +738,13 @@ export function calculateTypingMetrics(
   timeInMinutes: number,
   backspaces: number,
 ) {
+  // Strip HTML tags from original text for metrics calculation
+  const plainText = originalText.replace(/<[^>]*>/g, '');
+  
   // Use sequential alignment for typing tests (1-to-1 word matching in order)
   // This ensures a mistyped word doesn't cause cascading "missing" errors
   const { mistakes, alignment, attemptedWords, trailingWords } = calculateTypingMistakes(
-    originalText,
+    plainText,
     typedText,
   );
 
@@ -809,8 +812,11 @@ export function isLastSentenceAttempted(
   originalText: string,
   alignment: AlignmentEntry[]
 ): boolean {
+  // Strip HTML tags from original text
+  const plainText = originalText.replace(/<[^>]*>/g, '');
+  
   // Extract the last 3 words from the original text
-  const words = originalText
+  const words = plainText
     .trim()
     .split(/\s+/)
     .filter((w) => w);
@@ -849,15 +855,18 @@ export function calculateShorthandMetrics(
   typedText: string,
   timeInMinutes: number,
 ) {
+  // Strip HTML tags from original text for metrics calculation
+  const plainText = originalText.replace(/<[^>]*>/g, '');
+  
   // Use aligned word comparison to handle word splits/joins
   const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(
-    originalText,
+    plainText,
     typedText,
   );
 
   // For Shorthand: Calculate metrics based on FULL ORIGINAL TEXT word count
   // This is the total words in the entire passage, not just what was attempted
-  const fullOriginalWords = (originalText || "")
+  const fullOriginalWords = (plainText || "")
     .trim()
     .split(/\s+/)
     .filter((w) => w).length;
