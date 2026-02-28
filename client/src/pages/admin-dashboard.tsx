@@ -91,7 +91,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
-import { generateResultPDF } from "@/lib/utils";
+import { generateResultPDF, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { FolderSelector } from "@/components/FolderSelector";
@@ -1426,7 +1426,7 @@ export default function AdminDashboard() {
           const mistakes = Number(r.mistakes) || 0;
           let originalWords = 0;
           if (r.originalText) {
-            originalWords = r.originalText.replace(/<[^>]*>/g, '').trim().split(/\s+/).filter((w: string) => w).length;
+            originalWords = stripHtmlPreserveParagraphs(r.originalText || '').trim().split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length;
           } else {
             originalWords = Number(r.words) || 0;
           }
@@ -1521,8 +1521,9 @@ export default function AdminDashboard() {
         body = sortedResults.map((result, idx) => {
           const rank = idx + 1;
           const mistakes = Number(result.mistakes) || 0;
-          const originalWords = result.originalText ? result.originalText.replace(/<[^>]*>/g, '').split(/\s+/).filter((w: string) => w).length : 'N/A';
-          const mistakePercentage = originalWords > 0 ? ((mistakes / originalWords) * 100).toFixed(2) : 'N/A';
+          const originalWordsNum = result.originalText ? stripHtmlPreserveParagraphs(result.originalText || '').split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length : 0;
+          const originalWords = originalWordsNum > 0 ? originalWordsNum : 'N/A';
+          const mistakePercentage = originalWordsNum > 0 ? ((mistakes / originalWordsNum) * 100).toFixed(2) : 'N/A';
 
           return [
             rank,

@@ -1,4 +1,4 @@
-import { cn, alignWords, getTypingAlignment, calculateAlignedMistakes } from "@/lib/utils";
+import { cn, alignWords, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
@@ -8,8 +8,8 @@ interface ResultTextAnalysisProps {
 }
 
 export function ResultTextAnalysis({ originalText, typedText, language, contentType = 'typing' }: ResultTextAnalysisProps) {
-  // Strip HTML tags from originalText for alignment calculations (comparison uses plain text)
-  const plainOriginalText = originalText.replace(/<[^>]*>/g, '');
+  // Strip HTML tags from originalText for alignment calculations (preserve paragraph markers)
+  const plainOriginalText = stripHtmlPreserveParagraphs(originalText);
   
   // Use appropriate alignment based on content type
   // For typing tests: use windowed alignment that limits search scope
@@ -35,6 +35,10 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
   return (
     <div className={cn("text-sm leading-relaxed flex flex-wrap gap-x-1", language === 'hindi' ? "font-mangal" : "")}>
       {alignment.map((item, i) => {
+        // Paragraph token - render as a paragraph break
+        if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+          return <div key={i} className="w-full my-2" />;
+        }
         // Show trailing words (not attempted by user) in gray
         if (item.status === 'trailing') {
           return (

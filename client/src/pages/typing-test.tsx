@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
-import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
+import { calculateTypingMetrics, calculateShorthandMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,8 +124,11 @@ export default function TypingTestPage() {
     let netSpeed: string | undefined;
     let halfMistakes: string | undefined;
 
+    // Convert any newlines to paragraph tokens for storage and analysis
+    const storedTypedText = replaceNewlinesWithParaToken(typedText);
+
     if (testContent.type === 'typing') {
-      metrics = calculateTypingMetrics(testContent.text, typedText, testContent.duration, backspaces);
+      metrics = calculateTypingMetrics(testContent.text, storedTypedText, testContent.duration, backspaces);
       // Determine Pass/Fail based on 5% mistake rule
       const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
       result = mistakePercentage > 5 ? 'Fail' : 'Pass';
@@ -133,7 +136,7 @@ export default function TypingTestPage() {
       netSpeed = String(metrics.netSpeed);
       halfMistakes = String(metrics.halfMistakes ?? 0);
     } else {
-      metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
+      metrics = calculateShorthandMetrics(testContent.text, storedTypedText, testContent.duration);
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;
@@ -143,7 +146,8 @@ export default function TypingTestPage() {
     try {
       await createResult({
         contentId: testContent.id,
-        typedText: typedText,
+        // Save processed typed text (newlines -> paragraph token)
+        typedText: storedTypedText,
         words: metrics.words,
         time: testContent.duration,
         mistakes: String(metrics.mistakes),
@@ -246,12 +250,12 @@ export default function TypingTestPage() {
     const container = originalTextRef.current;
     const originalText = testContent.text;
     
-    // Strip HTML tags to get plain text for word counting
-    const plainText = originalText.replace(/<[^>]*>/g, '');
-    
-    // Count words typed by user
-    const typedWords = typedText.trim().split(/\s+/).filter(w => w).length;
-    const originalWords = plainText.trim().split(/\s+/).filter(w => w);
+    // Strip HTML tags while preserving paragraph markers for accurate word counting
+    const plainText = stripHtmlPreserveParagraphs(originalText);
+
+    // Count words typed by user (treat newlines as PARA_TOKEN)
+    const typedWords = replaceNewlinesWithParaToken(typedText).trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
+    const originalWords = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
     const totalOriginalWords = originalWords.length;
     
     if (totalOriginalWords === 0) return;
@@ -267,9 +271,9 @@ export default function TypingTestPage() {
     const currentScroll = container.scrollTop;
     const diff = targetScrollPosition - currentScroll;
     
-    // Only auto-scroll if difference is significant (more than 5px)
-    // This prevents jittering on every keystroke
-    if (Math.abs(diff) < 5) return;
+    // Only auto-scroll if difference is significant (more than 2px)
+    // Lower threshold so small progress moves get smoother and snappier
+    if (Math.abs(diff) < 2) return;
     
     // If user has manually scrolled, only do "catch-up" scrolling
     // when they fall more than 30% behind the target position
@@ -278,8 +282,9 @@ export default function TypingTestPage() {
       if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
     }
     
-    // Smooth scroll: move 15% of the distance per update (slowed down from 25%)
-    const newScroll = currentScroll + diff * 0.15;
+    // Smooth scroll: move a larger fraction of the distance per update to speed up auto-scroll
+    // Increased from 15% -> 20% for snappier motion without being jarring
+    const newScroll = currentScroll + diff * 0.25;
     
     // Mark as programmatic scroll to avoid triggering manual scroll detection
     isAutoScrollingRef.current = true;
@@ -495,12 +500,12 @@ export default function TypingTestPage() {
       return testContent.text;
     }
 
-    // Extract plain text to find words
-    const plainText = testContent.text.replace(/<[^>]*>/g, '');
-    const words = plainText.trim().split(/\s+/).filter(w => w);
+    // Extract plain text to find words, preserving paragraph tokens
+    const plainText = stripHtmlPreserveParagraphs(testContent.text);
+    const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
 
     // Determine which word index corresponds to the word currently being typed
-    const tokens = typedText.split(/\s+/).filter(w => w);
+    const tokens = typedText.split(/\s+/).filter(w => w && w !== PARA_TOKEN);
     let currentIndex: number | null = null;
     if (typedText.trim() === "") {
       currentIndex = 0;
