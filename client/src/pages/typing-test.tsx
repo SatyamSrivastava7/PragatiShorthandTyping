@@ -283,8 +283,9 @@ export default function TypingTestPage() {
     let diff = targetScrollPosition - currentScroll;
     
     // If user pressed Enter (new paragraph), apply a more aggressive scroll factor
-    // Jump by 50% of remaining distance instead of gradual 35%
-    const scrollFactor = isNewParagraph ? 0.50 : 0.35;
+    // Jump by 65% of remaining distance (much more aggressive than regular 35%)
+    // This ensures visible shift to next paragraph
+    const scrollFactor = isNewParagraph ? 0.65 : 0.35;
     
     // Only auto-scroll if difference is significant (more than 2px)
     // Lower threshold so small progress moves get smoother and snappier
@@ -294,7 +295,7 @@ export default function TypingTestPage() {
     // when they fall more than 30% behind the target position
     if (userScrolled) {
       const lagThreshold = scrollableHeight * 0.3;
-      if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
+      if (diff < lagThreshold && !isNewParagraph) return; // User is ahead or close enough, don't interfere (but always scroll on paragraph break)
     }
     
     // Apply scroll with appropriate factor (higher for paragraph breaks)
