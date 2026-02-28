@@ -26,6 +26,9 @@ export function stripHtmlPreserveParagraphs(html: string): string {
   // Strip remaining tags
   s = s.replace(/<[^>]+>/g, '');
 
+  // Strip HTML entities like &nbsp; before processing
+  s = stripHtmlEntities(s);
+
   // Collapse whitespace and convert newline blocks into PARA_TOKEN
   s = s.replace(/\r\n|\r/g, '\n');
   s = s.replace(/\n+/g, ` ${PARA_TOKEN} `);
@@ -38,10 +41,25 @@ export function stripHtmlPreserveParagraphs(html: string): string {
 // Replace any newline sequences in typed text with PARA_TOKEN
 export function replaceNewlinesWithParaToken(text: string): string {
   if (!text) return '';
-  let s = text.replace(/\r\n|\r/g, '\n');
+  // Strip HTML entities first
+  let s = stripHtmlEntities(text);
+  s = s.replace(/\r\n|\r/g, '\n');
   s = s.replace(/\n+/g, ` ${PARA_TOKEN} `);
   s = s.replace(/\s+/g, ' ').trim();
   return s;
+}
+
+// Strip HTML entities like &nbsp; and other common entities before comparison/display
+export function stripHtmlEntities(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&nbsp;/gi, ' ')        // Non-breaking space -> regular space
+    .replace(/&lt;/gi, '<')          // Less than
+    .replace(/&gt;/gi, '>')          // Greater than
+    .replace(/&amp;/gi, '&')         // Ampersand
+    .replace(/&quot;/gi, '"')        // Double quote
+    .replace(/&#39;/gi, "'")         // Single quote
+    .replace(/&apos;/gi, "'");       // Apostrophe
 }
 
 // Special characters that can split words (user types them as spaces)
@@ -1059,17 +1077,17 @@ export const generateResultPDF = async (result: Result) => {
       // Trailing untyped words - skip in PDF for typing tests (not counted as errors)
       continue;
     } else if (item.status === "missing") {
-      // Missing word - show in green brackets
-      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
+      // Missing word - show in green brackets (strip HTML entities)
+      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
     } else if (item.status === "substitution") {
-      // Substitution - show typed (errored) word FIRST (underlined red), then the correct word in green brackets
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${item.original}]</span> `;
+      // Substitution - show typed (errored) word FIRST (underlined red), then the correct word in green brackets (strip HTML entities)
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
     } else if (item.status === "extra") {
-      // Extra word - show underlined in red
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${item.typed}</span> `;
+      // Extra word - show underlined in red (strip HTML entities)
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
     } else {
-      // Match - show normally
-      typedHtml += `<span>${item.typed}</span> `;
+      // Match - show normally (strip HTML entities)
+      typedHtml += `<span>${stripHtmlEntities(item.typed)}</span> `;
     }
   }
 

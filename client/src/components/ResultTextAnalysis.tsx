@@ -1,4 +1,4 @@
-import { cn, alignWords, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
+import { cn, alignWords, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtmlEntities } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
@@ -42,14 +42,14 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
         // Show trailing words (not attempted by user) in gray
         if (item.status === 'trailing') {
           return (
-            <span key={i} className="text-muted-foreground/50">{item.original}</span>
+            <span key={i} className="text-muted-foreground/50">{stripHtmlEntities(item.original)}</span>
           );
         }
         
         // Missing word - show in green brackets
         if (item.status === 'missing') {
           return (
-            <span key={i} className="text-green-600 font-medium">[{item.original}]</span>
+            <span key={i} className="text-green-600 font-medium">[{stripHtmlEntities(item.original)}]</span>
           );
         }
         
@@ -58,9 +58,9 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
           return (
             <span key={i}>
               <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1">
-                {item.typed}
+                {stripHtmlEntities(item.typed)}
               </span>
-              <span className="text-green-600 font-medium">[{item.original}]</span>
+              <span className="text-green-600 font-medium">[{stripHtmlEntities(item.original)}]</span>
             </span>
           );
         }
@@ -69,13 +69,13 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
         if (item.status === 'extra') {
           return (
             <span key={i} className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
-              {item.typed}
+              {stripHtmlEntities(item.typed)}
             </span>
           );
         }
         
         // Match - show normally
-        return <span key={i}>{item.typed}</span>;
+        return <span key={i}>{stripHtmlEntities(item.typed)}</span>;
       })}
     </div>
   );
