@@ -57,6 +57,7 @@ export default function TypingTestPage() {
   const lastScrollTopRef = useRef<number>(0);
   const isAutoScrollingRef = useRef<boolean>(false); // Flag to track if current scroll is programmatic
   const lastParaCountRef = useRef<number>(0); // Track previous paragraph count to detect new breaks
+  const skipScrollRef = useRef<boolean>(false); // temporarily skip next auto-scroll
 
   useEffect(() => {
     if (testContent) {
@@ -248,6 +249,12 @@ export default function TypingTestPage() {
     if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
     if (!isActive) return; // Only scroll when test is active
     
+    // if we flagged skip from previous paragraph, clear and skip one cycle
+    if (skipScrollRef.current) {
+      skipScrollRef.current = false;
+      return;
+    }
+    
     const container = originalTextRef.current;
     const originalText = testContent.text;
     
@@ -262,6 +269,8 @@ export default function TypingTestPage() {
     const isNewParagraph = paraCount > lastParaCountRef.current;
     if (isNewParagraph) {
       lastParaCountRef.current = paraCount;
+      // after we scroll, skip next auto-calc to avoid pullback
+      skipScrollRef.current = true;
     }
 
     // Count words typed by user (treat newlines as PARA_TOKEN)
