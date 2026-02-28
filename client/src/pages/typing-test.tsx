@@ -289,7 +289,12 @@ export default function TypingTestPage() {
     
     // Only auto-scroll if difference is significant (more than 2px)
     // Lower threshold so small progress moves get smoother and snappier
-    if (Math.abs(diff) < 2) return;
+    if (Math.abs(diff) < 2 && !isNewParagraph) return;
+    
+    // On paragraph break, ensure at least a small physical jump (e.g. 20px)
+    if (isNewParagraph && Math.abs(diff) < 20) {
+      diff = Math.sign(diff) * 20;
+    }
     
     // If user has manually scrolled, only do "catch-up" scrolling
     // when they fall more than 30% behind the target position
@@ -299,7 +304,15 @@ export default function TypingTestPage() {
     }
     
     // Apply scroll with appropriate factor (higher for paragraph breaks)
-    const newScroll = currentScroll + diff * scrollFactor;
+    let newScroll = currentScroll + diff * scrollFactor;
+    
+    // If paragraph and still moved less than line height (approx 1/20th of container), bump it
+    if (isNewParagraph) {
+      const minJump = container.clientHeight * 0.05;
+      if (Math.abs(newScroll - currentScroll) < minJump) {
+        newScroll = currentScroll + Math.sign(diff) * minJump;
+      }
+    }
     
     // Mark as programmatic scroll to avoid triggering manual scroll detection
     isAutoScrollingRef.current = true;
