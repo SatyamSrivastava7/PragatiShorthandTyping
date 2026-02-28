@@ -57,7 +57,8 @@ export default function TypingTestPage() {
   const lastScrollTopRef = useRef<number>(0);
   const isAutoScrollingRef = useRef<boolean>(false); // Flag to track if current scroll is programmatic
   const lastParaCountRef = useRef<number>(0); // Track previous paragraph count to detect new breaks
-  const skipScrollRef = useRef<boolean>(false); // temporarily skip next auto-scroll
+  const paraScrollUntilWordsRef = useRef<number>(0); // when >0, use boosted scroll factor until typedWords > this
+  const paraScrollUntilTimeRef = useRef<number>(0); // when > now, use boosted scroll factor until this timestamp
 
   useEffect(() => {
     if (testContent) {
@@ -249,11 +250,7 @@ export default function TypingTestPage() {
     if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
     if (!isActive) return; // Only scroll when test is active
     
-    // if we flagged skip from previous paragraph, clear and skip one cycle
-    if (skipScrollRef.current) {
-      skipScrollRef.current = false;
-      return;
-    }
+    // no skip - we will handle boosted paragraph scrolling via paraScrollUntilWordsRef
     
     const container = originalTextRef.current;
     const originalText = testContent.text;
@@ -261,20 +258,21 @@ export default function TypingTestPage() {
     // Strip HTML tags while preserving paragraph markers for accurate word counting
     const plainText = stripHtmlPreserveParagraphs(originalText);
 
-    // Count paragraphs typed by user to detect when Enter is pressed
+    // Count paragraphs typed by user and words to detect Enter and set boosted window
     const processedTyped = replaceNewlinesWithParaToken(typedText);
     const paraCount = (processedTyped.match(/\[\[PARA\]\]/g) || []).length;
-    
+
+    // Count words typed by user (treat newlines as PARA_TOKEN)
+    const typedWords = processedTyped.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
+
     // Check if a new paragraph was added (user pressed Enter)
     const isNewParagraph = paraCount > lastParaCountRef.current;
     if (isNewParagraph) {
       lastParaCountRef.current = paraCount;
-      // after we scroll, skip next auto-calc to avoid pullback
-      skipScrollRef.current = true;
+      // Boost scrolling for next 5 typed words OR for 1.5s, whichever is longer
+      paraScrollUntilWordsRef.current = typedWords + 5;
+      paraScrollUntilTimeRef.current = Date.now() + 1500; // 1.5 seconds
     }
-
-    // Count words typed by user (treat newlines as PARA_TOKEN)
-    const typedWords = processedTyped.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
     const originalWords = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
     const totalOriginalWords = originalWords.length;
     
@@ -291,37 +289,25 @@ export default function TypingTestPage() {
     const currentScroll = container.scrollTop;
     let diff = targetScrollPosition - currentScroll;
     
-    // If user pressed Enter (new paragraph), apply a more aggressive scroll factor
-    // Jump by 65% of remaining distance (much more aggressive than regular 35%)
-    // This ensures visible shift to next paragraph
-    const scrollFactor = isNewParagraph ? 0.65 : 0.35;
-    
-    // Only auto-scroll if difference is significant (more than 2px)
-    // Lower threshold so small progress moves get smoother and snappier
-    if (Math.abs(diff) < 2 && !isNewParagraph) return;
-    
-    // On paragraph break, ensure at least a small physical jump (e.g. 20px)
-    if (isNewParagraph && Math.abs(diff) < 20) {
-      diff = Math.sign(diff) * 20;
-    }
+    // Determine if boosted scroll should be active (typed-word window or time window)
+    const now = Date.now();
+    const boostedActive = (typedWords <= paraScrollUntilWordsRef.current) || (now <= paraScrollUntilTimeRef.current);
+    const scrollFactor = boostedActive ? 0.8 : 0.35;
+
+    // Only auto-scroll if difference is significant (more than 2px) when not boosted
+    if (Math.abs(diff) < 2 && !boostedActive) return;
     
     // If user has manually scrolled, only do "catch-up" scrolling
     // when they fall more than 30% behind the target position
-    if (userScrolled) {
+    if (userScrolled && !boostedActive) {
       const lagThreshold = scrollableHeight * 0.3;
-      if (diff < lagThreshold && !isNewParagraph) return; // User is ahead or close enough, don't interfere (but always scroll on paragraph break)
+      if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
     }
     
     // Apply scroll with appropriate factor (higher for paragraph breaks)
     let newScroll = currentScroll + diff * scrollFactor;
     
-    // If paragraph and still moved less than line height (approx 1/20th of container), bump it
-    if (isNewParagraph) {
-      const minJump = container.clientHeight * 0.05;
-      if (Math.abs(newScroll - currentScroll) < minJump) {
-        newScroll = currentScroll + Math.sign(diff) * minJump;
-      }
-    }
+
     
     // Mark as programmatic scroll to avoid triggering manual scroll detection
     isAutoScrollingRef.current = true;
