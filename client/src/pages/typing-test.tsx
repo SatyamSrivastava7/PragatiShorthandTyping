@@ -56,6 +56,7 @@ export default function TypingTestPage() {
   const originalTextRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
   const isAutoScrollingRef = useRef<boolean>(false); // Flag to track if current scroll is programmatic
+  const lastParaCountRef = useRef<number>(0); // Track previous paragraph count to detect new breaks
 
   useEffect(() => {
     if (testContent) {
@@ -253,8 +254,18 @@ export default function TypingTestPage() {
     // Strip HTML tags while preserving paragraph markers for accurate word counting
     const plainText = stripHtmlPreserveParagraphs(originalText);
 
+    // Count paragraphs typed by user to detect when Enter is pressed
+    const processedTyped = replaceNewlinesWithParaToken(typedText);
+    const paraCount = (processedTyped.match(/\[\[PARA\]\]/g) || []).length;
+    
+    // Check if a new paragraph was added (user pressed Enter)
+    const isNewParagraph = paraCount > lastParaCountRef.current;
+    if (isNewParagraph) {
+      lastParaCountRef.current = paraCount;
+    }
+
     // Count words typed by user (treat newlines as PARA_TOKEN)
-    const typedWords = replaceNewlinesWithParaToken(typedText).trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
+    const typedWords = processedTyped.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
     const originalWords = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
     const totalOriginalWords = originalWords.length;
     
@@ -269,7 +280,11 @@ export default function TypingTestPage() {
     const targetScrollPosition = Math.max(0, progress * scrollableHeight);
     
     const currentScroll = container.scrollTop;
-    const diff = targetScrollPosition - currentScroll;
+    let diff = targetScrollPosition - currentScroll;
+    
+    // If user pressed Enter (new paragraph), apply a more aggressive scroll factor
+    // Jump by 50% of remaining distance instead of gradual 35%
+    const scrollFactor = isNewParagraph ? 0.50 : 0.35;
     
     // Only auto-scroll if difference is significant (more than 2px)
     // Lower threshold so small progress moves get smoother and snappier
@@ -282,9 +297,8 @@ export default function TypingTestPage() {
       if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
     }
     
-    // Smooth scroll: move a larger fraction of the distance per update to speed up auto-scroll
-    // Increased from 15% -> 20% for snappier motion without being jarring
-    const newScroll = currentScroll + diff * 0.35;
+    // Apply scroll with appropriate factor (higher for paragraph breaks)
+    const newScroll = currentScroll + diff * scrollFactor;
     
     // Mark as programmatic scroll to avoid triggering manual scroll detection
     isAutoScrollingRef.current = true;
