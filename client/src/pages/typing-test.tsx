@@ -284,7 +284,7 @@ export default function TypingTestPage() {
     
     // Smooth scroll: move a larger fraction of the distance per update to speed up auto-scroll
     // Increased from 15% -> 20% for snappier motion without being jarring
-    const newScroll = currentScroll + diff * 0.25;
+    const newScroll = currentScroll + diff * 0.35;
     
     // Mark as programmatic scroll to avoid triggering manual scroll detection
     isAutoScrollingRef.current = true;
