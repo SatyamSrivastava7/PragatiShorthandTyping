@@ -15,10 +15,35 @@ import { db } from "../db";
 import { results } from "../../shared/schema";
 import { desc, eq } from "drizzle-orm";
 
+const PARA_TOKEN = '[[PARA]]';
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
-// paragraph placeholder used by client when converting newlines → tokens
-const PARA_TOKEN = "[[PARA]]";
+function stripHtmlEntities(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'");
+}
+
+function stripHtmlPreserveParagraphs(html: string): string {
+  if (!html) return '';
+  let s = html.replace(/<\s*br\s*\/?>/gi, '\n\n')
+              .replace(/<\s*\/\s*p\s*>/gi, '\n\n')
+              .replace(/<\s*p[^>]*>/gi, '\n\n')
+              .replace(/<\s*\/\s*div\s*>/gi, '\n\n')
+              .replace(/<\s*div[^>]*>/gi, '\n\n');
+  s = s.replace(/<[^>]+>/g, '');
+  s = stripHtmlEntities(s);
+  s = s.replace(/\r\n|\r/g, '\n');
+  s = s.replace(/\n+/g, ` ${PARA_TOKEN} `);
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
 
 function normalizeForComparison(text: string): string {
   return text
@@ -36,6 +61,29 @@ interface AlignmentEntry {
   original: string;
   status: AlignmentStatus;
   isError: boolean;
+}
+
+function fixPrecedingMissingAsTrailing(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+  const result = [...alignment];
+  let lastTypedIdx = -1;
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (result[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  if (lastTypedIdx === -1) return result;
+  if (result[lastTypedIdx].status === "substitution") {
+    for (let j = lastTypedIdx - 1; j >= 0; j--) {
+      if (result[j].status === "missing") {
+        result[j] = { ...result[j], status: "trailing", isError: false };
+      } else {
+        break;
+      }
+    }
+  }
+  return result;
 }
 
 function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: number): AlignmentEntry[] {
@@ -109,40 +157,28 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
       }
     }
     
-    // If the last typed word is incorrect (substitution), mark immediately preceding missing words as trailing
     if (result[lastTypedIdx].status === "substitution") {
       for (let j = lastTypedIdx - 1; j >= 0; j--) {
         if (result[j].status === "missing") {
           result[j] = { ...result[j], status: "trailing", isError: false };
         } else {
-          // Stop at first non-missing word
           break;
         }
       }
     }
     
-    // Fix: If last typed word is substitution with a very short original (likely wrong match),
-    // re-pair it with the original word at the typed position based on word count
     if (result[lastTypedIdx].status === "substitution" || result[lastTypedIdx].status === "extra") {
       const lastTypedWord = result[lastTypedIdx].typed;
-      const currentOriginal = result[lastTypedIdx].original || "";
-      
-      // Look for the original word at position = typedCount in the trailing words
-      // that might be a better match (starts with same prefix)
       const lastTypedNormalized = lastTypedWord.replace(/[.,]/g, "").toLowerCase();
       
-      // Check trailing words for a better match
       for (let j = lastTypedIdx + 1; j < result.length; j++) {
         if (result[j].status === "trailing" && result[j].original) {
           const trailingNormalized = result[j].original.replace(/[.,]/g, "").toLowerCase();
           
-          // Check if typed word is a prefix of trailing word (student was typing it)
           if (trailingNormalized.startsWith(lastTypedNormalized.substring(0, 3)) || 
               lastTypedNormalized.startsWith(trailingNormalized.substring(0, 3))) {
-            // Re-pair: swap the original words
             const betterOriginal = result[j].original;
             
-            // Update the last typed entry with the better original
             result[lastTypedIdx] = {
               typed: lastTypedWord,
               original: betterOriginal,
@@ -150,7 +186,6 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
               isError: true,
             };
             
-            // Remove this trailing entry since we used it
             result.splice(j, 1);
             break;
           }
@@ -159,38 +194,6 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
     }
   }
   
-  return result;
-}
-
-// helper moved from client utils to ensure trailing fix consistency
-function fixPrecedingMissingAsTrailing(alignment: AlignmentEntry[]): AlignmentEntry[] {
-  let result = [...alignment];
-  if (result.length === 0) return result;
-
-  // if the last typed word is a substitution, any missing words immediately
-  // before it should actually be treated as trailing rather than mistakes.
-  // This mirrors the behavior in the client where the student simply stopped
-  // mid-word and the DP algorithm paired the wrong original words.
-  
-  let lastTypedIdx = -1;
-  for (let i = result.length - 1; i >= 0; i--) {
-    if (result[i].typed !== "") {
-      lastTypedIdx = i;
-      break;
-    }
-  }
-  if (lastTypedIdx === -1) return result;
-
-  if (result[lastTypedIdx].status === "substitution") {
-    for (let j = lastTypedIdx - 1; j >= 0; j--) {
-      if (result[j].status === "missing") {
-        result[j] = { ...result[j], status: "trailing", isError: false };
-      } else {
-        break;
-      }
-    }
-  }
-
   return result;
 }
 
@@ -284,34 +287,149 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
   return result;
 }
 
-function alignWords(originalText: string, typedText: string): AlignmentEntry[] {
-  // tokens should not participate in alignment at all
-  const originalWords = (originalText || "")
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN);
-  const typedWords = (typedText || "")
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN);
+function fixLocalMisalignment(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
 
-  if (originalWords.length === 0 && typedWords.length === 0) return [];
-  if (originalWords.length === 0) {
+  const result: AlignmentEntry[] = [];
+  let i = 0;
+
+  while (i < alignment.length) {
+    if (alignment[i].status === "match" || alignment[i].status === "trailing") {
+      result.push(alignment[i]);
+      i++;
+      continue;
+    }
+
+    const blockStart = i;
+    while (i < alignment.length && alignment[i].status !== "match" && alignment[i].status !== "trailing") {
+      i++;
+    }
+    const block = alignment.slice(blockStart, i);
+
+    const blockOriginals: string[] = [];
+    const blockTyped: string[] = [];
+    for (const entry of block) {
+      if (entry.original) blockOriginals.push(entry.original);
+      if (entry.typed) blockTyped.push(entry.typed);
+    }
+
+    if (blockOriginals.length > 0 && blockTyped.length > 0) {
+      const normalizedOrig = blockOriginals.map(normalizeForComparison);
+      const normalizedTyp = blockTyped.map(normalizeForComparison);
+
+      const hasMatchableWords = normalizedTyp.some(tw => normalizedOrig.includes(tw));
+
+      if (hasMatchableWords && (blockOriginals.length > 1 || blockTyped.length > 1)) {
+        const localAlignment = alignWordsDP(blockOriginals, blockTyped);
+        result.push(...localAlignment);
+      } else {
+        result.push(...block);
+      }
+    } else {
+      result.push(...block);
+    }
+  }
+
+  return result;
+}
+
+function alignWordsWindowed(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
+  const WINDOW_SIZE = 200;
+  const OVERLAP = 50;
+  const result: AlignmentEntry[] = [];
+  
+  let origIndex = 0;
+  let typedIndex = 0;
+
+  while (origIndex < originalWords.length || typedIndex < typedWords.length) {
+    const origEnd = Math.min(origIndex + WINDOW_SIZE, originalWords.length);
+    const typedEnd = Math.min(typedIndex + WINDOW_SIZE, typedWords.length);
+    
+    const origWindow = originalWords.slice(origIndex, origEnd);
+    const typedWindow = typedWords.slice(typedIndex, typedEnd);
+
+    if (origWindow.length === 0 && typedWindow.length === 0) break;
+
+    const windowAlignment = alignWordsDP(origWindow, typedWindow);
+    
+    let anchorIdx = windowAlignment.length;
+    if (origEnd < originalWords.length || typedEnd < typedWords.length) {
+      for (let i = Math.max(0, windowAlignment.length - OVERLAP); i < windowAlignment.length; i++) {
+        if (windowAlignment[i].status === "match") {
+          anchorIdx = i + 1;
+        }
+      }
+    }
+
+    for (let i = 0; i < anchorIdx; i++) {
+      result.push(windowAlignment[i]);
+    }
+
+    let origConsumed = 0;
+    let typedConsumed = 0;
+    for (let i = 0; i < anchorIdx; i++) {
+      if (windowAlignment[i].original !== "") origConsumed++;
+      if (windowAlignment[i].typed !== "") typedConsumed++;
+    }
+
+    origIndex += origConsumed;
+    typedIndex += typedConsumed;
+
+    if (origConsumed === 0 && typedConsumed === 0) {
+      if (origIndex < originalWords.length) {
+        result.push({
+          typed: "",
+          original: originalWords[origIndex],
+          status: "missing",
+          isError: true,
+        });
+        origIndex++;
+      } else if (typedIndex < typedWords.length) {
+        result.push({
+          typed: typedWords[typedIndex],
+          original: "",
+          status: "extra",
+          isError: true,
+        });
+        typedIndex++;
+      }
+    }
+  }
+
+  return result;
+}
+
+function alignWords(originalText: string, typedText: string): AlignmentEntry[] {
+  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
+
+  const n = originalWords.length;
+  const m = typedWords.length;
+
+  if (n === 0 && m === 0) return [];
+  if (n === 0) {
     return typedWords.map((w) => ({
       typed: w, original: "", status: "extra" as AlignmentStatus, isError: true,
     }));
   }
-  if (typedWords.length === 0) {
+  if (m === 0) {
     return originalWords.map((w) => ({
       typed: "", original: w, status: "missing" as AlignmentStatus, isError: true,
     }));
   }
 
-  return alignWordsDP(originalWords, typedWords);
+  const MAX_DP_SIZE = 500;
+  if (n > MAX_DP_SIZE || m > MAX_DP_SIZE) {
+    const windowed = alignWordsWindowed(originalWords, typedWords);
+    return fixLocalMisalignment(windowed);
+  }
+
+  return fixLocalMisalignment(alignWordsDP(originalWords, typedWords));
 }
 
 function calculateAlignedMistakes(originalText: string, typedText: string) {
-  const alignment = alignWords(originalText, typedText);
+  const plainOriginalText = stripHtmlPreserveParagraphs(originalText || '');
+  const alignment = alignWords(plainOriginalText, typedText);
   
   let lastTypedIndex = -1;
   for (let i = alignment.length - 1; i >= 0; i--) {
@@ -321,14 +439,15 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     }
   }
   
-  // Count trailing words (words after last typed position). ignore paragraph tokens
   let trailingWords = 0;
   for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
-    if (alignment[i].original && alignment[i].original !== PARA_TOKEN) trailingWords++;
+    if (alignment[i].original && alignment[i].original !== PARA_TOKEN) {
+      trailingWords++;
+    }
   }
   
   if (lastTypedIndex === -1) {
-    const totalOriginalWords = (originalText || "")
+    const totalOriginalWords = (plainOriginalText || "")
       .trim()
       .split(/\s+/)
       .filter(w => w && w !== PARA_TOKEN).length;
@@ -349,8 +468,6 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
   }
   
   let attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
-  // ensure the same trailing-fix used on client: missing words just before
-  // a substituted last typed word should be treated as trailing rather than mistakes
   attemptedAlignment = fixPrecedingMissingAsTrailing(attemptedAlignment);
 
   let mistakes = 0;
@@ -360,8 +477,9 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
   const periodCount = (word: string) => (normalizeEllipsis(word).match(/\./g) || []).length;
 
   for (const item of attemptedAlignment) {
-    // ignore paragraph marker entries entirely
-    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+      continue;
+    }
 
     if (item.status === "missing") {
       mistakes += 1;
@@ -387,16 +505,10 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
 }
 
 function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
-  const originalWords = (originalText || "")
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN);
-  const typedWords = (typedText || "")
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN);
+  const plainOriginalText = stripHtmlPreserveParagraphs(originalText || '');
+  const originalWords = (plainOriginalText || "").trim().split(/\s+/).filter((w) => w && w !== PARA_TOKEN);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w && w !== PARA_TOKEN);
   
-  // For typing tests, only align against original words up to typed count + small buffer
   const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
   const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
@@ -411,10 +523,8 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   let halfMistakes = 0;
   
   for (const item of alignment) {
-    // skip paragraph markers completely
-    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
-
     if (item.status === "trailing") continue;
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
     
     if (item.status === "extra") {
       mistakes += 1;
@@ -440,7 +550,7 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
     }
   }
 
-  const wordCount = alignment.filter(a => a.typed !== "" && a.typed !== PARA_TOKEN).length;
+  const wordCount = alignment.filter(a => a.typed !== "" && a.original !== PARA_TOKEN && a.typed !== PARA_TOKEN).length;
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
   let netSpeed = 0;
@@ -468,24 +578,17 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
 }
 
 function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
-  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(originalText, typedText);
+  const plainText = stripHtmlPreserveParagraphs(originalText || '');
+  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(plainText, typedText);
 
-  const fullOriginalWords = (originalText || "")
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN).length;
+  const fullOriginalWords = (plainText || "").trim().split(/\s+/).filter((w) => w && w !== PARA_TOKEN).length;
 
-  // Count words actually typed by student
-  const typedWordCount = (typedText || "")
-    .trim()
-    .split(/\s+/)
-    .filter(w => w && w !== PARA_TOKEN).length;
+  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
   
-  // If student typed 0 words, automatic fail
   if (typedWordCount === 0) {
     return {
       words: fullOriginalWords,
-      mistakes: fullOriginalWords, // everything left is a mistake
+      mistakes: fullOriginalWords,
       halfMistakes: 0,
       result: "Fail",
       missingWords: 0,
@@ -494,31 +597,33 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
     };
   }
 
-  // Include trailing (left) words as mistakes for shorthand
   const totalMistakes = mistakes + trailingWords;
 
-  // 5% rule for mistakes
   const mistakePercentage = fullOriginalWords > 0 ? (totalMistakes / fullOriginalWords) * 100 : 0;
   
-  // 5% rule for left/trailing words
-  const trailingPercentage = fullOriginalWords > 0 ? (trailingWords / fullOriginalWords) * 100 : 0;
-  
-  // Pass only if both mistake percentage AND trailing percentage are <= 5%
-  const isPassed = mistakePercentage <= 5 && trailingPercentage <= 5;
+  const isPassed = mistakePercentage <= 5;
 
   const missingWords = attemptedAlignment.filter(
     (a) => a.status === "missing" && a.original !== PARA_TOKEN
   ).length;
 
   let halfMistakes = 0;
+
+  function normalizeEllipsisSH(word: string) {
+    return word.replace(/\.\.\./g, "…");
+  }
+
   for (const item of attemptedAlignment) {
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
+
     if (item.status === "missing") {
-      halfMistakes += (item.original.match(/,/g) || []).length;
+      halfMistakes += (normalizeEllipsisSH(item.original).match(/,/g) || []).length;
     } else if (item.status === "extra") {
-      halfMistakes += (item.typed.match(/,/g) || []).length;
+      halfMistakes += (normalizeEllipsisSH(item.typed).match(/,/g) || []).length;
     } else {
       halfMistakes += Math.abs(
-        (item.original.match(/,/g) || []).length - (item.typed.match(/,/g) || []).length
+        (normalizeEllipsisSH(item.original).match(/,/g) || []).length - 
+        (normalizeEllipsisSH(item.typed).match(/,/g) || []).length
       );
     }
   }
@@ -535,7 +640,6 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 }
 
 async function regenerateResults() {
-  // support optional flag to recalc only the first 50 shorthand results
   const onlyShorthand = process.argv.includes("--shorthand");
   const limitCount = onlyShorthand ? 150 : 500;
 
@@ -573,7 +677,7 @@ async function regenerateResults() {
       continue;
     }
 
-    const timeInMinutes = result.time; // time is already stored in minutes
+    const timeInMinutes = result.time;
     
     try {
       if (result.contentType === "typing") {
