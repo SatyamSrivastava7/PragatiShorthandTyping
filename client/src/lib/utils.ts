@@ -1097,6 +1097,9 @@ export const generateResultPDF = async (result: Result) => {
   const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
   const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
 
+  const justifyStyle = result.contentType === "shorthand" ? "text-align: justify;" : "";
+  const contentLineHeight = result.contentType === "shorthand" ? "line-height:1.1;" : "line-height:1.4;";
+
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -1191,7 +1194,7 @@ export const generateResultPDF = async (result: Result) => {
       </table>
 
       <h3>Typed Content (Errors Underlined)</h3>
-      <div class="content-box" style="${contentFont}">
+      <div class="content-box" style="${contentFont} ${justifyStyle} ${contentLineHeight}">
         ${typedHtml}
       </div>
 

@@ -32,8 +32,20 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
     alignment = [...attemptedAlignment, ...trailingItems];
   }
 
+  // helper class to add spacing between words when not using flex
+  const wordWrapperClass = contentType === 'shorthand' ? "inline-block mr-1" : "";
+
+  const lineHeightClass = contentType === 'typing' ? "leading-relaxed" : "leading-normal";
+
   return (
-    <div className={cn("text-sm leading-relaxed flex flex-wrap gap-x-1", language === 'hindi' ? "font-mangal" : "")}>
+    <div
+      className={cn(
+        "text-sm",
+        lineHeightClass,
+        language === 'hindi' ? "font-mangal" : "",
+        contentType === 'typing' ? "flex flex-wrap gap-x-1" : "text-justify"
+      )}
+    >
       {alignment.map((item, i) => {
         // Paragraph token - render as a paragraph break
         if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
@@ -42,21 +54,21 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
         // Show trailing words (not attempted by user) in gray
         if (item.status === 'trailing') {
           return (
-            <span key={i} className="text-muted-foreground/50">{stripHtmlEntities(item.original)}</span>
+            <span key={i} className={cn(wordWrapperClass, "text-muted-foreground/50")}>{stripHtmlEntities(item.original)}</span>
           );
         }
         
         // Missing word - show in green brackets
         if (item.status === 'missing') {
           return (
-            <span key={i} className="text-green-600 font-medium">[{stripHtmlEntities(item.original)}]</span>
+            <span key={i} className={cn(wordWrapperClass, "text-green-600 font-medium")}>[{stripHtmlEntities(item.original)}]</span>
           );
         }
         
         // Substitution - show typed (errored) word FIRST, then correct word in green brackets
         if (item.status === 'substitution') {
           return (
-            <span key={i}>
+            <span key={i} className={wordWrapperClass}>
               <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1">
                 {stripHtmlEntities(item.typed)}
               </span>
@@ -68,14 +80,14 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
         // Extra word (typed but not in original) - show underlined in red
         if (item.status === 'extra') {
           return (
-            <span key={i} className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2">
+            <span key={i} className={cn(wordWrapperClass, "text-red-600 decoration-red-600 decoration-2 underline underline-offset-2")}> 
               {stripHtmlEntities(item.typed)}
             </span>
           );
         }
         
         // Match - show normally
-        return <span key={i}>{stripHtmlEntities(item.typed)}</span>;
+        return <span key={i} className={wordWrapperClass}>{stripHtmlEntities(item.typed)}</span>;
       })}
     </div>
   );
