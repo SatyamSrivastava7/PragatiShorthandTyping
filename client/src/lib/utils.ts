@@ -1137,7 +1137,7 @@ export const generateResultPDF = async (result: Result) => {
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { size: A4; margin: 8mm; }
-          // .content-box p { text-align: justify !important; }
+         
         }
         h1 { color: #1e3a8a; font-size: 20px; margin: 0 0 2px 0; text-align: center; }
         p.subtitle { text-align: center; color: #555; margin: 0 0 8px 0; font-size: 12px; }
@@ -1149,7 +1149,7 @@ export const generateResultPDF = async (result: Result) => {
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
         .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; }
-        // .content-box p { text-align: justify !important; text-justify: inter-word; margin: 0 0 8px 0; white-space: normal; word-wrap: break-word; }
+        
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
