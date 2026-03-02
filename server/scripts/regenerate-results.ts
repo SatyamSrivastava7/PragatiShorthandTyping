@@ -489,7 +489,7 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 async function regenerateResults() {
   // support optional flag to recalc only the first 50 shorthand results
   const onlyShorthand = process.argv.includes("--shorthand");
-  const limitCount = onlyShorthand ? 50 : 500;
+  const limitCount = onlyShorthand ? 150 : 500;
 
   console.log(
     `Fetching latest ${limitCount} results` +
