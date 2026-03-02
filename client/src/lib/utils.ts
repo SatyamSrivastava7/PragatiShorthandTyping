@@ -1097,7 +1097,9 @@ export const generateResultPDF = async (result: Result) => {
   const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
   const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
 
-  const justifyStyle = result.contentType === "shorthand" ? "text-align: justify;" : "";
+  // always justify the typed content in the PDF, regardless of test type
+  // added text-justify to ensure inter-word spacing expands correctly on print
+  const justifyStyle = "text-align: justify; text-justify: inter-word;";
   const contentLineHeight = result.contentType === "shorthand" ? "line-height:1.1;" : "line-height:1.4;";
 
   const htmlContent = `
@@ -1120,7 +1122,7 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; }
+        .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.4; margin-bottom: 6px; font-size: 12px; white-space: pre-wrap; text-align: justify; text-justify: inter-word; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
