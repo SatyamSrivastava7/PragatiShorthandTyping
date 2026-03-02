@@ -1126,7 +1126,7 @@ export const generateResultPDF = async (result: Result) => {
   // always justify the typed content in the PDF, regardless of test type
   // added text-justify to ensure inter-word spacing expands correctly on print
   const justifyStyle = "text-align: justify; text-justify: inter-word;";
-  const contentLineHeight = result.contentType === "shorthand" ? "line-height:1.1;" : "line-height:1.4;";
+  const contentLineHeight = "line-height:1.4;";
 
   const htmlContent = `
     <!DOCTYPE html>
