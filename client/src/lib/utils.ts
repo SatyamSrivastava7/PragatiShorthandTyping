@@ -608,15 +608,20 @@ export function calculateAlignedMistakes(
     }
   }
   
-  // Count trailing words (words after last typed position)
+  // Count trailing words (words after last typed position).  Ignore paragraph tokens
   let trailingWords = 0;
   for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
-    if (alignment[i].original) trailingWords++;
+    if (alignment[i].original && alignment[i].original !== PARA_TOKEN) {
+      trailingWords++;
+    }
   }
   
   // If student didn't type anything, return empty attempted alignment
   if (lastTypedIndex === -1) {
-    const totalOriginalWords = (plainOriginalText || "").trim().split(/\s+/).filter(w => w).length;
+    const totalOriginalWords = (plainOriginalText || "")
+      .trim()
+      .split(/\s+/)
+      .filter(w => w && w !== PARA_TOKEN).length;
     return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
@@ -660,6 +665,11 @@ export function calculateAlignedMistakes(
   }
 
   for (const item of attemptedAlignment) {
+    // ignore paragraph markers entirely when counting mistakes
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+      continue;
+    }
+
     if (item.status === "missing") {
       mistakes += 1;
       mistakes += commaCount(item.original) * 0.25;
@@ -755,6 +765,11 @@ export function calculateTypingMistakes(
   }
 
   for (const item of alignment) {
+    // ignore paragraph markers entirely for metrics
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+      continue;
+    }
+
     if (item.status === "trailing") {
       trailingWords++;
       continue;
@@ -806,8 +821,8 @@ export function calculateTypingMetrics(
     typedText,
   );
 
-  // Word count is the number of words the student actually typed
-  const wordCount = alignment.filter(a => a.typed !== "").length;
+  // Word count is the number of words the student actually typed, excluding para tokens
+  const wordCount = alignment.filter(a => a.typed !== "" && a.typed !== PARA_TOKEN).length;
 
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
@@ -927,10 +942,12 @@ export function calculateShorthandMetrics(
   const fullOriginalWords = (plainText || "")
     .trim()
     .split(/\s+/)
-    .filter((w) => w).length;
+    .filter((w) => w && w !== PARA_TOKEN).length;
 
   // Count words actually typed by student
-  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w).length;
+  const typedWordCount = (typedText || "").trim()
+    .split(/\s+/)
+    .filter(w => w && w !== PARA_TOKEN).length;
   
   // If student typed 0 words, automatic fail
   if (typedWordCount === 0) {
@@ -960,7 +977,12 @@ export function calculateShorthandMetrics(
   const isPassed = mistakePercentage <= 5;
 
   // Count missing words only from attempted portion (not trailing untyped words)
-  const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
+  // ignore paragraph tokens: they are not really words and should not be
+  // included in the missing‑word metric.  These tokens are inserted when the
+  // original text contained line breaks and are rendered as paragraph gaps.
+  const missingWords = attemptedAlignment.filter(
+    (a) => a.status === "missing" && a.original !== PARA_TOKEN
+  ).length;
 
   // Calculate half mistakes (comma errors: missing or extra commas)
   // Count all comma differences from the alignment
@@ -1038,7 +1060,7 @@ export const generateResultPDF = async (result: Result) => {
     const plainOriginalText = stripHtmlPreserveParagraphs(result.originalText || '');
     displayAlignment = getTypingAlignment(plainOriginalText, result.typedText);
     trailingWords = displayAlignment
-      .filter(item => item.status === "trailing")
+      .filter(item => item.status === "trailing" && item.original !== PARA_TOKEN)
       .map(item => item.original);
   } else {
     // DP alignment for shorthand
@@ -1056,11 +1078,15 @@ export const generateResultPDF = async (result: Result) => {
       );
       return !isInAttempted && item.original !== "";
     });
-    trailingWords = trailingItems.map((item) => item.original).filter((w) => w);
+    trailingWords = trailingItems
+      .map((item) => item.original)
+      .filter((w) => w && w !== PARA_TOKEN);
   }
 
-  // Count actual missing words (not trailing)
-  const missingWordsCount = displayAlignment.filter(item => item.status === "missing").length;
+  // Count actual missing words (not trailing) – ignore paragraph markers
+  const missingWordsCount = displayAlignment.filter(
+    item => item.status === "missing" && item.original !== PARA_TOKEN
+  ).length;
 
   let typedHtml = "";
 

@@ -1,6 +1,14 @@
 /**
- * Script to regenerate metrics for the latest 50 results
- * Run with: npx tsx server/scripts/regenerate-results.ts
+ * Script to regenerate metrics for results
+ *
+ * By default it processes the most recent 500 results (all types).
+ * To recalc only the first 50 shorthand results, pass the `--shorthand`
+ * flag:
+ *
+ *   npx tsx server/scripts/regenerate-results.ts --shorthand
+ *
+ * This is useful after updating alignment/metrics logic so existing
+ * shorthand entries can be corrected without touching typing results.
  */
 
 import { db } from "../db";
@@ -459,13 +467,31 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 }
 
 async function regenerateResults() {
-  console.log("Fetching latest 50 results...");
+  // support optional flag to recalc only the first 50 shorthand results
+  const onlyShorthand = process.argv.includes("--shorthand");
+  const limitCount = onlyShorthand ? 50 : 500;
+
+  console.log(
+    `Fetching latest ${limitCount} results` +
+      (onlyShorthand ? " (shorthand only)" : "") +
+      "..."
+  );
   
-  const latestResults = await db
-    .select()
-    .from(results)
-    .orderBy(desc(results.id))
-    .limit(500);
+  let latestResults;
+  if (onlyShorthand) {
+    latestResults = await db
+      .select()
+      .from(results)
+      .where(eq(results.contentType, "shorthand"))
+      .orderBy(desc(results.id))
+      .limit(limitCount);
+  } else {
+    latestResults = await db
+      .select()
+      .from(results)
+      .orderBy(desc(results.id))
+      .limit(limitCount);
+  }
 
   console.log(`Found ${latestResults.length} results to process.`);
 
@@ -532,7 +558,8 @@ async function regenerateResults() {
     }
   }
 
-  console.log(`\nDone! Updated: ${updated}, Skipped: ${skipped}`);
+  console.log(`\nDone! Updated: ${updated}, Skipped: ${skipped}` +
+    (onlyShorthand ? " (shorthand-only run)" : ""));
   process.exit(0);
 }
 
