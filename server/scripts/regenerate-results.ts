@@ -162,6 +162,38 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
   return result;
 }
 
+// helper moved from client utils to ensure trailing fix consistency
+function fixPrecedingMissingAsTrailing(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  let result = [...alignment];
+  if (result.length === 0) return result;
+
+  // if the last typed word is a substitution, any missing words immediately
+  // before it should actually be treated as trailing rather than mistakes.
+  // This mirrors the behavior in the client where the student simply stopped
+  // mid-word and the DP algorithm paired the wrong original words.
+  
+  let lastTypedIdx = -1;
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (result[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  if (lastTypedIdx === -1) return result;
+
+  if (result[lastTypedIdx].status === "substitution") {
+    for (let j = lastTypedIdx - 1; j >= 0; j--) {
+      if (result[j].status === "missing") {
+        result[j] = { ...result[j], status: "trailing", isError: false };
+      } else {
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
 function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
   const n = originalWords.length;
   const m = typedWords.length;
@@ -253,8 +285,15 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
 }
 
 function alignWords(originalText: string, typedText: string): AlignmentEntry[] {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
+  // tokens should not participate in alignment at all
+  const originalWords = (originalText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && w !== PARA_TOKEN);
+  const typedWords = (typedText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && w !== PARA_TOKEN);
 
   if (originalWords.length === 0 && typedWords.length === 0) return [];
   if (originalWords.length === 0) {
@@ -309,7 +348,10 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     }
   }
   
-  const attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
+  let attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
+  // ensure the same trailing-fix used on client: missing words just before
+  // a substituted last typed word should be treated as trailing rather than mistakes
+  attemptedAlignment = fixPrecedingMissingAsTrailing(attemptedAlignment);
 
   let mistakes = 0;
   
@@ -345,8 +387,14 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
 }
 
 function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
+  const originalWords = (originalText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && w !== PARA_TOKEN);
+  const typedWords = (typedText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && w !== PARA_TOKEN);
   
   // For typing tests, only align against original words up to typed count + small buffer
   const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);

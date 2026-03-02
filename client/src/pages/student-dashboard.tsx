@@ -6,7 +6,7 @@ import {
   useLatestTestFolders,
 } from "@/lib/hooks";
 import { usersApi } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
 import {
@@ -1140,9 +1140,13 @@ export default function StudentDashboard() {
                                           </span>{" "}
                                           <span>
                                             {
-                                              (result.originalText || "")
+                                              stripHtmlPreserveParagraphs(
+                                                result.originalText || "",
+                                              )
                                                 .trim()
-                                                .split(/\s+/).length
+                                                .split(/\s+/)
+                                                .filter((w: string) => w && w !== PARA_TOKEN)
+                                                .length
                                             }
                                           </span>
                                         </div>

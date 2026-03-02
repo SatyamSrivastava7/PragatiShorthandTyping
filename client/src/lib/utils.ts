@@ -705,8 +705,15 @@ export function calculateAlignedMistakes(
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
   // Strip HTML tags from original text before processing, but preserve paragraph breaks
   const plainOriginalText = stripHtmlPreserveParagraphs(originalText || '');
-  const originalWords = (plainOriginalText || "").trim().split(/\s+/).filter((w) => w);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
+  // ignore paragraph placeholder tokens when counting words for alignment
+  const originalWords = (plainOriginalText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && w !== PARA_TOKEN);
+  const typedWords = (typedText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && w !== PARA_TOKEN);
   
   if (typedWords.length === 0) {
     return originalWords.map(w => ({
@@ -892,7 +899,7 @@ export function isLastSentenceAttempted(
   const words = plainText
     .trim()
     .split(/\s+/)
-    .filter((w) => w);
+    .filter((w) => w && w !== PARA_TOKEN);
   
   if (words.length === 0) return false;
 

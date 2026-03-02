@@ -3270,9 +3270,13 @@ export default function AdminDashboard() {
                                               </span>{" "}
                                               <span>
                                                 {
-                                                  (result.originalText || "")
+                                                  stripHtmlPreserveParagraphs(
+                                                    result.originalText || "",
+                                                  )
                                                     .trim()
-                                                    .split(/\s+/).length
+                                                    .split(/\s+/)
+                                                    .filter((w) => w && w !== PARA_TOKEN)
+                                                    .length
                                                 }
                                               </span>
                                             </div>
