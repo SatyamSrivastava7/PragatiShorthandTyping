@@ -1095,34 +1095,29 @@ export const generateResultPDF = async (result: Result) => {
     item => item.status === "missing" && item.original !== PARA_TOKEN
   ).length;
 
-  let typedHtml = "";
+  const paraStyle = 'style="text-align:justify;text-justify:inter-word;margin:0 0 8px 0;"';
+  let typedHtml = `<p ${paraStyle}>`;
 
-  // Generate HTML for typed content with error highlighting
   for (let i = 0; i < displayAlignment.length; i++) {
     const item = displayAlignment[i];
-    // Paragraph marker -> render a visual paragraph break
     if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
-      typedHtml += `<div style="height:8px"></div>`;
+      typedHtml += `</p><p ${paraStyle}>`;
       continue;
     }
     
     if (item.status === "trailing") {
-      // Trailing untyped words - skip in PDF for typing tests (not counted as errors)
       continue;
     } else if (item.status === "missing") {
-      // Missing word - show in green brackets (strip HTML entities)
       typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
     } else if (item.status === "substitution") {
-      // Substitution - show typed (errored) word FIRST (underlined red), then the correct word in green brackets (strip HTML entities)
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
     } else if (item.status === "extra") {
-      // Extra word - show underlined in red (strip HTML entities)
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
     } else {
-      // Match - show normally (strip HTML entities)
       typedHtml += `<span>${stripHtmlEntities(item.typed)}</span> `;
     }
   }
+  typedHtml += `</p>`;
 
   // Total original words (useful for shorthand mistake percentage) - strip HTML tags
   // Count words in original text excluding paragraph tokens
@@ -1130,9 +1125,6 @@ export const generateResultPDF = async (result: Result) => {
   const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
   const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
 
-  // always justify the typed content in the PDF, regardless of test type
-  // added text-justify to ensure inter-word spacing expands correctly on print
-  const justifyStyle = "text-align: justify; text-justify: inter-word;";
   const contentLineHeight = "line-height:1.15;";
 
   const htmlContent = `
@@ -1145,7 +1137,7 @@ export const generateResultPDF = async (result: Result) => {
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { size: A4; margin: 8mm; }
-          .content-box { text-align: justify !important; white-space: normal !important; line-height: 1.15 !important; }
+          .content-box p { text-align: justify !important; }
         }
         h1 { color: #1e3a8a; font-size: 20px; margin: 0 0 2px 0; text-align: center; }
         p.subtitle { text-align: center; color: #555; margin: 0 0 8px 0; font-size: 12px; }
@@ -1156,7 +1148,8 @@ export const generateResultPDF = async (result: Result) => {
         .label { font-weight: bold; width: 100px; }
         .metrics-table th, .metrics-table td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         .metrics-table th { background-color: #f8fafc; }
-        .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.15 !important; margin-bottom: 6px; font-size: 12px; white-space: normal !important; word-wrap: break-word; text-align: justify !important; text-justify: inter-word !important; word-spacing: 0.05em; }
+        .content-box { padding: 4px; background-color: #ffff; border-radius: 4px; line-height: 1.15; margin-bottom: 6px; font-size: 12px; }
+        .content-box p { text-align: justify !important; text-justify: inter-word; margin: 0 0 8px 0; white-space: normal; word-wrap: break-word; }
         .error { color: #dc2626; font-weight: bold; }
         .success { color: #15803d; font-weight: bold; }
         .footer { text-align: center; font-size: 10px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 10px; }
@@ -1230,7 +1223,7 @@ export const generateResultPDF = async (result: Result) => {
       </table>
 
       <h3>Typed Content (Errors Underlined)</h3>
-      <div class="content-box" style="${contentFont} ${justifyStyle} ${contentLineHeight}">
+      <div class="content-box" style="${contentFont} ${contentLineHeight}">
         ${typedHtml}
       </div>
 
