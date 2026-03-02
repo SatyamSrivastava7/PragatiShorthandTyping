@@ -17,6 +17,9 @@ import { desc, eq } from "drizzle-orm";
 
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
+// paragraph placeholder used by client when converting newlines → tokens
+const PARA_TOKEN = "[[PARA]]";
+
 function normalizeForComparison(text: string): string {
   return text
     .replace(/\.\.\./g, "…")
@@ -279,14 +282,17 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     }
   }
   
-  // Count trailing words (words after last typed position)
+  // Count trailing words (words after last typed position). ignore paragraph tokens
   let trailingWords = 0;
   for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
-    if (alignment[i].original) trailingWords++;
+    if (alignment[i].original && alignment[i].original !== PARA_TOKEN) trailingWords++;
   }
   
   if (lastTypedIndex === -1) {
-    const totalOriginalWords = (originalText || "").trim().split(/\s+/).filter(w => w).length;
+    const totalOriginalWords = (originalText || "")
+      .trim()
+      .split(/\s+/)
+      .filter(w => w && w !== PARA_TOKEN).length;
     return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
@@ -312,6 +318,9 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
   const periodCount = (word: string) => (normalizeEllipsis(word).match(/\./g) || []).length;
 
   for (const item of attemptedAlignment) {
+    // ignore paragraph marker entries entirely
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
+
     if (item.status === "missing") {
       mistakes += 1;
       mistakes += commaCount(item.original) * 0.25;
@@ -354,6 +363,9 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   let halfMistakes = 0;
   
   for (const item of alignment) {
+    // skip paragraph markers completely
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
+
     if (item.status === "trailing") continue;
     
     if (item.status === "extra") {
@@ -380,7 +392,7 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
     }
   }
 
-  const wordCount = alignment.filter(a => a.typed !== "").length;
+  const wordCount = alignment.filter(a => a.typed !== "" && a.typed !== PARA_TOKEN).length;
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
   let netSpeed = 0;
@@ -410,10 +422,16 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
 function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
   const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(originalText, typedText);
 
-  const fullOriginalWords = (originalText || "").trim().split(/\s+/).filter((w) => w).length;
+  const fullOriginalWords = (originalText || "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && w !== PARA_TOKEN).length;
 
   // Count words actually typed by student
-  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w).length;
+  const typedWordCount = (typedText || "")
+    .trim()
+    .split(/\s+/)
+    .filter(w => w && w !== PARA_TOKEN).length;
   
   // If student typed 0 words, automatic fail
   if (typedWordCount === 0) {
@@ -440,7 +458,9 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
   // Pass only if both mistake percentage AND trailing percentage are <= 5%
   const isPassed = mistakePercentage <= 5 && trailingPercentage <= 5;
 
-  const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
+  const missingWords = attemptedAlignment.filter(
+    (a) => a.status === "missing" && a.original !== PARA_TOKEN
+  ).length;
 
   let halfMistakes = 0;
   for (const item of attemptedAlignment) {
