@@ -32,10 +32,10 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
     alignment = [...attemptedAlignment, ...trailingItems];
   }
 
-  // helper class to add spacing between words when not using flex
-  const wordWrapperClass = contentType === 'shorthand' ? "inline-block mr-1" : "";
+  // helper class to add spacing between words
+  const wordWrapperClass = "inline-block mr-1";
 
-  const lineHeightClass = contentType === 'typing' ? "leading-relaxed" : "leading-normal";
+  const lineHeightClass = "leading-relaxed";
 
   return (
     <div
@@ -43,7 +43,7 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
         "text-sm",
         lineHeightClass,
         language === 'hindi' ? "font-mangal" : "",
-        contentType === 'typing' ? "flex flex-wrap gap-x-1" : "text-justify"
+        "text-justify"
       )}
     >
       {alignment.map((item, i) => {
