@@ -728,8 +728,9 @@ export function getTypingAlignment(originalText: string, typedText: string): Ali
   // This prevents DP from searching too far ahead
   const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
   const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
+  const cleanTypedText = typedWords.join(" ");
   
-  const rawAlignment = alignWords(windowedOriginal, typedText);
+  const rawAlignment = alignWords(windowedOriginal, cleanTypedText);
   let result = fixTrailingErrorPattern(rawAlignment, typedWords.length);
   
   // Add remaining original words as trailing
