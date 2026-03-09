@@ -43,7 +43,7 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
         "text-sm",
         lineHeightClass,
         language === 'hindi' ? "font-mangal" : "",
-        "text-left whitespace-pre-wrap"
+        contentType === 'typing' ? "flex flex-wrap gap-x-1" : "text-justify"
       )}
     >
       {alignment.map((item, i) => {
