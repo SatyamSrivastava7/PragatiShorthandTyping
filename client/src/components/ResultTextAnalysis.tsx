@@ -1,4 +1,4 @@
-import { cn, alignWords, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtmlEntities } from "@/lib/utils";
+import { cn, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtmlEntities, type AlignmentEntry } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
@@ -37,16 +37,45 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
 
   const lineHeightClass = "leading-relaxed";
 
+  // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
+  const normalizedAlignment = alignment.reduce((acc: AlignmentEntry[], item) => {
+    const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
+    
+    if (!isParaToken) {
+      acc.push(item);
+      return acc;
+    }
+    
+    // Count consecutive paragraph tokens at the end
+    let consecutiveCount = 0;
+    for (let j = acc.length - 1; j >= 0; j--) {
+      const prevItem = acc[j];
+      if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
+        consecutiveCount++;
+      } else {
+        break;
+      }
+    }
+    
+    // Allow up to 2 consecutive paragraph tokens, collapse 3+
+    if (consecutiveCount < 2) {
+      acc.push(item);
+    }
+    // If we already have 2+ consecutive, skip additional ones
+    
+    return acc;
+  }, []);
+
   return (
     <div
       className={cn(
         "text-sm",
         lineHeightClass,
-        language === 'hindi' ? "font-mangal" : "",
+        language === 'hindi' ? "font-mangal" : "font-times",
         "text-justify"
       )}
     >
-      {alignment.map((item, i) => {
+      {normalizedAlignment.map((item, i) => {
         // Paragraph token - render as a paragraph break
         if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
           return <div key={i} className="w-full my-2" />;

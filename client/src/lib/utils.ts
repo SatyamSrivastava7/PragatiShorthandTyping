@@ -1098,8 +1098,37 @@ export const generateResultPDF = async (result: Result) => {
   const paraStyle = 'style="text-align:justify;text-justify:inter-word;margin:0 0 8px 0;"';
   let typedHtml = `<p ${paraStyle}>`;
 
-  for (let i = 0; i < displayAlignment.length; i++) {
-    const item = displayAlignment[i];
+  // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
+  const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
+    const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
+    
+    if (!isParaToken) {
+      acc.push(item);
+      return acc;
+    }
+    
+    // Count consecutive paragraph tokens at the end
+    let consecutiveCount = 0;
+    for (let j = acc.length - 1; j >= 0; j--) {
+      const prevItem = acc[j];
+      if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
+        consecutiveCount++;
+      } else {
+        break;
+      }
+    }
+    
+    // Allow up to 2 consecutive paragraph tokens, collapse 3+
+    if (consecutiveCount < 2) {
+      acc.push(item);
+    }
+    // If we already have 2+ consecutive, skip additional ones
+    
+    return acc;
+  }, []);
+
+  for (let i = 0; i < normalizedAlignment.length; i++) {
+    const item = normalizedAlignment[i];
     if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
       typedHtml += `</p><p ${paraStyle}>`;
       continue;

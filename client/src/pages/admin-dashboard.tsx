@@ -3332,13 +3332,18 @@ export default function AdminDashboard() {
                                             </h4>
                                             <div
                                               className={cn(
-                                                "text-sm whitespace-pre-wrap",
+                                                "text-sm text-justify leading-relaxed",
                                                 result.language === "hindi"
                                                   ? "font-mangal"
-                                                  : "",
+                                                  : "font-times",
                                               )}
-                                              dangerouslySetInnerHTML={{ __html: result.originalText || "" }}
-                                            />
+                                            >
+                                              {stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
+                                                <p key={i} className="mb-2 last:mb-0">
+                                                  {para.trim()}
+                                                </p>
+                                              ))}
+                                            </div>
                                           </div>
 
                                           <div className="flex justify-end pt-4">
