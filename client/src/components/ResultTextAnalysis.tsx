@@ -32,10 +32,10 @@ export function ResultTextAnalysis({ originalText, typedText, language, contentT
     alignment = [...attemptedAlignment, ...trailingItems];
   }
 
-  // helper class to add spacing between words
-  const wordWrapperClass = "inline mr-1";
+  // helper class to add spacing between words when not using flex
+  const wordWrapperClass = contentType === 'shorthand' ? "inline-block mr-1" : "";
 
-  const lineHeightClass = "leading-relaxed";
+  const lineHeightClass = contentType === 'typing' ? "leading-relaxed" : "leading-normal";
 
   return (
     <div
