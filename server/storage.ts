@@ -314,34 +314,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getResultCounts(studentId?: number): Promise<Record<string, number>> {
-    const types = ['typing', 'shorthand'];
-    const resultObj: Record<string, number> = {};
+    const conditions: any[] = [];
+    if (typeof studentId === 'number') {
+      conditions.push(eq(results.studentId, studentId));
+    }
 
-    for (const t of types) {
-      const conditions: any[] = [eq(results.contentType, t)];
-      if (typeof studentId === 'number') conditions.push(eq(results.studentId, studentId));
-      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(results).where(whereClause);
-      const [row] = await q;
-      resultObj[t] = Number(row?.cnt ?? 0);
+    // Single query with GROUP BY instead of multiple queries
+    const countResults = await db
+      .select({
+        contentType: results.contentType,
+        cnt: sql<number>`count(*)`.as('cnt')
+      })
+      .from(results)
+      .where(whereClause)
+      .groupBy(results.contentType);
+
+    // Convert to the expected format
+    const resultObj: Record<string, number> = { typing: 0, shorthand: 0 };
+    for (const row of countResults) {
+      resultObj[row.contentType] = Number(row.cnt);
     }
 
     return resultObj;
   }
 
   async getContentCounts(enabled?: boolean): Promise<Record<string, number>> {
-    const types = ['typing', 'shorthand'];
-    const result: Record<string, number> = {};
+    const conditions: any[] = [];
+    if (typeof enabled === 'boolean') {
+      conditions.push(eq(content.isEnabled, !!enabled));
+    }
 
-    for (const t of types) {
-      const conditions: any[] = [eq(content.type, t)];
-      if (typeof enabled === 'boolean') conditions.push(eq(content.isEnabled, !!enabled));
-      const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-      const q: any = db.select({ cnt: sql`count(*)`.as('cnt') }).from(content).where(whereClause);
-      const [row] = await q;
-      result[t] = Number(row?.cnt ?? 0);
+    // Single query with GROUP BY instead of multiple queries
+    const countResults = await db
+      .select({
+        type: content.type,
+        cnt: sql<number>`count(*)`.as('cnt')
+      })
+      .from(content)
+      .where(whereClause)
+      .groupBy(content.type);
+
+    // Convert to the expected format
+    const result: Record<string, number> = { typing: 0, shorthand: 0 };
+    for (const row of countResults) {
+      result[row.type] = Number(row.cnt);
     }
 
     return result;
@@ -426,26 +446,28 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(testFolders.createdAt));
     
-    // If onlyWithContent is true, filter to only folders with enabled content
+    // If onlyWithContent is true, filter to only folders with enabled content using a single query
     let result = folders;
     if (onlyWithContent) {
-      const foldersWithContent = await Promise.all(
-        folders.map(async (folder) => {
-          const hasEnabledContent = await db
-            .select()
-            .from(content)
-            .where(and(
-              eq(content.folderId, folder.id), 
-              eq(content.isEnabled, true),
-              eq(content.type, folder.type) // Ensure content type matches folder type
-            ))
-            .limit(1);
-          
-          return hasEnabledContent.length > 0 ? folder : null;
+      // Get all folder IDs that have enabled content of matching type in a single query
+      const folderIdsWithContent = await db
+        .select({ 
+          folderId: content.folderId,
+          folderType: testFolders.type 
         })
-      );
+        .from(content)
+        .innerJoin(testFolders, eq(content.folderId, testFolders.id))
+        .where(and(
+          eq(content.isEnabled, true),
+          eq(content.type, testFolders.type), // Ensure content type matches folder type
+          sql`${content.folderId} IS NOT NULL`
+        ))
+        .groupBy(content.folderId, testFolders.type);
       
-      result = foldersWithContent.filter((f): f is TestFolder => f !== null);
+      const folderIdSet = new Set(folderIdsWithContent.map(row => row.folderId));
+      
+      // Filter folders to only those with enabled content of matching type
+      result = folders.filter(folder => folderIdSet.has(folder.id));
     }
     
     // Apply pagination
@@ -487,10 +509,15 @@ export class DatabaseStorage implements IStorage {
     const numericIds = ids.map((i) => Number(i)).filter((i) => Number.isFinite(i));
     if (numericIds.length === 0) return [];
 
-    // Fetch each result individually to avoid SQL dialect issues and keep code simple/safe
-    const promises = numericIds.map((id) => this.getResult(id));
-    const resultsArr = await Promise.all(promises);
-    return resultsArr.filter((r): r is Result => !!r);
+    // Single query with IN clause, then sort to maintain input order
+    const queryResults = await db
+      .select()
+      .from(results)
+      .where(sql`${results.id} IN (${sql.join(numericIds, sql`, `)})`);
+
+    // Sort results to maintain the order of input IDs
+    const idOrder = new Map(numericIds.map((id, index) => [id, index]));
+    return queryResults.sort((a: Result, b: Result) => idOrder.get(a.id)! - idOrder.get(b.id)!);
   }
 
   async getResultsByStudent(studentId: number, contentType?: string): Promise<Result[]> {
