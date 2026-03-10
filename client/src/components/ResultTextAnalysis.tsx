@@ -1,4 +1,4 @@
-import { cn, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtmlEntities, type AlignmentEntry } from "@/lib/utils";
+import { cn, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtmlEntities, stripHtml, type AlignmentEntry } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
@@ -8,8 +8,8 @@ interface ResultTextAnalysisProps {
 }
 
 export function ResultTextAnalysis({ originalText, typedText, language, contentType = 'typing' }: ResultTextAnalysisProps) {
-  // Strip HTML tags from originalText for alignment calculations (preserve paragraph markers)
-  const plainOriginalText = stripHtmlPreserveParagraphs(originalText);
+  // Strip HTML tags from originalText for alignment calculations (plain text for both types)
+  const plainOriginalText = stripHtml(originalText);
   
   // Use appropriate alignment based on content type
   // For typing tests: use windowed alignment that limits search scope

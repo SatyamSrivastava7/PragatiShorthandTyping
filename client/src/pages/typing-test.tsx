@@ -127,8 +127,8 @@ export default function TypingTestPage() {
     let netSpeed: string | undefined;
     let halfMistakes: string | undefined;
 
-    // Convert any newlines to paragraph tokens for storage and analysis
-    const storedTypedText = replaceNewlinesWithParaToken(typedText);
+    // Process typed text based on test type
+    const storedTypedText = testContent.type === 'shorthand' ? typedText : replaceNewlinesWithParaToken(typedText);
 
     if (testContent.type === 'typing') {
       metrics = calculateTypingMetrics(testContent.text, storedTypedText, testContent.duration, backspaces);

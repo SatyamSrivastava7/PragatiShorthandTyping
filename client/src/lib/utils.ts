@@ -62,6 +62,15 @@ export function stripHtmlEntities(text: string): string {
     .replace(/&apos;/gi, "'");       // Apostrophe
 }
 
+// Strip HTML tags without preserving paragraph structure
+export function stripHtml(html: string): string {
+  if (!html) return '';
+  let s = html.replace(/<[^>]+>/g, '');
+  s = stripHtmlEntities(s);
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
 // Special characters that can split words (user types them as spaces)
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
@@ -703,17 +712,17 @@ export function calculateAlignedMistakes(
  * This prevents the DP from going too far ahead looking for matches
  */
 export function getTypingAlignment(originalText: string, typedText: string): AlignmentEntry[] {
-  // Strip HTML tags from original text before processing, but preserve paragraph breaks
-  const plainOriginalText = stripHtmlPreserveParagraphs(originalText || '');
-  // ignore paragraph placeholder tokens when counting words for alignment
+  // Strip HTML tags from original text (plain text)
+  const plainOriginalText = stripHtml(originalText || '');
+  // Get words for alignment
   const originalWords = (plainOriginalText || "")
     .trim()
     .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN);
+    .filter((w) => w);
   const typedWords = (typedText || "")
     .trim()
     .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN);
+    .filter((w) => w);
   
   if (typedWords.length === 0) {
     return originalWords.map(w => ({
@@ -819,8 +828,8 @@ export function calculateTypingMetrics(
   timeInMinutes: number,
   backspaces: number,
 ) {
-  // Strip HTML tags from original text for metrics calculation, preserving paragraph markers
-  const plainText = stripHtmlPreserveParagraphs(originalText || '');
+  // Strip HTML tags from original text for metrics calculation (plain text for typing tests)
+  const plainText = stripHtml(originalText || '');
   
   // Use sequential alignment for typing tests (1-to-1 word matching in order)
   // This ensures a mistyped word doesn't cause cascading "missing" errors
@@ -829,8 +838,8 @@ export function calculateTypingMetrics(
     typedText,
   );
 
-  // Word count is the number of words the student actually typed, excluding para tokens
-  const wordCount = alignment.filter(a => a.typed !== "" && a.typed !== PARA_TOKEN).length;
+  // Word count is the number of words the student actually typed
+  const wordCount = alignment.filter(a => a.typed !== "").length;
 
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
@@ -893,14 +902,14 @@ export function isLastSentenceAttempted(
   originalText: string,
   alignment: AlignmentEntry[]
 ): boolean {
-  // Strip HTML tags from original text, preserving paragraph markers
-  const plainText = stripHtmlPreserveParagraphs(originalText || '');
+  // Strip HTML tags from original text (plain text)
+  const plainText = stripHtml(originalText || '');
   
   // Extract the last 3 words from the original text
   const words = plainText
     .trim()
     .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN);
+    .filter((w) => w);
   
   if (words.length === 0) return false;
 
@@ -936,8 +945,8 @@ export function calculateShorthandMetrics(
   typedText: string,
   timeInMinutes: number,
 ) {
-  // Strip HTML tags from original text for metrics calculation, preserving paragraphs
-  const plainText = stripHtmlPreserveParagraphs(originalText || '');
+  // Strip HTML tags from original text for metrics calculation, without preserving paragraphs
+  const plainText = stripHtml(originalText || '');
   
   // Use aligned word comparison to handle word splits/joins
   const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(
@@ -1064,16 +1073,16 @@ export const generateResultPDF = async (result: Result) => {
 
   if (result.contentType === "typing") {
     // DP alignment with trailing error fix for typing tests
-    // Strip HTML tags from original text for alignment, preserving paragraph markers
-    const plainOriginalText = stripHtmlPreserveParagraphs(result.originalText || '');
+    // Strip HTML tags from original text (plain text)
+    const plainOriginalText = stripHtml(result.originalText || '');
     displayAlignment = getTypingAlignment(plainOriginalText, result.typedText);
     trailingWords = displayAlignment
-      .filter(item => item.status === "trailing" && item.original !== PARA_TOKEN)
+      .filter(item => item.status === "trailing")
       .map(item => item.original);
   } else {
     // DP alignment for shorthand
-    // Strip HTML tags from original text for alignment (preserve paragraphs)
-    const plainOriginalText = stripHtmlPreserveParagraphs(result.originalText || '');
+    // Strip HTML tags from original text for alignment (no paragraph preservation for shorthand)
+    const plainOriginalText = stripHtml(result.originalText || '');
     const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, result.typedText);
     displayAlignment = attemptedAlignment;
     shorthandRecalcMistakes = recalcMistakes;
@@ -1149,9 +1158,8 @@ export const generateResultPDF = async (result: Result) => {
   }
   typedHtml += `</p>`;
 
-  // Total original words (useful for shorthand mistake percentage) - strip HTML tags
-  // Count words in original text excluding paragraph tokens
-  const totalOriginalWords = stripHtmlPreserveParagraphs(result.originalText || '').trim().split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length;
+  // Total original words - plain text word count for both typing and shorthand
+  const totalOriginalWords = stripHtml(result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length;
   const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
   const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
 

@@ -1140,13 +1140,15 @@ export default function StudentDashboard() {
                                           </span>{" "}
                                           <span>
                                             {
-                                              stripHtmlPreserveParagraphs(
-                                                result.originalText || "",
-                                              )
-                                                .trim()
-                                                .split(/\s+/)
-                                                .filter((w: string) => w && w !== PARA_TOKEN)
-                                                .length
+                                              result.contentType === "shorthand"
+                                                ? (result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length
+                                                : stripHtmlPreserveParagraphs(
+                                                    result.originalText || "",
+                                                  )
+                                                    .trim()
+                                                    .split(/\s+/)
+                                                    .filter((w: string) => w && w !== PARA_TOKEN)
+                                                    .length
                                             }
                                           </span>
                                         </div>

@@ -91,7 +91,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
-import { generateResultPDF, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
+import { generateResultPDF, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { FolderSelector } from "@/components/FolderSelector";
@@ -947,11 +947,14 @@ export default function AdminDashboard() {
     });
 
     try {
+      // Process text based on test type
+      const processedText = contentType === "shorthand" ? stripHtml(textContent) : textContent;
+
       // Build upload data with optional video links
       const createData: any = {
         title,
         type: contentType,
-        text: textContent,
+        text: processedText,
         duration: parseInt(duration),
         dateFor,
         language: language || 'english',
@@ -1426,7 +1429,11 @@ export default function AdminDashboard() {
           const mistakes = Number(r.mistakes) || 0;
           let originalWords = 0;
           if (r.originalText) {
-            originalWords = stripHtmlPreserveParagraphs(r.originalText || '').trim().split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length;
+            if (type === 'shorthand') {
+              originalWords = (r.originalText || '').trim().split(/\s+/).filter((w: string) => w).length;
+            } else {
+              originalWords = stripHtmlPreserveParagraphs(r.originalText || '').trim().split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length;
+            }
           } else {
             originalWords = Number(r.words) || 0;
           }
@@ -1521,7 +1528,7 @@ export default function AdminDashboard() {
         body = sortedResults.map((result, idx) => {
           const rank = idx + 1;
           const mistakes = Number(result.mistakes) || 0;
-          const originalWordsNum = result.originalText ? stripHtmlPreserveParagraphs(result.originalText || '').split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length : 0;
+          const originalWordsNum = result.originalText ? (type === 'shorthand' ? (result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length : stripHtmlPreserveParagraphs(result.originalText || '').split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length) : 0;
           const originalWords = originalWordsNum > 0 ? originalWordsNum : 'N/A';
           const mistakePercentage = originalWordsNum > 0 ? ((mistakes / originalWordsNum) * 100).toFixed(2) : 'N/A';
 
@@ -3270,13 +3277,15 @@ export default function AdminDashboard() {
                                               </span>{" "}
                                               <span>
                                                 {
-                                                  stripHtmlPreserveParagraphs(
-                                                    result.originalText || "",
-                                                  )
-                                                    .trim()
-                                                    .split(/\s+/)
-                                                    .filter((w) => w && w !== PARA_TOKEN)
-                                                    .length
+                                                  result.contentType === "shorthand"
+                                                    ? (result.originalText || "").trim().split(/\s+/).filter((w) => w).length
+                                                    : stripHtmlPreserveParagraphs(
+                                                        result.originalText || "",
+                                                      )
+                                                        .trim()
+                                                        .split(/\s+/)
+                                                        .filter((w) => w && w !== PARA_TOKEN)
+                                                        .length
                                                 }
                                               </span>
                                             </div>
@@ -3338,11 +3347,14 @@ export default function AdminDashboard() {
                                                   : "font-times",
                                               )}
                                             >
-                                              {stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
-                                                <p key={i} className="mb-2 last:mb-0">
-                                                  {para.trim()}
-                                                </p>
-                                              ))}
+                                              {result.contentType === "shorthand"
+                                                ? result.originalText || ""
+                                                : stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
+                                                    <p key={i} className="mb-2 last:mb-0">
+                                                      {para.trim()}
+                                                    </p>
+                                                  ))
+                                              }
                                             </div>
                                           </div>
 
