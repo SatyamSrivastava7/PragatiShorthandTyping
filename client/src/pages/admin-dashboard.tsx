@@ -3348,7 +3348,7 @@ export default function AdminDashboard() {
                                               )}
                                             >
                                               {result.contentType === "shorthand"
-                                                ? result.originalText || ""
+                                                ? stripHtml(result.originalText || "")
                                                 : stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
                                                     <p key={i} className="mb-2 last:mb-0">
                                                       {para.trim()}

@@ -1224,7 +1224,7 @@ export const generateResultPDF = async (result: Result) => {
           <th>Metric</th><th>Value</th><th>Metric</th><th>Value</th>
         </tr>
         <tr>
-          <td>Total Original Words</td><td>${stripHtmlPreserveParagraphs(result.originalText || '').trim().split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length}</td>
+          <td>Total Original Words</td><td>${stripHtml(result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length}</td>
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>

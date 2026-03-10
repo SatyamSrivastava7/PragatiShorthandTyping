@@ -6,7 +6,7 @@ import {
   useLatestTestFolders,
 } from "@/lib/hooks";
 import { usersApi } from "@/lib/api";
-import { cn, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
+import { cn, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml } from "@/lib/utils";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
 import {
@@ -1198,8 +1198,12 @@ export default function StudentDashboard() {
                                         </h4>
                                         <div 
                                           className={cn("text-sm whitespace-pre-wrap", (result.language as 'english' | 'hindi' | undefined) === 'hindi' ? "font-mangal" : "")}
-                                          dangerouslySetInnerHTML={{ __html: result.originalText || "" }}
-                                        />
+                                        >
+                                          {result.contentType === "shorthand"
+                                            ? stripHtml(result.originalText || "")
+                                            : <div dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
+                                          }
+                                        </div>
                                       </div>
 
                                       <div className="flex justify-end pt-4">
