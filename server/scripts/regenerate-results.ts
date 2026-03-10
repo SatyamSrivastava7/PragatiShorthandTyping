@@ -30,6 +30,14 @@ function stripHtmlEntities(text: string): string {
     .replace(/&apos;/gi, "'");
 }
 
+function stripHtml(html: string): string {
+  if (!html) return '';
+  let s = html.replace(/<[^>]+>/g, '');
+  s = stripHtmlEntities(s);
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
 function stripHtmlPreserveParagraphs(html: string): string {
   if (!html) return '';
   let s = html.replace(/<\s*br\s*\/?>/gi, '\n\n')
@@ -428,7 +436,7 @@ function alignWords(originalText: string, typedText: string): AlignmentEntry[] {
 }
 
 function calculateAlignedMistakes(originalText: string, typedText: string) {
-  const plainOriginalText = stripHtmlPreserveParagraphs(originalText || '');
+  const plainOriginalText = stripHtml(originalText || '');
   const alignment = alignWords(plainOriginalText, typedText);
   
   let lastTypedIndex = -1;
@@ -441,7 +449,7 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
   
   let trailingWords = 0;
   for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
-    if (alignment[i].original && alignment[i].original !== PARA_TOKEN) {
+    if (alignment[i].original) {
       trailingWords++;
     }
   }
@@ -450,7 +458,7 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     const totalOriginalWords = (plainOriginalText || "")
       .trim()
       .split(/\s+/)
-      .filter(w => w && w !== PARA_TOKEN).length;
+      .filter(w => w).length;
     return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
@@ -505,9 +513,9 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
 }
 
 function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
-  const plainOriginalText = stripHtmlPreserveParagraphs(originalText || '');
-  const originalWords = (plainOriginalText || "").trim().split(/\s+/).filter((w) => w && w !== PARA_TOKEN);
-  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w && w !== PARA_TOKEN);
+  const plainOriginalText = stripHtml(originalText || '');
+  const originalWords = (plainOriginalText || "").trim().split(/\s+/).filter((w) => w);
+  const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
   const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
   const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
@@ -524,7 +532,6 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   
   for (const item of alignment) {
     if (item.status === "trailing") continue;
-    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
     
     if (item.status === "extra") {
       mistakes += 1;
@@ -578,12 +585,12 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
 }
 
 function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
-  const plainText = stripHtmlPreserveParagraphs(originalText || '');
+  const plainText = stripHtml(originalText || '');
   const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(plainText, typedText);
 
-  const fullOriginalWords = (plainText || "").trim().split(/\s+/).filter((w) => w && w !== PARA_TOKEN).length;
+  const fullOriginalWords = (plainText || "").trim().split(/\s+/).filter((w) => w).length;
 
-  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
+  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w).length;
   
   if (typedWordCount === 0) {
     return {
@@ -604,7 +611,7 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
   const isPassed = mistakePercentage <= 5;
 
   const missingWords = attemptedAlignment.filter(
-    (a) => a.status === "missing" && a.original !== PARA_TOKEN
+    (a) => a.status === "missing"
   ).length;
 
   let halfMistakes = 0;

@@ -617,10 +617,10 @@ export function calculateAlignedMistakes(
     }
   }
   
-  // Count trailing words (words after last typed position).  Ignore paragraph tokens
+  // Count trailing words (words after last typed position)
   let trailingWords = 0;
   for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
-    if (alignment[i].original && alignment[i].original !== PARA_TOKEN) {
+    if (alignment[i].original) {
       trailingWords++;
     }
   }
@@ -630,7 +630,7 @@ export function calculateAlignedMistakes(
     const totalOriginalWords = (plainOriginalText || "")
       .trim()
       .split(/\s+/)
-      .filter(w => w && w !== PARA_TOKEN).length;
+      .filter(w => w).length;
     return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
@@ -959,12 +959,12 @@ export function calculateShorthandMetrics(
   const fullOriginalWords = (plainText || "")
     .trim()
     .split(/\s+/)
-    .filter((w) => w && w !== PARA_TOKEN).length;
+    .filter((w) => w).length;
 
   // Count words actually typed by student
   const typedWordCount = (typedText || "").trim()
     .split(/\s+/)
-    .filter(w => w && w !== PARA_TOKEN).length;
+    .filter(w => w).length;
   
   // If student typed 0 words, automatic fail
   if (typedWordCount === 0) {
@@ -998,7 +998,7 @@ export function calculateShorthandMetrics(
   // included in the missing‑word metric.  These tokens are inserted when the
   // original text contained line breaks and are rendered as paragraph gaps.
   const missingWords = attemptedAlignment.filter(
-    (a) => a.status === "missing" && a.original !== PARA_TOKEN
+    (a) => a.status === "missing"
   ).length;
 
   // Calculate half mistakes (comma errors: missing or extra commas)
@@ -1097,12 +1097,12 @@ export const generateResultPDF = async (result: Result) => {
     });
     trailingWords = trailingItems
       .map((item) => item.original)
-      .filter((w) => w && w !== PARA_TOKEN);
+      .filter((w) => w);
   }
 
-  // Count actual missing words (not trailing) – ignore paragraph markers
+  // Count actual missing words (not trailing)
   const missingWordsCount = displayAlignment.filter(
-    item => item.status === "missing" && item.original !== PARA_TOKEN
+    item => item.status === "missing"
   ).length;
 
   const paraStyle = 'style="text-align:justify;text-justify:inter-word;margin:0 0 8px 0;"';
