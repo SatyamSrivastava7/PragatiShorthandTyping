@@ -1550,6 +1550,7 @@ export default function AdminDashboard() {
         body: body,
         startY: 45,
         theme: 'grid',
+        tableWidth: 'auto',
         // Reduce cell padding to make table rows shorter
         headStyles: {
           fillColor: [59, 130, 246], // Blue color
@@ -1567,7 +1568,7 @@ export default function AdminDashboard() {
         } as any,
         columnStyles: {
           0: { halign: 'center', columnWidth: 12 },
-          1: { halign: 'left', columnWidth: 40 },
+          1: { halign: 'left', columnWidth: 60 },
           2: { halign: 'center', columnWidth: 16 },
           3: { halign: 'center', columnWidth: 16 },
           4: { halign: 'center', columnWidth: 16 },
