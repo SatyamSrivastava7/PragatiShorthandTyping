@@ -55,6 +55,10 @@ export default function PitmanTestPage() {
           ? testContent.pdfFile
           : `data:application/pdf;base64,${testContent.pdfFile}`;
         setPdfUrl(dataUrl);
+        console.log("PDF loaded successfully for test:", testContent.id);
+      } else {
+        console.warn("No PDF file found for test:", testContent.id);
+        console.log("Test content:", testContent);
       }
     }
   }, [testContent]);
