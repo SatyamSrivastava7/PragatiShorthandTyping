@@ -548,7 +548,7 @@ export default function StudentDashboard() {
             </div>
             <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
               <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.pitman ?? 0)}</p>
-              <p className="text-xs text-blue-100">Pitman Book</p>
+              <p className="text-xs text-blue-100">Pitman Exercise</p>
             </div>
             <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
               <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
@@ -576,7 +576,7 @@ export default function StudentDashboard() {
             value="pitman_tests"
             className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
-            <BookOpen className="h-4 w-4" /> Pitman Book
+            <BookOpen className="h-4 w-4" /> Pitman Exercise
           </TabsTrigger>
           <TabsTrigger
             value="results"
@@ -1104,7 +1104,7 @@ export default function StudentDashboard() {
                       <ArrowLeft className="h-4 w-4 mr-2" /> Back
                     </Button>
                     <h4 className="text-lg font-semibold text-gray-700">
-                      {selectedPitmanLanguage} {selectedPitmanFolderId !== null ? `- ${((pitmanFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedPitmanFolderId)?.name || 'Folder'}` : '- All Tests'} Pitman Book Tests
+                      {selectedPitmanLanguage} {selectedPitmanFolderId !== null ? `- ${((pitmanFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedPitmanFolderId)?.name || 'Folder'}` : '- All Tests'} Pitman Exercise Tests
                     </h4>
                   </div>
                   <div className="space-y-3">
