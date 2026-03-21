@@ -193,6 +193,11 @@ export class DatabaseStorage implements IStorage {
     return item || undefined;
   }
 
+  async getContentPdf(id: number): Promise<{ pdfFile: string | null } | undefined> {
+    const [item] = await db.select({ pdfFile: content.pdfFile }).from(content).where(eq(content.id, id));
+    return item || undefined;
+  }
+
   async getAllContent(type?: string): Promise<Content[]> {
     if (type) {
       return await db.select().from(content).where(eq(content.type, type)).orderBy(desc(content.createdAt));
@@ -200,7 +205,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(content).orderBy(desc(content.createdAt));
   }
 
-  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm'>[]> {
+  async getAllContentList(type?: string): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]> {
     const columns = {
       id: content.id,
       title: content.title,
@@ -219,7 +224,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select(columns).from(content).orderBy(desc(content.createdAt)) as any;
   }
 
-  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm'>[]> {
+  async getEnabledContentList(): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]> {
     return await db.select({
       id: content.id,
       title: content.title,
@@ -234,7 +239,7 @@ export class DatabaseStorage implements IStorage {
     }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt)) as any;
   }
 
-  async getEnabledContentListPaged(type?: string, language?: string, folderId?: number, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm'>[]> {
+  async getEnabledContentListPaged(type?: string, language?: string, folderId?: number, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]> {
     const columns = {
       id: content.id,
       title: content.title,

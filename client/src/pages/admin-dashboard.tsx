@@ -80,6 +80,7 @@ import {
   ChevronDown,
   Bell,
   Star,
+  BookOpen,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -99,6 +100,78 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { queryClient } from "@/lib/queryClient";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+// PDF Download Button Component for Pitman Tests
+function PdfDownloadButton({ 
+  contentId, 
+  testTitle 
+}: { 
+  contentId: number; 
+  testTitle: string;
+}) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/content/${contentId}/pdf`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch PDF");
+      }
+
+      const data = await response.json();
+      
+      if (!data.pdfFile) {
+        throw new Error("PDF not available");
+      }
+
+      // Convert base64 to blob and trigger download
+      const byteCharacters = atob(data.pdfFile.split(',')[1] || data.pdfFile);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${testTitle}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      alert("Failed to download PDF. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={handleDownloadPdf}
+      disabled={isLoading}
+      className="bg-purple-100 text-purple-700 hover:bg-purple-200 border-0"
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          Loading...
+        </>
+      ) : (
+        <>
+          📄 PDF
+        </>
+      )}
+    </Button>
+  );
+}
 
 // Delete Folder Button Component
 function DeleteFolderButton({ 
@@ -229,6 +302,12 @@ interface EditTestModalProps {
   setEditVideo100wpmLink: (link: string) => void;
   editVideo120wpmLink: string;
   setEditVideo120wpmLink: (link: string) => void;
+  editPitmanPdfFile: File | null;
+  setEditPitmanPdfFile: (file: File | null) => void;
+  editPitmanPdfFileName: string;
+  setEditPitmanPdfFileName: (fileName: string) => void;
+  editPitmanPdfUrl: string | null;
+  setEditPitmanPdfUrl: (url: string | null) => void;
   editSelectedTestFolderId: number | null;
   setEditSelectedTestFolderId: (folderId: number | null) => void;
   isEditingTest: boolean;
@@ -261,6 +340,12 @@ function EditTestModalComponent({
   setEditVideo100wpmLink,
   editVideo120wpmLink,
   setEditVideo120wpmLink,
+  editPitmanPdfFile,
+  setEditPitmanPdfFile,
+  editPitmanPdfFileName,
+  setEditPitmanPdfFileName,
+  editPitmanPdfUrl,
+  setEditPitmanPdfUrl,
   editSelectedTestFolderId,
   setEditSelectedTestFolderId,
   isEditingTest,
@@ -374,7 +459,7 @@ function EditTestModalComponent({
           {/* Folder Selector */}
           <FolderSelector
             language={editLanguage}
-            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" || "typing"}
+            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" | "pitman" || "typing"}
             selectedFolderId={editSelectedTestFolderId}
             onFolderSelect={setEditSelectedTestFolderId}
           />
@@ -435,6 +520,59 @@ function EditTestModalComponent({
                     className="bg-white mt-1"
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* PDF section for pitman tests */}
+          {testId && content.find(c => c.id === testId)?.type === 'pitman' && (
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg space-y-4">
+              <h3 className="font-medium text-purple-900 flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                PDF Document
+              </h3>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Upload or Update PDF File
+                </Label>
+                <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center cursor-pointer hover:bg-purple-100/50 transition-colors"
+                  onClick={() => document.getElementById("edit-pitman-pdf-input")?.click()}
+                >
+                  {editPitmanPdfFileName ? (
+                    <div className="space-y-2">
+                      <div className="text-lg font-semibold text-purple-700">✓ File Selected</div>
+                      <p className="text-sm text-purple-600">{editPitmanPdfFileName}</p>
+                      <p className="text-xs text-gray-500">Click to change file</p>
+                    </div>
+                  ) : editPitmanPdfUrl ? (
+                    <div className="space-y-2">
+                      <div className="text-lg font-semibold text-purple-700">📄 Current PDF</div>
+                      <p className="text-xs text-gray-500">Click to replace file</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-lg text-purple-600">📁 Click or drag PDF here</p>
+                      <p className="text-sm text-gray-500">Max 50MB, PDF only</p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="edit-pitman-pdf-input"
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && file.size > 50 * 1024 * 1024) {
+                      alert("File size must be less than 50MB");
+                      return;
+                    }
+                    if (file) {
+                      setEditPitmanPdfFile(file);
+                      setEditPitmanPdfFileName(file.name);
+                    }
+                  }}
+                />
               </div>
             </div>
           )}
@@ -614,15 +752,18 @@ export default function AdminDashboard() {
   const ITEMS_PER_BATCH = 100; // Initial batch size for admin table
   const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
   const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
+  const [visiblePitmanCount, setVisiblePitmanCount] = useState(ITEMS_PER_BATCH);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const typingObserverRef = useRef<HTMLTableRowElement | null>(null);
   const shorthandObserverRef = useRef<HTMLTableRowElement | null>(null);
+  const pitmanObserverRef = useRef<HTMLTableRowElement | null>(null);
 
   // Reset visible count when tab changes or content changes
   useEffect(() => {
     if (activeTab === "manage") {
       setVisibleTypingCount(ITEMS_PER_BATCH);
       setVisibleShorthandCount(ITEMS_PER_BATCH);
+      setVisiblePitmanCount(ITEMS_PER_BATCH);
     }
   }, [activeTab, content.length]);
 
@@ -652,14 +793,26 @@ export default function AdminDashboard() {
       });
   };
 
+  const getPitmanTests = () => {
+    return content
+      .filter((c) => c.type === "pitman")
+      .sort((a, b) => {
+        // Sort by creation date (newest first), regardless of enabled/disabled status
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  };
+
   const typingTests = getTypingTests();
   const shorthandTests = getShorthandTests();
+  const pitmanTests = getPitmanTests();
 
   // Get visible items for lazy loading
   const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
   const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
+  const visiblePitmanTests = pitmanTests.slice(0, visiblePitmanCount);
   const hasMoreTyping = visibleTypingCount < typingTests.length;
   const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
+  const hasMorePitman = visiblePitmanCount < pitmanTests.length;
 
   // Load more typing tests
   const loadMoreTyping = useCallback(() => {
@@ -680,6 +833,16 @@ export default function AdminDashboard() {
       setIsLoadingMore(false);
     }, 300);
   }, [isLoadingMore, hasMoreShorthand, shorthandTests.length]);
+
+  // Load more pitman tests
+  const loadMorePitman = useCallback(() => {
+    if (isLoadingMore || !hasMorePitman) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisiblePitmanCount(prev => Math.min(prev + ITEMS_PER_BATCH, pitmanTests.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, hasMorePitman, pitmanTests.length]);
 
   // Intersection Observer for typing tests
   useEffect(() => {
@@ -759,9 +922,48 @@ export default function AdminDashboard() {
     };
   }, [hasMoreShorthand, isLoadingMore, shorthandTests.length, visibleShorthandCount, activeTab, loadMoreShorthand]);
 
+  // Intersection Observer for pitman tests
+  useEffect(() => {
+    if (activeTab !== "manage") return;
+    const currentRef = pitmanObserverRef.current;
+    if (!currentRef || !hasMorePitman) return;
+
+    // Check if IntersectionObserver is available
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback for older browsers: load more on scroll
+      const handleScroll = () => {
+        if (hasMorePitman && !isLoadingMore) {
+          const rect = currentRef?.getBoundingClientRect();
+          if (rect && rect.bottom < window.innerHeight + 100) {
+            loadMorePitman();
+          }
+        }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMorePitman && !isLoadingMore) {
+          loadMorePitman();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMorePitman, isLoadingMore, pitmanTests.length, visiblePitmanCount, activeTab, loadMorePitman]);
+
   // Upload State
   const [title, setTitle] = useState("");
-  const [contentType, setContentType] = useState<"typing" | "shorthand">(
+  const [contentType, setContentType] = useState<"typing" | "shorthand" | "pitman">(
     "typing",
   );
   const [textContent, setTextContent] = useState("");
@@ -775,6 +977,10 @@ export default function AdminDashboard() {
   const [video80wpmLink, setVideo80wpmLink] = useState("");
   const [video100wpmLink, setVideo100wpmLink] = useState("");
   const [video120wpmLink, setVideo120wpmLink] = useState("");
+
+  // PDF file state for Pitman Book Exercise
+  const [pitmanPdfFile, setPitmanPdfFile] = useState<File | null>(null);
+  const [pitmanPdfFileName, setPitmanPdfFileName] = useState("");
 
   // Folder state for organizing tests
   const [selectedTestFolderId, setSelectedTestFolderId] = useState<number | null>(null);
@@ -794,6 +1000,11 @@ export default function AdminDashboard() {
   const [editVideo80wpmLink, setEditVideo80wpmLink] = useState("");
   const [editVideo100wpmLink, setEditVideo100wpmLink] = useState("");
   const [editVideo120wpmLink, setEditVideo120wpmLink] = useState("");
+  
+  // Edit PDF file state for Pitman Book Exercise
+  const [editPitmanPdfFile, setEditPitmanPdfFile] = useState<File | null>(null);
+  const [editPitmanPdfFileName, setEditPitmanPdfFileName] = useState("");
+  const [editPitmanPdfUrl, setEditPitmanPdfUrl] = useState<string | null>(null);
   
   const [isTestEditModalOpen, setIsTestEditModalOpen] = useState(false);
   const [isEditingTest, setIsEditingTest] = useState(false);
@@ -940,6 +1151,16 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Check for Pitman specific requirements
+    if (contentType === "pitman" && !pitmanPdfFile) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "PDF file is required for Pitman Book Exercise",
+      });
+      return;
+    }
+
     toast({
       variant: "info",
       title: "Uploading...",
@@ -960,6 +1181,12 @@ export default function AdminDashboard() {
         language: language || 'english',
         autoScroll: contentType === "typing" ? autoScroll : true,
       };
+
+      // Handle PDF upload for Pitman Book Exercise
+      if (contentType === "pitman" && pitmanPdfFile) {
+        const pdfBase64 = await fileToBase64(pitmanPdfFile);
+        createData.pdfFile = pdfBase64;
+      }
 
       // Add folder ID if selected
       if (selectedTestFolderId) createData.folderId = selectedTestFolderId;
@@ -983,6 +1210,8 @@ export default function AdminDashboard() {
       setVideo80wpmLink("");
       setVideo100wpmLink("");
       setVideo120wpmLink("");
+      setPitmanPdfFile(null);
+      setPitmanPdfFileName("");
       setSelectedTestFolderId(null);
     } catch (error) {
       toast({
@@ -1048,6 +1277,12 @@ export default function AdminDashboard() {
       setEditVideo80wpmLink(cachedData.video80wpm || "");
       setEditVideo100wpmLink(cachedData.video100wpm || "");
       setEditVideo120wpmLink(cachedData.video120wpm || "");
+      // Set PDF flag if test is pitman
+      if (testToEdit.type === 'pitman' && cachedData.pdfFile) {
+        setEditPitmanPdfUrl("cached");
+      } else {
+        setEditPitmanPdfUrl(null);
+      }
       setIsTestEditModalOpen(true);
       setLastEditedTestId(testId);
       setHasEditChanges(false);
@@ -1079,6 +1314,7 @@ export default function AdminDashboard() {
           video80wpm: fullContent.video80wpm || null,
           video100wpm: fullContent.video100wpm || null,
           video120wpm: fullContent.video120wpm || null,
+          pdfFile: fullContent.pdfFile || null,
           folderId: fullContent.folderId || null,
         }
       }));
@@ -1097,6 +1333,13 @@ export default function AdminDashboard() {
       setEditVideo80wpmLink(fullContent.video80wpm || "");
       setEditVideo100wpmLink(fullContent.video100wpm || "");
       setEditVideo120wpmLink(fullContent.video120wpm || "");
+
+      // Set PDF flag if this is a pitman test with PDF
+      if (fullContent.type === 'pitman' && fullContent.pdfFile) {
+        setEditPitmanPdfUrl("has-pdf");
+      } else {
+        setEditPitmanPdfUrl(null);
+      }
       
       setIsLoadingTestData(false);
     } catch (error) {
@@ -1144,6 +1387,12 @@ export default function AdminDashboard() {
       if (editVideo100wpmLink) updateData.video100wpm = editVideo100wpmLink;
       if (editVideo120wpmLink) updateData.video120wpm = editVideo120wpmLink;
 
+      // Handle PDF upload for Pitman Book Exercise
+      if (editPitmanPdfFile) {
+        const pdfBase64 = await fileToBase64(editPitmanPdfFile);
+        updateData.pdfFile = pdfBase64;
+      }
+
       const updatedContent = await updateContent({
         id: editingTestId,
         data: updateData,
@@ -1164,6 +1413,7 @@ export default function AdminDashboard() {
           video80wpm: updatedContent.video80wpm || null,
           video100wpm: updatedContent.video100wpm || null,
           video120wpm: updatedContent.video120wpm || null,
+          pdfFile: updatedContent.pdfFile || null,
           folderId: updatedContent.folderId || null,
         }
       }));
@@ -1187,6 +1437,9 @@ export default function AdminDashboard() {
       setEditVideo80wpmLink("");
       setEditVideo100wpmLink("");
       setEditVideo120wpmLink("");
+      setEditPitmanPdfFile(null);
+      setEditPitmanPdfFileName("");
+      setEditPitmanPdfUrl(null);
       setEditSelectedTestFolderId(null);
       setIsEditingTest(false);
     } catch (error) {
@@ -1920,7 +2173,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Test Type Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card
                 className={cn(
                   "cursor-pointer transition-all duration-200 border-2",
@@ -1995,6 +2248,43 @@ export default function AdminDashboard() {
                   </div>
                 </CardContent>
               </Card>
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2",
+                  contentType === "pitman"
+                    ? "border-purple-500 bg-purple-50/50 shadow-md"
+                    : "border-transparent hover:border-slate-200 hover:shadow-sm",
+                )}
+                onClick={() => setContentType("pitman")}
+              >
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "p-3 rounded-xl",
+                      contentType === "pitman"
+                        ? "bg-purple-500 text-white"
+                        : "bg-slate-100 text-slate-500",
+                    )}
+                  >
+                    <BookOpen className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3
+                      className={cn(
+                        "font-semibold",
+                        contentType === "pitman"
+                          ? "text-purple-700"
+                          : "text-gray-700",
+                      )}
+                    >
+                      Pitman Book Exercise
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      PDF-based shorthand exercise
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Main Form Card */}
@@ -2006,7 +2296,9 @@ export default function AdminDashboard() {
                       "p-2 rounded-lg",
                       contentType === "typing"
                         ? "bg-blue-100"
-                        : "bg-orange-100",
+                        : contentType === "shorthand"
+                          ? "bg-orange-100"
+                          : "bg-purple-100",
                     )}
                   >
                     {contentType === "typing" ? (
@@ -2018,13 +2310,17 @@ export default function AdminDashboard() {
                             : "text-orange-600",
                         )}
                       />
-                    ) : (
+                    ) : contentType === "shorthand" ? (
                       <Mic className="h-4 w-4 text-orange-600" />
+                    ) : (
+                      <BookOpen className="h-4 w-4 text-purple-600" />
                     )}
                   </div>
                   {contentType === "typing"
                     ? "Typing Test Details"
-                    : "Shorthand Test Details"}
+                    : contentType === "shorthand"
+                      ? "Shorthand Test Details"
+                      : "Pitman Book Exercise Details"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -2069,7 +2365,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        Duration {contentType === "typing" ? "(2-60 min)" : "(2-90 min)"}
+                        Duration {contentType === "typing" || contentType === "pitman" ? "(2-60 min)" : "(2-90 min)"}
                       </Label>
                       <Select value={duration} onValueChange={setDuration}>
                         <SelectTrigger className="bg-white">
@@ -2192,6 +2488,52 @@ export default function AdminDashboard() {
                     </div>
                   )}
 
+                  {contentType === "pitman" && (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg space-y-4">
+                      <h3 className="font-medium text-purple-900 flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        PDF Document (Required)
+                      </h3>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">
+                          Upload PDF File
+                        </Label>
+                        <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center cursor-pointer hover:bg-purple-100/50 transition-colors"
+                          onClick={() => document.getElementById("pitman-pdf-input")?.click()}
+                        >
+                          {pitmanPdfFileName ? (
+                            <div className="space-y-2">
+                              <div className="text-lg font-semibold text-purple-700">✓ File Selected</div>
+                              <p className="text-sm text-purple-600">{pitmanPdfFileName}</p>
+                              <p className="text-xs text-gray-500">Click to change file</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <div className="text-3xl">📄</div>
+                              <p className="text-sm font-medium text-gray-700">Click to upload PDF</p>
+                              <p className="text-xs text-gray-500">or drag and drop</p>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          id="pitman-pdf-input"
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setPitmanPdfFile(file);
+                              setPitmanPdfFileName(file.name);
+                            }
+                          }}
+                          className="hidden"
+                          required
+                        />
+                        <p className="text-xs text-gray-500">Maximum file size: 50MB. Supported format: PDF</p>
+                      </div>
+                    </div>
+                  )}
+
                   <RichTextEditor
                     label="Content Text (Transcript)"
                     value={textContent}
@@ -2274,6 +2616,7 @@ export default function AdminDashboard() {
                 {[
                   { type: "typing", tests: visibleTypingTests, allTests: typingTests, observerRef: typingObserverRef, hasMore: hasMoreTyping },
                   { type: "shorthand", tests: visibleShorthandTests, allTests: shorthandTests, observerRef: shorthandObserverRef, hasMore: hasMoreShorthand },
+                  { type: "pitman", tests: visiblePitmanTests, allTests: pitmanTests, observerRef: pitmanObserverRef, hasMore: hasMorePitman },
                 ].map(({ type, tests: visibleTests, allTests, observerRef, hasMore }) => {
                   const testCount = allTests.length;
                   const activeCount = allTests.filter((c) => c.isEnabled).length;
@@ -2287,7 +2630,9 @@ export default function AdminDashboard() {
                           "border-b",
                           type === "typing"
                             ? "bg-gradient-to-r from-blue-50 to-indigo-50"
-                            : "bg-gradient-to-r from-orange-50 to-amber-50",
+                            : type === "shorthand"
+                              ? "bg-gradient-to-r from-orange-50 to-amber-50"
+                              : "bg-gradient-to-r from-purple-50 to-pink-50",
                         )}
                       >
                         <div className="flex items-center justify-between">
@@ -2297,13 +2642,17 @@ export default function AdminDashboard() {
                                 "p-2 rounded-lg",
                                 type === "typing"
                                   ? "bg-blue-100"
-                                  : "bg-orange-100",
+                                  : type === "shorthand"
+                                    ? "bg-orange-100"
+                                    : "bg-purple-100",
                               )}
                             >
                               {type === "typing" ? (
                                 <Keyboard className="h-5 w-5 text-blue-600" />
-                              ) : (
+                              ) : type === "shorthand" ? (
                                 <Mic className="h-5 w-5 text-orange-600" />
+                              ) : (
+                                <BookOpen className="h-5 w-5 text-purple-600" />
                               )}
                             </div>
                             <div>
@@ -2357,6 +2706,11 @@ export default function AdminDashboard() {
                                 <TableHead className="font-semibold">
                                   Duration
                                 </TableHead>
+                                {type === "pitman" && (
+                                  <TableHead className="font-semibold">
+                                    PDF
+                                  </TableHead>
+                                )}
                                 <TableHead className="font-semibold">
                                   Status
                                 </TableHead>
@@ -2387,6 +2741,11 @@ export default function AdminDashboard() {
                                     {getFolderNameById(item.folderId)}
                                   </TableCell>
                                   <TableCell>{item.duration} min</TableCell>
+                                  {type === "pitman" && (
+                                    <TableCell className="text-sm">
+                                      <PdfDownloadButton contentId={item.id} testTitle={item.title} />
+                                    </TableCell>
+                                  )}
                                   <TableCell>
                                     {item.isEnabled ? (
                                       <span className="inline-flex items-center px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
@@ -2432,7 +2791,7 @@ export default function AdminDashboard() {
                                           <div className="space-y-4">
                                             <FolderSelector
                                               language={item.language || 'english'}
-                                              type={item.type as "typing" | "shorthand"}
+                                              type={item.type as "typing" | "shorthand" | "pitman"}
                                               selectedFolderId={item.folderId || null}
                                               onFolderSelect={async (folderId) => {
                                                 try {
@@ -4596,6 +4955,12 @@ export default function AdminDashboard() {
         setEditVideo100wpmLink={setEditVideo100wpmLink}
         editVideo120wpmLink={editVideo120wpmLink}
         setEditVideo120wpmLink={setEditVideo120wpmLink}
+        editPitmanPdfFile={editPitmanPdfFile}
+        setEditPitmanPdfFile={setEditPitmanPdfFile}
+        editPitmanPdfFileName={editPitmanPdfFileName}
+        setEditPitmanPdfFileName={setEditPitmanPdfFileName}
+        editPitmanPdfUrl={editPitmanPdfUrl}
+        setEditPitmanPdfUrl={setEditPitmanPdfUrl}
         editSelectedTestFolderId={editSelectedTestFolderId}
         setEditSelectedTestFolderId={setEditSelectedTestFolderId}
         isEditingTest={isEditingTest}

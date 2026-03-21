@@ -599,6 +599,26 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get content" });
     }
   });
+
+  // Get PDF file for Pitman tests (on-demand, minimizes initial download size)
+  app.get("/api/content/:id/pdf", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const pdfData = await storage.getContentPdf(id);
+      
+      if (!pdfData) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+
+      if (!pdfData.pdfFile) {
+        return res.status(404).json({ message: "PDF not available" });
+      }
+      
+      res.json({ pdfFile: pdfData.pdfFile });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get PDF" });
+    }
+  });
   
   // Create content (with FormData using busboy for streaming file uploads)
   app.post("/api/content/upload", async (req, res) => {

@@ -45,11 +45,11 @@ export const testFolders = pgTable("test_folders", {
   createdAtIdx: index("test_folders_created_at_idx").on(table.createdAt),
 }));
 
-// Content table (typing and shorthand tests)
+// Content table (typing, shorthand, and pitman book exercise tests)
 export const content = pgTable("content", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
-  type: varchar("type", { length: 20 }).notNull(), // 'typing' | 'shorthand'
+  type: varchar("type", { length: 20 }).notNull(), // 'typing' | 'shorthand' | 'pitman'
   text: text("text").notNull(),
   duration: integer("duration").notNull(), // in minutes
   dateFor: varchar("date_for", { length: 20 }).notNull(), // ISO date string
@@ -63,6 +63,9 @@ export const content = pgTable("content", {
   video80wpm: text("video_80wpm"), // YouTube link for 80 WPM
   video100wpm: text("video_100wpm"), // YouTube link for 100 WPM
   video120wpm: text("video_120wpm"), // YouTube link for 120 WPM
+  
+  // PDF file for Pitman Book Exercise (optional, stored as base64)
+  pdfFile: text("pdf_file"), // Base64 encoded PDF file for pitman book exercise
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
