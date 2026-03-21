@@ -134,35 +134,47 @@ function PdfDownloadButton({
       const response = await fetchWithRetry(`/api/content/${contentId}/pdf`);
       
       if (!response.ok) {
-        throw new Error("Failed to fetch PDF");
+        const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+        throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
       const data = await response.json();
       
-      if (!data.pdfFile) {
+      if (!data || !data.pdfFile) {
         throw new Error("PDF not available");
       }
 
       // Convert base64 to blob and trigger download
-      const byteCharacters = atob(data.pdfFile.split(',')[1] || data.pdfFile);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      try {
+        // Handle both data:application/pdf;base64,... and plain base64 formats
+        const base64String = data.pdfFile.includes(',') 
+          ? data.pdfFile.split(',')[1] 
+          : data.pdfFile;
+        
+        const byteCharacters = atob(base64String);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${testTitle}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (decodeError) {
+        console.error("Error decoding PDF:", decodeError);
+        throw new Error("Failed to decode PDF file");
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
-      
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${testTitle}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error downloading PDF:", error);
-      alert("Failed to download PDF. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to download PDF";
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }
