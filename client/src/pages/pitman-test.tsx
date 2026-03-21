@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
-import { calculateShorthandMetrics, cn, stripHtml } from "@/lib/utils";
+import { calculateShorthandMetrics, cn, stripHtml, replaceNewlinesWithParaToken, PARA_TOKEN } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,14 +142,21 @@ export default function PitmanTestPage() {
     let metrics;
     let result: 'Pass' | 'Fail';
 
+    // Process typed text the same way as shorthand tests - replace newlines with paragraph token
+    const storedTypedText = replaceNewlinesWithParaToken(typedText);
+    
+    // Strip HTML from test content and PARA_TOKEN from both texts for metrics calculation only
+    const cleanTestText = stripHtml(testContent.text).replace(new RegExp(PARA_TOKEN, 'g'), '');
+    const cleanTypedText = storedTypedText.replace(new RegExp(PARA_TOKEN, 'g'), '');
+
     // For Pitman tests, use shorthand metrics calculation
-    metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
+    metrics = calculateShorthandMetrics(cleanTestText, cleanTypedText, testContent.duration);
     result = metrics.result;
 
     try {
       await createResult({
         contentId: testContent.id,
-        typedText: typedText,
+        typedText: storedTypedText,
         words: metrics.words,
         time: testContent.duration,
         mistakes: String(metrics.mistakes),

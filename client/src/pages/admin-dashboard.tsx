@@ -719,15 +719,17 @@ export default function AdminDashboard() {
   const contentLanguages = Array.from(new Set(content.map(c => c.language || 'english'))) as Array<'english' | 'hindi'>;
   
   // Get unique types from content to minimize API calls
-  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand'>;
+  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand' | 'pitman'>;
   
   // Only fetch test folders for languages and types that have content
   // This avoids unnecessary API calls
   const { data: englishTypingFolders = [] } = useTestFolders('english', 'typing');
   const { data: englishShorthandFolders = [] } = useTestFolders('english', 'shorthand');
+  const { data: englishPitmanFolders = [] } = useTestFolders('english', 'pitman');
   const { data: hindiTypingFolders = [] } = useTestFolders('hindi', 'typing');
   const { data: hindiShorthandFolders = [] } = useTestFolders('hindi', 'shorthand');
-  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...hindiTypingFolders, ...hindiShorthandFolders];
+  const { data: hindiPitmanFolders = [] } = useTestFolders('hindi', 'pitman');
+  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...englishPitmanFolders, ...hindiTypingFolders, ...hindiShorthandFolders, ...hindiPitmanFolders];
   
   // Helper function to get folder name by ID (with memoization to avoid recalculating)
   const getFolderNameById = (folderId: number | null | undefined): string => {

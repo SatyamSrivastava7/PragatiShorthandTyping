@@ -129,9 +129,13 @@ export default function TypingTestPage() {
 
     // Process typed text based on test type
     const storedTypedText = testContent.type === 'shorthand' ? typedText : replaceNewlinesWithParaToken(typedText);
+    
+    // Strip HTML from test content and PARA_TOKEN from both texts for metrics calculation only
+    const cleanTestText = stripHtmlPreserveParagraphs(testContent.text).replace(new RegExp(PARA_TOKEN, 'g'), '');
+    const cleanTypedText = storedTypedText.replace(new RegExp(PARA_TOKEN, 'g'), '');
 
     if (testContent.type === 'typing') {
-      metrics = calculateTypingMetrics(testContent.text, storedTypedText, testContent.duration, backspaces);
+      metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, backspaces);
       // Determine Pass/Fail based on 5% mistake rule
       const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
       result = mistakePercentage > 5 ? 'Fail' : 'Pass';
@@ -139,7 +143,7 @@ export default function TypingTestPage() {
       netSpeed = String(metrics.netSpeed);
       halfMistakes = String(metrics.halfMistakes ?? 0);
     } else {
-      metrics = calculateShorthandMetrics(testContent.text, storedTypedText, testContent.duration);
+      metrics = calculateShorthandMetrics(cleanTestText, cleanTypedText, testContent.duration);
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;

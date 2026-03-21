@@ -39,6 +39,7 @@ import {
   BookOpen,
   Camera,
   Edit2,
+  CheckCircle,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1026,7 +1027,7 @@ export default function StudentDashboard() {
                   <BookOpen className="h-5 w-5 text-red-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Pitman Book Exercise</h3>
+                  <h3 className="font-semibold text-lg">Pitman Exercise</h3>
                   <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.pitman ?? 0} tests available`}</p>
                 </div>
               </div>
@@ -1058,113 +1059,166 @@ export default function StudentDashboard() {
                         setSelectedPitmanLanguage(lang);
                         setSelectedPitmanFolderId(undefined); // Reset folder selection when changing language
                       }}
-                      className="p-6 rounded-xl border-2 border-gray-200 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-white to-red-50"
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-100 rounded-lg">
-                          <Folder className="h-5 w-5 text-red-600" />
-                        </div>
-                        <span className="font-semibold text-gray-700 capitalize">{lang}</span>
-                      </div>
+                      <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                      <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
                     </div>
                   ))}
                 </div>
               ) : selectedPitmanFolderId === undefined ? (
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
-                    <Button variant="outline" size="sm" onClick={() => setSelectedPitmanLanguage(null)}>
-                      <ArrowLeft className="h-4 w-4 mr-2" /> Back
+                // Show folder selection
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedPitmanLanguage(null);
+                      setSelectedPitmanFolderId(undefined);
+                    }}>
+                      <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <h4 className="text-lg font-semibold text-gray-700">{selectedPitmanLanguage?.toUpperCase()} - Select Folder</h4>
+                    <h4 className="text-sm font-semibold capitalize">{selectedPitmanLanguage} - Select Folder</h4>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div
-                      onClick={() => setSelectedPitmanFolderId(null)}
-                      className="p-6 rounded-xl border-2 border-red-300 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-red-50 to-white"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-red-100 rounded-lg">
-                          <BookOpen className="h-5 w-5 text-red-600" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-700">All Tests</p>
-                          <p className="text-xs text-gray-500">All available</p>
-                        </div>
-                      </div>
+                  {pitmanFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-red-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
                     </div>
-                    {((pitmanFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).map((folder: any) => (
-                      <div
-                        key={folder.id}
-                        onClick={() => setSelectedPitmanFolderId(folder.id)}
-                        className="p-6 rounded-xl border-2 border-gray-200 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-white to-red-50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-red-100 rounded-lg">
-                            <Folder className="h-5 w-5 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-700">{folder.name}</p>
-                            <p className="text-xs text-gray-500">{folder.testCount ?? 0} tests</p>
-                          </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Option to view all tests without folder filter */}
+                        <div
+                          onClick={() => setSelectedPitmanFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-red-50/50"
+                        >
+                          <Folder className="h-12 w-12 text-red-600 fill-red-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
                         </div>
+                        {/* Show available folders */}
+                        {((pitmanFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedPitmanFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
                       </div>
-                    ))}
-                  </div>
+                      {pitmanFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button 
+                            onClick={() => pitmanFoldersQuery.fetchNextPage()} 
+                            disabled={pitmanFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {pitmanFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
-                    <Button variant="outline" size="sm" onClick={() => setSelectedPitmanFolderId(undefined)}>
-                      <ArrowLeft className="h-4 w-4 mr-2" /> Back
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setSelectedPitmanFolderId(undefined);
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <h4 className="text-lg font-semibold text-gray-700">
+                    <h4 className="text-sm font-semibold capitalize">
                       {selectedPitmanLanguage} {selectedPitmanFolderId !== null ? `- ${((pitmanFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedPitmanFolderId)?.name || 'Folder'}` : '- All Tests'} Pitman Exercise Tests
                     </h4>
                   </div>
-                  <div className="space-y-3">
-                    {((pitmanQuery.data?.pages || []) as any[])
-                      .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
-                      .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedPitmanLanguage || 'english'))
-                      .filter((t: any) => t.title && t.title.toLowerCase().includes(pitmanSearch.toLowerCase()))
-                      .map((test: any) => (
-                        <div
-                          key={test.id}
-                          className="p-4 rounded-xl border bg-white hover:shadow-lg transition-shadow flex items-center justify-between group"
-                        >
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className="p-3 bg-gradient-to-br from-red-100 to-red-50 rounded-lg group-hover:from-red-200 group-hover:to-red-100 transition-colors">
-                              <BookOpen className="h-5 w-5 text-red-600" />
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-800">{test.title}</h4>
-                              <div className="flex items-center gap-4 mt-2">
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {test.duration} min
-                                </div>
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <FileText className="h-3 w-3" />
-                                  Pitman Exercise
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            onClick={() => setLocation(`/test/${test.id}`)}
-                            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-2"
-                          >
-                            <PlayCircle className="h-4 w-4" /> Start Test
-                          </Button>
-                        </div>
-                      ))}
-                    {pitmanQuery.hasNextPage && (
-                      <div className="flex justify-center mt-4">
-                        <Button onClick={() => pitmanQuery.fetchNextPage()} disabled={pitmanQuery.isFetchingNextPage}>
-                          {pitmanQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
-                        </Button>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {pitmanQuery.isError ? (
+                      <div className="col-span-full text-center py-8">
+                        <p className="text-destructive mb-2">Failed to load tests</p>
+                        <p className="text-sm text-muted-foreground">{pitmanQuery.error instanceof Error ? pitmanQuery.error.message : 'Unknown error'}</p>
                       </div>
-                    )}
+                    ) : ((pitmanQuery.data?.pages ?? []) as any[])
+                      .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
+                      .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedPitmanLanguage || 'english'))
+                      .filter((t: any) => selectedPitmanFolderId === null ? true : t.folderId === selectedPitmanFolderId)
+                      .filter((t: any) => t.title && t.title.toLowerCase().includes(pitmanSearch.toLowerCase()))
+                      .map((test: any) => {
+                        if (!test || !test.id) return null;
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
+
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-red-500 to-red-600" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
+                              </div>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span>{test.duration} min</span>
+                                </div>
+                                {isCompleted && (
+                                  <div className="flex items-center gap-2 text-green-600">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span>Completed</span>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                            <CardFooter className="pt-0 gap-2">
+                              <Button
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-2"
+                                size="sm"
+                              >
+                                <PlayCircle className="h-4 w-4" />
+                                {isCompleted ? 'Retake' : 'Start'}
+                              </Button>
+                              {isCompleted && (
+                                <Button
+                                  onClick={() => setLocation(`/results/${result?.id}`)}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
                   </div>
+                  {pitmanQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button 
+                        onClick={() => pitmanQuery.fetchNextPage()} 
+                        disabled={pitmanQuery.isFetchingNextPage}
+                        variant="outline"
+                      >
+                        {pitmanQuery.isFetchingNextPage ? 'Loading more tests...' : 'Load More Tests'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
