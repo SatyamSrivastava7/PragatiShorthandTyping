@@ -144,9 +144,14 @@ function PdfDownloadButton({
         throw new Error("PDF not available");
       }
 
-      // Convert base64 to blob and trigger download
-      try {
-        // Handle both data:application/pdf;base64,... and plain base64 formats
+      // If pdfFile is already a data URI, use it directly (like PDF store does)
+      if (data.pdfFile && data.pdfFile.startsWith("data:")) {
+        const link = document.createElement("a");
+        link.href = data.pdfFile;
+        link.download = `${testTitle}.pdf`;
+        link.click();
+      } else {
+        // Fallback: convert base64 to blob
         const base64String = data.pdfFile.includes(',') 
           ? data.pdfFile.split(',')[1] 
           : data.pdfFile;
@@ -167,9 +172,6 @@ function PdfDownloadButton({
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-      } catch (decodeError) {
-        console.error("Error decoding PDF:", decodeError);
-        throw new Error("Failed to decode PDF file");
       }
     } catch (error) {
       console.error("Error downloading PDF:", error);

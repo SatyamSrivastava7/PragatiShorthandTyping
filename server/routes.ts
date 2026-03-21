@@ -602,6 +602,9 @@ export async function registerRoutes(
 
   // Get PDF file for Pitman tests (on-demand, minimizes initial download size)
   app.get("/api/content/:id/pdf", async (req, res) => {
+    // Set content-type immediately for all responses
+    res.setHeader('Content-Type', 'application/json');
+    
     try {
       const id = parseInt(req.params.id);
       
@@ -619,8 +622,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "PDF not available" });
       }
       
-      res.setHeader('Content-Type', 'application/json');
-      res.json({ pdfFile: pdfData.pdfFile });
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.json({ pdfFile: pdfData.pdfFile });
     } catch (error) {
       console.error("Error fetching PDF:", error);
       res.status(500).json({ message: "Failed to get PDF" });
