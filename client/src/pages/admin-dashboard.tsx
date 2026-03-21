@@ -101,6 +101,23 @@ import { queryClient } from "@/lib/queryClient";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+// Shared fetch with retry (handles stale-process HTML responses)
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const resp = await fetch(url, options);
+    const contentType = resp.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return resp;
+    }
+    if (attempt < retries) {
+      await new Promise(r => setTimeout(r, 1000));
+    } else {
+      throw new Error('Server returned unexpected response. Please try again.');
+    }
+  }
+  throw new Error('Failed after retries');
+}
+
 // PDF Download Button Component for Pitman Tests
 function PdfDownloadButton({ 
   contentId, 
@@ -114,7 +131,7 @@ function PdfDownloadButton({
   const handleDownloadPdf = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/content/${contentId}/pdf`);
+      const response = await fetchWithRetry(`/api/content/${contentId}/pdf`);
       
       if (!response.ok) {
         throw new Error("Failed to fetch PDF");
@@ -1625,22 +1642,6 @@ export default function AdminDashboard() {
         });
         return;
       }
-
-      const fetchWithRetry = async (url: string, options: RequestInit, retries = 2): Promise<Response> => {
-        for (let attempt = 0; attempt <= retries; attempt++) {
-          const resp = await fetch(url, options);
-          const contentType = resp.headers.get('content-type') || '';
-          if (contentType.includes('application/json')) {
-            return resp;
-          }
-          if (attempt < retries) {
-            await new Promise(r => setTimeout(r, 1000));
-          } else {
-            throw new Error('Server returned unexpected response. Please try again.');
-          }
-        }
-        throw new Error('Failed after retries');
-      };
 
       const resp = await fetchWithRetry('/api/results/bulk', {
         method: 'POST',
