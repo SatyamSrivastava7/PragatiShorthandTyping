@@ -1078,6 +1078,20 @@ export default function StudentDashboard() {
                     <h4 className="text-lg font-semibold text-gray-700">{selectedPitmanLanguage?.toUpperCase()} - Select Folder</h4>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div
+                      onClick={() => setSelectedPitmanFolderId(null)}
+                      className="p-6 rounded-xl border-2 border-red-300 hover:border-red-500 hover:shadow-lg transition-all cursor-pointer bg-gradient-to-br from-red-50 to-white"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-100 rounded-lg">
+                          <BookOpen className="h-5 w-5 text-red-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-700">All Tests</p>
+                          <p className="text-xs text-gray-500">All available</p>
+                        </div>
+                      </div>
+                    </div>
                     {((pitmanFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).map((folder: any) => (
                       <div
                         key={folder.id}
