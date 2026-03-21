@@ -40,7 +40,7 @@ export interface User {
 export interface Content {
   id: string;
   title: string;
-  type: 'typing' | 'shorthand';
+  type: 'typing' | 'shorthand' | 'pitman';
   text: string;
   duration: number;
   dateFor: string;
@@ -51,6 +51,9 @@ export interface Content {
   video100wpm?: string;
   video120wpm?: string;
   language?: 'english' | 'hindi';
+  pdfFile?: string; // Base64 encoded PDF for pitman tests
+  autoScroll?: boolean;
+  folderId?: number;
 }
 
 export interface Result {
