@@ -49,16 +49,24 @@ export default function PitmanTestPage() {
     if (testContent) {
       setTimeLeft(testContent.duration * 60);
       // Generate data URL from pdfFile (base64 encoded PDF)
-      if (testContent.pdfFile) {
+      console.log("Processing test content - ID:", testContent.id, "PDF field exists:", !!testContent.pdfFile);
+      if (testContent.pdfFile && testContent.pdfFile.trim().length > 0) {
         // Ensure the base64 string is properly formatted as a data URL
-        const dataUrl = testContent.pdfFile.startsWith('data:')
-          ? testContent.pdfFile
-          : `data:application/pdf;base64,${testContent.pdfFile}`;
+        let dataUrl: string;
+        if (testContent.pdfFile.startsWith('data:')) {
+          dataUrl = testContent.pdfFile;
+        } else {
+          // Remove any whitespace/newlines from base64
+          const cleanBase64 = testContent.pdfFile.replace(/\s/g, '');
+          dataUrl = `data:application/pdf;base64,${cleanBase64}`;
+        }
+        console.log("PDF data URL created, Length:", dataUrl.length, "bytes, First 50 chars:", dataUrl.substring(0, 50));
         setPdfUrl(dataUrl);
-        console.log("PDF loaded successfully for test:", testContent.id);
+        console.log("PDF loaded successfully for test:", testContent.id, "Size:", testContent.pdfFile.length, "bytes");
       } else {
-        console.warn("No PDF file found for test:", testContent.id);
-        console.log("Test content:", testContent);
+        console.warn("No PDF file found or empty for test:", testContent.id);
+        console.log("Test content object:", JSON.stringify(testContent, null, 2));
+        setPdfUrl("");
       }
     }
   }, [testContent]);
@@ -375,11 +383,15 @@ export default function PitmanTestPage() {
             {pdfUrl ? (
               <div className="w-full h-full flex items-center justify-center">
                 <iframe
+                  key={pdfUrl}
                   ref={pdfIframeRef}
-                  src={`${pdfUrl}#zoom=${pdfZoom}`}
+                  src={pdfUrl}
                   title="Test PDF"
                   className="w-full h-full border-0"
-                  style={{ minHeight: "100%", minWidth: "100%" }}
+                  style={{ minHeight: "100%", minWidth: "100%", zoom: `${pdfZoom}%` }}
+                  sandbox="allow-same-origin"
+                  onLoad={() => console.log("PDF iframe loaded successfully")}
+                  onError={() => console.error("Failed to load PDF in iframe")}
                 />
               </div>
             ) : (
