@@ -1069,7 +1069,7 @@ export default function StudentDashboard() {
                     </div>
                   ))}
                 </div>
-              ) : !selectedPitmanFolderId ? (
+              ) : selectedPitmanFolderId === undefined ? (
                 <div>
                   <div className="flex items-center gap-3 mb-6">
                     <Button variant="outline" size="sm" onClick={() => setSelectedPitmanLanguage(null)}>
