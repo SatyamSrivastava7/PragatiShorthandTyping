@@ -389,7 +389,6 @@ export default function PitmanTestPage() {
                   title="Test PDF"
                   className="w-full h-full border-0"
                   style={{ minHeight: "100%", minWidth: "100%", zoom: `${pdfZoom}%` }}
-                  sandbox="allow-same-origin"
                   onLoad={() => console.log("PDF iframe loaded successfully")}
                   onError={() => console.error("Failed to load PDF in iframe")}
                 />
