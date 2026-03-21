@@ -48,21 +48,36 @@ export default function PitmanTestPage() {
   useEffect(() => {
     if (testContent) {
       setTimeLeft(testContent.duration * 60);
-      // Generate data URL from pdfFile (base64 encoded PDF)
+      // Generate blob URL from pdfFile (base64 encoded PDF)
       console.log("Processing test content - ID:", testContent.id, "PDF field exists:", !!testContent.pdfFile);
       if (testContent.pdfFile && testContent.pdfFile.trim().length > 0) {
-        // Ensure the base64 string is properly formatted as a data URL
-        let dataUrl: string;
-        if (testContent.pdfFile.startsWith('data:')) {
-          dataUrl = testContent.pdfFile;
-        } else {
-          // Remove any whitespace/newlines from base64
-          const cleanBase64 = testContent.pdfFile.replace(/\s/g, '');
-          dataUrl = `data:application/pdf;base64,${cleanBase64}`;
+        try {
+          // Convert base64 to Blob
+          let binaryString: string;
+          if (testContent.pdfFile.startsWith('data:')) {
+            // Extract base64 from data URL
+            const base64 = testContent.pdfFile.split(',')[1] || testContent.pdfFile;
+            binaryString = atob(base64);
+          } else {
+            binaryString = atob(testContent.pdfFile);
+          }
+          
+          // Convert binary string to bytes
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          // Create Blob and blob URL
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const blobUrl = URL.createObjectURL(blob);
+          
+          setPdfUrl(blobUrl);
+          console.log("PDF loaded successfully for test:", testContent.id, "Size:", testContent.pdfFile.length, "bytes, Blob URL created");
+        } catch (error) {
+          console.error("Error processing PDF:", error);
+          setPdfUrl("");
         }
-        console.log("PDF data URL created, Length:", dataUrl.length, "bytes, First 50 chars:", dataUrl.substring(0, 50));
-        setPdfUrl(dataUrl);
-        console.log("PDF loaded successfully for test:", testContent.id, "Size:", testContent.pdfFile.length, "bytes");
       } else {
         console.warn("No PDF file found or empty for test:", testContent.id);
         console.log("Test content object:", JSON.stringify(testContent, null, 2));
