@@ -668,7 +668,7 @@ export default function AdminDashboard() {
   
   // Selected results for download
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
-  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand'>('typing');
+  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand' | 'pitman'>('typing');
 
   const {
     content,
@@ -691,6 +691,11 @@ export default function AdminDashboard() {
     undefined,
     activeTab === "results" && hasVisitedResults,
     { type: 'shorthand', limit: 50 }
+  );
+  const { results: pitmanResults, fetchNextPage: fetchNextPitman, isFetchingNextPage: isFetchingNextPitman, hasNextPage: hasNextPitman } = useResults(
+    undefined,
+    activeTab === "results" && hasVisitedResults,
+    { type: 'pitman', limit: 50 }
   );
   const { deleteResult } = useResults(undefined, false);
   const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
@@ -1648,7 +1653,7 @@ export default function AdminDashboard() {
           new Date(a.submittedAt).getTime(),
       );
 
-  const handleDownloadSelectedResults = async (type: 'typing' | 'shorthand') => {
+  const handleDownloadSelectedResults = async (type: 'typing' | 'shorthand' | 'pitman') => {
     try {
       if (!selectedResultIds || selectedResultIds.length === 0) {
         toast({
@@ -1883,6 +1888,7 @@ export default function AdminDashboard() {
 
   const displayTypingResults = filterResultsByStudent(typingResults);
   const displayShorthandResults = filterResultsByStudent(shorthandResults);
+  const displayPitmanResults = filterResultsByStudent(pitmanResults);
 
   const filteredStudents = users
     .filter(
@@ -3421,7 +3427,7 @@ export default function AdminDashboard() {
                   defaultValue="typing"
                   value={activeResultsTab}
                   onValueChange={(tab) => {
-                    setActiveResultsTab(tab as 'typing' | 'shorthand');
+                    setActiveResultsTab(tab as 'typing' | 'shorthand' | 'pitman');
                     setSelectedResultIds([]); // Clear selections when switching tabs
                   }}
                   className="w-full"
@@ -3439,6 +3445,12 @@ export default function AdminDashboard() {
                         className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700"
                       >
                         <Mic className="h-4 w-4 mr-2" /> Shorthand Results
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="pitman"
+                        className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
+                      >
+                        <BookOpen className="h-4 w-4 mr-2" /> Pitman Results
                       </TabsTrigger>
                     </TabsList>
                     <Button
@@ -3475,7 +3487,7 @@ export default function AdminDashboard() {
                     </Button>
                   </div>
 
-                  {["typing", "shorthand"].map((type) => (
+                  {["typing", "shorthand", "pitman"].map((type) => (
                     <TabsContent key={type} value={type} className="m-0">
                       <div className="max-h-[500px] overflow-auto">
                         <Table>
@@ -3483,9 +3495,9 @@ export default function AdminDashboard() {
                             <TableRow>
                               <TableHead className="w-12">
                                 <Checkbox
-                                  checked={selectedResultIds.length > 0 && selectedResultIds.length === (type === "typing" ? displayTypingResults?.length : displayShorthandResults?.length)}
+                                  checked={selectedResultIds.length > 0 && selectedResultIds.length === (type === "typing" ? displayTypingResults?.length : type === "shorthand" ? displayShorthandResults?.length : displayPitmanResults?.length)}
                                   onCheckedChange={(checked) => {
-                                    const results = type === "typing" ? displayTypingResults : displayShorthandResults;
+                                    const results = type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : displayPitmanResults;
                                     if (checked) {
                                       const resultIds = results?.map(r => r.id) || [];
                                       const combined = [...selectedResultIds, ...resultIds];
@@ -3518,7 +3530,7 @@ export default function AdminDashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(type === "typing" ? displayTypingResults : displayShorthandResults)?.map(
+                            {(type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : displayPitmanResults)?.map(
                               (result) => (
                                 <TableRow
                                   key={result.id}
