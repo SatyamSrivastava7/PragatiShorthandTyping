@@ -131,8 +131,8 @@ export default function TypingTestPage() {
     const storedTypedText = testContent.type === 'typing' ? replaceNewlinesWithParaToken(typedText) : typedText;
     
     // Strip HTML and PARA_TOKEN from both texts for metrics calculation (clean text = no HTML, no PARA_TOKENS)
-    const cleanTestText = stripHtml(testContent.text).replace(new RegExp(PARA_TOKEN, 'g'), '');
-    const cleanTypedText = stripHtml(storedTypedText).replace(new RegExp(PARA_TOKEN, 'g'), '');
+    const cleanTestText = stripHtml(testContent.text).replace(/\[\[PARA\]\]/g, '');
+    const cleanTypedText = stripHtml(storedTypedText).replace(/\[\[PARA\]\]/g, '');
 
     if (testContent.type === 'typing') {
       metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, backspaces);

@@ -13,7 +13,7 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
   // Use clean versions if provided, otherwise strip HTML
   // This optimizes performance when clean versions are already available from DB
   const plainOriginalText = originalTextClean ?? stripHtml(originalText);
-  const cleanTypedText = typedTextClean ?? stripHtml(typedText).replace(new RegExp(PARA_TOKEN, 'g'), '');
+  const cleanTypedText = typedTextClean ?? stripHtml(typedText).replace(/\[\[PARA\]\]/g, '');
   
   // Use appropriate alignment based on content type
   // For typing tests: use windowed alignment that limits search scope

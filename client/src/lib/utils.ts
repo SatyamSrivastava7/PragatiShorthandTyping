@@ -1081,7 +1081,7 @@ export const generateResultPDF = async (result: Result) => {
     // DP alignment with trailing error fix for typing tests
     // Use clean text directly from DB (no need to re-strip HTML)
     const plainOriginalText = result.originalTextClean ?? stripHtml(result.originalText || '');
-    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(new RegExp(PARA_TOKEN, 'g'), '');
+    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(/\[\[PARA\]\]/g, '');
     displayAlignment = getTypingAlignment(plainOriginalText, cleanTypedText);
     trailingWords = displayAlignment
       .filter(item => item.status === "trailing")
@@ -1090,7 +1090,7 @@ export const generateResultPDF = async (result: Result) => {
     // DP alignment for shorthand
     // Use clean text directly from DB (no need to re-strip HTML)
     const plainOriginalText = result.originalTextClean ?? stripHtml(result.originalText || '');
-    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(new RegExp(PARA_TOKEN, 'g'), '');
+    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(/\[\[PARA\]\]/g, '');
     const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, cleanTypedText);
     displayAlignment = attemptedAlignment;
     shorthandRecalcMistakes = recalcMistakes;
