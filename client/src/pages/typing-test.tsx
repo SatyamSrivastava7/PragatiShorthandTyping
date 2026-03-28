@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
-import { calculateTypingMetrics, calculateShorthandMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN } from "@/lib/utils";
+import { calculateTypingMetrics, calculateShorthandMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -128,11 +128,11 @@ export default function TypingTestPage() {
     let halfMistakes: string | undefined;
 
     // Process typed text based on test type
-    const storedTypedText = testContent.type === 'shorthand' ? typedText : replaceNewlinesWithParaToken(typedText);
+    const storedTypedText = testContent.type === 'typing' ? replaceNewlinesWithParaToken(typedText) : typedText;
     
-    // Strip HTML from test content and PARA_TOKEN from both texts for metrics calculation only
-    const cleanTestText = stripHtmlPreserveParagraphs(testContent.text).replace(new RegExp(PARA_TOKEN, 'g'), '');
-    const cleanTypedText = storedTypedText.replace(new RegExp(PARA_TOKEN, 'g'), '');
+    // Strip HTML and PARA_TOKEN from both texts for metrics calculation (clean text = no HTML, no PARA_TOKENS)
+    const cleanTestText = stripHtml(testContent.text).replace(new RegExp(PARA_TOKEN, 'g'), '');
+    const cleanTypedText = stripHtml(storedTypedText).replace(new RegExp(PARA_TOKEN, 'g'), '');
 
     if (testContent.type === 'typing') {
       metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, backspaces);
@@ -144,6 +144,8 @@ export default function TypingTestPage() {
       halfMistakes = String(metrics.halfMistakes ?? 0);
     } else {
       metrics = calculateShorthandMetrics(cleanTestText, cleanTypedText, testContent.duration);
+      const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
+      result = mistakePercentage > 5 ? 'Fail' : 'Pass';
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;

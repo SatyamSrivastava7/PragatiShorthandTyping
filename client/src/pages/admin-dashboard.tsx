@@ -1726,6 +1726,15 @@ export default function AdminDashboard() {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
+      let title = '';
+
+      if(type === 'shorthand') {
+        title = 'Shorthand Test Results Report';
+      } else if(type === 'typing') {
+        title = 'Typing Test Results Report';
+      } else {
+        title = 'Pitman Test Results Report';
+      }
       
       // Institute Header
       doc.setFontSize(14);
@@ -1743,7 +1752,7 @@ export default function AdminDashboard() {
       // Title
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${type === 'typing' ? 'Typing' : 'Shorthand'} Test Results Report`, pageWidth / 2, 25, { align: 'center' });
+      doc.text(`${title}`, pageWidth / 2, 25, { align: 'center' });
       
       // Summary - left and right on same line
       doc.setFontSize(10);
@@ -3715,6 +3724,8 @@ export default function AdminDashboard() {
                                                 result.originalText || ""
                                               }
                                               typedText={result.typedText}
+                                              originalTextClean={result.originalTextClean || undefined}
+                                              typedTextClean={result.typedTextClean || undefined}
                                               language={
                                                 (result.language as
                                                   | "english"

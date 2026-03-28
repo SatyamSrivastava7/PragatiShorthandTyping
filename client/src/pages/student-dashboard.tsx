@@ -1457,6 +1457,8 @@ export default function StudentDashboard() {
                                         <ResultTextAnalysis
                                           originalText={result.originalText || ""}
                                           typedText={result.typedText}
+                                          originalTextClean={result.originalTextClean || undefined}
+                                          typedTextClean={result.typedTextClean || undefined}
                                           language={(result.language as 'english' | 'hindi') || undefined}
                                           contentType={result.contentType as 'typing' | 'shorthand'}
                                         />

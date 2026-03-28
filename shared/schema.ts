@@ -87,8 +87,15 @@ export const results = pgTable("results", {
   contentId: integer("content_id").references(() => content.id, { onDelete: "set null" }),
   contentTitle: text("content_title").notNull(),
   contentType: varchar("content_type", { length: 20 }).notNull(),
-  typedText: text("typed_text").notNull(),
-  originalText: text("original_text"),
+  
+  // Original content - with and without HTML
+  originalText: text("original_text"), // With HTML - for rendering/PDF
+  originalTextClean: text("original_text_clean"), // Without HTML - for metrics calculation
+  
+  // Typed content - with and without HTML/PARA_TOKENs
+  typedText: text("typed_text").notNull(), // With PARA_TOKENs - for rendering
+  typedTextClean: text("typed_text_clean"), // Without HTML or PARA_TOKENs - for metrics calculation
+  
   language: varchar("language", { length: 10 }).default('english'),
   
   // Metrics stored as JSON-like fields

@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import busboy from "busboy";
@@ -16,6 +16,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { stripHtml, removeParaTokens, countWords } from "./htmlStripper";
 
 // Session user type
 declare module "express-session" {
@@ -917,23 +918,49 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Calculate pass/fail result based on 5% mistake rule for all test types
-      // More than 5% mistakes = Fail, 5% or less = Pass
-      const mistakes = parseFloat(req.body.mistakes) || 0;
-      const totalWords = parseFloat(req.body.words) || 0;
-      const mistakePercentage = totalWords > 0 ? (mistakes / totalWords) * 100 : 0;
+      // ===== Store 4 versions for proper metrics & rendering =====
+      // 1. Original text WITH HTML (for rendering/PDF)
+      const originalTextWithHtml = contentItem.text;
+      
+      // 2. Original text WITHOUT HTML (for metrics calculation)
+      const originalTextClean = stripHtml(contentItem.text);
+      
+      // 3. Typed text as sent by client (with PARA_TOKENs for rendering)
+      const typedTextWithPara = req.body.typedText;
+      
+      // 4. Typed text WITHOUT HTML or PARA_TOKENs (for metrics calculation)
+      const typedTextClean = stripHtml(removeParaTokens(req.body.typedText));
+      
+      // Validate metrics using clean text
+      const recalculatedWords = countWords(typedTextClean, false);
+      const clientWords = parseFloat(req.body.words) || 0;
+      const clientMistakes = parseFloat(req.body.mistakes) || 0;
+      
+      // Use recalculated words if there's a significant difference (catches HTML stripping issues)
+      const wordsToUse = recalculatedWords > 0 && recalculatedWords !== clientWords ? recalculatedWords : clientWords;
+      const mistakesToUse = clientMistakes;
+      
+      // Calculate pass/fail based on 5% mistake rule using validated metrics
+      const mistakePercentage = wordsToUse > 0 ? (mistakesToUse / wordsToUse) * 100 : 0;
       const calculatedResult = mistakePercentage > 5 ? 'Fail' : 'Pass';
       
-      // Build complete result data
+      // Build complete result data with all 4 text versions
       const resultData = {
         ...req.body,
         studentId: user.id,
-        studentDisplayId: user.studentId, // PIPS format ID for display
+        studentDisplayId: user.studentId,
         studentName: user.name,
         contentTitle: contentItem.title,
         contentType: contentItem.type,
-        originalText: contentItem.text,
+        // Store all 4 versions
+        originalText: originalTextWithHtml,
+        originalTextClean: originalTextClean,
+        typedText: typedTextWithPara,
+        typedTextClean: typedTextClean,
         language: contentItem.language || 'english',
+        // Use validated metrics
+        words: wordsToUse,
+        mistakes: String(mistakesToUse),
         result: calculatedResult,
       };
       
@@ -944,6 +971,7 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
+      console.error("Result creation error:", error);
       res.status(500).json({ message: "Failed to create result" });
     }
   });

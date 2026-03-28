@@ -71,6 +71,12 @@ export function stripHtml(html: string): string {
   return s;
 }
 
+// Remove PARA_TOKENs from text
+export function removeParaTokens(text: string): string {
+  if (!text) return '';
+  return text.replace(new RegExp(PARA_TOKEN, 'g'), ' ').replace(/\s+/g, ' ').trim();
+}
+
 // Special characters that can split words (user types them as spaces)
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 
@@ -1073,17 +1079,19 @@ export const generateResultPDF = async (result: Result) => {
 
   if (result.contentType === "typing") {
     // DP alignment with trailing error fix for typing tests
-    // Strip HTML tags from original text (plain text)
-    const plainOriginalText = stripHtml(result.originalText || '');
-    displayAlignment = getTypingAlignment(plainOriginalText, result.typedText);
+    // Use clean text directly from DB (no need to re-strip HTML)
+    const plainOriginalText = result.originalTextClean ?? stripHtml(result.originalText || '');
+    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(new RegExp(PARA_TOKEN, 'g'), '');
+    displayAlignment = getTypingAlignment(plainOriginalText, cleanTypedText);
     trailingWords = displayAlignment
       .filter(item => item.status === "trailing")
       .map(item => item.original);
   } else {
     // DP alignment for shorthand
-    // Strip HTML tags from original text for alignment (no paragraph preservation for shorthand)
-    const plainOriginalText = stripHtml(result.originalText || '');
-    const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, result.typedText);
+    // Use clean text directly from DB (no need to re-strip HTML)
+    const plainOriginalText = result.originalTextClean ?? stripHtml(result.originalText || '');
+    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(new RegExp(PARA_TOKEN, 'g'), '');
+    const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, cleanTypedText);
     displayAlignment = attemptedAlignment;
     shorthandRecalcMistakes = recalcMistakes;
     shorthandRecalcTrailing = recalcTrailing;

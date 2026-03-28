@@ -1,24 +1,28 @@
-import { cn, getTypingAlignment, calculateAlignedMistakes, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtmlEntities, stripHtml, type AlignmentEntry } from "@/lib/utils";
+import { cn, getTypingAlignment, calculateAlignedMistakes, PARA_TOKEN, stripHtmlEntities, stripHtml, type AlignmentEntry } from "@/lib/utils";
 
 interface ResultTextAnalysisProps {
   originalText: string;
   typedText: string;
+  originalTextClean?: string; // Optional: if provided, use instead of stripping
+  typedTextClean?: string; // Optional: if provided, use instead of stripping
   language?: 'english' | 'hindi';
   contentType?: 'typing' | 'shorthand';
 }
 
-export function ResultTextAnalysis({ originalText, typedText, language, contentType = 'typing' }: ResultTextAnalysisProps) {
-  // Strip HTML tags from originalText for alignment calculations (plain text for both types)
-  const plainOriginalText = stripHtml(originalText);
+export function ResultTextAnalysis({ originalText, typedText, originalTextClean, typedTextClean, language, contentType = 'typing' }: ResultTextAnalysisProps) {
+  // Use clean versions if provided, otherwise strip HTML
+  // This optimizes performance when clean versions are already available from DB
+  const plainOriginalText = originalTextClean ?? stripHtml(originalText);
+  const cleanTypedText = typedTextClean ?? stripHtml(typedText).replace(new RegExp(PARA_TOKEN, 'g'), '');
   
   // Use appropriate alignment based on content type
   // For typing tests: use windowed alignment that limits search scope
   // For shorthand tests: use full DP alignment
   let alignment;
   if (contentType === 'typing') {
-    alignment = getTypingAlignment(plainOriginalText, typedText);
+    alignment = getTypingAlignment(plainOriginalText, cleanTypedText);
   } else {
-    const { attemptedAlignment, alignment: fullAlignment } = calculateAlignedMistakes(plainOriginalText, typedText);
+    const { attemptedAlignment, alignment: fullAlignment } = calculateAlignedMistakes(plainOriginalText, cleanTypedText);
 
     // Include trailing (left) words after the attempted alignment so shorthand analysis
     // shows both the attempted portion and the left words that were not attempted.
