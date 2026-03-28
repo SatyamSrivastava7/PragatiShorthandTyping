@@ -15,15 +15,21 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
   const plainOriginalText = originalTextClean ?? stripHtml(originalText);
   const cleanTypedText = typedTextClean ?? stripHtml(typedText).replace(/\[\[PARA\]\]/g, '');
   
-  // Use appropriate alignment based on content type
+  // Use appropriate alignment based on content type with same logic as PDF generation
   // For typing tests: use windowed alignment that limits search scope
-  // For shorthand tests: use full DP alignment
+  // For shorthand tests: use full DP alignment and calculate mistakes same way as PDF
   let alignment;
+  let calculatedMistakes = 0;
+  let calculatedTrailingWords = 0;
+  
   if (contentType === 'typing') {
     alignment = getTypingAlignment(plainOriginalText, cleanTypedText);
+    // For typing: count mistakes from alignment
+    calculatedMistakes = alignment.filter(a => a.status !== 'match' && a.status !== 'trailing').length;
   } else {
-    const { attemptedAlignment, alignment: fullAlignment } = calculateAlignedMistakes(plainOriginalText, cleanTypedText);
-
+    // For shorthand: use same calculation as PDF generation
+    const { mistakes: recalcMistakes, attemptedAlignment, alignment: fullAlignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, cleanTypedText);
+    
     // Include trailing (left) words after the attempted alignment so shorthand analysis
     // shows both the attempted portion and the left words that were not attempted.
     const trailingItems = fullAlignment.filter((item) => {
@@ -34,6 +40,10 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
     });
 
     alignment = [...attemptedAlignment, ...trailingItems];
+    
+    // Calculate total mistakes same way as PDF: mistakes + trailing words
+    calculatedMistakes = recalcMistakes + recalcTrailing;
+    calculatedTrailingWords = recalcTrailing;
   }
 
   // helper class to add spacing between words

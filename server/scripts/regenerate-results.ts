@@ -647,98 +647,105 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 }
 
 async function regenerateResults() {
-  const onlyShorthand = process.argv.includes("--shorthand");
-  const limitCount = onlyShorthand ? 150 : 500;
-
-  console.log(
-    `Fetching latest ${limitCount} results` +
-      (onlyShorthand ? " (shorthand only)" : "") +
-      "..."
-  );
+  console.log("Regenerating results using latest logic for latest 50 of each test type...\n");
   
-  let latestResults;
-  if (onlyShorthand) {
-    latestResults = await db
-      .select()
-      .from(results)
-      .where(eq(results.contentType, "shorthand"))
-      .orderBy(desc(results.id))
-      .limit(limitCount);
-  } else {
-    latestResults = await db
-      .select()
-      .from(results)
-      .orderBy(desc(results.id))
-      .limit(limitCount);
-  }
+  const testTypes = ["typing", "shorthand", "pitman"];
+  let totalUpdated = 0;
+  let totalSkipped = 0;
 
-  console.log(`Found ${latestResults.length} results to process.`);
-
-  let updated = 0;
-  let skipped = 0;
-
-  for (const result of latestResults) {
-    if (!result.originalText) {
-      console.log(`Skipping result ${result.id} - no original text stored`);
-      skipped++;
-      continue;
-    }
-
-    const timeInMinutes = result.time;
+  for (const testType of testTypes) {
+    console.log(`\n=== Processing ${testType} tests ===`);
     
-    try {
-      if (result.contentType === "typing") {
-        const metrics = calculateTypingMetrics(
-          result.originalText,
-          result.typedText,
-          timeInMinutes,
-          result.backspaces || 0
-        );
+    // Get latest 50 results of this type (ordered by submitted_at DESC = latest first)
+    const testResults = await db
+      .select()
+      .from(results)
+      .where(eq(results.contentType, testType))
+      .orderBy(desc(results.submittedAt))
+      .limit(50);
 
-        await db
-          .update(results)
-          .set({
-            words: metrics.words,
-            mistakes: String(metrics.mistakes),
-            halfMistakes: String(metrics.halfMistakes),
-            grossSpeed: String(metrics.grossSpeed),
-            netSpeed: String(metrics.netSpeed),
-          })
-          .where(eq(results.id, result.id));
+    console.log(`Found ${testResults.length} ${testType} results to process.`);
 
-        console.log(`Updated typing result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.netSpeed} WPM`);
-        updated++;
-      } else if (result.contentType === "shorthand") {
-        const metrics = calculateShorthandMetrics(
-          result.originalText,
-          result.typedText,
-          timeInMinutes
-        );
+    let updated = 0;
+    let skipped = 0;
 
-        await db
-          .update(results)
-          .set({
-            words: metrics.words,
-            mistakes: String(metrics.mistakes),
-            halfMistakes: String(metrics.halfMistakes),
-            result: metrics.result,
-          })
-          .where(eq(results.id, result.id));
+    for (const result of testResults) {
+      // Use clean text if available, otherwise strip HTML
+      const originalTextForMetrics = result.originalTextClean || stripHtml(result.originalText || '');
+      const typedTextForMetrics = result.typedTextClean || 
+        stripHtml((result.typedText || '').replace(/\[\[PARA\]\]/g, ''));
 
-        console.log(`Updated shorthand result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.result}`);
-        updated++;
-      } else {
-        console.log(`Skipping result ${result.id} - unknown type: ${result.contentType}`);
+      if (!originalTextForMetrics || !typedTextForMetrics) {
+        console.log(`Skipping result ${result.id} - missing text data`);
+        skipped++;
+        continue;
+      }
+
+      const timeInMinutes = result.time;
+      
+      try {
+        if (testType === "typing" || testType === "pitman") {
+          // Both typing and pitman use same metrics calculation
+          const metrics = calculateTypingMetrics(
+            originalTextForMetrics,
+            typedTextForMetrics,
+            timeInMinutes,
+            result.backspaces || 0
+          );
+
+          // For pass/fail: use 5% mistake rule
+          const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
+          const resultStatus = mistakePercentage > 5 ? 'Fail' : 'Pass';
+
+          await db
+            .update(results)
+            .set({
+              words: metrics.words,
+              mistakes: String(metrics.mistakes),
+              halfMistakes: String(metrics.halfMistakes),
+              grossSpeed: String(metrics.grossSpeed),
+              netSpeed: String(metrics.netSpeed),
+              result: resultStatus,
+            })
+            .where(eq(results.id, result.id));
+
+          console.log(`  Result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.netSpeed} WPM, ${resultStatus}`);
+          updated++;
+        } else if (testType === "shorthand") {
+          const metrics = calculateShorthandMetrics(
+            originalTextForMetrics,
+            typedTextForMetrics,
+            timeInMinutes
+          );
+
+          await db
+            .update(results)
+            .set({
+              words: metrics.words,
+              mistakes: String(metrics.mistakes),
+              halfMistakes: String(metrics.halfMistakes),
+              result: metrics.result,
+            })
+            .where(eq(results.id, result.id));
+
+          console.log(`  Result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.result}`);
+          updated++;
+        }
+      } catch (error) {
+        console.error(`  Error processing result ${result.id}:`, error);
         skipped++;
       }
-    } catch (error) {
-      console.error(`Error processing result ${result.id}:`, error);
-      skipped++;
     }
+
+    console.log(`${testType}: Updated ${updated}, Skipped ${skipped}`);
+    totalUpdated += updated;
+    totalSkipped += skipped;
   }
 
-  console.log(`\nDone! Updated: ${updated}, Skipped: ${skipped}` +
-    (onlyShorthand ? " (shorthand-only run)" : ""));
+  console.log(`\n=== Summary ===`);
+  console.log(`Total Updated: ${totalUpdated}`);
+  console.log(`Total Skipped: ${totalSkipped}`);
+  console.log(`Done!`);
   process.exit(0);
 }
 
