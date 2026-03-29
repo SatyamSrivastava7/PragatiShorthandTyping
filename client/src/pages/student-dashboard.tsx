@@ -6,7 +6,7 @@ import {
   useLatestTestFolders,
 } from "@/lib/hooks";
 import { usersApi } from "@/lib/api";
-import { cn, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml } from "@/lib/utils";
+import { cn, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml, calculateDaysLeftForDeactivation } from "@/lib/utils";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
 import {
@@ -40,6 +40,8 @@ import {
   Camera,
   Edit2,
   CheckCircle,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -555,6 +557,38 @@ export default function StudentDashboard() {
               <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
               <p className="text-xs text-blue-100">Results</p>
             </div>
+            {(() => {
+              const { daysLeft, status, message } = calculateDaysLeftForDeactivation(currentUser?.validUntil);
+              if (status === 'no-expiry') return null;
+              
+              const bgColor = status === 'expired' 
+                ? 'bg-red-500/30' 
+                : status === 'expiring-soon' 
+                ? 'bg-yellow-500/30' 
+                : 'bg-blue-500/30';
+              
+              const textColor = status === 'expired' 
+                ? 'text-red-100' 
+                : status === 'expiring-soon' 
+                ? 'text-yellow-100' 
+                : 'text-blue-100';
+
+              const icon = status === 'expired' 
+                ? <AlertTriangle className="h-6 w-6" />
+                : status === 'expiring-soon'
+                ? <AlertCircle className="h-6 w-6" />
+                : <Clock className="h-6 w-6" />;
+
+              return (
+                <div className={`${bgColor} rounded-xl px-5 py-3 text-center min-w-[140px] border border-white/20`}>
+                  <div className="flex items-center justify-center mb-1">
+                    {icon}
+                  </div>
+                  <p className="text-2xl font-bold">{daysLeft ?? 0}</p>
+                  <p className={`text-xs ${textColor}`}>{message}</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

@@ -92,7 +92,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
-import { generateResultPDF, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml } from "@/lib/utils";
+import { generateResultPDF, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml, calculateDaysLeftForDeactivation } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { FolderSelector } from "@/components/FolderSelector";
@@ -2100,6 +2100,7 @@ export default function AdminDashboard() {
                         </TableHead>
                         <TableHead className="font-semibold">Payment</TableHead>
                         <TableHead className="font-semibold">Access</TableHead>
+                        <TableHead className="font-semibold">Days Left</TableHead>
                         <TableHead className="font-semibold text-right">
                           Actions
                         </TableHead>
@@ -2156,6 +2157,21 @@ export default function AdminDashboard() {
                               </span>
                             </div>
                           </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const { daysLeft, status, message } = calculateDaysLeftForDeactivation(student.validUntil);
+                              if (status === 'no-expiry') {
+                                return <span className="text-xs text-gray-400">No expiry</span>;
+                              }
+                              if (status === 'expired') {
+                                return <span className="inline-flex items-center px-2.5 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Expired</span>;
+                              }
+                              if (status === 'expiring-soon') {
+                                return <span className="inline-flex items-center px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">{daysLeft} days</span>;
+                              }
+                              return <span className="inline-flex items-center px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{daysLeft} days</span>;
+                            })()}
+                          </TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="ghost"
@@ -2171,7 +2187,7 @@ export default function AdminDashboard() {
                       {filteredStudents.length === 0 && (
                         <TableRow>
                           <TableCell
-                            colSpan={7}
+                            colSpan={8}
                             className="text-center py-12 text-muted-foreground"
                           >
                             <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />

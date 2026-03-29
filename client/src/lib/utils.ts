@@ -1304,3 +1304,43 @@ export const generateResultPDF = async (result: Result) => {
     }, 500);
   }
 };
+
+/**
+ * Calculate the number of days left until account auto-deactivation
+ * @param validUntil - The date when access expires (Date object or null)
+ * @returns Object with daysLeft (number), status ('active' | 'expiring-soon' | 'expired'), and message (string)
+ */
+export function calculateDaysLeftForDeactivation(validUntil: Date | null | undefined) {
+  if (!validUntil) {
+    return {
+      daysLeft: null,
+      status: 'no-expiry' as const,
+      message: 'No expiry date set'
+    };
+  }
+
+  const now = new Date();
+  const expiryDate = new Date(validUntil);
+  const timeDiff = expiryDate.getTime() - now.getTime();
+  const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+  if (daysLeft < 0) {
+    return {
+      daysLeft: 0,
+      status: 'expired' as const,
+      message: 'Access has expired'
+    };
+  } else if (daysLeft <= 5) {
+    return {
+      daysLeft,
+      status: 'expiring-soon' as const,
+      message: `Access expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`
+    };
+  } else {
+    return {
+      daysLeft,
+      status: 'active' as const,
+      message: `Access expires in ${daysLeft} days`
+    };
+  }
+}
