@@ -368,7 +368,8 @@ export default function TypingTestPage() {
     const textarea = e.currentTarget;
     const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
     
-    // Block any modifier combinations (Ctrl, Alt, Cmd) - for all test types
+    // Block Ctrl+C, Ctrl+V (copy/paste), Ctrl+X (cut), Alt, Cmd combinations
+    // But ALLOW Shift combinations (needed for Hindi IME and special characters like !, @, etc.)
     if (hasModifier) {
       e.preventDefault();
       return;
@@ -387,12 +388,27 @@ export default function TypingTestPage() {
     
     // Typing test specific restrictions
     if (testContent?.type === 'typing') {
-      // Only allow: Shift, Enter, Space, and regular characters (letters, numbers, punctuation)
-      const allowedKeys = ['Shift', 'Enter', ' ', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowDown'];
+      // Allow keys needed for IME input (Hindi, Chinese, Japanese, etc.) and regular typing
+      // Block only keys that would disrupt the typing flow
+      const blockList = ['Tab', 'Home', 'End', 'PageUp', 'PageDown', 'Escape'];
+      
+      // Allow Shift+any key for IME support (common in Hindi input methods)
+      // Allow Ctrl+C, Ctrl+V for copy/paste
+      // Allow all single character keys (letters, numbers, punctuation)
+      // Allow navigation and editing keys
+      const allowedKeys = ['Shift', 'Control', 'Alt', 'Meta', 'Enter', ' ', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowDown'];
       const isRegularCharacter = e.key.length === 1; // Single character key (letters, numbers, punctuation)
       
-      // Block all keys except the allowed ones and regular characters
-      if (!allowedKeys.includes(e.key) && !isRegularCharacter) {
+      // Block only specific keys that would navigate away
+      if (blockList.includes(e.key)) {
+        e.preventDefault();
+        return;
+      }
+      
+      // Allow all modifier keys and regular characters for IME support
+      // Don't block key combinations like Shift+number or Ctrl+key
+      if (!allowedKeys.includes(e.key) && !isRegularCharacter && !e.ctrlKey && !e.metaKey) {
+        // Only block non-allowed special keys (not modifiers or characters)
         e.preventDefault();
         return;
       }
