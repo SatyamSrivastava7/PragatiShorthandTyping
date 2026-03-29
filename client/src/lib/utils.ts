@@ -1079,19 +1079,23 @@ export const generateResultPDF = async (result: Result) => {
 
   if (result.contentType === "typing") {
     // DP alignment with trailing error fix for typing tests
-    // Use clean text directly from DB (no need to re-strip HTML)
-    const plainOriginalText = result.originalTextClean ?? stripHtml(result.originalText || '');
-    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(/\[\[PARA\]\]/g, '');
-    displayAlignment = getTypingAlignment(plainOriginalText, cleanTypedText);
+    // For alignment calculation: strip HTML but keep PARA_TOKEN to align at word level
+    // Display will use original text with HTML formatting preserved
+    const alignmentOriginalText = stripHtml(result.originalText || '');
+    const alignmentTypedText = stripHtml(result.typedText || '');
+    
+    displayAlignment = getTypingAlignment(alignmentOriginalText, alignmentTypedText);
     trailingWords = displayAlignment
       .filter(item => item.status === "trailing")
       .map(item => item.original);
   } else {
     // DP alignment for shorthand
-    // Use clean text directly from DB (no need to re-strip HTML)
-    const plainOriginalText = result.originalTextClean ?? stripHtml(result.originalText || '');
-    const cleanTypedText = result.typedTextClean ?? stripHtml(result.typedText || '').replace(/\[\[PARA\]\]/g, '');
-    const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, cleanTypedText);
+    // For alignment calculation: strip HTML but keep PARA_TOKEN to align at word level
+    // Display will use original text with HTML formatting preserved
+    const alignmentOriginalText = stripHtml(result.originalText || '');
+    const alignmentTypedText = stripHtml(result.typedText || '');
+    
+    const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(alignmentOriginalText, alignmentTypedText);
     displayAlignment = attemptedAlignment;
     shorthandRecalcMistakes = recalcMistakes;
     shorthandRecalcTrailing = recalcTrailing;
@@ -1161,7 +1165,11 @@ export const generateResultPDF = async (result: Result) => {
     } else if (item.status === "extra") {
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
     } else {
-      typedHtml += `<span>${stripHtmlEntities(item.typed)}</span> `;
+      // Safeguard: ensure PARA_TOKEN never appears as literal text in output
+      const displayText = item.typed === PARA_TOKEN ? '' : stripHtmlEntities(item.typed);
+      if (displayText) {
+        typedHtml += `<span>${displayText}</span> `;
+      }
     }
   }
   typedHtml += `</p>`;

@@ -10,10 +10,10 @@ interface ResultTextAnalysisProps {
 }
 
 export function ResultTextAnalysis({ originalText, typedText, originalTextClean, typedTextClean, language, contentType = 'typing' }: ResultTextAnalysisProps) {
-  // Use clean versions if provided, otherwise strip HTML
-  // This optimizes performance when clean versions are already available from DB
-  const plainOriginalText = originalTextClean ?? stripHtml(originalText);
-  const cleanTypedText = typedTextClean ?? stripHtml(typedText).replace(/\[\[PARA\]\]/g, '');
+  // For alignment calculation: strip HTML but keep PARA_TOKEN to properly align at word level
+  // Display will show original text with HTML formatting (bold, italic, underline, etc.) preserved
+  const alignmentOriginalText = stripHtml(originalText);
+  const alignmentTypedText = stripHtml(typedText);
   
   // Use appropriate alignment based on content type with same logic as PDF generation
   // For typing tests: use windowed alignment that limits search scope
@@ -23,12 +23,12 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
   let calculatedTrailingWords = 0;
   
   if (contentType === 'typing') {
-    alignment = getTypingAlignment(plainOriginalText, cleanTypedText);
+    alignment = getTypingAlignment(alignmentOriginalText, alignmentTypedText);
     // For typing: count mistakes from alignment
     calculatedMistakes = alignment.filter(a => a.status !== 'match' && a.status !== 'trailing').length;
   } else {
     // For shorthand: use same calculation as PDF generation
-    const { mistakes: recalcMistakes, attemptedAlignment, alignment: fullAlignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(plainOriginalText, cleanTypedText);
+    const { mistakes: recalcMistakes, attemptedAlignment, alignment: fullAlignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(alignmentOriginalText, alignmentTypedText);
     
     // Include trailing (left) words after the attempted alignment so shorthand analysis
     // shows both the attempted portion and the left words that were not attempted.
@@ -129,7 +129,10 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
           );
         }
         
-        // Match - show normally
+        // Match - show normally, but safeguard against literal PARA_TOKEN display
+        if (item.typed === PARA_TOKEN || item.original === PARA_TOKEN) {
+          return <div key={i} className="w-full my-2" />;
+        }
         return <span key={i} className={wordWrapperClass}>{stripHtmlEntities(item.typed)}</span>;
       })}
     </div>

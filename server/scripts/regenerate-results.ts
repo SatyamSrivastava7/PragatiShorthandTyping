@@ -62,6 +62,11 @@ function normalizeForComparison(text: string): string {
     .toLowerCase();
 }
 
+function removeParaTokens(text: string): string {
+  if (!text) return '';
+  return text.replace(/\[\[PARA\]\]/g, '');
+}
+
 type AlignmentStatus = "match" | "substitution" | "missing" | "extra" | "trailing";
 
 interface AlignmentEntry {
@@ -647,7 +652,7 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 }
 
 async function regenerateResults() {
-  console.log("Regenerating results using latest logic for latest 50 of each test type...\n");
+  console.log("Regenerating results: updating metrics, HTML resolution, and PARA tokens for latest 50 of each test type...\n");
   
   const testTypes = ["typing", "shorthand", "pitman"];
   let totalUpdated = 0;
@@ -670,10 +675,18 @@ async function regenerateResults() {
     let skipped = 0;
 
     for (const result of testResults) {
-      // Use clean text if available, otherwise strip HTML
-      const originalTextForMetrics = result.originalTextClean || stripHtml(result.originalText || '');
-      const typedTextForMetrics = result.typedTextClean || 
-        stripHtml((result.typedText || '').replace(/\[\[PARA\]\]/g, ''));
+      // Database stores text in 4 forms:
+      // 1. originalText/typedText: AS-IS with HTML formatting and PARA_TOKEN (for display)
+      // 2. originalTextClean/typedTextClean: no HTML, no PARA_TOKEN (for metrics calculation)
+      
+      // For alignment in display: stripHtml removes HTML but keeps PARA_TOKEN to align at word level
+      // For metrics: removeParaTokens removes both HTML and PARA_TOKEN to get pure text
+      const regeneratedOriginalClean = removeParaTokens(stripHtml(result.originalText || ''));
+      const regeneratedTypedClean = removeParaTokens(stripHtml(result.typedText || ''));
+
+      // Use regenerated clean text for metrics calculation
+      const originalTextForMetrics = regeneratedOriginalClean;
+      const typedTextForMetrics = regeneratedTypedClean;
 
       if (!originalTextForMetrics || !typedTextForMetrics) {
         console.log(`Skipping result ${result.id} - missing text data`);
@@ -700,6 +713,8 @@ async function regenerateResults() {
           await db
             .update(results)
             .set({
+              originalTextClean: regeneratedOriginalClean,
+              typedTextClean: regeneratedTypedClean,
               words: metrics.words,
               mistakes: String(metrics.mistakes),
               halfMistakes: String(metrics.halfMistakes),
@@ -721,6 +736,8 @@ async function regenerateResults() {
           await db
             .update(results)
             .set({
+              originalTextClean: regeneratedOriginalClean,
+              typedTextClean: regeneratedTypedClean,
               words: metrics.words,
               mistakes: String(metrics.mistakes),
               halfMistakes: String(metrics.halfMistakes),
