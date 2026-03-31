@@ -490,122 +490,127 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Enhanced Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
-        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,black)]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <Avatar className="w-16 h-16 border-2 border-white/30 shadow-lg">
-                {currentUser?.profilePicture ? (
-                  <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
-                ) : null}
-                <AvatarFallback className="bg-white/20 text-white text-xl font-bold">
-                  {currentUser?.name?.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <button
-                onClick={() => profilePicInputRef.current?.click()}
-                className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                disabled={isUploadingProfilePic}
-                data-testid="button-upload-profile-pic"
-              >
-                {isUploadingProfilePic ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-              </button>
-              <input
-                ref={profilePicInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleProfilePicUpload}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm">Welcome, {currentUser?.name}!</h1>
-                <Dialog open={showEditNameDialog} onOpenChange={setShowEditNameDialog}>
-                  <DialogTrigger asChild>
-                    <button className="p-1.5 hover:bg-white/20 rounded-lg transition-colors" title="Edit name">
-                      <Edit2 className="h-5 w-5" />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[400px]">
-                    <DialogHeader>
-                      <DialogTitle>Edit Your Name</DialogTitle>
-                      <DialogDescription>
-                        Update your name as it appears on your profile.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <Input
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="text-base"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleSaveName();
-                          }
-                        }}
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowEditNameDialog(false);
-                          setEditedName(currentUser?.name || "");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleSaveName}
-                        disabled={updateNameMutation.isPending}
-                        className="gap-2"
-                      >
-                        {updateNameMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Save
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,black)]" />
+        <div className="relative space-y-6">
+          {/* Top Section: Avatar & Name */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-5">
+              <div className="relative group">
+                <Avatar className="w-20 h-20 border-3 border-white/40 shadow-lg bg-white/20">
+                  {currentUser?.profilePicture ? (
+                    <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
+                  ) : null}
+                  <AvatarFallback className="bg-white/30 text-white text-2xl font-bold">
+                    {currentUser?.name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  onClick={() => profilePicInputRef.current?.click()}
+                  className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  disabled={isUploadingProfilePic}
+                  data-testid="button-upload-profile-pic"
+                >
+                  {isUploadingProfilePic ? <Loader2 className="h-6 w-6 animate-spin" /> : <Camera className="h-6 w-6" />}
+                </button>
+                <input
+                  ref={profilePicInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfilePicUpload}
+                />
               </div>
-              <p className="text-blue-100 flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">ID: {currentUser?.studentId}</span>
-                Student Dashboard
-              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-4xl font-bold tracking-tight">Welcome, {currentUser?.name}!</h1>
+                  <Dialog open={showEditNameDialog} onOpenChange={setShowEditNameDialog}>
+                    <DialogTrigger asChild>
+                      <button className="p-2 hover:bg-white/20 rounded-lg transition-colors" title="Edit name">
+                        <Edit2 className="h-5 w-5" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[400px]">
+                      <DialogHeader>
+                        <DialogTitle>Edit Your Name</DialogTitle>
+                        <DialogDescription>
+                          Update your name as it appears on your profile.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Input
+                          value={editedName}
+                          onChange={(e) => setEditedName(e.target.value)}
+                          placeholder="Enter your name"
+                          className="text-base"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveName();
+                            }
+                          }}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowEditNameDialog(false);
+                            setEditedName(currentUser?.name || "");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleSaveName}
+                          disabled={updateNameMutation.isPending}
+                          className="gap-2"
+                        >
+                          {updateNameMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <p className="text-blue-100 text-sm flex items-center gap-2">
+                  <span className="px-3 py-1 bg-white/25 backdrop-blur-sm rounded-full text-xs font-semibold">ID: {currentUser?.studentId}</span>
+                  Student Dashboard
+                </p>
+              </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" /> : (countsQuery.data?.typing ?? 0)}</p>
-              <p className="text-xs text-blue-100">Typing Tests</p>
+
+          {/* Stats Section */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
+              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-200" /> : (countsQuery.data?.typing ?? 0)}</p>
+              <p className="text-xs text-blue-100 font-medium">Typing Tests</p>
             </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-500" /> : (countsQuery.data?.shorthand ?? 0)}</p>
-              <p className="text-xs text-blue-100">Shorthand</p>
+            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
+              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-200" /> : (countsQuery.data?.shorthand ?? 0)}</p>
+              <p className="text-xs text-blue-100 font-medium">Shorthand</p>
             </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.pitman ?? 0)}</p>
-              <p className="text-xs text-blue-100">Pitman Exercise</p>
+            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
+              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-200" /> : (countsQuery.data?.pitman ?? 0)}</p>
+              <p className="text-xs text-blue-100 font-medium">Pitman</p>
             </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-violet-500" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
-              <p className="text-xs text-blue-100">Allahabad HC</p>
+            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
+              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-violet-200" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
+              <p className="text-xs text-blue-100 font-medium">Allahabad HC</p>
             </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
-              <p className="text-xs text-blue-100">Results</p>
+            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
+              <p className="text-3xl font-bold mb-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
+              <p className="text-xs text-blue-100 font-medium">Results</p>
             </div>
             {(() => {
               const { daysLeft, status, message } = calculateDaysLeftForDeactivation(currentUser?.validUntil);
               if (status === 'no-expiry') return null;
               
               const bgColor = status === 'expired' 
-                ? 'bg-red-500/30' 
+                ? 'bg-red-500/40 border-red-300/40' 
                 : status === 'expiring-soon' 
-                ? 'bg-yellow-500/30' 
-                : 'bg-blue-500/30';
+                ? 'bg-yellow-500/40 border-yellow-300/40' 
+                : 'bg-white/15 border-white/20';
               
               const textColor = status === 'expired' 
                 ? 'text-red-100' 
@@ -614,18 +619,18 @@ export default function StudentDashboard() {
                 : 'text-blue-100';
 
               const icon = status === 'expired' 
-                ? <AlertTriangle className="h-6 w-6" />
+                ? <AlertTriangle className="h-5 w-5" />
                 : status === 'expiring-soon'
-                ? <AlertCircle className="h-6 w-6" />
-                : <Clock className="h-6 w-6" />;
+                ? <AlertCircle className="h-5 w-5" />
+                : <Clock className="h-5 w-5" />;
 
               return (
-                <div className={`${bgColor} rounded-xl px-5 py-3 text-center min-w-[140px] border border-white/20`}>
+                <div className={`${bgColor} backdrop-blur-md rounded-xl px-4 py-3 text-center border`}>
                   <div className="flex items-center justify-center mb-1">
                     {icon}
                   </div>
-                  <p className="text-2xl font-bold">{daysLeft ?? 0}</p>
-                  <p className={`text-xs ${textColor}`}>{message}</p>
+                  <p className="text-3xl font-bold mb-1">{daysLeft ?? 0}</p>
+                  <p className={`text-xs ${textColor} font-medium`}>{message}</p>
                 </div>
               );
             })()}
@@ -634,40 +639,40 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+        <TabsList className="grid w-full grid-cols-6 mb-8 bg-gradient-to-r from-slate-100 to-slate-50 shadow-md border border-slate-200 p-2 rounded-xl h-auto gap-2">
           <TabsTrigger
             value="typing_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <Keyboard className="h-4 w-4" /> Typing Tests
           </TabsTrigger>
           <TabsTrigger
             value="shorthand_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <Mic className="h-4 w-4" /> Shorthand
           </TabsTrigger>
           <TabsTrigger
             value="pitman_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <BookOpen className="h-4 w-4" /> Pitman Exercise
           </TabsTrigger>
           <TabsTrigger
             value="allahabad-hc_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <Keyboard className="h-4 w-4" /> Allahabad HC
           </TabsTrigger>
           <TabsTrigger
             value="results"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <BarChart className="h-4 w-4" /> My Results
           </TabsTrigger>
           <TabsTrigger
             value="store"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <BookOpen className="h-4 w-4" /> PDF Store
           </TabsTrigger>
@@ -675,23 +680,23 @@ export default function StudentDashboard() {
 
         <TabsContent value="typing_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Keyboard className="h-5 w-5 text-blue-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Keyboard className="h-6 w-6 text-blue-700" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Typing Tests</h3>
-                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
+                  <h3 className="font-bold text-xl text-gray-900">Typing Tests</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search tests..."
                   value={typingSearch}
                   onChange={(e) => setTypingSearch(e.target.value)}
-                  className="pl-10 bg-white shadow-sm"
+                  className="pl-10 bg-white shadow-sm border-gray-300"
                   data-testid="input-search-typing"
                 />
               </div>
@@ -866,23 +871,23 @@ export default function StudentDashboard() {
 
         <TabsContent value="shorthand_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Mic className="h-5 w-5 text-orange-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <Mic className="h-6 w-6 text-orange-700" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Shorthand Tests</h3>
-                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.shorthand ?? 0} tests available`}</p>
+                  <h3 className="font-bold text-xl text-gray-900">Shorthand Tests</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.shorthand ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search tests..."
                   value={shorthandSearch}
                   onChange={(e) => setShorthandSearch(e.target.value)}
-                  className="pl-10 bg-white shadow-sm"
+                  className="pl-10 bg-white shadow-sm border-gray-300"
                   data-testid="input-search-shorthand"
                 />
               </div>
@@ -1101,23 +1106,23 @@ export default function StudentDashboard() {
 
         <TabsContent value="pitman_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <BookOpen className="h-5 w-5 text-red-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-red-100 rounded-lg">
+                  <BookOpen className="h-6 w-6 text-red-700" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Pitman Exercise</h3>
-                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.pitman ?? 0} tests available`}</p>
+                  <h3 className="font-bold text-xl text-gray-900">Pitman Exercise</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.pitman ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search tests..."
                   value={pitmanSearch}
                   onChange={(e) => setPitmanSearch(e.target.value)}
-                  className="pl-10 bg-white shadow-sm"
+                  className="pl-10 bg-white shadow-sm border-gray-300"
                   data-testid="input-search-pitman"
                 />
               </div>
@@ -1307,23 +1312,23 @@ export default function StudentDashboard() {
 
         <TabsContent value="allahabad-hc_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-violet-100 rounded-lg">
-                  <Keyboard className="h-5 w-5 text-violet-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-violet-100 rounded-lg">
+                  <Keyboard className="h-6 w-6 text-violet-700" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Allahabad HC Typing Test</h3>
-                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.['allahabad-hc'] ?? 0} tests available`}</p>
+                  <h3 className="font-bold text-xl text-gray-900">Allahabad HC Tests</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.['allahabad-hc'] ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search tests..."
                   value={allahabadHCSearch}
                   onChange={(e) => setAllahabadHCSearch(e.target.value)}
-                  className="pl-10 bg-white shadow-sm"
+                  className="pl-10 bg-white shadow-sm border-gray-300"
                   data-testid="input-search-allahabad-hc"
                 />
               </div>
@@ -1502,67 +1507,67 @@ export default function StudentDashboard() {
 
         <TabsContent value="results">
           <div className="mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <BarChart className="h-5 w-5 text-green-600" />
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <BarChart className="h-6 w-6 text-green-700" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">My Results</h3>
-                <p className="text-sm text-muted-foreground">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)} total results</p>
+                <h3 className="font-bold text-xl text-gray-900">My Results</h3>
+                <p className="text-sm text-gray-600">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)} total results</p>
               </div>
             </div>
           </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-blue-100">Typing Tests</p>
-                    <p className="text-2xl font-bold mt-1">{typingResultsCount}</p>
+                    <p className="text-sm text-blue-100 font-medium">Typing Tests</p>
+                    <p className="text-3xl font-bold mt-1">{typingResultsCount}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <Keyboard className="h-5 w-5" />
+                    <Keyboard className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-orange-100">Shorthand Tests</p>
-                    <p className="text-2xl font-bold mt-1">{shorthandResultsCount}</p>
+                    <p className="text-sm text-orange-100 font-medium">Shorthand Tests</p>
+                    <p className="text-3xl font-bold mt-1">{shorthandResultsCount}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <Mic className="h-5 w-5" />
+                    <Mic className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md bg-gradient-to-br from-red-500 to-red-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-red-500 to-red-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-red-100">Pitman Tests</p>
-                    <p className="text-2xl font-bold mt-1">{pitmanResultsCount}</p>
+                    <p className="text-sm text-red-100 font-medium">Pitman Tests</p>
+                    <p className="text-3xl font-bold mt-1">{pitmanResultsCount}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <BookOpen className="h-5 w-5" />
+                    <BookOpen className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-green-100">Total Results</p>
-                    <p className="text-2xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
+                    <p className="text-sm text-green-100 font-medium">Total Results</p>
+                    <p className="text-3xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <Award className="h-5 w-5" />
+                    <Award className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
@@ -1800,59 +1805,61 @@ export default function StudentDashboard() {
         </TabsContent>
 
         <TabsContent value="store">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                {currentFolder && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setCurrentFolder(null)}
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                <CardTitle>
-                  {currentFolder
-                    ? pdfFolders.find((f) => f.id === parseInt(currentFolder))?.name
-                    : "PDF Store"}
-                </CardTitle>
+          <div className="mb-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <BookOpen className="h-6 w-6 text-purple-700" />
               </div>
-              <CardDescription>
-                {currentFolder
-                  ? "Browse and purchase study materials."
-                  : "Select a folder to browse PDFs."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              <div>
+                <h3 className="font-bold text-xl text-gray-900">PDF Study Store</h3>
+                <p className="text-sm text-gray-600">Purchase and access study materials</p>
+              </div>
+            </div>
+          </div>
+          
+          <Card className="shadow-lg border-gray-200">
+            <CardContent className="p-6">
               {!currentFolder ? (
                 // Folder View
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {pdfFolders.map((folder) => (
-                    <div
-                      key={folder.id}
-                      onClick={() => setCurrentFolder(folder.id.toString())}
-                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
-                    >
-                      <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
-                      <span className="font-medium text-center">
-                        {folder.name}
-                      </span>
-                    </div>
-                  ))}
-                  {pdfFolders.length === 0 && (
-                    <p className="col-span-full text-center text-muted-foreground">
-                      No folders available.
-                    </p>
-                  )}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-gray-700 mb-4">Select a Category</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {pdfFolders.map((folder) => (
+                      <div
+                        key={folder.id}
+                        onClick={() => setCurrentFolder(folder.id.toString())}
+                        className="cursor-pointer border-2 border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-3 hover:border-purple-400 hover:bg-purple-50 transition-all hover:shadow-md"
+                      >
+                        <Folder className="h-12 w-12 text-purple-500 fill-purple-100" />
+                        <span className="font-semibold text-center text-gray-900 text-sm">
+                          {folder.name}
+                        </span>
+                      </div>
+                    ))}
+                    {pdfFolders.length === 0 && (
+                      <p className="col-span-full text-center text-gray-500">
+                        No folders available.
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 // PDF List View
                 <div className="space-y-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentFolder(null)}
+                    className="mb-4"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Folders
+                  </Button>
+                  
                   {resourcesLoading ? (
                     <div className="flex items-center justify-center p-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                      <span className="ml-3 text-muted-foreground">Loading PDFs...</span>
+                      <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                      <span className="ml-3 text-gray-600">Loading PDFs...</span>
                     </div>
                   ) : (
                     <>
@@ -1866,13 +1873,15 @@ export default function StudentDashboard() {
                           return (
                             <div
                               key={pdf.id}
-                              className="flex items-center justify-between p-4 border rounded-lg"
+                              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white"
                             >
-                              <div className="flex items-center gap-3">
-                                <FileText className="h-8 w-8 text-red-500" />
-                                <div>
-                                  <h4 className="font-medium">{pdf.name}</h4>
-                                  <p className="text-xs text-muted-foreground">
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className="p-3 bg-red-100 rounded-lg">
+                                  <FileText className="h-5 w-5 text-red-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-gray-900">{pdf.name}</h4>
+                                  <p className="text-sm text-gray-600">
                                     {pdf.pageCount} Pages
                                   </p>
                                 </div>
@@ -1881,8 +1890,7 @@ export default function StudentDashboard() {
                               <div>
                                 {isPurchased ? (
                                   <Button
-                                    variant="outline"
-                                    className="text-green-600 border-green-200 bg-green-50"
+                                    className="bg-green-500 hover:bg-green-600 text-white"
                                     onClick={() =>
                                       handleDownloadPdf(pdf.id.toString(), pdf.url)
                                     }
@@ -1891,6 +1899,7 @@ export default function StudentDashboard() {
                                   </Button>
                                 ) : (
                                   <Button
+                                    className="bg-purple-600 hover:bg-purple-700 text-white"
                                     onClick={() =>
                                       initiateBuyPdf(pdf.id.toString(), parseInt(pdf.price))
                                     }
@@ -1901,7 +1910,7 @@ export default function StudentDashboard() {
                                     ) : (
                                       <ShoppingCart className="mr-2 h-4 w-4" />
                                     )}
-                                    Buy for ₹{pdf.price}
+                                    Buy ₹{pdf.price}
                                   </Button>
                                 )}
                               </div>
@@ -1910,7 +1919,7 @@ export default function StudentDashboard() {
                         })}
                       {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
                         .length === 0 && (
-                          <p className="text-center text-muted-foreground">
+                          <p className="text-center text-gray-600 py-8">
                             No PDFs in this folder.
                           </p>
                         )}
