@@ -6,10 +6,28 @@ interface ResultTextAnalysisProps {
   originalTextClean?: string; // Optional: if provided, use instead of stripping
   typedTextClean?: string; // Optional: if provided, use instead of stripping
   language?: 'english' | 'hindi';
-  contentType?: 'typing' | 'shorthand';
+  contentType?: 'typing' | 'shorthand' | 'allahabad-hc';
 }
 
 export function ResultTextAnalysis({ originalText, typedText, originalTextClean, typedTextClean, language, contentType = 'typing' }: ResultTextAnalysisProps) {
+  // For Allahabad-HC tests: show the full formatted typed text with HTML preserved (like original text)
+  // For other tests: use alignment-based analysis
+  if (contentType === 'typing' && typedText && typedText.includes('<')) {
+    // This is Allahabad-HC test (RichTextEditor with HTML formatting)
+    // Display the typed text with full HTML formatting preserved
+    return (
+      <div
+        className={cn(
+          "text-sm",
+          "leading-relaxed",
+          language === 'hindi' ? "font-mangal" : "font-times",
+          "text-justify"
+        )}
+        dangerouslySetInnerHTML={{ __html: typedText }}
+      />
+    );
+  }
+  
   // For alignment calculation: strip HTML but keep PARA_TOKEN to properly align at word level
   // Display will show original text with HTML formatting (bold, italic, underline, etc.) preserved
   const alignmentOriginalText = stripHtml(originalText);

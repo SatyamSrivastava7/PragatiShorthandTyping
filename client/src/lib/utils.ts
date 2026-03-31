@@ -1070,14 +1070,20 @@ export const generateResultPDF = async (result: Result) => {
       ? "font-family: 'Mangal', 'Tiro Devanagari Hindi', 'Mukta', sans-serif;"
       : "font-family: 'Times New Roman', Times, serif;";
 
-  // For typing tests, use sequential alignment (1-to-1 word matching)
+  // For typing and allahabad-hc tests, use sequential alignment
   // For shorthand tests, use DP alignment (global optimization)
   let displayAlignment: AlignmentEntry[];
   let trailingWords: string[] = [];
   let shorthandRecalcMistakes = 0;
   let shorthandRecalcTrailing = 0;
+  let useFullFormattedText = false;
 
-  if (result.contentType === "typing") {
+  if (result.contentType === "typing" || result.contentType === "allahabad-hc") {
+    // For Allahabad-HC with RichTextEditor HTML: display full formatted text
+    if (result.contentType === "allahabad-hc" && result.typedText && result.typedText.includes('<')) {
+      useFullFormattedText = true;
+    }
+    
     // DP alignment with trailing error fix for typing tests
     // For alignment calculation: strip HTML but keep PARA_TOKEN to align at word level
     // Display will use original text with HTML formatting preserved
@@ -1120,60 +1126,69 @@ export const generateResultPDF = async (result: Result) => {
   const paraStyle = 'style="text-align:justify;text-justify:inter-word;margin:0 0 8px 0;"';
   let typedHtml = `<p ${paraStyle}>`;
 
-  // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
-  const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
-    const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
-    
-    if (!isParaToken) {
-      acc.push(item);
+  // For Allahabad-HC with full formatted text, use the HTML directly
+  if (useFullFormattedText) {
+    // Convert PARA_TOKEN to paragraph breaks
+    typedHtml = (result.typedText || '')
+      .split('[[PARA]]')
+      .map(para => `<p ${paraStyle}>${stripHtmlEntities(para)}</p>`)
+      .join('');
+  } else {
+    // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
+    const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
+      const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
+      
+      if (!isParaToken) {
+        acc.push(item);
+        return acc;
+      }
+      
+      // Count consecutive paragraph tokens at the end
+      let consecutiveCount = 0;
+      for (let j = acc.length - 1; j >= 0; j--) {
+        const prevItem = acc[j];
+        if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
+          consecutiveCount++;
+        } else {
+          break;
+        }
+      }
+      
+      // Allow up to 2 consecutive paragraph tokens, collapse 3+
+      if (consecutiveCount < 2) {
+        acc.push(item);
+      }
+      // If we already have 2+ consecutive, skip additional ones
+      
       return acc;
-    }
-    
-    // Count consecutive paragraph tokens at the end
-    let consecutiveCount = 0;
-    for (let j = acc.length - 1; j >= 0; j--) {
-      const prevItem = acc[j];
-      if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
-        consecutiveCount++;
-      } else {
-        break;
-      }
-    }
-    
-    // Allow up to 2 consecutive paragraph tokens, collapse 3+
-    if (consecutiveCount < 2) {
-      acc.push(item);
-    }
-    // If we already have 2+ consecutive, skip additional ones
-    
-    return acc;
-  }, []);
+    }, []);
 
-  for (let i = 0; i < normalizedAlignment.length; i++) {
-    const item = normalizedAlignment[i];
-    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
-      typedHtml += `</p><p ${paraStyle}>`;
-      continue;
-    }
-    
-    if (item.status === "trailing") {
-      continue;
-    } else if (item.status === "missing") {
-      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-    } else if (item.status === "substitution") {
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-    } else if (item.status === "extra") {
-      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
-    } else {
-      // Safeguard: ensure PARA_TOKEN never appears as literal text in output
-      // Preserve HTML formatting in typed text (e.g., <b>, <i>, <u>)
-      const displayText = item.typed === PARA_TOKEN ? '' : stripHtmlEntities(item.typed);
-      if (displayText) {
-        typedHtml += `<span>${displayText}</span> `;
+    for (let i = 0; i < normalizedAlignment.length; i++) {
+      const item = normalizedAlignment[i];
+      if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+        typedHtml += `</p><p ${paraStyle}>`;
+        continue;
+      }
+      
+      if (item.status === "trailing") {
+        continue;
+      } else if (item.status === "missing") {
+        typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
+      } else if (item.status === "substitution") {
+        typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
+      } else if (item.status === "extra") {
+        typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
+      } else {
+        // Safeguard: ensure PARA_TOKEN never appears as literal text in output
+        // Preserve HTML formatting in typed text (e.g., <b>, <i>, <u>)
+        const displayText = item.typed === PARA_TOKEN ? '' : stripHtmlEntities(item.typed);
+        if (displayText) {
+          typedHtml += `<span>${displayText}</span> `;
+        }
       }
     }
+    typedHtml += `</p>`;
   }
-  typedHtml += `</p>`;
 
   // Total original words - plain text word count for both typing and shorthand
   const totalOriginalWords = stripHtml(result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length;

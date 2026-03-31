@@ -1732,7 +1732,7 @@ export default function StudentDashboard() {
                                           </span>
                                         </div>
                                         <div>
-                                          {result.contentType === "typing" ? (
+                                          {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                             <span>
                                               <span className="font-semibold">
                                                 Gross Speed:
@@ -1769,7 +1769,7 @@ export default function StudentDashboard() {
                                           originalTextClean={result.originalTextClean || undefined}
                                           typedTextClean={result.typedTextClean || undefined}
                                           language={(result.language as 'english' | 'hindi') || undefined}
-                                          contentType={result.contentType as 'typing' | 'shorthand'}
+                                          contentType={result.contentType as 'typing' | 'shorthand' | 'allahabad-hc'}
                                         />
                                       </div>
 

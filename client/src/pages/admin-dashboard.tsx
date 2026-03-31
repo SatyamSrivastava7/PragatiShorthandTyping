@@ -3739,7 +3739,7 @@ export default function AdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="text-sm space-y-1">
-                                      {result.contentType === "typing" ? (
+                                      {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                         <>
                                           <div className="flex items-center gap-2">
                                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
@@ -3838,8 +3838,7 @@ export default function AdminDashboard() {
                                               </span>
                                             </div>
                                             <div>
-                                              {result.contentType ===
-                                                "typing" ? (
+                                              {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                                 <span>
                                                   <span className="font-semibold">
                                                     Gross Speed:
@@ -3881,7 +3880,7 @@ export default function AdminDashboard() {
                                                   | "english"
                                                   | "hindi") || "english"
                                               }
-                                              contentType={result.contentType as 'typing' | 'shorthand'}
+                                              contentType={result.contentType as 'typing' | 'shorthand' | 'allahabad-hc'}
                                             />
                                           </div>
 
