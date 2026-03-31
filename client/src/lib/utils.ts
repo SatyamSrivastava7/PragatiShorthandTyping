@@ -1128,8 +1128,60 @@ export const generateResultPDF = async (result: Result) => {
 
   // For Allahabad-HC with full formatted text, reconstruct HTML with error highlighting preserved
   if (useFullFormattedText) {
-    // Split typedText by PARA_TOKEN first to process paragraphs separately
-    const paragraphs = result.typedText.split('[[PARA]]');
+    // First, build a mapping of stripped text to HTML chunks from typedText
+    // This allows us to find the original HTML for each matched word
+    const htmlTextMap = new Map<string, string[]>();
+    
+    // Extract words with their HTML formatting from result.typedText
+    // Split by word boundaries while preserving HTML tags
+    let currentHtmlChunk = '';
+    let currentStrippedWord = '';
+    let i = 0;
+    const typedTextStr = result.typedText || '';
+    
+    while (i < typedTextStr.length) {
+      const char = typedTextStr[i];
+      
+      // Check for HTML tag
+      if (char === '<') {
+        const tagEnd = typedTextStr.indexOf('>', i);
+        if (tagEnd !== -1) {
+          // Add entire tag to HTML chunk
+          currentHtmlChunk += typedTextStr.substring(i, tagEnd + 1);
+          i = tagEnd + 1;
+          continue;
+        }
+      }
+      
+      // Check for whitespace (word boundary)
+      if (/\s/.test(char)) {
+        if (currentStrippedWord.trim()) {
+          const key = currentStrippedWord.trim().toLowerCase();
+          if (!htmlTextMap.has(key)) {
+            htmlTextMap.set(key, []);
+          }
+          htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
+        }
+        currentHtmlChunk = '';
+        currentStrippedWord = '';
+        i++;
+        continue;
+      }
+      
+      // Regular character - add to both
+      currentHtmlChunk += char;
+      currentStrippedWord += char;
+      i++;
+    }
+    
+    // Add final word if exists
+    if (currentStrippedWord.trim()) {
+      const key = currentStrippedWord.trim().toLowerCase();
+      if (!htmlTextMap.has(key)) {
+        htmlTextMap.set(key, []);
+      }
+      htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
+    }
     
     // Normalize excessive consecutive paragraph tokens for alignment (3+) while preserving intentional spacing (1-2)
     const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
@@ -1179,10 +1231,18 @@ export const generateResultPDF = async (result: Result) => {
         reconstructedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
       } else {
         // Match - preserve HTML formatting from original typedText
-        // Find the HTML representation of this word in typedText
         if (item.typed) {
-          // For now, use plain text but with HTML preserved where possible
-          reconstructedHtml += `<span>${stripHtmlEntities(item.typed)}</span> `;
+          const typedKey = item.typed.trim().toLowerCase();
+          const htmlVersions = htmlTextMap.get(typedKey);
+          
+          // Use the HTML version if available, otherwise use plain text
+          if (htmlVersions && htmlVersions.length > 0) {
+            // Use the first available HTML version and remove it so duplicates use different versions
+            const htmlVersion = htmlVersions.shift()!;
+            reconstructedHtml += `<span>${htmlVersion}</span> `;
+          } else {
+            reconstructedHtml += `<span>${stripHtmlEntities(item.typed)}</span> `;
+          }
         }
       }
     }
