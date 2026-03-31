@@ -425,100 +425,49 @@ export default function AllahabadHCTestPage() {
   }
 
   return (
-    <div className={cn("w-full", isFullScreen ? "fixed inset-0 z-50 bg-white overflow-auto" : "")}>
-      <div className={cn("mx-auto w-full", isFullScreen ? "p-4" : "p-6")}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            {!isFullScreen && (
-              <Link href="/student">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              </Link>
-            )}
-            <div>
-              <h1 className="text-3xl font-bold">{testContent.title}</h1>
-              <p className="text-muted-foreground">{testContent.type}</p>
+    <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
+      {/* Header Bar */}
+      <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
+        <div className="flex items-center gap-4">
+          {!isFullScreen && (
+            <Link href="/student">
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
+          <div>
+            <h2 className="text-xl font-bold truncate max-w-[200px] md:max-w-md">{testContent.title}</h2>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="capitalize">{testContent.type} Test</span>
+              <span>•</span>
+              <span className="capitalize">{testContent.language}</span>
+              <span>•</span>
+              <span>{testContent.duration} Min</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsFullScreen(!isFullScreen)}
-              className="gap-2"
-            >
-              {isFullScreen ? (
-                <>
-                  <Minimize className="h-4 w-4" />
-                  Exit
-                </>
-              ) : (
-                <>
-                  <Maximize className="h-4 w-4" />
-                  Fullscreen
-                </>
-              )}
-            </Button>
-          </div>
         </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setIsFullScreen(!isFullScreen)} title="Toggle Full Screen">
+              {isFullScreen ? <Minimize size={20}/> : <Maximize size={20}/>}
+            </Button>
+            
+            <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+              <Type size={16} className="text-muted-foreground" />
+              <Slider 
+                value={[fontSize]} 
+                onValueChange={(val) => setFontSize(val[0])} 
+                min={12} max={32} step={2}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
+            </div>
 
-        {/* Timer and Controls */}
-        {!isFinished && (
-          <Card className="shadow-lg border-0 mb-6 bg-gradient-to-r from-blue-50 to-indigo-50">
-            <CardContent className="p-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Timer className="h-6 w-6 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Time Remaining</p>
-                  <p className="text-3xl font-bold text-primary font-mono">{formatTime(timeLeft)}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-6 flex-1 justify-center">
-                <div className="flex items-center gap-3">
-                  <Label className="min-w-fit text-sm font-medium">Font Size</Label>
-                  <Slider
-                    value={[fontSize]}
-                    onValueChange={(val) => setFontSize(val[0])}
-                    min={12}
-                    max={32}
-                    step={1}
-                    className="w-32"
-                  />
-                  <span className="text-sm font-semibold min-w-fit">{fontSize}px</span>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                {!isActive ? (
-                  <Button
-                    onClick={handleStartClick}
-                    disabled={isActive}
-                    className="bg-gradient-to-r from-green-500 to-green-600 shadow-lg hover:shadow-xl transition-all px-8 gap-2"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Start Test
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleStop}
-                    variant="outline"
-                    className="px-8 gap-2"
-                  >
-                    Stop
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Controls Bar */}
-        {isActive && (
-          <Card className="shadow-lg border-0 mb-6 bg-gradient-to-r from-purple-50 to-blue-50">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            {/* Auto-scroll Toggle */}
+            {autoScrollEnabled !== null && (
+              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
                 <Button
                   type="button"
                   variant={autoScrollEnabled ? "default" : "outline"}
@@ -538,118 +487,145 @@ export default function AllahabadHCTestPage() {
                   </span>
                 </Button>
               </div>
+            )}
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant={highlighterEnabled ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setHighlighterEnabled(!highlighterEnabled)}
-                  className={cn(
-                    "gap-2 transition-all",
-                    highlighterEnabled 
-                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md" 
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                  title={highlighterEnabled ? "Click to disable word highlighting" : "Click to enable word highlighting"}
-                >
-                  <Type size={16} />
-                  <span className="text-xs font-medium">
-                    {highlighterEnabled ? "Highlight ON" : "Highlight OFF"}
-                  </span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Content - Vertical Layout */}
-        <div className="flex flex-col gap-6 mb-6 h-[calc(100vh-500px)] min-h-[500px]">
-          {/* Original Text */}
-          <Card className="shadow-lg border-0 h-[40%] overflow-hidden flex flex-col">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b">
-              <CardTitle className="text-lg">Original Text</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 flex-1 overflow-auto" ref={originalTextRef}>
-              <div
-                className="p-4 rounded-lg select-none"
-                style={{ fontSize: `${fontSize}px`, lineHeight: "1.8" }}
-                dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Your Input - RichTextEditor */}
-          <Card className="shadow-lg border-0 h-[60%] overflow-hidden flex flex-col">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
-              <CardTitle className="text-lg">Your Input</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 flex-1 flex flex-col">
-              <div className="flex-1 min-h-0">
-                <RichTextEditor
-                  value={typedText}
-                  onChange={setTypedText}
-                  placeholder="Click here and start typing..."
-                  label=""
-                  showWordCount={true}
-                  fontClass={testContent.language === "hindi" ? "font-mangal" : ""}
-                  onKeyDown={handleKeyDown}
-                  onPaste={handlePaste}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Submit Button */}
-        {!isFinished && isActive && (
-          <div className="flex justify-end gap-3 mb-6">
-            <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 shadow-md hover:shadow-lg transition-all px-8 gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Submit Test
-                </>
-              )}
-            </Button>
+            {/* Word Highlighter Toggle */}
+            <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+              <Button
+                type="button"
+                variant={highlighterEnabled ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHighlighterEnabled(!highlighterEnabled)}
+                className={cn(
+                  "gap-2 transition-all",
+                  highlighterEnabled 
+                    ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md" 
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+                title={highlighterEnabled ? "Click to disable word highlighting" : "Click to enable word highlighting"}
+              >
+                <Type size={16} />
+                <span className="text-xs font-medium">
+                  {highlighterEnabled ? "Highlight ON" : "Highlight OFF"}
+                </span>
+              </Button>
+            </div>
           </div>
-        )}
 
-        {submissionFailed && (
-          <Card className="shadow-lg border-0 mb-6 bg-red-50">
-            <CardContent className="p-4 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-semibold text-destructive">Submission Failed</p>
-                <p className="text-sm text-gray-600 mt-1">Please try submitting again</p>
+          <div className={cn(
+            "text-3xl font-mono font-bold flex items-center gap-2 min-w-[100px] justify-end",
+            timeLeft < 60 ? "text-red-500 animate-pulse" : "text-primary"
+          )}>
+            <Timer size={24} className="md:w-8 md:h-8" />
+            {formatTime(timeLeft)}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Workspace - Vertical Layout */}
+      <div className="flex-1 flex flex-col gap-6 min-h-0">
+        
+        {/* Original Content */}
+        <Card className="flex flex-col h-[40%] overflow-hidden border-2 shadow-sm shrink-0">
+          <CardHeader className="py-2 bg-muted/50 border-b min-h-[40px] px-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Original Text</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef}>
+            <div 
+              className={cn("leading-relaxed select-none transition-all")}
+              style={{ fontSize: `${fontSize}px` }}
+              dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Your Input - RichTextEditor */}
+        <Card className={cn("flex flex-col overflow-hidden border-2 shadow-sm flex-1")}>
+          <CardHeader className="py-2 bg-muted/50 border-b flex flex-row justify-between items-center min-h-[40px] px-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Input</CardTitle>
+            {!isActive && !isFinished && (
+              <div className="text-xs text-blue-600 font-medium animate-bounce">Click "Start" below</div>
+            )}
+          </CardHeader>
+          <CardContent className="flex-1 p-0 relative overflow-hidden">
+            <div className="h-full overflow-hidden">
+              <RichTextEditor
+                value={typedText}
+                onChange={setTypedText}
+                placeholder={isActive ? "Start typing here..." : "Waiting to start..."}
+                label=""
+                showWordCount={true}
+                fontClass={testContent.language === "hindi" ? "font-mangal" : ""}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                className="!min-h-0 h-full !rounded-none !border-0"
+              />
+            </div>
+            
+            {/* Overlay for inactive state */}
+            {!isActive && !isFinished && (
+              <div className="absolute inset-0 bg-background/70 flex items-center justify-center z-10">
+                {cooldownRemaining > 0 ? (
+                  <div className="text-center space-y-2">
+                    <div className="text-lg font-semibold text-orange-600">Cooldown Active</div>
+                    <div className="text-2xl font-bold text-orange-700">
+                      {Math.floor(cooldownRemaining / 60000)}:{String(Math.floor((cooldownRemaining % 60000) / 1000)).padStart(2, '0')}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Please wait before retaking this test</div>
+                  </div>
+                ) : (
+                  <Button size="lg" onClick={handleStartClick} className="text-lg px-8 py-6 shadow-xl hover:scale-105 transition-transform">
+                    Start Test
+                  </Button>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Footer Controls */}
+      <div className="shrink-0 flex justify-end gap-3 pb-2">
+        {isActive && (
+          <Button variant="destructive" onClick={handleStop} className="gap-2 shadow-lg">
+            <Save size={16} /> Submit Test Early
+          </Button>
+        )}
+        
+        {/* Retry button when submission fails */}
+        {isFinished && submissionFailed && (
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting}
+            className="gap-2 shadow-lg bg-orange-600 hover:bg-orange-700"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Submitting...
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} /> Retry Submit
+              </>
+            )}
+          </Button>
         )}
       </div>
 
-      {/* Result Modal */}
       <Dialog open={showResultModal} onOpenChange={setShowResultModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Test Submitted</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="text-green-600" /> Test Submitted
+            </DialogTitle>
             <DialogDescription>
-              Your test has been submitted successfully. You can now view your results on your dashboard.
+              Your test has been successfully submitted to the instructor.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="sm:justify-center">
             <Link href="/student">
-              <Button className="w-full bg-gradient-to-r from-green-500 to-green-600">
-                Go to Dashboard
+              <Button type="button" variant="default" className="w-full">
+                Back to Dashboard
               </Button>
             </Link>
           </DialogFooter>
