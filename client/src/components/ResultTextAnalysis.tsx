@@ -72,54 +72,53 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
   // Build HTML mapping for typed text to preserve formatting on matched words
   const htmlTextMap = new Map<string, string[]>();
   if (contentType === 'allahabad-hc' && typedText && typedText.includes('<')) {
-    // Extract words with their HTML formatting from typedText
-    // Split by word boundaries while preserving HTML tags
-    let currentHtmlChunk = '';
-    let currentStrippedWord = '';
-    let i = 0;
+    // Extract words with their complete HTML formatting from typedText
+    // Split into tokens: HTML tags and words
+    const tokenRegex = /(<[^>]+>)|(\S+)/g;
+    let match;
+    let currentHtmlTags: string[] = []; // Track open tags
+    let currentWord = '';
     
-    while (i < typedText.length) {
-      const char = typedText[i];
+    while ((match = tokenRegex.exec(typedText)) !== null) {
+      const token = match[0];
       
-      // Check for HTML tag
-      if (char === '<') {
-        const tagEnd = typedText.indexOf('>', i);
-        if (tagEnd !== -1) {
-          // Add entire tag to HTML chunk
-          currentHtmlChunk += typedText.substring(i, tagEnd + 1);
-          i = tagEnd + 1;
-          continue;
-        }
-      }
-      
-      // Check for whitespace (word boundary)
-      if (/\s/.test(char)) {
-        if (currentStrippedWord.trim()) {
-          const key = currentStrippedWord.trim().toLowerCase();
-          if (!htmlTextMap.has(key)) {
-            htmlTextMap.set(key, []);
+      // Check if this is an HTML tag
+      if (token.startsWith('<')) {
+        // Track if it's an opening or closing tag
+        if (!token.includes('/')) {
+          // Opening tag - add to current tags
+          currentHtmlTags.push(token);
+        } else {
+          // Closing tag - remove from current tags
+          const tagName = token.match(/<\/(\w+)>/)?.[1];
+          if (tagName) {
+            currentHtmlTags = currentHtmlTags.filter(t => !t.includes(tagName));
           }
-          htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
         }
-        currentHtmlChunk = '';
-        currentStrippedWord = '';
-        i++;
-        continue;
+      } else {
+        // This is a word
+        currentWord = token;
+        
+        // Reconstruct the HTML-wrapped word: opening tags + word + closing tags (in reverse)
+        let htmlWord = currentHtmlTags.join('') + currentWord;
+        
+        // Add closing tags in reverse order
+        const closingTags = currentHtmlTags
+          .map(tag => {
+            const tagName = tag.match(/<(\w+)/)?.[1];
+            return tagName ? `</${tagName}>` : '';
+          })
+          .reverse()
+          .join('');
+        htmlWord += closingTags;
+        
+        // Store mapping from stripped word to HTML version
+        const strippedWord = stripHtmlEntities(currentWord).toLowerCase();
+        if (!htmlTextMap.has(strippedWord)) {
+          htmlTextMap.set(strippedWord, []);
+        }
+        htmlTextMap.get(strippedWord)!.push(htmlWord);
       }
-      
-      // Regular character - add to both
-      currentHtmlChunk += char;
-      currentStrippedWord += char;
-      i++;
-    }
-    
-    // Add final word if exists
-    if (currentStrippedWord.trim()) {
-      const key = currentStrippedWord.trim().toLowerCase();
-      if (!htmlTextMap.has(key)) {
-        htmlTextMap.set(key, []);
-      }
-      htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
     }
   }
 
