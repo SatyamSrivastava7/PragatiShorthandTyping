@@ -314,6 +314,20 @@ export default function AllahabadHCTestPage() {
                   <p className="text-3xl font-bold text-primary font-mono">{formatTime(timeLeft)}</p>
                 </div>
               </div>
+              <div className="flex items-center gap-6 flex-1 justify-center">
+                <div className="flex items-center gap-3">
+                  <Label className="min-w-fit text-sm font-medium">Font Size</Label>
+                  <Slider
+                    value={[fontSize]}
+                    onValueChange={(val) => setFontSize(val[0])}
+                    min={12}
+                    max={32}
+                    step={1}
+                    className="w-32"
+                  />
+                  <span className="text-sm font-semibold min-w-fit">{fontSize}px</span>
+                </div>
+              </div>
               <div className="flex gap-3">
                 {!isActive ? (
                   <Button
@@ -355,42 +369,24 @@ export default function AllahabadHCTestPage() {
           </Card>
 
           {/* RichTextEditor for Typed Text */}
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 flex flex-col">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
-              <CardTitle className="text-lg">Your Answer</CardTitle>
+              <CardTitle className="text-lg">Your Input</CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <RichTextEditor
-                value={typedText}
-                onChange={setTypedText}
-                placeholder="Click here and start typing..."
-                label=""
-                showWordCount={true}
-                fontClass={testContent.language === "hindi" ? "font-mangal" : ""}
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Font Size Control */}
-        {!isFinished && (
-          <Card className="shadow-lg border-0 mb-6">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <Label className="min-w-fit">Font Size</Label>
-                <Slider
-                  value={[fontSize]}
-                  onValueChange={(val) => setFontSize(val[0])}
-                  min={12}
-                  max={32}
-                  step={1}
-                  className="flex-1"
+            <CardContent className="p-6 flex-1 flex flex-col">
+              <div className="flex-1">
+                <RichTextEditor
+                  value={typedText}
+                  onChange={setTypedText}
+                  placeholder="Click here and start typing..."
+                  label=""
+                  showWordCount={true}
+                  fontClass={testContent.language === "hindi" ? "font-mangal" : ""}
                 />
-                <span className="text-sm font-semibold min-w-fit">{fontSize}px</span>
               </div>
             </CardContent>
           </Card>
-        )}
+        </div>
 
         {/* Submit Button */}
         {!isFinished && isActive && (
