@@ -492,12 +492,12 @@ export default function StudentDashboard() {
       {/* Enhanced Header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-8 text-white shadow-2xl">
         <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,black)]" />
-        <div className="relative space-y-6">
-          {/* Top Section: Avatar & Name */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-5">
+        <div className="relative space-y-4">
+          {/* Top Section: Avatar & Name + Expiry */}
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex items-center gap-5 flex-1">
               <div className="relative group">
-                <Avatar className="w-20 h-20 border-3 border-white/40 shadow-lg bg-white/20">
+                <Avatar className="w-20 h-20 border-3 border-white/40 shadow-lg bg-white/20 shrink-0">
                   {currentUser?.profilePicture ? (
                     <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
                   ) : null}
@@ -578,10 +578,44 @@ export default function StudentDashboard() {
                 </p>
               </div>
             </div>
+
+            {/* Expiry Status on Right */}
+            {(() => {
+              const { daysLeft, status, message } = calculateDaysLeftForDeactivation(currentUser?.validUntil);
+              if (status === 'no-expiry') return null;
+              
+              const bgColor = status === 'expired' 
+                ? 'bg-gradient-to-br from-red-600/40 to-red-700/40 border-red-400/60' 
+                : status === 'expiring-soon' 
+                ? 'bg-gradient-to-br from-yellow-500/40 to-yellow-600/40 border-yellow-400/60' 
+                : 'bg-gradient-to-br from-cyan-500/30 to-cyan-600/30 border-cyan-400/50';
+              
+              const textColor = status === 'expired' 
+                ? 'text-red-50' 
+                : status === 'expiring-soon' 
+                ? 'text-yellow-50' 
+                : 'text-cyan-50';
+
+              const icon = status === 'expired' 
+                ? <AlertTriangle className="h-6 w-6" />
+                : status === 'expiring-soon'
+                ? <AlertCircle className="h-6 w-6" />
+                : <Clock className="h-6 w-6" />;
+
+              return (
+                <div className={`${bgColor} backdrop-blur-md rounded-xl px-6 py-4 text-center border shrink-0 min-w-[140px]`}>
+                  <div className="flex items-center justify-center mb-2 text-white">
+                    {icon}
+                  </div>
+                  <p className="text-3xl font-bold text-white mb-1">{daysLeft ?? 0}</p>
+                  <p className={`text-xs ${textColor} font-semibold leading-tight`}>{message}</p>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="bg-gradient-to-br from-blue-500/30 to-blue-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-blue-400/50 hover:border-blue-300 hover:from-blue-500/40 hover:to-blue-600/40 transition-all">
               <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-100" /> : (countsQuery.data?.typing ?? 0)}</p>
               <p className="text-xs text-blue-50 font-semibold">Typing Tests</p>
@@ -602,38 +636,6 @@ export default function StudentDashboard() {
               <p className="text-3xl font-bold text-white mb-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
               <p className="text-xs text-green-50 font-semibold">Results</p>
             </div>
-            {(() => {
-              const { daysLeft, status, message } = calculateDaysLeftForDeactivation(currentUser?.validUntil);
-              if (status === 'no-expiry') return null;
-              
-              const bgColor = status === 'expired' 
-                ? 'bg-gradient-to-br from-red-600/40 to-red-700/40 border-red-400/60 hover:border-red-300' 
-                : status === 'expiring-soon' 
-                ? 'bg-gradient-to-br from-yellow-500/40 to-yellow-600/40 border-yellow-400/60 hover:border-yellow-300' 
-                : 'bg-gradient-to-br from-cyan-500/30 to-cyan-600/30 border-cyan-400/50 hover:border-cyan-300';
-              
-              const textColor = status === 'expired' 
-                ? 'text-red-50' 
-                : status === 'expiring-soon' 
-                ? 'text-yellow-50' 
-                : 'text-cyan-50';
-
-              const icon = status === 'expired' 
-                ? <AlertTriangle className="h-5 w-5" />
-                : status === 'expiring-soon'
-                ? <AlertCircle className="h-5 w-5" />
-                : <Clock className="h-5 w-5" />;
-
-              return (
-                <div className={`${bgColor} backdrop-blur-md rounded-xl px-4 py-3 text-center border transition-all`}>
-                  <div className="flex items-center justify-center mb-1 text-white">
-                    {icon}
-                  </div>
-                  <p className="text-3xl font-bold text-white mb-1">{daysLeft ?? 0}</p>
-                  <p className={`text-xs ${textColor} font-semibold`}>{message}</p>
-                </div>
-              );
-            })()}
           </div>
         </div>
       </div>
