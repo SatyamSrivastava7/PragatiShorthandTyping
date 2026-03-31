@@ -329,6 +329,8 @@ export default function AllahabadHCTestPage() {
   const handleStop = () => {
     setIsActive(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
+    setIsFinished(true);
+    handleSubmit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
