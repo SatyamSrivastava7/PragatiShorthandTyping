@@ -97,8 +97,19 @@ export default function AllahabadHCTestPage() {
     setSubmissionFailed(false);
     
     try {
+      // For Allahabad-HC, typed text from RichTextEditor contains HTML formatting (bold, italic, etc.)
+      // We need to preserve HTML + PARA_TOKEN while also creating clean versions for metrics
+      
+      // Convert RichTextEditor HTML to PARA_TOKEN format while preserving HTML formatting
+      let processedTypedText = typedText;
+      // Replace <p> closing tags and <br> tags with PARA_TOKEN
+      processedTypedText = processedTypedText.replace(/<\s*\/\s*p\s*>/gi, ' [[PARA]] ');
+      processedTypedText = processedTypedText.replace(/<\s*br\s*\/?>/gi, ' [[PARA]] ');
+      processedTypedText = processedTypedText.replace(/<\s*p[^>]*>/gi, ' ');
+      processedTypedText = processedTypedText.replace(/\s+/g, ' ').trim();
+      
       // Store with HTML + PARA_TOKEN for display
-      const storedTypedText = replaceNewlinesWithParaToken(typedText);
+      const storedTypedText = processedTypedText;
       
       // Clean text for metrics (no HTML, no PARA_TOKEN)
       const cleanTestText = stripHtml(testContent.text).replace(/\[\[PARA\]\]/g, '');
