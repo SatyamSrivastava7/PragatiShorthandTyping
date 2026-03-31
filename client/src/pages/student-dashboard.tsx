@@ -258,6 +258,19 @@ export default function StudentDashboard() {
     gcTime: 1000 * 60 * 15, // 15 minutes
   });
 
+  const allahabadHCResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'allahabad-hc', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'allahabad-hc', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // 15 minutes
+  });
+
   // When selection or active tab changes, react-query handles fetching (enabled flag)
   useEffect(() => {
     // no-op: selection and activeTab drive `useInfiniteQuery` enabled state
@@ -1342,11 +1355,14 @@ export default function StudentDashboard() {
                     <TabsTrigger value="pitman_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
                       <BookOpen className="h-4 w-4 mr-2" /> Pitman Results
                     </TabsTrigger>
+                    <TabsTrigger value="allahabad-hc_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                      <Keyboard className="h-4 w-4 mr-2" /> Allahabad HC Results
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
-                {["typing", "shorthand", "pitman"].map((type) => {
-                  const resultsQuery = type === 'typing' ? typingResultsQuery : type === 'shorthand' ? shorthandResultsQuery : pitmanResultsQuery;
+                {["typing", "shorthand", "pitman", "allahabad-hc"].map((type) => {
+                  const resultsQuery = type === 'typing' ? typingResultsQuery : type === 'shorthand' ? shorthandResultsQuery : type === 'pitman' ? pitmanResultsQuery : allahabadHCResultsQuery;
                   const pages = resultsQuery.data?.pages ?? [];
                   const flatResults = pages.flat();
 
@@ -1359,8 +1375,8 @@ export default function StudentDashboard() {
                             className="p-4 rounded-xl border bg-white hover:shadow-md transition-shadow flex items-center justify-between"
                           >
                             <div className="flex items-center gap-4">
-                              <div className={`p-2 rounded-lg ${type === 'typing' ? 'bg-blue-100' : type === 'shorthand' ? 'bg-orange-100' : 'bg-red-100'}`}>
-                                {type === 'typing' ? <Keyboard className="h-5 w-5 text-blue-600" /> : type === 'shorthand' ? <Mic className="h-5 w-5 text-orange-600" /> : <BookOpen className="h-5 w-5 text-red-600" />}
+                              <div className={`p-2 rounded-lg ${type === 'typing' ? 'bg-blue-100' : type === 'shorthand' ? 'bg-orange-100' : type === 'pitman' ? 'bg-red-100' : 'bg-red-100'}`}>
+                                {type === 'typing' ? <Keyboard className="h-5 w-5 text-blue-600" /> : type === 'shorthand' ? <Mic className="h-5 w-5 text-orange-600" /> : type === 'pitman' ? <BookOpen className="h-5 w-5 text-red-600" /> : <Keyboard className="h-5 w-5 text-red-600" />}
                               </div>
                               <div>
                                 <h4 className="font-semibold">{result.contentTitle}</h4>
@@ -1368,7 +1384,7 @@ export default function StudentDashboard() {
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
-                              {result.contentType === "typing" ? (
+                              {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                 <div className="flex items-center gap-3">
                                   <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
                                     {result.grossSpeed} WPM

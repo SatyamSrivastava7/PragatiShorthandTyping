@@ -23,7 +23,7 @@ import type { TestFolder } from "@shared/schema";
 
 interface FolderSelectorProps {
   language: string;
-  type: "typing" | "shorthand" | "pitman"; // Type is required to properly filter folders
+  type: "typing" | "shorthand" | "pitman" | "allahabad-hc"; // Type is required to properly filter folders
   selectedFolderId?: number | null;
   onFolderSelect: (folderId: number | null) => void;
 }

@@ -490,7 +490,7 @@ function EditTestModalComponent({
           {/* Folder Selector */}
           <FolderSelector
             language={editLanguage}
-            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" | "pitman" || "typing"}
+            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" | "pitman" | "allahabad-hc" || "typing"}
             selectedFolderId={editSelectedTestFolderId}
             onFolderSelect={setEditSelectedTestFolderId}
           />
@@ -668,7 +668,7 @@ export default function AdminDashboard() {
   
   // Selected results for download
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
-  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand' | 'pitman'>('typing');
+  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand' | 'pitman' | 'allahabad-hc'>('typing');
 
   const {
     content,
@@ -697,6 +697,11 @@ export default function AdminDashboard() {
     activeTab === "results" && hasVisitedResults,
     { type: 'pitman', limit: 50 }
   );
+  const { results: allahabadHCResults, fetchNextPage: fetchNextAllahabadHC, isFetchingNextPage: isFetchingNextAllahabadHC, hasNextPage: hasNextAllahabadHC } = useResults(
+    undefined,
+    activeTab === "results" && hasVisitedResults,
+    { type: 'allahabad-hc', limit: 50 }
+  );
   const { deleteResult } = useResults(undefined, false);
   const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
@@ -724,7 +729,7 @@ export default function AdminDashboard() {
   const contentLanguages = Array.from(new Set(content.map(c => c.language || 'english'))) as Array<'english' | 'hindi'>;
   
   // Get unique types from content to minimize API calls
-  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand' | 'pitman'>;
+  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand' | 'pitman' | 'allahabad-hc'>;
   
   // Only fetch test folders for languages and types that have content
   // This avoids unnecessary API calls
@@ -1001,7 +1006,7 @@ export default function AdminDashboard() {
 
   // Upload State
   const [title, setTitle] = useState("");
-  const [contentType, setContentType] = useState<"typing" | "shorthand" | "pitman">(
+  const [contentType, setContentType] = useState<"typing" | "shorthand" | "pitman" | "allahabad-hc">(
     "typing",
   );
   const [textContent, setTextContent] = useState("");
@@ -1653,7 +1658,7 @@ export default function AdminDashboard() {
           new Date(a.submittedAt).getTime(),
       );
 
-  const handleDownloadSelectedResults = async (type: 'typing' | 'shorthand' | 'pitman') => {
+  const handleDownloadSelectedResults = async (type: 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc') => {
     try {
       if (!selectedResultIds || selectedResultIds.length === 0) {
         toast({
@@ -1690,10 +1695,10 @@ export default function AdminDashboard() {
       }
 
       // Sort according to requested type:
-      // - typing: highest netSpeed first (descending)
-      // - shorthand: lowest mistake% first (ascending)
+      // - typing/allahabad-hc: highest netSpeed first (descending)
+      // - shorthand/pitman: lowest mistake% first (ascending)
       const sortedResults = [...selectedResults];
-      if (type === 'typing') {
+      if (type === 'typing' || type === 'allahabad-hc') {
         sortedResults.sort((a, b) => {
           const netA = Number(a.netSpeed) || 0;
           const netB = Number(b.netSpeed) || 0;
@@ -1732,8 +1737,12 @@ export default function AdminDashboard() {
         title = 'Shorthand Test Results Report';
       } else if(type === 'typing') {
         title = 'Typing Test Results Report';
-      } else {
+      } else if(type === 'pitman') {
         title = 'Pitman Test Results Report';
+      } else if(type === 'allahabad-hc') {
+        title = 'Allahabad HC Typing Test Results Report';
+      } else {
+        title = 'Test Results Report';
       }
       
       // Institute Header
@@ -1898,6 +1907,7 @@ export default function AdminDashboard() {
   const displayTypingResults = filterResultsByStudent(typingResults);
   const displayShorthandResults = filterResultsByStudent(shorthandResults);
   const displayPitmanResults = filterResultsByStudent(pitmanResults);
+  const displayAllahabadHCResults = filterResultsByStudent(allahabadHCResults);
 
   const filteredStudents = users
     .filter(
@@ -2335,6 +2345,47 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
+            {/* Allahabad HC Typing Test Section */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mt-8 pt-8 border-t">
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2",
+                  contentType === "allahabad-hc"
+                    ? "border-red-500 bg-red-50/50 shadow-md"
+                    : "border-transparent hover:border-slate-200 hover:shadow-sm",
+                )}
+                onClick={() => setContentType("allahabad-hc")}
+              >
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "p-3 rounded-xl",
+                      contentType === "allahabad-hc"
+                        ? "bg-red-500 text-white"
+                        : "bg-slate-100 text-slate-500",
+                    )}
+                  >
+                    <Keyboard className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3
+                      className={cn(
+                        "font-semibold",
+                        contentType === "allahabad-hc"
+                          ? "text-red-700"
+                          : "text-gray-700",
+                      )}
+                    >
+                      Allahabad HC Typing Test
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Typing test with rich text formatting support
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Main Form Card */}
             <Card className="shadow-lg border-0">
               <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50/50 border-b">
@@ -2346,7 +2397,9 @@ export default function AdminDashboard() {
                         ? "bg-blue-100"
                         : contentType === "shorthand"
                           ? "bg-orange-100"
-                          : "bg-purple-100",
+                          : contentType === "pitman"
+                            ? "bg-purple-100"
+                            : "bg-red-100",
                     )}
                   >
                     {contentType === "typing" ? (
@@ -2360,15 +2413,19 @@ export default function AdminDashboard() {
                       />
                     ) : contentType === "shorthand" ? (
                       <Mic className="h-4 w-4 text-orange-600" />
-                    ) : (
+                    ) : contentType === "pitman" ? (
                       <BookOpen className="h-4 w-4 text-purple-600" />
+                    ) : (
+                      <Keyboard className="h-4 w-4 text-red-600" />
                     )}
                   </div>
                   {contentType === "typing"
                     ? "Typing Test Details"
                     : contentType === "shorthand"
                       ? "Shorthand Test Details"
-                      : "Pitman Book Exercise Details"}
+                      : contentType === "pitman"
+                        ? "Pitman Book Exercise Details"
+                        : "Allahabad HC Typing Test Details"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -2413,7 +2470,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        Duration {contentType === "typing" || contentType === "pitman" ? "(2-60 min)" : "(2-90 min)"}
+                        Duration {(contentType === "typing" || contentType === "pitman" || contentType === "allahabad-hc") ? "(2-60 min)" : "(2-90 min)"}
                       </Label>
                       <Select value={duration} onValueChange={setDuration}>
                         <SelectTrigger className="bg-white">
@@ -2444,7 +2501,7 @@ export default function AdminDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {contentType === "typing" && (
+                    {(contentType === "typing" || contentType === "allahabad-hc") && (
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">
                           Auto-scroll
@@ -3452,7 +3509,7 @@ export default function AdminDashboard() {
                   defaultValue="typing"
                   value={activeResultsTab}
                   onValueChange={(tab) => {
-                    setActiveResultsTab(tab as 'typing' | 'shorthand' | 'pitman');
+                    setActiveResultsTab(tab as 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc');
                     setSelectedResultIds([]); // Clear selections when switching tabs
                   }}
                   className="w-full"
@@ -3476,6 +3533,12 @@ export default function AdminDashboard() {
                         className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
                       >
                         <BookOpen className="h-4 w-4 mr-2" /> Pitman Results
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="allahabad-hc"
+                        className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
+                      >
+                        <Keyboard className="h-4 w-4 mr-2" /> Allahabad HC Results
                       </TabsTrigger>
                     </TabsList>
                     <Button
@@ -3512,7 +3575,7 @@ export default function AdminDashboard() {
                     </Button>
                   </div>
 
-                  {["typing", "shorthand", "pitman"].map((type) => (
+                  {["typing", "shorthand", "pitman", "allahabad-hc"].map((type) => (
                     <TabsContent key={type} value={type} className="m-0">
                       <div className="max-h-[500px] overflow-auto">
                         <Table>
@@ -3520,9 +3583,9 @@ export default function AdminDashboard() {
                             <TableRow>
                               <TableHead className="w-12">
                                 <Checkbox
-                                  checked={selectedResultIds.length > 0 && selectedResultIds.length === (type === "typing" ? displayTypingResults?.length : type === "shorthand" ? displayShorthandResults?.length : displayPitmanResults?.length)}
+                                  checked={selectedResultIds.length > 0 && selectedResultIds.length === (type === "typing" ? displayTypingResults?.length : type === "shorthand" ? displayShorthandResults?.length : type === "pitman" ? displayPitmanResults?.length : displayAllahabadHCResults?.length)}
                                   onCheckedChange={(checked) => {
-                                    const results = type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : displayPitmanResults;
+                                    const results = type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : type === "pitman" ? displayPitmanResults : displayAllahabadHCResults;
                                     if (checked) {
                                       const resultIds = results?.map(r => r.id) || [];
                                       const combined = [...selectedResultIds, ...resultIds];
@@ -3555,7 +3618,7 @@ export default function AdminDashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : displayPitmanResults)?.map(
+                            {(type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : type === "pitman" ? displayPitmanResults : displayAllahabadHCResults)?.map(
                               (result) => (
                                 <TableRow
                                   key={result.id}
