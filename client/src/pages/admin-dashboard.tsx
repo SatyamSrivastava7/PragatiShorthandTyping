@@ -796,10 +796,12 @@ export default function AdminDashboard() {
   const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
   const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
   const [visiblePitmanCount, setVisiblePitmanCount] = useState(ITEMS_PER_BATCH);
+  const [visibleAllahabadHCCount, setVisibleAllahabadHCCount] = useState(ITEMS_PER_BATCH);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const typingObserverRef = useRef<HTMLTableRowElement | null>(null);
   const shorthandObserverRef = useRef<HTMLTableRowElement | null>(null);
   const pitmanObserverRef = useRef<HTMLTableRowElement | null>(null);
+  const allahabadHCObserverRef = useRef<HTMLTableRowElement | null>(null);
 
   // Reset visible count when tab changes or content changes
   useEffect(() => {
@@ -807,6 +809,7 @@ export default function AdminDashboard() {
       setVisibleTypingCount(ITEMS_PER_BATCH);
       setVisibleShorthandCount(ITEMS_PER_BATCH);
       setVisiblePitmanCount(ITEMS_PER_BATCH);
+      setVisibleAllahabadHCCount(ITEMS_PER_BATCH);
     }
   }, [activeTab, content.length]);
 
@@ -845,17 +848,29 @@ export default function AdminDashboard() {
       });
   };
 
+  const getAllahabadHCTests = () => {
+    return content
+      .filter((c) => c.type === "allahabad-hc")
+      .sort((a, b) => {
+        // Sort by creation date (newest first), regardless of enabled/disabled status
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  };
+
   const typingTests = getTypingTests();
   const shorthandTests = getShorthandTests();
   const pitmanTests = getPitmanTests();
+  const allahabadHCTests = getAllahabadHCTests();
 
   // Get visible items for lazy loading
   const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
   const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
   const visiblePitmanTests = pitmanTests.slice(0, visiblePitmanCount);
+  const visibleAllahabadHCTests = allahabadHCTests.slice(0, visibleAllahabadHCCount);
   const hasMoreTyping = visibleTypingCount < typingTests.length;
   const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
   const hasMorePitman = visiblePitmanCount < pitmanTests.length;
+  const hasMoreAllahabadHC = visibleAllahabadHCCount < allahabadHCTests.length;
 
   // Load more typing tests
   const loadMoreTyping = useCallback(() => {
@@ -886,6 +901,16 @@ export default function AdminDashboard() {
       setIsLoadingMore(false);
     }, 300);
   }, [isLoadingMore, hasMorePitman, pitmanTests.length]);
+
+  // Load more allahabad-hc tests
+  const loadMoreAllahabadHC = useCallback(() => {
+    if (isLoadingMore || !hasMoreAllahabadHC) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleAllahabadHCCount(prev => Math.min(prev + ITEMS_PER_BATCH, allahabadHCTests.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, hasMoreAllahabadHC, allahabadHCTests.length]);
 
   // Intersection Observer for typing tests
   useEffect(() => {
@@ -1003,6 +1028,45 @@ export default function AdminDashboard() {
       }
     };
   }, [hasMorePitman, isLoadingMore, pitmanTests.length, visiblePitmanCount, activeTab, loadMorePitman]);
+
+  // Intersection Observer for allahabad-hc tests
+  useEffect(() => {
+    if (activeTab !== "manage") return;
+    const currentRef = allahabadHCObserverRef.current;
+    if (!currentRef || !hasMoreAllahabadHC) return;
+
+    // Check if IntersectionObserver is available
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback for older browsers: load more on scroll
+      const handleScroll = () => {
+        if (hasMoreAllahabadHC && !isLoadingMore) {
+          const rect = currentRef?.getBoundingClientRect();
+          if (rect && rect.bottom < window.innerHeight + 100) {
+            loadMoreAllahabadHC();
+          }
+        }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreAllahabadHC && !isLoadingMore) {
+          loadMoreAllahabadHC();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMoreAllahabadHC, isLoadingMore, allahabadHCTests.length, visibleAllahabadHCCount, activeTab, loadMoreAllahabadHC]);
 
   // Upload State
   const [title, setTitle] = useState("");
@@ -2722,6 +2786,7 @@ export default function AdminDashboard() {
                   { type: "typing", tests: visibleTypingTests, allTests: typingTests, observerRef: typingObserverRef, hasMore: hasMoreTyping },
                   { type: "shorthand", tests: visibleShorthandTests, allTests: shorthandTests, observerRef: shorthandObserverRef, hasMore: hasMoreShorthand },
                   { type: "pitman", tests: visiblePitmanTests, allTests: pitmanTests, observerRef: pitmanObserverRef, hasMore: hasMorePitman },
+                  { type: "allahabad-hc", tests: visibleAllahabadHCTests, allTests: allahabadHCTests, observerRef: allahabadHCObserverRef, hasMore: hasMoreAllahabadHC },
                 ].map(({ type, tests: visibleTests, allTests, observerRef, hasMore }) => {
                   const testCount = allTests.length;
                   const activeCount = allTests.filter((c) => c.isEnabled).length;
@@ -2737,7 +2802,9 @@ export default function AdminDashboard() {
                             ? "bg-gradient-to-r from-blue-50 to-indigo-50"
                             : type === "shorthand"
                               ? "bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "bg-gradient-to-r from-purple-50 to-pink-50",
+                              : type === "pitman"
+                              ? "bg-gradient-to-r from-purple-50 to-pink-50"
+                              : "bg-gradient-to-r from-red-50 to-rose-50",
                         )}
                       >
                         <div className="flex items-center justify-between">
@@ -2749,20 +2816,24 @@ export default function AdminDashboard() {
                                   ? "bg-blue-100"
                                   : type === "shorthand"
                                     ? "bg-orange-100"
-                                    : "bg-purple-100",
+                                    : type === "pitman"
+                                    ? "bg-purple-100"
+                                    : "bg-red-100",
                               )}
                             >
                               {type === "typing" ? (
                                 <Keyboard className="h-5 w-5 text-blue-600" />
                               ) : type === "shorthand" ? (
                                 <Mic className="h-5 w-5 text-orange-600" />
-                              ) : (
+                              ) : type === "pitman" ? (
                                 <BookOpen className="h-5 w-5 text-purple-600" />
+                              ) : (
+                                <Keyboard className="h-5 w-5 text-red-600" />
                               )}
                             </div>
                             <div>
                               <CardTitle className="text-lg capitalize">
-                                {type} Tests
+                                {type === "allahabad-hc" ? "Allahabad HC" : type} Tests
                               </CardTitle>
                               <CardDescription>
                                 {testCount} tests, {activeCount} active
@@ -2896,7 +2967,7 @@ export default function AdminDashboard() {
                                           <div className="space-y-4">
                                             <FolderSelector
                                               language={item.language || 'english'}
-                                              type={item.type as "typing" | "shorthand" | "pitman"}
+                                              type={item.type as "typing" | "shorthand" | "pitman" | "allahabad-hc"}
                                               selectedFolderId={item.folderId || null}
                                               onFolderSelect={async (folderId) => {
                                                 try {
