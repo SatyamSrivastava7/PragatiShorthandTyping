@@ -321,7 +321,7 @@ export default function PitmanTestPage() {
   }
 
   return (
-    <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
+    <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-2rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
         <div className="flex items-center gap-4">
