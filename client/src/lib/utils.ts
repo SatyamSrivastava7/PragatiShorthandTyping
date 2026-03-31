@@ -1126,69 +1126,69 @@ export const generateResultPDF = async (result: Result) => {
   const paraStyle = 'style="text-align:justify;text-justify:inter-word;margin:0 0 8px 0;"';
   let typedHtml = `<p ${paraStyle}>`;
 
-  // For Allahabad-HC with full formatted text, use the HTML directly
-  if (useFullFormattedText) {
-    // Convert PARA_TOKEN to paragraph breaks
-    typedHtml = (result.typedText || '')
-      .split('[[PARA]]')
-      .map(para => `<p ${paraStyle}>${stripHtmlEntities(para)}</p>`)
-      .join('');
-  } else {
-    // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
-    const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
-      const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
-      
-      if (!isParaToken) {
-        acc.push(item);
-        return acc;
-      }
-      
-      // Count consecutive paragraph tokens at the end
-      let consecutiveCount = 0;
-      for (let j = acc.length - 1; j >= 0; j--) {
-        const prevItem = acc[j];
-        if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
-          consecutiveCount++;
-        } else {
-          break;
-        }
-      }
-      
-      // Allow up to 2 consecutive paragraph tokens, collapse 3+
-      if (consecutiveCount < 2) {
-        acc.push(item);
-      }
-      // If we already have 2+ consecutive, skip additional ones
-      
+  // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
+  const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
+    const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
+    
+    if (!isParaToken) {
+      acc.push(item);
       return acc;
-    }, []);
-
-    for (let i = 0; i < normalizedAlignment.length; i++) {
-      const item = normalizedAlignment[i];
-      if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
-        typedHtml += `</p><p ${paraStyle}>`;
-        continue;
-      }
-      
-      if (item.status === "trailing") {
-        continue;
-      } else if (item.status === "missing") {
-        typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-      } else if (item.status === "substitution") {
-        typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-      } else if (item.status === "extra") {
-        typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
+    }
+    
+    // Count consecutive paragraph tokens at the end
+    let consecutiveCount = 0;
+    for (let j = acc.length - 1; j >= 0; j--) {
+      const prevItem = acc[j];
+      if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
+        consecutiveCount++;
       } else {
-        // Safeguard: ensure PARA_TOKEN never appears as literal text in output
-        // Preserve HTML formatting in typed text (e.g., <b>, <i>, <u>)
+        break;
+      }
+    }
+    
+    // Allow up to 2 consecutive paragraph tokens, collapse 3+
+    if (consecutiveCount < 2) {
+      acc.push(item);
+    }
+    // If we already have 2+ consecutive, skip additional ones
+    
+    return acc;
+  }, []);
+
+  for (let i = 0; i < normalizedAlignment.length; i++) {
+    const item = normalizedAlignment[i];
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+      typedHtml += `</p><p ${paraStyle}>`;
+      continue;
+    }
+    
+    if (item.status === "trailing") {
+      continue;
+    } else if (item.status === "missing") {
+      typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
+    } else if (item.status === "substitution") {
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
+    } else if (item.status === "extra") {
+      typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
+    } else {
+      // Safeguard: ensure PARA_TOKEN never appears as literal text in output
+      // For Allahabad-HC with HTML formatting, preserve the HTML tags while showing text
+      if (useFullFormattedText) {
+        // Preserve HTML formatting (e.g., <b>, <i>, <u>) from RichTextEditor
+        const displayText = item.typed === PARA_TOKEN ? '' : item.typed;
+        if (displayText) {
+          typedHtml += `<span>${displayText}</span> `;
+        }
+      } else {
+        // For non-HTML tests, just use text without HTML
         const displayText = item.typed === PARA_TOKEN ? '' : stripHtmlEntities(item.typed);
         if (displayText) {
           typedHtml += `<span>${displayText}</span> `;
         }
       }
     }
-    typedHtml += `</p>`;
   }
+  typedHtml += `</p>`;
 
   // Total original words - plain text word count for both typing and shorthand
   const totalOriginalWords = stripHtml(result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length;
