@@ -12,7 +12,7 @@ interface ResultTextAnalysisProps {
 export function ResultTextAnalysis({ originalText, typedText, originalTextClean, typedTextClean, language, contentType = 'typing' }: ResultTextAnalysisProps) {
   // For Allahabad-HC tests: show the full formatted typed text with HTML preserved (like original text)
   // For other tests: use alignment-based analysis
-  if (contentType === 'typing' && typedText && typedText.includes('<')) {
+  if (contentType === 'allahabad-hc' && typedText && typedText.includes('<')) {
     // This is Allahabad-HC test (RichTextEditor with HTML formatting)
     // Display the typed text with full HTML formatting preserved
     return (
