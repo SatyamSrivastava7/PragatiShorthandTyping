@@ -636,9 +636,9 @@ export default function TypingTestPage() {
   const fontClass = testContent.language === 'hindi' ? 'font-mangal' : 'font-times';
 
   return (
-    <div className={cn("h-full flex flex-col space-y-3 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
+    <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
       {/* Header Bar */}
-      <div className="flex items-center justify-between bg-card p-3 rounded-lg border shadow-sm shrink-0 gap-4">
+      <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
         <div className="flex items-center gap-4">
           {!isFullScreen && (
             <Link href="/student">
@@ -735,7 +735,7 @@ export default function TypingTestPage() {
       </div>
 
       {/* Main Workspace - Vertical Layout */}
-      <div className="flex-1 flex flex-col gap-4 min-h-0">
+      <div className="flex-1 flex flex-col gap-6 min-h-0">
         
         {/* Shorthand Audio Controls - More Visible for All Devices */}
         {testContent.type === 'shorthand' && (video60Available || video80Available || video100Available || video120Available) && (
@@ -801,7 +801,7 @@ export default function TypingTestPage() {
 
         {/* Original Content - Hidden for Shorthand */}
         {testContent.type === 'typing' && (
-           <Card className="flex flex-col h-[30%] overflow-hidden border-2 shadow-sm shrink-0">
+           <Card className="flex flex-col h-[40%] overflow-hidden border-2 shadow-sm shrink-0">
             <CardHeader className="py-2 bg-muted/50 border-b min-h-[40px] px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Original Text</CardTitle>
             </CardHeader>
