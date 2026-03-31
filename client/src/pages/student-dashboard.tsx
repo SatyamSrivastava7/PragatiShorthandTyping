@@ -122,6 +122,7 @@ export default function StudentDashboard() {
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
   const [pitmanSearch, setPitmanSearch] = useState("");
+  const [allahabadHCSearch, setAllahabadHCSearch] = useState("");
   
   // Selected video speeds per test for shorthand
   const [selectedVideoSpeeds, setSelectedVideoSpeeds] = useState<Record<number, string>>({}); // testId -> speed (60, 80, 100, 120)
@@ -130,11 +131,13 @@ export default function StudentDashboard() {
   const [selectedTypingLanguage, setSelectedTypingLanguage] = useState<string | null>(null);
   const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
   const [selectedPitmanLanguage, setSelectedPitmanLanguage] = useState<string | null>(null);
+  const [selectedAllahabadHCLanguage, setSelectedAllahabadHCLanguage] = useState<string | null>(null);
   
   // Selected folder per test type (null = show folders, number = show tests in that folder, undefined = no folder filter)
   const [selectedTypingFolderId, setSelectedTypingFolderId] = useState<number | null | undefined>(undefined);
   const [selectedShorthandFolderId, setSelectedShorthandFolderId] = useState<number | null | undefined>(undefined);
   const [selectedPitmanFolderId, setSelectedPitmanFolderId] = useState<number | null | undefined>(undefined);
+  const [selectedAllahabadHCFolderId, setSelectedAllahabadHCFolderId] = useState<number | null | undefined>(undefined);
   
   // Active main tab
   const [activeTab, setActiveTab] = useState<string>('typing_tests');
@@ -147,6 +150,7 @@ export default function StudentDashboard() {
   const typingFoldersQuery = useLatestTestFolders(selectedTypingLanguage || 'english', 6, 'typing');
   const shorthandFoldersQuery = useLatestTestFolders(selectedShorthandLanguage || 'english', 6, 'shorthand');
   const pitmanFoldersQuery = useLatestTestFolders(selectedPitmanLanguage || 'english', 6, 'pitman');
+  const allahabadHCFoldersQuery = useLatestTestFolders(selectedAllahabadHCLanguage || 'english', 6, 'allahabad-hc');
 
   // Typing: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
   const typingQuery = useInfiniteQuery({
@@ -201,6 +205,25 @@ export default function StudentDashboard() {
     },
     initialPageParam: 0,
     enabled: activeTab === 'pitman_tests' && !!selectedPitmanLanguage && selectedPitmanFolderId !== undefined,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Allahabad HC: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
+  const allahabadHCQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'allahabad-hc', selectedAllahabadHCLanguage, selectedAllahabadHCFolderId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ 
+        type: 'allahabad-hc', 
+        language: selectedAllahabadHCLanguage || 'english',
+        folderId: selectedAllahabadHCFolderId || undefined,
+        limit: PAGE_SIZE, 
+        offset: pageParam 
+      });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'allahabad-hc_tests' && !!selectedAllahabadHCLanguage && selectedAllahabadHCFolderId !== undefined,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
   });
@@ -567,6 +590,10 @@ export default function StudentDashboard() {
               <p className="text-xs text-blue-100">Pitman Exercise</p>
             </div>
             <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
+              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
+              <p className="text-xs text-blue-100">Allahabad HC</p>
+            </div>
+            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
               <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
               <p className="text-xs text-blue-100">Results</p>
             </div>
@@ -607,7 +634,7 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+        <TabsList className="grid w-full grid-cols-6 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
           <TabsTrigger
             value="typing_tests"
             className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
@@ -625,6 +652,12 @@ export default function StudentDashboard() {
             className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
             <BookOpen className="h-4 w-4" /> Pitman Exercise
+          </TabsTrigger>
+          <TabsTrigger
+            value="allahabad-hc_tests"
+            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+          >
+            <Keyboard className="h-4 w-4" /> Allahabad HC
           </TabsTrigger>
           <TabsTrigger
             value="results"
@@ -1263,6 +1296,201 @@ export default function StudentDashboard() {
                         variant="outline"
                       >
                         {pitmanQuery.isFetchingNextPage ? 'Loading more tests...' : 'Load More Tests'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="allahabad-hc_tests">
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Keyboard className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Allahabad HC Typing Test</h3>
+                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.['allahabad-hc'] ?? 0} tests available`}</p>
+                </div>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tests..."
+                  value={allahabadHCSearch}
+                  onChange={(e) => setAllahabadHCSearch(e.target.value)}
+                  className="pl-10 bg-white shadow-sm"
+                  data-testid="input-search-allahabad-hc"
+                />
+              </div>
+            </div>
+          </div>
+          {allahabadHCQuery?.isLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="h-8 w-8 animate-spin text-red-500" />
+              <span className="ml-3 text-muted-foreground">Loading tests...</span>
+            </div>
+          ) : (
+            <div>
+              {!selectedAllahabadHCLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => {
+                        setSelectedAllahabadHCLanguage(lang);
+                        setSelectedAllahabadHCFolderId(undefined); // Reset folder selection when changing language
+                      }}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                      <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : selectedAllahabadHCFolderId === undefined ? (
+                // Show folder selection
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedAllahabadHCLanguage(null);
+                      setSelectedAllahabadHCFolderId(undefined);
+                    }}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedAllahabadHCLanguage} - Select Folder</h4>
+                  </div>
+                  {allahabadHCFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-red-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Option to view all tests without folder filter */}
+                        <div
+                          onClick={() => setSelectedAllahabadHCFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-red-50/50"
+                        >
+                          <Folder className="h-12 w-12 text-red-600 fill-red-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
+                        </div>
+                        {/* Show available folders */}
+                        {((allahabadHCFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedAllahabadHCFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
+                      </div>
+                      {allahabadHCFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button 
+                            onClick={() => allahabadHCFoldersQuery.fetchNextPage()} 
+                            disabled={allahabadHCFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {allahabadHCFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setSelectedAllahabadHCFolderId(undefined);
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedAllahabadHCLanguage} {selectedAllahabadHCFolderId !== null ? `- ${((allahabadHCFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedAllahabadHCFolderId)?.name || 'Folder'}` : '- All Tests'} Allahabad HC Tests
+                    </h4>
+                  </div>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {allahabadHCQuery.isError ? (
+                      <div className="col-span-full text-center py-8">
+                        <p className="text-destructive mb-2">Failed to load tests</p>
+                        <p className="text-sm text-muted-foreground">{allahabadHCQuery.error instanceof Error ? allahabadHCQuery.error.message : 'Unknown error'}</p>
+                      </div>
+                    ) : ((allahabadHCQuery.data?.pages ?? []) as any[])
+                      .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
+                      .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedAllahabadHCLanguage || 'english'))
+                      .filter((t: any) => selectedAllahabadHCFolderId === null ? true : t.folderId === selectedAllahabadHCFolderId)
+                      .filter((t: any) => t.title && t.title.toLowerCase().includes(allahabadHCSearch.toLowerCase()))
+                      .map((test: any) => {
+                        if (!test || !test.id) return null;
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
+
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-red-500 to-red-600" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
+                              </div>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground flex items-center gap-2">
+                                    <Clock className="h-4 w-4" /> Duration
+                                  </span>
+                                  <span className="font-semibold">{test.duration} min</span>
+                                </div>
+                                {isCompleted && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground flex items-center gap-2">
+                                      <CheckCircle className="h-4 w-4 text-green-600" /> Status
+                                    </span>
+                                    <span className="font-semibold text-green-600">Completed</span>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                            <CardFooter className="pt-4 border-t bg-slate-50">
+                              <Button
+                                className="w-full bg-gradient-to-r from-red-500 to-red-600 shadow-md group-hover:shadow-lg transition-shadow"
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                              >
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
+                  </div>
+                  {allahabadHCQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button onClick={() => allahabadHCQuery.fetchNextPage()} disabled={allahabadHCQuery.isFetchingNextPage}>
+                        {allahabadHCQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
                       </Button>
                     </div>
                   )}
