@@ -641,7 +641,7 @@ export default function TypingTestPage() {
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
         <div className="flex items-center gap-4">
           {!isFullScreen && (
-            <Link href="/student">
+            <Link href={`/student?tab=${testContent.type === 'typing' ? 'typing_tests' : testContent.type === 'shorthand' ? 'shorthand_tests' : testContent.type === 'pitman' ? 'pitman_tests' : 'allahabad-hc_tests'}`}>
               <Button variant="ghost" size="icon" className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>

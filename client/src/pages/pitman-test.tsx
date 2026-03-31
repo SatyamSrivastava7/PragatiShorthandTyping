@@ -514,7 +514,7 @@ export default function PitmanTestPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-center">
-            <Link href="/student">
+            <Link href="/student?tab=pitman_tests">
               <Button type="button" variant="default" className="w-full">
                 Back to Dashboard
               </Button>

@@ -68,6 +68,21 @@ import { queryClient } from "@/lib/queryClient";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
+  const [location] = useLocation();
+  
+  // Get tab from query params
+  const getTabFromUrl = () => {
+    try {
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const tab = params.get('tab');
+      return tab && ['typing_tests', 'shorthand_tests', 'pitman_tests', 'allahabad-hc_tests', 'results', 'store'].includes(tab) 
+        ? tab 
+        : 'typing_tests';
+    } catch {
+      return 'typing_tests';
+    }
+  };
+
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const {
     folders: pdfFolders,
@@ -139,8 +154,17 @@ export default function StudentDashboard() {
   const [selectedPitmanFolderId, setSelectedPitmanFolderId] = useState<number | null | undefined>(undefined);
   const [selectedAllahabadHCFolderId, setSelectedAllahabadHCFolderId] = useState<number | null | undefined>(undefined);
   
-  // Active main tab
-  const [activeTab, setActiveTab] = useState<string>('typing_tests');
+  // Active main tab - initialize from URL query params
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromUrl());
+
+  // Update URL when tab changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', activeTab);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [activeTab]);
+
   // Pagination settings
   const PAGE_SIZE = 6;
   const PAGE_SIZE_RESULTS = 5;

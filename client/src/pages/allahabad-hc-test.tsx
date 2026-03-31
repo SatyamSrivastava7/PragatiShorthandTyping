@@ -395,7 +395,7 @@ export default function AllahabadHCTestPage() {
     
     return (
       <div className="max-w-4xl mx-auto p-8">
-        <Link href="/student">
+        <Link href="/student?tab=allahabad-hc_tests">
           <Button variant="ghost" size="sm" className="mb-6">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
@@ -423,7 +423,7 @@ export default function AllahabadHCTestPage() {
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
         <div className="flex items-center gap-4">
           {!isFullScreen && (
-            <Link href="/student">
+            <Link href="/student?tab=allahabad-hc_tests">
               <Button variant="ghost" size="icon" className="shrink-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
