@@ -4,7 +4,7 @@ import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateTypingMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Timer, Save, CheckCircle, ArrowLeft, Maximize, Minimize, Type, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Timer, Save, CheckCircle, ArrowLeft, Maximize, Minimize, Type, Loader2, AlertCircle, RefreshCw, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -36,14 +36,24 @@ export default function AllahabadHCTestPage() {
   const [submissionFailed, setSubmissionFailed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null);
+  const [highlighterEnabled, setHighlighterEnabled] = useState<boolean>(true);
+  const [userScrolled, setUserScrolled] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
+  const originalTextRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef<number>(0);
+  const isAutoScrollingRef = useRef<boolean>(false);
+  const lastParaCountRef = useRef<number>(0);
+  const paraScrollUntilWordsRef = useRef<number>(0);
+  const paraScrollUntilTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (testContent) {
       setTimeLeft(testContent.duration * 60);
+      setAutoScrollEnabled(testContent.autoScroll ?? true);
     }
   }, [testContent]);
 
@@ -148,7 +158,162 @@ export default function AllahabadHCTestPage() {
     }
   }, [testContent, currentUser, typedText, backspaces, createResult, toast]);
 
+  // Handle manual scroll - detect if user scrolled
+  useEffect(() => {
+    const container = originalTextRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (!isAutoScrollingRef.current) {
+        setUserScrolled(true);
+      }
+      isAutoScrollingRef.current = false;
+      lastScrollTopRef.current = container.scrollTop;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll logic
+  useEffect(() => {
+    if (autoScrollEnabled === null || !autoScrollEnabled || !originalTextRef.current) return;
+    if (!isActive) return;
+    
+    const container = originalTextRef.current;
+    const originalText = testContent?.text || "";
+    
+    const plainText = stripHtmlPreserveParagraphs(originalText);
+    const processedTyped = replaceNewlinesWithParaToken(typedText);
+    const paraCount = (processedTyped.match(/\[\[PARA\]\]/g) || []).length;
+    const typedWords = processedTyped.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
+
+    const isNewParagraph = paraCount > lastParaCountRef.current;
+    if (isNewParagraph) {
+      lastParaCountRef.current = paraCount;
+      paraScrollUntilWordsRef.current = typedWords + 5;
+      paraScrollUntilTimeRef.current = Date.now() + 1500;
+    }
+    
+    const originalWords = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
+    const totalOriginalWords = originalWords.length;
+    
+    if (totalOriginalWords === 0) return;
+    
+    const scrollableHeight = container.scrollHeight - container.clientHeight;
+    const progress = Math.min(typedWords / totalOriginalWords, 1);
+    const targetScrollPosition = Math.max(0, progress * scrollableHeight);
+    
+    const currentScroll = container.scrollTop;
+    let diff = targetScrollPosition - currentScroll;
+    
+    const now = Date.now();
+    const boostedActive = (typedWords <= paraScrollUntilWordsRef.current) || (now <= paraScrollUntilTimeRef.current);
+    const scrollFactor = boostedActive ? 0.8 : 0.35;
+
+    if (Math.abs(diff) < 2 && !boostedActive) return;
+    
+    if (userScrolled && !boostedActive) {
+      const lagThreshold = scrollableHeight * 0.3;
+      if (diff < lagThreshold) return;
+    }
+    
+    isAutoScrollingRef.current = true;
+    container.scrollTop = currentScroll + diff * scrollFactor;
+    lastScrollTopRef.current = container.scrollTop;
+    
+  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled]);
+
+  const getHighlightedContent = () => {
+    if (!testContent) return '';
+
+    if (!highlighterEnabled) {
+      return testContent.text;
+    }
+
+    const plainText = stripHtmlPreserveParagraphs(testContent.text);
+    const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
+
+    const tokens = typedText.split(/\s+/).filter(w => w && w !== PARA_TOKEN);
+    let currentIndex: number | null = null;
+    if (typedText.trim() === "") {
+      currentIndex = 0;
+    } else if (/\s$/.test(typedText)) {
+      currentIndex = tokens.length;
+    } else {
+      currentIndex = Math.max(0, tokens.length - 1);
+    }
+
+    if (currentIndex === null || currentIndex >= words.length) {
+      return testContent.text;
+    }
+
+    const targetWord = words[currentIndex];
+    if (!targetWord) return testContent.text;
+
+    let wordOccurrenceCount = 0;
+    let foundTargetWord = false;
+    
+    const htmlContent = testContent.text;
+    const parts = htmlContent.split(/(<[^>]+>)/);
+    
+    const processedParts = parts.map((part) => {
+      if (part.startsWith('<')) {
+        return part;
+      }
+      
+      if (foundTargetWord || !part) {
+        return part;
+      }
+      
+      const textWords = part.split(/(\s+)/);
+      
+      return textWords.map((segment) => {
+        if (foundTargetWord || !segment || /^\s+$/.test(segment)) {
+          return segment;
+        }
+        
+        if (segment === targetWord) {
+          if (wordOccurrenceCount === currentIndex) {
+            foundTargetWord = true;
+            return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${segment}</span>`;
+          }
+          wordOccurrenceCount++;
+        } else if (!/^\s+$/.test(segment)) {
+          wordOccurrenceCount++;
+        }
+        
+        return segment;
+      }).join('');
+    }).join('');
+
+    return processedParts;
+  };
+
   // Start test
+  const handleStartTest = () => {
+    setUserScrolled(false);
+    
+    if (cooldownRemaining > 0) {
+      toast({
+        variant: "destructive",
+        title: "Test Cooldown Active",
+        description: `Please wait ${Math.ceil(cooldownRemaining / 60000)} minutes before starting this test again.`,
+      });
+      return;
+    }
+    
+    if (testContent && currentUser) {
+      const cooldownKey = `test_cooldown_${testContent.id}_${currentUser.id}`;
+      const cooldownEnd = Date.now() + (30 * 60 * 1000);
+      localStorage.setItem(cooldownKey, cooldownEnd.toString());
+      setCooldownRemaining(30 * 60 * 1000);
+    }
+    
+    setIsActive(true);
+  };
+
+  // Start test timer
   const handleStart = () => {
     setIsActive(true);
     startTimeRef.current = Date.now();
@@ -171,6 +336,11 @@ export default function AllahabadHCTestPage() {
         return prev - 1;
       });
     }, 1000);
+  };
+
+  const handleStartClick = () => {
+    handleStartTest();
+    handleStart();
   };
 
   // Stop test
@@ -323,7 +493,7 @@ export default function AllahabadHCTestPage() {
               <div className="flex gap-3">
                 {!isActive ? (
                   <Button
-                    onClick={handleStart}
+                    onClick={handleStartClick}
                     disabled={isActive}
                     className="bg-gradient-to-r from-green-500 to-green-600 shadow-lg hover:shadow-xl transition-all px-8 gap-2"
                   >
@@ -344,29 +514,78 @@ export default function AllahabadHCTestPage() {
           </Card>
         )}
 
-        {/* Content and Editor */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        {/* Controls Bar */}
+        {isActive && (
+          <Card className="shadow-lg border-0 mb-6 bg-gradient-to-r from-purple-50 to-blue-50">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant={autoScrollEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoScrollEnabled(!autoScrollEnabled)}
+                  className={cn(
+                    "gap-2 transition-all",
+                    autoScrollEnabled 
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md" 
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  title={autoScrollEnabled ? "Click to disable auto-scroll" : "Click to enable auto-scroll"}
+                >
+                  <ArrowDown size={16} />
+                  <span className="text-xs font-medium">
+                    {autoScrollEnabled ? "Auto-scroll ON" : "Auto-scroll OFF"}
+                  </span>
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant={highlighterEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHighlighterEnabled(!highlighterEnabled)}
+                  className={cn(
+                    "gap-2 transition-all",
+                    highlighterEnabled 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md" 
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  title={highlighterEnabled ? "Click to disable word highlighting" : "Click to enable word highlighting"}
+                >
+                  <Type size={16} />
+                  <span className="text-xs font-medium">
+                    {highlighterEnabled ? "Highlight ON" : "Highlight OFF"}
+                  </span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Content - Vertical Layout */}
+        <div className="flex flex-col gap-6 mb-6 h-[calc(100vh-500px)] min-h-[500px]">
           {/* Original Text */}
-          <Card className="shadow-lg border-0">
+          <Card className="shadow-lg border-0 h-[40%] overflow-hidden flex flex-col">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b">
               <CardTitle className="text-lg">Original Text</CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
+            <CardContent className="p-6 flex-1 overflow-auto" ref={originalTextRef}>
               <div
-                className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-y-auto"
-                style={{ fontSize: `${fontSize}px`, maxHeight: "500px", lineHeight: "1.8" }}
-                dangerouslySetInnerHTML={{ __html: testContent.text || "" }}
+                className="p-4 rounded-lg select-none"
+                style={{ fontSize: `${fontSize}px`, lineHeight: "1.8" }}
+                dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
               />
             </CardContent>
           </Card>
 
-          {/* RichTextEditor for Typed Text */}
-          <Card className="shadow-lg border-0 flex flex-col">
+          {/* Your Input - RichTextEditor */}
+          <Card className="shadow-lg border-0 h-[60%] overflow-hidden flex flex-col">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b">
               <CardTitle className="text-lg">Your Input</CardTitle>
             </CardHeader>
             <CardContent className="p-6 flex-1 flex flex-col">
-              <div className="flex-1">
+              <div className="flex-1 min-h-0">
                 <RichTextEditor
                   value={typedText}
                   onChange={setTypedText}
@@ -374,6 +593,8 @@ export default function AllahabadHCTestPage() {
                   label=""
                   showWordCount={true}
                   fontClass={testContent.language === "hindi" ? "font-mangal" : ""}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                 />
               </div>
             </CardContent>

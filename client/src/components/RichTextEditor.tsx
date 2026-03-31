@@ -31,6 +31,8 @@ interface RichTextEditorProps {
   label?: string;
   fontClass?: string;
   showWordCount?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLDivElement>) => void;
 }
 
 export function RichTextEditor({
@@ -41,6 +43,8 @@ export function RichTextEditor({
   label,
   fontClass = "",
   showWordCount = true,
+  onKeyDown: customOnKeyDown,
+  onPaste: customOnPaste,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState("16");
@@ -97,6 +101,12 @@ export function RichTextEditor({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Call custom handler first if provided
+    if (customOnKeyDown) {
+      customOnKeyDown(e);
+      if (e.defaultPrevented) return;
+    }
+    
     // Allow keyboard shortcuts to work properly
     if ((e.ctrlKey || e.metaKey) && e.key === "z") {
       e.preventDefault();
@@ -104,6 +114,12 @@ export function RichTextEditor({
     } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
       e.preventDefault();
       document.execCommand("redo");
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (customOnPaste) {
+      customOnPaste(e);
     }
   };
 
@@ -222,6 +238,7 @@ export function RichTextEditor({
         ref={editorRef}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onBlur={() => {
           if (editorRef.current) {
             onChange(editorRef.current.innerHTML);
