@@ -77,9 +77,9 @@ export function useContent() {
     mutationFn: contentApi.create,
     onMutate: async (newContent) => {
       await queryClient.cancelQueries({ queryKey: ['content', 'list'] });
-      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list']);
+      const previousContent = queryClient.getQueryData<Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]>(['content', 'list']);
       
-      const { text, audio80wpm, audio100wpm, ...optimisticContent } = {
+      const { text, video60wpm, video80wpm, video100wpm, video120wpm, pdfFile, ...optimisticContent } = {
         id: -Math.floor(Math.random() * 1000000),
         title: newContent.title,
         type: newContent.type,
@@ -87,14 +87,18 @@ export function useContent() {
         duration: newContent.duration,
         dateFor: newContent.dateFor,
         language: newContent.language || 'english',
-        audio80wpm: newContent.audio80wpm || null,
-        audio100wpm: newContent.audio100wpm || null,
+        video60wpm: null,
+        video80wpm: null,
+        video100wpm: null,
+        video120wpm: null,
+        pdfFile: null,
         isEnabled: false,
         autoScroll: true,
         createdAt: new Date(),
+        folderId: null,
       };
 
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
+      queryClient.setQueryData<Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
 
       return { previousContent };
     },
@@ -105,15 +109,15 @@ export function useContent() {
     },
     onSuccess: (newContent) => {
       // Update with real data from server (without refetching entire list)
-      queryClient.setQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => {
-        const { text, audio80wpm, audio100wpm, ...contentWithoutLargeFields } = newContent;
+      queryClient.setQueryData<Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]>(['content', 'list'], (old = []) => {
+        const { text, video60wpm, video80wpm, video100wpm, video120wpm, pdfFile, ...contentWithoutLargeFields } = newContent;
         return old.map(item => 
           item.id < 0 ? contentWithoutLargeFields : item
         );
       });
     },
     onSettled: () => {
-      // Only invalidate enabled list, not the full list (to avoid refetching all audio files)
+      // Only invalidate enabled list, not the full list (to avoid refetching all files)
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
       // Don't invalidate the main list - we've already updated it optimistically
     },
@@ -135,8 +139,8 @@ export function useContent() {
       const language = (formData.get('language') as string) || 'english';
       const autoScroll = formData.get('autoScroll') === 'true';
       
-      // Optimistic update - add new content without mediaUrl/audio80wpm/audio100wpm/text
-      const optimisticContent: Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'> = {
+      // Optimistic update - add new content without large fields
+      const optimisticContent: Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'> = {
         id: -Math.floor(Math.random() * 1000000),
         title,
         type,
@@ -146,9 +150,10 @@ export function useContent() {
         isEnabled: false,
         autoScroll,
         createdAt: new Date(),
+        folderId: null,
       };
 
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
+      queryClient.setQueryData<Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);
 
       return { previousContent };
     },
@@ -160,15 +165,15 @@ export function useContent() {
     },
     onSuccess: (newContent) => {
       // Update with real data from server (without refetching entire list)
-      queryClient.setQueryData<Omit<Content, 'text' | 'mediaUrl' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) => {
-        const { text, mediaUrl, audio80wpm, audio100wpm, ...contentWithoutLargeFields } = newContent;
+      queryClient.setQueryData<Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]>(['content', 'list'], (old = []) => {
+        const { text, video60wpm, video80wpm, video100wpm, video120wpm, pdfFile, ...contentWithoutLargeFields } = newContent;
         return old.map(item => 
           item.id < 0 ? contentWithoutLargeFields : item
         );
       });
     },
     onSettled: () => {
-      // Only invalidate enabled list, not the full list (to avoid refetching all audio files)
+      // Only invalidate enabled list, not the full list (to avoid refetching all files)
       queryClient.invalidateQueries({ queryKey: ['content', 'enabled', 'list'] });
       // Don't invalidate the main list - we've already updated it optimistically
     },
@@ -333,8 +338,8 @@ export function useContent() {
       // Update the full content cache
       queryClient.setQueryData(['content', 'full', updatedContent.id], updatedContent);
       // Update the list cache
-      const { text, audio80wpm, audio100wpm, ...listData } = updatedContent;
-      queryClient.setQueryData<Omit<Content, 'text' | 'audio80wpm' | 'audio100wpm'>[]>(['content', 'list'], (old = []) =>
+      const { text, video60wpm, video80wpm, video100wpm, video120wpm, pdfFile, ...listData } = updatedContent;
+      queryClient.setQueryData<Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]>(['content', 'list'], (old = []) =>
         old.map((item) =>
           item.id === updatedContent.id ? listData : item
         )

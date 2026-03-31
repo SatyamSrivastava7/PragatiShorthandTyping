@@ -2,7 +2,7 @@ import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tansta
 import { resultsApi } from '../api';
 
 export interface ResultsParams {
-  type?: 'typing' | 'shorthand';
+  type?: 'typing' | 'shorthand' | 'pitman';
   limit?: number;
 }
 

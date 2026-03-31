@@ -1,20 +1,70 @@
 /**
- * Script to regenerate metrics for the latest 50 results
- * Run with: npx tsx server/scripts/regenerate-results.ts
+ * Script to regenerate metrics for results
+ *
+ * By default it processes the most recent 500 results (all types).
+ * To recalc only the first 50 shorthand results, pass the `--shorthand`
+ * flag:
+ *
+ *   npx tsx server/scripts/regenerate-results.ts --shorthand
+ *
+ * This is useful after updating alignment/metrics logic so existing
+ * shorthand entries can be corrected without touching typing results.
  */
 
 import { db } from "../db";
 import { results } from "../../shared/schema";
 import { desc, eq } from "drizzle-orm";
 
+const PARA_TOKEN = '[[PARA]]';
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
+
+function stripHtmlEntities(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'");
+}
+
+function stripHtml(html: string): string {
+  if (!html) return '';
+  let s = html.replace(/<[^>]+>/g, '');
+  s = stripHtmlEntities(s);
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+function stripHtmlPreserveParagraphs(html: string): string {
+  if (!html) return '';
+  let s = html.replace(/<\s*br\s*\/?>/gi, '\n\n')
+              .replace(/<\s*\/\s*p\s*>/gi, '\n\n')
+              .replace(/<\s*p[^>]*>/gi, '\n\n')
+              .replace(/<\s*\/\s*div\s*>/gi, '\n\n')
+              .replace(/<\s*div[^>]*>/gi, '\n\n');
+  s = s.replace(/<[^>]+>/g, '');
+  s = stripHtmlEntities(s);
+  s = s.replace(/\r\n|\r/g, '\n');
+  s = s.replace(/\n+/g, ` ${PARA_TOKEN} `);
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
 
 function normalizeForComparison(text: string): string {
   return text
+    .replace(/\.\.\./g, "…")
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-")
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"')
     .replace(/[\u2018\u2019\u2032\u2033]/g, "'")
     .toLowerCase();
+}
+
+function removeParaTokens(text: string): string {
+  if (!text) return '';
+  return text.replace(/\[\[PARA\]\]/g, '');
 }
 
 type AlignmentStatus = "match" | "substitution" | "missing" | "extra" | "trailing";
@@ -24,6 +74,29 @@ interface AlignmentEntry {
   original: string;
   status: AlignmentStatus;
   isError: boolean;
+}
+
+function fixPrecedingMissingAsTrailing(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+  const result = [...alignment];
+  let lastTypedIdx = -1;
+  for (let i = result.length - 1; i >= 0; i--) {
+    if (result[i].typed !== "") {
+      lastTypedIdx = i;
+      break;
+    }
+  }
+  if (lastTypedIdx === -1) return result;
+  if (result[lastTypedIdx].status === "substitution") {
+    for (let j = lastTypedIdx - 1; j >= 0; j--) {
+      if (result[j].status === "missing") {
+        result[j] = { ...result[j], status: "trailing", isError: false };
+      } else {
+        break;
+      }
+    }
+  }
+  return result;
 }
 
 function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: number): AlignmentEntry[] {
@@ -97,40 +170,28 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
       }
     }
     
-    // If the last typed word is incorrect (substitution), mark immediately preceding missing words as trailing
     if (result[lastTypedIdx].status === "substitution") {
       for (let j = lastTypedIdx - 1; j >= 0; j--) {
         if (result[j].status === "missing") {
           result[j] = { ...result[j], status: "trailing", isError: false };
         } else {
-          // Stop at first non-missing word
           break;
         }
       }
     }
     
-    // Fix: If last typed word is substitution with a very short original (likely wrong match),
-    // re-pair it with the original word at the typed position based on word count
     if (result[lastTypedIdx].status === "substitution" || result[lastTypedIdx].status === "extra") {
       const lastTypedWord = result[lastTypedIdx].typed;
-      const currentOriginal = result[lastTypedIdx].original || "";
-      
-      // Look for the original word at position = typedCount in the trailing words
-      // that might be a better match (starts with same prefix)
       const lastTypedNormalized = lastTypedWord.replace(/[.,]/g, "").toLowerCase();
       
-      // Check trailing words for a better match
       for (let j = lastTypedIdx + 1; j < result.length; j++) {
         if (result[j].status === "trailing" && result[j].original) {
           const trailingNormalized = result[j].original.replace(/[.,]/g, "").toLowerCase();
           
-          // Check if typed word is a prefix of trailing word (student was typing it)
           if (trailingNormalized.startsWith(lastTypedNormalized.substring(0, 3)) || 
               lastTypedNormalized.startsWith(trailingNormalized.substring(0, 3))) {
-            // Re-pair: swap the original words
             const betterOriginal = result[j].original;
             
-            // Update the last typed entry with the better original
             result[lastTypedIdx] = {
               typed: lastTypedWord,
               original: betterOriginal,
@@ -138,7 +199,6 @@ function fixTrailingErrorPattern(alignment: AlignmentEntry[], typedWordCount: nu
               isError: true,
             };
             
-            // Remove this trailing entry since we used it
             result.splice(j, 1);
             break;
           }
@@ -240,27 +300,149 @@ function alignWordsDP(originalWords: string[], typedWords: string[]): AlignmentE
   return result;
 }
 
+function fixLocalMisalignment(alignment: AlignmentEntry[]): AlignmentEntry[] {
+  if (alignment.length === 0) return alignment;
+
+  const result: AlignmentEntry[] = [];
+  let i = 0;
+
+  while (i < alignment.length) {
+    if (alignment[i].status === "match" || alignment[i].status === "trailing") {
+      result.push(alignment[i]);
+      i++;
+      continue;
+    }
+
+    const blockStart = i;
+    while (i < alignment.length && alignment[i].status !== "match" && alignment[i].status !== "trailing") {
+      i++;
+    }
+    const block = alignment.slice(blockStart, i);
+
+    const blockOriginals: string[] = [];
+    const blockTyped: string[] = [];
+    for (const entry of block) {
+      if (entry.original) blockOriginals.push(entry.original);
+      if (entry.typed) blockTyped.push(entry.typed);
+    }
+
+    if (blockOriginals.length > 0 && blockTyped.length > 0) {
+      const normalizedOrig = blockOriginals.map(normalizeForComparison);
+      const normalizedTyp = blockTyped.map(normalizeForComparison);
+
+      const hasMatchableWords = normalizedTyp.some(tw => normalizedOrig.includes(tw));
+
+      if (hasMatchableWords && (blockOriginals.length > 1 || blockTyped.length > 1)) {
+        const localAlignment = alignWordsDP(blockOriginals, blockTyped);
+        result.push(...localAlignment);
+      } else {
+        result.push(...block);
+      }
+    } else {
+      result.push(...block);
+    }
+  }
+
+  return result;
+}
+
+function alignWordsWindowed(originalWords: string[], typedWords: string[]): AlignmentEntry[] {
+  const WINDOW_SIZE = 200;
+  const OVERLAP = 50;
+  const result: AlignmentEntry[] = [];
+  
+  let origIndex = 0;
+  let typedIndex = 0;
+
+  while (origIndex < originalWords.length || typedIndex < typedWords.length) {
+    const origEnd = Math.min(origIndex + WINDOW_SIZE, originalWords.length);
+    const typedEnd = Math.min(typedIndex + WINDOW_SIZE, typedWords.length);
+    
+    const origWindow = originalWords.slice(origIndex, origEnd);
+    const typedWindow = typedWords.slice(typedIndex, typedEnd);
+
+    if (origWindow.length === 0 && typedWindow.length === 0) break;
+
+    const windowAlignment = alignWordsDP(origWindow, typedWindow);
+    
+    let anchorIdx = windowAlignment.length;
+    if (origEnd < originalWords.length || typedEnd < typedWords.length) {
+      for (let i = Math.max(0, windowAlignment.length - OVERLAP); i < windowAlignment.length; i++) {
+        if (windowAlignment[i].status === "match") {
+          anchorIdx = i + 1;
+        }
+      }
+    }
+
+    for (let i = 0; i < anchorIdx; i++) {
+      result.push(windowAlignment[i]);
+    }
+
+    let origConsumed = 0;
+    let typedConsumed = 0;
+    for (let i = 0; i < anchorIdx; i++) {
+      if (windowAlignment[i].original !== "") origConsumed++;
+      if (windowAlignment[i].typed !== "") typedConsumed++;
+    }
+
+    origIndex += origConsumed;
+    typedIndex += typedConsumed;
+
+    if (origConsumed === 0 && typedConsumed === 0) {
+      if (origIndex < originalWords.length) {
+        result.push({
+          typed: "",
+          original: originalWords[origIndex],
+          status: "missing",
+          isError: true,
+        });
+        origIndex++;
+      } else if (typedIndex < typedWords.length) {
+        result.push({
+          typed: typedWords[typedIndex],
+          original: "",
+          status: "extra",
+          isError: true,
+        });
+        typedIndex++;
+      }
+    }
+  }
+
+  return result;
+}
+
 function alignWords(originalText: string, typedText: string): AlignmentEntry[] {
   const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
 
-  if (originalWords.length === 0 && typedWords.length === 0) return [];
-  if (originalWords.length === 0) {
+  const n = originalWords.length;
+  const m = typedWords.length;
+
+  if (n === 0 && m === 0) return [];
+  if (n === 0) {
     return typedWords.map((w) => ({
       typed: w, original: "", status: "extra" as AlignmentStatus, isError: true,
     }));
   }
-  if (typedWords.length === 0) {
+  if (m === 0) {
     return originalWords.map((w) => ({
       typed: "", original: w, status: "missing" as AlignmentStatus, isError: true,
     }));
   }
 
-  return alignWordsDP(originalWords, typedWords);
+  const MAX_DP_SIZE = 500;
+  if (n > MAX_DP_SIZE || m > MAX_DP_SIZE) {
+    const windowed = alignWordsWindowed(originalWords, typedWords);
+    return fixLocalMisalignment(windowed);
+  }
+
+  return fixLocalMisalignment(alignWordsDP(originalWords, typedWords));
 }
 
 function calculateAlignedMistakes(originalText: string, typedText: string) {
-  const alignment = alignWords(originalText, typedText);
+  const plainOriginalText = stripHtml(originalText || '');
+  const alignment = alignWords(plainOriginalText, typedText);
   
   let lastTypedIndex = -1;
   for (let i = alignment.length - 1; i >= 0; i--) {
@@ -270,14 +452,18 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     }
   }
   
-  // Count trailing words (words after last typed position)
   let trailingWords = 0;
   for (let i = lastTypedIndex + 1; i < alignment.length; i++) {
-    if (alignment[i].original) trailingWords++;
+    if (alignment[i].original) {
+      trailingWords++;
+    }
   }
   
   if (lastTypedIndex === -1) {
-    const totalOriginalWords = (originalText || "").trim().split(/\s+/).filter(w => w).length;
+    const totalOriginalWords = (plainOriginalText || "")
+      .trim()
+      .split(/\s+/)
+      .filter(w => w).length;
     return { mistakes: 0, alignment, attemptedAlignment: [], trailingWords: totalOriginalWords };
   }
   
@@ -294,14 +480,20 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
     }
   }
   
-  const attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
+  let attemptedAlignment = alignWords(attemptedOriginal, attemptedTyped);
+  attemptedAlignment = fixPrecedingMissingAsTrailing(attemptedAlignment);
 
   let mistakes = 0;
   
-  const commaCount = (word: string) => (word.match(/,/g) || []).length;
-  const periodCount = (word: string) => (word.match(/\./g) || []).length;
+  const normalizeEllipsis = (word: string) => word.replace(/\.\.\./g, "…");
+  const commaCount = (word: string) => (normalizeEllipsis(word).match(/,/g) || []).length;
+  const periodCount = (word: string) => (normalizeEllipsis(word).match(/\./g) || []).length;
 
   for (const item of attemptedAlignment) {
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+      continue;
+    }
+
     if (item.status === "missing") {
       mistakes += 1;
       mistakes += commaCount(item.original) * 0.25;
@@ -311,8 +503,8 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
       mistakes += commaCount(item.typed) * 0.25;
       mistakes += periodCount(item.typed) * 1;
     } else if (item.status === "substitution") {
-      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
-      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      const cleanOriginal = normalizeEllipsis(item.original).replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = normalizeEllipsis(item.typed).replace(/[.,]/g, "").toLowerCase();
       if (cleanOriginal !== cleanTyped) mistakes += 1;
       mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
       mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
@@ -326,18 +518,19 @@ function calculateAlignedMistakes(originalText: string, typedText: string) {
 }
 
 function calculateTypingMetrics(originalText: string, typedText: string, timeInMinutes: number, backspaces: number) {
-  const originalWords = (originalText || "").trim().split(/\s+/).filter((w) => w);
+  const plainOriginalText = stripHtml(originalText || '');
+  const originalWords = (plainOriginalText || "").trim().split(/\s+/).filter((w) => w);
   const typedWords = (typedText || "").trim().split(/\s+/).filter((w) => w);
   
-  // For typing tests, only align against original words up to typed count + small buffer
   const alignmentWindow = Math.min(originalWords.length, typedWords.length + 5);
   const windowedOriginal = originalWords.slice(0, alignmentWindow).join(" ");
   
   const rawAlignment = alignWords(windowedOriginal, typedText);
   const alignment = fixTrailingErrorPattern(rawAlignment, typedWords.length);
 
-  const commaCount = (word: string) => (word.match(/,/g) || []).length;
-  const periodCount = (word: string) => (word.match(/\./g) || []).length;
+  const normalizeEllipsis2 = (word: string) => word.replace(/\.\.\./g, "…");
+  const commaCount = (word: string) => (normalizeEllipsis2(word).match(/,/g) || []).length;
+  const periodCount = (word: string) => (normalizeEllipsis2(word).match(/\./g) || []).length;
 
   let mistakes = 0;
   let halfMistakes = 0;
@@ -351,8 +544,8 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
       mistakes += periodCount(item.typed) * 1;
       halfMistakes += commaCount(item.typed);
     } else if (item.status === "substitution") {
-      const cleanOriginal = item.original.replace(/[.,]/g, "").toLowerCase();
-      const cleanTyped = item.typed.replace(/[.,]/g, "").toLowerCase();
+      const cleanOriginal = normalizeEllipsis2(item.original).replace(/[.,]/g, "").toLowerCase();
+      const cleanTyped = normalizeEllipsis2(item.typed).replace(/[.,]/g, "").toLowerCase();
       if (cleanOriginal !== cleanTyped) mistakes += 1;
       mistakes += Math.abs(commaCount(item.original) - commaCount(item.typed)) * 0.25;
       mistakes += Math.abs(periodCount(item.original) - periodCount(item.typed)) * 1;
@@ -369,7 +562,7 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
     }
   }
 
-  const wordCount = alignment.filter(a => a.typed !== "").length;
+  const wordCount = alignment.filter(a => a.typed !== "" && a.original !== PARA_TOKEN && a.typed !== PARA_TOKEN).length;
   const grossSpeed = timeInMinutes > 0 ? wordCount / timeInMinutes : 0;
 
   let netSpeed = 0;
@@ -397,18 +590,17 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
 }
 
 function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
-  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(originalText, typedText);
+  const plainText = stripHtml(originalText || '');
+  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(plainText, typedText);
 
-  const fullOriginalWords = (originalText || "").trim().split(/\s+/).filter((w) => w).length;
+  const fullOriginalWords = (plainText || "").trim().split(/\s+/).filter((w) => w).length;
 
-  // Count words actually typed by student
   const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w).length;
   
-  // If student typed 0 words, automatic fail
   if (typedWordCount === 0) {
     return {
       words: fullOriginalWords,
-      mistakes: fullOriginalWords, // everything left is a mistake
+      mistakes: fullOriginalWords,
       halfMistakes: 0,
       result: "Fail",
       missingWords: 0,
@@ -417,29 +609,33 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
     };
   }
 
-  // Include trailing (left) words as mistakes for shorthand
   const totalMistakes = mistakes + trailingWords;
 
-  // 5% rule for mistakes
   const mistakePercentage = fullOriginalWords > 0 ? (totalMistakes / fullOriginalWords) * 100 : 0;
   
-  // 5% rule for left/trailing words
-  const trailingPercentage = fullOriginalWords > 0 ? (trailingWords / fullOriginalWords) * 100 : 0;
-  
-  // Pass only if both mistake percentage AND trailing percentage are <= 5%
-  const isPassed = mistakePercentage <= 5 && trailingPercentage <= 5;
+  const isPassed = mistakePercentage <= 5;
 
-  const missingWords = attemptedAlignment.filter((a) => a.status === "missing").length;
+  const missingWords = attemptedAlignment.filter(
+    (a) => a.status === "missing"
+  ).length;
 
   let halfMistakes = 0;
+
+  function normalizeEllipsisSH(word: string) {
+    return word.replace(/\.\.\./g, "…");
+  }
+
   for (const item of attemptedAlignment) {
+    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
+
     if (item.status === "missing") {
-      halfMistakes += (item.original.match(/,/g) || []).length;
+      halfMistakes += (normalizeEllipsisSH(item.original).match(/,/g) || []).length;
     } else if (item.status === "extra") {
-      halfMistakes += (item.typed.match(/,/g) || []).length;
+      halfMistakes += (normalizeEllipsisSH(item.typed).match(/,/g) || []).length;
     } else {
       halfMistakes += Math.abs(
-        (item.original.match(/,/g) || []).length - (item.typed.match(/,/g) || []).length
+        (normalizeEllipsisSH(item.original).match(/,/g) || []).length - 
+        (normalizeEllipsisSH(item.typed).match(/,/g) || []).length
       );
     }
   }
@@ -456,80 +652,117 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 }
 
 async function regenerateResults() {
-  console.log("Fetching latest 50 results...");
+  console.log("Regenerating results: updating metrics, HTML resolution, and PARA tokens for latest 50 of each test type...\n");
   
-  const latestResults = await db
-    .select()
-    .from(results)
-    .orderBy(desc(results.id))
-    .limit(500);
+  const testTypes = ["typing", "shorthand", "pitman"];
+  let totalUpdated = 0;
+  let totalSkipped = 0;
 
-  console.log(`Found ${latestResults.length} results to process.`);
-
-  let updated = 0;
-  let skipped = 0;
-
-  for (const result of latestResults) {
-    if (!result.originalText) {
-      console.log(`Skipping result ${result.id} - no original text stored`);
-      skipped++;
-      continue;
-    }
-
-    const timeInMinutes = result.time; // time is already stored in minutes
+  for (const testType of testTypes) {
+    console.log(`\n=== Processing ${testType} tests ===`);
     
-    try {
-      if (result.contentType === "typing") {
-        const metrics = calculateTypingMetrics(
-          result.originalText,
-          result.typedText,
-          timeInMinutes,
-          result.backspaces || 0
-        );
+    // Get latest 50 results of this type (ordered by submitted_at DESC = latest first)
+    const testResults = await db
+      .select()
+      .from(results)
+      .where(eq(results.contentType, testType))
+      .orderBy(desc(results.submittedAt))
+      .limit(50);
 
-        await db
-          .update(results)
-          .set({
-            words: metrics.words,
-            mistakes: String(metrics.mistakes),
-            halfMistakes: String(metrics.halfMistakes),
-            grossSpeed: String(metrics.grossSpeed),
-            netSpeed: String(metrics.netSpeed),
-          })
-          .where(eq(results.id, result.id));
+    console.log(`Found ${testResults.length} ${testType} results to process.`);
 
-        console.log(`Updated typing result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.netSpeed} WPM`);
-        updated++;
-      } else if (result.contentType === "shorthand") {
-        const metrics = calculateShorthandMetrics(
-          result.originalText,
-          result.typedText,
-          timeInMinutes
-        );
+    let updated = 0;
+    let skipped = 0;
 
-        await db
-          .update(results)
-          .set({
-            words: metrics.words,
-            mistakes: String(metrics.mistakes),
-            halfMistakes: String(metrics.halfMistakes),
-            result: metrics.result,
-          })
-          .where(eq(results.id, result.id));
+    for (const result of testResults) {
+      // Database stores text in 4 forms:
+      // 1. originalText/typedText: AS-IS with HTML formatting and PARA_TOKEN (for display)
+      // 2. originalTextClean/typedTextClean: no HTML, no PARA_TOKEN (for metrics calculation)
+      
+      // For alignment in display: stripHtml removes HTML but keeps PARA_TOKEN to align at word level
+      // For metrics: removeParaTokens removes both HTML and PARA_TOKEN to get pure text
+      const regeneratedOriginalClean = removeParaTokens(stripHtml(result.originalText || ''));
+      const regeneratedTypedClean = removeParaTokens(stripHtml(result.typedText || ''));
 
-        console.log(`Updated shorthand result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.result}`);
-        updated++;
-      } else {
-        console.log(`Skipping result ${result.id} - unknown type: ${result.contentType}`);
+      // Use regenerated clean text for metrics calculation
+      const originalTextForMetrics = regeneratedOriginalClean;
+      const typedTextForMetrics = regeneratedTypedClean;
+
+      if (!originalTextForMetrics || !typedTextForMetrics) {
+        console.log(`Skipping result ${result.id} - missing text data`);
+        skipped++;
+        continue;
+      }
+
+      const timeInMinutes = result.time;
+      
+      try {
+        if (testType === "typing" || testType === "pitman") {
+          // Both typing and pitman use same metrics calculation
+          const metrics = calculateTypingMetrics(
+            originalTextForMetrics,
+            typedTextForMetrics,
+            timeInMinutes,
+            result.backspaces || 0
+          );
+
+          // For pass/fail: use 5% mistake rule
+          const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
+          const resultStatus = mistakePercentage > 5 ? 'Fail' : 'Pass';
+
+          await db
+            .update(results)
+            .set({
+              originalTextClean: regeneratedOriginalClean,
+              typedTextClean: regeneratedTypedClean,
+              words: metrics.words,
+              mistakes: String(metrics.mistakes),
+              halfMistakes: String(metrics.halfMistakes),
+              grossSpeed: String(metrics.grossSpeed),
+              netSpeed: String(metrics.netSpeed),
+              result: resultStatus,
+            })
+            .where(eq(results.id, result.id));
+
+          console.log(`  Result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.netSpeed} WPM, ${resultStatus}`);
+          updated++;
+        } else if (testType === "shorthand") {
+          const metrics = calculateShorthandMetrics(
+            originalTextForMetrics,
+            typedTextForMetrics,
+            timeInMinutes
+          );
+
+          await db
+            .update(results)
+            .set({
+              originalTextClean: regeneratedOriginalClean,
+              typedTextClean: regeneratedTypedClean,
+              words: metrics.words,
+              mistakes: String(metrics.mistakes),
+              halfMistakes: String(metrics.halfMistakes),
+              result: metrics.result,
+            })
+            .where(eq(results.id, result.id));
+
+          console.log(`  Result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.result}`);
+          updated++;
+        }
+      } catch (error) {
+        console.error(`  Error processing result ${result.id}:`, error);
         skipped++;
       }
-    } catch (error) {
-      console.error(`Error processing result ${result.id}:`, error);
-      skipped++;
     }
+
+    console.log(`${testType}: Updated ${updated}, Skipped ${skipped}`);
+    totalUpdated += updated;
+    totalSkipped += skipped;
   }
 
-  console.log(`\nDone! Updated: ${updated}, Skipped: ${skipped}`);
+  console.log(`\n=== Summary ===`);
+  console.log(`Total Updated: ${totalUpdated}`);
+  console.log(`Total Skipped: ${totalSkipped}`);
+  console.log(`Done!`);
   process.exit(0);
 }
 

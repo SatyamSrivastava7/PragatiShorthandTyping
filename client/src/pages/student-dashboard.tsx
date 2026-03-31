@@ -6,6 +6,7 @@ import {
   useLatestTestFolders,
 } from "@/lib/hooks";
 import { usersApi } from "@/lib/api";
+import { cn, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml, calculateDaysLeftForDeactivation } from "@/lib/utils";
 import type { Result } from "@shared/schema";
 import { generateResultPDF } from "@/lib/utils";
 import {
@@ -38,6 +39,9 @@ import {
   BookOpen,
   Camera,
   Edit2,
+  CheckCircle,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -117,6 +121,7 @@ export default function StudentDashboard() {
   // Search State
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
+  const [pitmanSearch, setPitmanSearch] = useState("");
   
   // Selected video speeds per test for shorthand
   const [selectedVideoSpeeds, setSelectedVideoSpeeds] = useState<Record<number, string>>({}); // testId -> speed (60, 80, 100, 120)
@@ -124,10 +129,12 @@ export default function StudentDashboard() {
   // Selected language folders for each tab (null = show language folders, then folder selection)
   const [selectedTypingLanguage, setSelectedTypingLanguage] = useState<string | null>(null);
   const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
+  const [selectedPitmanLanguage, setSelectedPitmanLanguage] = useState<string | null>(null);
   
   // Selected folder per test type (null = show folders, number = show tests in that folder, undefined = no folder filter)
   const [selectedTypingFolderId, setSelectedTypingFolderId] = useState<number | null | undefined>(undefined);
   const [selectedShorthandFolderId, setSelectedShorthandFolderId] = useState<number | null | undefined>(undefined);
+  const [selectedPitmanFolderId, setSelectedPitmanFolderId] = useState<number | null | undefined>(undefined);
   
   // Active main tab
   const [activeTab, setActiveTab] = useState<string>('typing_tests');
@@ -139,6 +146,7 @@ export default function StudentDashboard() {
   // Only fetch latest 6 folders, ordered by creation date (newest first)
   const typingFoldersQuery = useLatestTestFolders(selectedTypingLanguage || 'english', 6, 'typing');
   const shorthandFoldersQuery = useLatestTestFolders(selectedShorthandLanguage || 'english', 6, 'shorthand');
+  const pitmanFoldersQuery = useLatestTestFolders(selectedPitmanLanguage || 'english', 6, 'pitman');
 
   // Typing: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
   const typingQuery = useInfiniteQuery({
@@ -178,7 +186,26 @@ export default function StudentDashboard() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // paging is handled by react-query `useInfiniteQuery` (typingQuery, shorthandQuery)
+  // Pitman: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
+  const pitmanQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'pitman', selectedPitmanLanguage, selectedPitmanFolderId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ 
+        type: 'pitman', 
+        language: selectedPitmanLanguage || 'english',
+        folderId: selectedPitmanFolderId || undefined,
+        limit: PAGE_SIZE, 
+        offset: pageParam 
+      });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'pitman_tests' && !!selectedPitmanLanguage && selectedPitmanFolderId !== undefined,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // paging is handled by react-query `useInfiniteQuery` (typingQuery, shorthandQuery, pitmanQuery)
 
   // Results: counts and paged lists (5 per page) for typing and shorthand
   // With proper caching: staleTime = when to fetch fresh, gcTime = when to discard from memory
@@ -218,10 +245,23 @@ export default function StudentDashboard() {
     gcTime: 1000 * 60 * 15, // 15 minutes
   });
 
+  const pitmanResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'pitman', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'pitman', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // 15 minutes
+  });
+
   // When selection or active tab changes, react-query handles fetching (enabled flag)
   useEffect(() => {
     // no-op: selection and activeTab drive `useInfiniteQuery` enabled state
-  }, [selectedTypingLanguage, selectedShorthandLanguage, activeTab]);
+  }, [selectedTypingLanguage, selectedShorthandLanguage, selectedPitmanLanguage, activeTab]);
 
   const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -400,6 +440,7 @@ export default function StudentDashboard() {
 
   const typingResultsCount = (resultsCountsQuery.data?.typing) ?? 0;
   const shorthandResultsCount = resultsCountsQuery.data?.shorthand ?? 0;
+  const pitmanResultsCount = resultsCountsQuery.data?.pitman ?? 0;
 
   // Fetch lightweight counts for UI (avoid fetching full lists just for counts)
   const countsQuery = useQuery({
@@ -509,15 +550,51 @@ export default function StudentDashboard() {
               <p className="text-xs text-blue-100">Shorthand</p>
             </div>
             <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount)}</p>
+              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.pitman ?? 0)}</p>
+              <p className="text-xs text-blue-100">Pitman Exercise</p>
+            </div>
+            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
+              <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
               <p className="text-xs text-blue-100">Results</p>
             </div>
+            {(() => {
+              const { daysLeft, status, message } = calculateDaysLeftForDeactivation(currentUser?.validUntil);
+              if (status === 'no-expiry') return null;
+              
+              const bgColor = status === 'expired' 
+                ? 'bg-red-500/30' 
+                : status === 'expiring-soon' 
+                ? 'bg-yellow-500/30' 
+                : 'bg-blue-500/30';
+              
+              const textColor = status === 'expired' 
+                ? 'text-red-100' 
+                : status === 'expiring-soon' 
+                ? 'text-yellow-100' 
+                : 'text-blue-100';
+
+              const icon = status === 'expired' 
+                ? <AlertTriangle className="h-6 w-6" />
+                : status === 'expiring-soon'
+                ? <AlertCircle className="h-6 w-6" />
+                : <Clock className="h-6 w-6" />;
+
+              return (
+                <div className={`${bgColor} rounded-xl px-5 py-3 text-center min-w-[140px] border border-white/20`}>
+                  <div className="flex items-center justify-center mb-1">
+                    {icon}
+                  </div>
+                  <p className="text-2xl font-bold">{daysLeft ?? 0}</p>
+                  <p className={`text-xs ${textColor}`}>{message}</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+        <TabsList className="grid w-full grid-cols-5 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
           <TabsTrigger
             value="typing_tests"
             className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
@@ -529,6 +606,12 @@ export default function StudentDashboard() {
             className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
             <Mic className="h-4 w-4" /> Shorthand
+          </TabsTrigger>
+          <TabsTrigger
+            value="pitman_tests"
+            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+          >
+            <BookOpen className="h-4 w-4" /> Pitman Exercise
           </TabsTrigger>
           <TabsTrigger
             value="results"
@@ -970,6 +1053,212 @@ export default function StudentDashboard() {
           )}
         </TabsContent>
 
+        <TabsContent value="pitman_tests">
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <BookOpen className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Pitman Exercise</h3>
+                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.pitman ?? 0} tests available`}</p>
+                </div>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tests..."
+                  value={pitmanSearch}
+                  onChange={(e) => setPitmanSearch(e.target.value)}
+                  className="pl-10 bg-white shadow-sm"
+                  data-testid="input-search-pitman"
+                />
+              </div>
+            </div>
+          </div>
+          {pitmanQuery?.isLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="h-8 w-8 animate-spin text-red-500" />
+              <span className="ml-3 text-muted-foreground">Loading tests...</span>
+            </div>
+          ) : (
+            <div>
+              {!selectedPitmanLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => {
+                        setSelectedPitmanLanguage(lang);
+                        setSelectedPitmanFolderId(undefined); // Reset folder selection when changing language
+                      }}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                      <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : selectedPitmanFolderId === undefined ? (
+                // Show folder selection
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedPitmanLanguage(null);
+                      setSelectedPitmanFolderId(undefined);
+                    }}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedPitmanLanguage} - Select Folder</h4>
+                  </div>
+                  {pitmanFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-red-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Option to view all tests without folder filter */}
+                        <div
+                          onClick={() => setSelectedPitmanFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-red-50/50"
+                        >
+                          <Folder className="h-12 w-12 text-red-600 fill-red-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
+                        </div>
+                        {/* Show available folders */}
+                        {((pitmanFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedPitmanFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
+                      </div>
+                      {pitmanFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button 
+                            onClick={() => pitmanFoldersQuery.fetchNextPage()} 
+                            disabled={pitmanFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {pitmanFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setSelectedPitmanFolderId(undefined);
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedPitmanLanguage} {selectedPitmanFolderId !== null ? `- ${((pitmanFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedPitmanFolderId)?.name || 'Folder'}` : '- All Tests'} Pitman Exercise Tests
+                    </h4>
+                  </div>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {pitmanQuery.isError ? (
+                      <div className="col-span-full text-center py-8">
+                        <p className="text-destructive mb-2">Failed to load tests</p>
+                        <p className="text-sm text-muted-foreground">{pitmanQuery.error instanceof Error ? pitmanQuery.error.message : 'Unknown error'}</p>
+                      </div>
+                    ) : ((pitmanQuery.data?.pages ?? []) as any[])
+                      .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
+                      .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedPitmanLanguage || 'english'))
+                      .filter((t: any) => selectedPitmanFolderId === null ? true : t.folderId === selectedPitmanFolderId)
+                      .filter((t: any) => t.title && t.title.toLowerCase().includes(pitmanSearch.toLowerCase()))
+                      .map((test: any) => {
+                        if (!test || !test.id) return null;
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
+
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-red-500 to-red-600" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
+                              </div>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span>{test.duration} min</span>
+                                </div>
+                                {isCompleted && (
+                                  <div className="flex items-center gap-2 text-green-600">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span>Completed</span>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                            <CardFooter className="pt-0 gap-2">
+                              <Button
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                                className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-2"
+                                size="sm"
+                              >
+                                <PlayCircle className="h-4 w-4" />
+                                {isCompleted ? 'Retake' : 'Start'}
+                              </Button>
+                              {isCompleted && (
+                                <Button
+                                  onClick={() => setLocation(`/results/${result?.id}`)}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
+                  </div>
+                  {pitmanQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button 
+                        onClick={() => pitmanQuery.fetchNextPage()} 
+                        disabled={pitmanQuery.isFetchingNextPage}
+                        variant="outline"
+                      >
+                        {pitmanQuery.isFetchingNextPage ? 'Loading more tests...' : 'Load More Tests'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="results">
           <div className="mb-6">
             <div className="flex items-center gap-3">
@@ -978,13 +1267,13 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-lg">My Results</h3>
-                <p className="text-sm text-muted-foreground">{(typingResultsCount + shorthandResultsCount)} total results</p>
+                <p className="text-sm text-muted-foreground">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)} total results</p>
               </div>
             </div>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
@@ -1011,12 +1300,25 @@ export default function StudentDashboard() {
                 </div>
               </CardContent>
             </Card>
+            <Card className="border-0 shadow-md bg-gradient-to-br from-red-500 to-red-600 text-white">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-red-100">Pitman Tests</p>
+                    <p className="text-2xl font-bold mt-1">{pitmanResultsCount}</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-100">Total Results</p>
-                    <p className="text-2xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount)}</p>
+                    <p className="text-2xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
                     <Award className="h-5 w-5" />
@@ -1037,11 +1339,14 @@ export default function StudentDashboard() {
                     <TabsTrigger value="shorthand_results" className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
                       <Mic className="h-4 w-4 mr-2" /> Shorthand Results
                     </TabsTrigger>
+                    <TabsTrigger value="pitman_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                      <BookOpen className="h-4 w-4 mr-2" /> Pitman Results
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
-                {["typing", "shorthand"].map((type) => {
-                  const resultsQuery = type === 'typing' ? typingResultsQuery : shorthandResultsQuery;
+                {["typing", "shorthand", "pitman"].map((type) => {
+                  const resultsQuery = type === 'typing' ? typingResultsQuery : type === 'shorthand' ? shorthandResultsQuery : pitmanResultsQuery;
                   const pages = resultsQuery.data?.pages ?? [];
                   const flatResults = pages.flat();
 
@@ -1054,8 +1359,8 @@ export default function StudentDashboard() {
                             className="p-4 rounded-xl border bg-white hover:shadow-md transition-shadow flex items-center justify-between"
                           >
                             <div className="flex items-center gap-4">
-                              <div className={`p-2 rounded-lg ${type === 'typing' ? 'bg-blue-100' : 'bg-orange-100'}`}>
-                                {type === 'typing' ? <Keyboard className="h-5 w-5 text-blue-600" /> : <Mic className="h-5 w-5 text-orange-600" />}
+                              <div className={`p-2 rounded-lg ${type === 'typing' ? 'bg-blue-100' : type === 'shorthand' ? 'bg-orange-100' : 'bg-red-100'}`}>
+                                {type === 'typing' ? <Keyboard className="h-5 w-5 text-blue-600" /> : type === 'shorthand' ? <Mic className="h-5 w-5 text-orange-600" /> : <BookOpen className="h-5 w-5 text-red-600" />}
                               </div>
                               <div>
                                 <h4 className="font-semibold">{result.contentTitle}</h4>
@@ -1139,9 +1444,15 @@ export default function StudentDashboard() {
                                           </span>{" "}
                                           <span>
                                             {
-                                              (result.originalText || "")
-                                                .trim()
-                                                .split(/\s+/).length
+                                              result.contentType === "shorthand"
+                                                ? (result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length
+                                                : stripHtmlPreserveParagraphs(
+                                                    result.originalText || "",
+                                                  )
+                                                    .trim()
+                                                    .split(/\s+/)
+                                                    .filter((w: string) => w && w !== PARA_TOKEN)
+                                                    .length
                                             }
                                           </span>
                                         </div>
@@ -1180,6 +1491,8 @@ export default function StudentDashboard() {
                                         <ResultTextAnalysis
                                           originalText={result.originalText || ""}
                                           typedText={result.typedText}
+                                          originalTextClean={result.originalTextClean || undefined}
+                                          typedTextClean={result.typedTextClean || undefined}
                                           language={(result.language as 'english' | 'hindi') || undefined}
                                           contentType={result.contentType as 'typing' | 'shorthand'}
                                         />
@@ -1189,9 +1502,14 @@ export default function StudentDashboard() {
                                         <h4 className="font-semibold mb-2">
                                           Original Text
                                         </h4>
-                                        <p className="text-sm whitespace-pre-wrap">
-                                          {result.originalText}
-                                        </p>
+                                        <div 
+                                          className={cn("text-sm whitespace-pre-wrap", (result.language as 'english' | 'hindi' | undefined) === 'hindi' ? "font-mangal" : "")}
+                                        >
+                                          {result.contentType === "shorthand"
+                                            ? stripHtml(result.originalText || "")
+                                            : <div dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
+                                          }
+                                        </div>
                                       </div>
 
                                       <div className="flex justify-end pt-4">

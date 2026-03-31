@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, numeric, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, numeric, serial, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -25,7 +25,11 @@ export const users = pgTable("users", {
   purchasedPdfs: text("purchased_pdfs").array().default(sql`ARRAY[]::text[]`),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  roleIdx: index("users_role_idx").on(table.role),
+  studentIdIdx: index("users_student_id_idx").on(table.studentId),
+  isPaymentCompletedIdx: index("users_is_payment_completed_idx").on(table.isPaymentCompleted),
+}));
 
 // Test Folders table (organize tests by language and folder)
 export const testFolders = pgTable("test_folders", {
@@ -34,13 +38,18 @@ export const testFolders = pgTable("test_folders", {
   language: varchar("language", { length: 10 }).notNull(), // 'english' | 'hindi'
   type: varchar("type", { length: 20 }).notNull().default("typing"), // 'typing' | 'shorthand'
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  languageIdx: index("test_folders_language_idx").on(table.language),
+  typeIdx: index("test_folders_type_idx").on(table.type),
+  languageTypeIdx: index("test_folders_language_type_idx").on(table.language, table.type),
+  createdAtIdx: index("test_folders_created_at_idx").on(table.createdAt),
+}));
 
-// Content table (typing and shorthand tests)
+// Content table (typing, shorthand, and pitman book exercise tests)
 export const content = pgTable("content", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
-  type: varchar("type", { length: 20 }).notNull(), // 'typing' | 'shorthand'
+  type: varchar("type", { length: 20 }).notNull(), // 'typing' | 'shorthand' | 'pitman'
   text: text("text").notNull(),
   duration: integer("duration").notNull(), // in minutes
   dateFor: varchar("date_for", { length: 20 }).notNull(), // ISO date string
@@ -55,8 +64,19 @@ export const content = pgTable("content", {
   video100wpm: text("video_100wpm"), // YouTube link for 100 WPM
   video120wpm: text("video_120wpm"), // YouTube link for 120 WPM
   
+  // PDF file for Pitman Book Exercise (optional, stored as base64)
+  pdfFile: text("pdf_file"), // Base64 encoded PDF file for pitman book exercise
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  typeIdx: index("content_type_idx").on(table.type),
+  isEnabledIdx: index("content_is_enabled_idx").on(table.isEnabled),
+  languageIdx: index("content_language_idx").on(table.language),
+  folderIdIdx: index("content_folder_id_idx").on(table.folderId),
+  typeIsEnabledIdx: index("content_type_is_enabled_idx").on(table.type, table.isEnabled),
+  languageTypeIdx: index("content_language_type_idx").on(table.language, table.type),
+  createdAtIdx: index("content_created_at_idx").on(table.createdAt),
+}));
 
 // Results table
 export const results = pgTable("results", {
@@ -67,8 +87,15 @@ export const results = pgTable("results", {
   contentId: integer("content_id").references(() => content.id, { onDelete: "set null" }),
   contentTitle: text("content_title").notNull(),
   contentType: varchar("content_type", { length: 20 }).notNull(),
-  typedText: text("typed_text").notNull(),
-  originalText: text("original_text"),
+  
+  // Original content - with and without HTML
+  originalText: text("original_text"), // With HTML - for rendering/PDF
+  originalTextClean: text("original_text_clean"), // Without HTML - for metrics calculation
+  
+  // Typed content - with and without HTML/PARA_TOKENs
+  typedText: text("typed_text").notNull(), // With PARA_TOKENs - for rendering
+  typedTextClean: text("typed_text_clean"), // Without HTML or PARA_TOKENs - for metrics calculation
+  
   language: varchar("language", { length: 10 }).default('english'),
   
   // Metrics stored as JSON-like fields
@@ -82,7 +109,14 @@ export const results = pgTable("results", {
   result: varchar("result", { length: 10}), // 'Pass' | 'Fail'
   
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  studentIdIdx: index("results_student_id_idx").on(table.studentId),
+  contentTypeIdx: index("results_content_type_idx").on(table.contentType),
+  contentIdIdx: index("results_content_id_idx").on(table.contentId),
+  submittedAtIdx: index("results_submitted_at_idx").on(table.submittedAt),
+  studentIdContentTypeIdx: index("results_student_id_content_type_idx").on(table.studentId, table.contentType),
+  contentTypeSubmittedAtIdx: index("results_content_type_submitted_at_idx").on(table.contentType, table.submittedAt),
+}));
 
 // PDF Folders
 export const pdfFolders = pgTable("pdf_folders", {
@@ -100,7 +134,10 @@ export const pdfResources = pgTable("pdf_resources", {
   price: numeric("price").notNull(),
   folderId: integer("folder_id").references(() => pdfFolders.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  folderIdIdx: index("pdf_resources_folder_id_idx").on(table.folderId),
+  createdAtIdx: index("pdf_resources_created_at_idx").on(table.createdAt),
+}));
 
 // Dictations
 export const dictations = pgTable("dictations", {
@@ -128,7 +165,10 @@ export const galleryImages = pgTable("gallery_images", {
   url: text("url").notNull(),
   order: integer("order").default(999).notNull(), // Default 999 for unselected; 0-9 for selected/featured images
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  orderIdx: index("gallery_images_order_idx").on(table.order),
+  createdAtIdx: index("gallery_images_created_at_idx").on(table.createdAt),
+}));
 
 // Settings
 export const settings = pgTable("settings", {

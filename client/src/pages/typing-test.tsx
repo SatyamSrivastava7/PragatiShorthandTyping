@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
-import { calculateTypingMetrics, calculateShorthandMetrics, cn } from "@/lib/utils";
+import { calculateTypingMetrics, calculateShorthandMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Timer, Save, CheckCircle, Music, ArrowLeft, Maximize, Minimize, Type, RefreshCw, Loader2, AlertCircle } from "lucide-react";
+import { Timer, Save, CheckCircle, Music, ArrowLeft, Maximize, Minimize, Type, RefreshCw, Loader2, AlertCircle, ArrowDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Toggle } from "@/components/ui/toggle";
+import { Label } from "@/components/ui/label";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -44,6 +46,8 @@ export default function TypingTestPage() {
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [selectedVideoWpm, setSelectedVideoWpm] = useState<"60" | "80" | "100" | "120">("80"); // Default to 80 WPM
   const [userScrolled, setUserScrolled] = useState(false); // Track if user manually scrolled
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null); // Null until testContent loads
+  const [highlighterEnabled, setHighlighterEnabled] = useState<boolean>(true); // Enable/disable word highlighting
   
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,10 +56,15 @@ export default function TypingTestPage() {
   const originalTextRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
   const isAutoScrollingRef = useRef<boolean>(false); // Flag to track if current scroll is programmatic
+  const lastParaCountRef = useRef<number>(0); // Track previous paragraph count to detect new breaks
+  const paraScrollUntilWordsRef = useRef<number>(0); // when >0, use boosted scroll factor until typedWords > this
+  const paraScrollUntilTimeRef = useRef<number>(0); // when > now, use boosted scroll factor until this timestamp
 
   useEffect(() => {
     if (testContent) {
       setTimeLeft(testContent.duration * 60);
+      // Initialize autoScrollEnabled from testContent
+      setAutoScrollEnabled(testContent.autoScroll ?? true);
     }
   }, [testContent]);
 
@@ -118,8 +127,15 @@ export default function TypingTestPage() {
     let netSpeed: string | undefined;
     let halfMistakes: string | undefined;
 
+    // Process typed text based on test type
+    const storedTypedText = testContent.type === 'typing' ? replaceNewlinesWithParaToken(typedText) : typedText;
+    
+    // Strip HTML and PARA_TOKEN from both texts for metrics calculation (clean text = no HTML, no PARA_TOKENS)
+    const cleanTestText = stripHtml(testContent.text).replace(/\[\[PARA\]\]/g, '');
+    const cleanTypedText = stripHtml(storedTypedText).replace(/\[\[PARA\]\]/g, '');
+
     if (testContent.type === 'typing') {
-      metrics = calculateTypingMetrics(testContent.text, typedText, testContent.duration, backspaces);
+      metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, backspaces);
       // Determine Pass/Fail based on 5% mistake rule
       const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
       result = mistakePercentage > 5 ? 'Fail' : 'Pass';
@@ -127,7 +143,9 @@ export default function TypingTestPage() {
       netSpeed = String(metrics.netSpeed);
       halfMistakes = String(metrics.halfMistakes ?? 0);
     } else {
-      metrics = calculateShorthandMetrics(testContent.text, typedText, testContent.duration);
+      metrics = calculateShorthandMetrics(cleanTestText, cleanTypedText, testContent.duration);
+      const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
+      result = mistakePercentage > 5 ? 'Fail' : 'Pass';
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;
@@ -137,7 +155,8 @@ export default function TypingTestPage() {
     try {
       await createResult({
         contentId: testContent.id,
-        typedText: typedText,
+        // Save processed typed text (newlines -> paragraph token)
+        typedText: storedTypedText,
         words: metrics.words,
         time: testContent.duration,
         mistakes: String(metrics.mistakes),
@@ -234,16 +253,33 @@ export default function TypingTestPage() {
   // Auto-scroll logic - scrolls original text to follow typing progress
   // Content moves from bottom to top (current word stays near top of visible area)
   useEffect(() => {
-    const autoScrollEnabled = testContent?.autoScroll ?? true;
-    if (!autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
+    if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
     if (!isActive) return; // Only scroll when test is active
+    
+    // no skip - we will handle boosted paragraph scrolling via paraScrollUntilWordsRef
     
     const container = originalTextRef.current;
     const originalText = testContent.text;
     
-    // Count words typed by user
-    const typedWords = typedText.trim().split(/\s+/).filter(w => w).length;
-    const originalWords = originalText.trim().split(/\s+/).filter(w => w);
+    // Strip HTML tags while preserving paragraph markers for accurate word counting
+    const plainText = stripHtmlPreserveParagraphs(originalText);
+
+    // Count paragraphs typed by user and words to detect Enter and set boosted window
+    const processedTyped = replaceNewlinesWithParaToken(typedText);
+    const paraCount = (processedTyped.match(/\[\[PARA\]\]/g) || []).length;
+
+    // Count words typed by user (treat newlines as PARA_TOKEN)
+    const typedWords = processedTyped.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
+
+    // Check if a new paragraph was added (user pressed Enter)
+    const isNewParagraph = paraCount > lastParaCountRef.current;
+    if (isNewParagraph) {
+      lastParaCountRef.current = paraCount;
+      // Boost scrolling for next 5 typed words OR for 1.5s, whichever is longer
+      paraScrollUntilWordsRef.current = typedWords + 5;
+      paraScrollUntilTimeRef.current = Date.now() + 1500; // 1.5 seconds
+    }
+    const originalWords = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
     const totalOriginalWords = originalWords.length;
     
     if (totalOriginalWords === 0) return;
@@ -257,28 +293,34 @@ export default function TypingTestPage() {
     const targetScrollPosition = Math.max(0, progress * scrollableHeight);
     
     const currentScroll = container.scrollTop;
-    const diff = targetScrollPosition - currentScroll;
+    let diff = targetScrollPosition - currentScroll;
     
-    // Only auto-scroll if difference is significant (more than 5px)
-    // This prevents jittering on every keystroke
-    if (Math.abs(diff) < 5) return;
+    // Determine if boosted scroll should be active (typed-word window or time window)
+    const now = Date.now();
+    const boostedActive = (typedWords <= paraScrollUntilWordsRef.current) || (now <= paraScrollUntilTimeRef.current);
+    const scrollFactor = boostedActive ? 0.8 : 0.35;
+
+    // Only auto-scroll if difference is significant (more than 2px) when not boosted
+    if (Math.abs(diff) < 2 && !boostedActive) return;
     
     // If user has manually scrolled, only do "catch-up" scrolling
     // when they fall more than 30% behind the target position
-    if (userScrolled) {
+    if (userScrolled && !boostedActive) {
       const lagThreshold = scrollableHeight * 0.3;
       if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
     }
     
-    // Smooth scroll: move 25% of the distance per update
-    const newScroll = currentScroll + diff * 0.25;
+    // Apply scroll with appropriate factor (higher for paragraph breaks)
+    let newScroll = currentScroll + diff * scrollFactor;
+    
+
     
     // Mark as programmatic scroll to avoid triggering manual scroll detection
     isAutoScrollingRef.current = true;
     container.scrollTop = newScroll;
     lastScrollTopRef.current = newScroll;
     
-  }, [typedText, testContent, userScrolled, isActive]);
+  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled]);
 
   const startTest = () => {
     // Reset scroll tracking when test starts
@@ -326,7 +368,8 @@ export default function TypingTestPage() {
     const textarea = e.currentTarget;
     const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
     
-    // Block any modifier combinations (Ctrl, Alt, Cmd) - for all test types
+    // Block Ctrl+C, Ctrl+V (copy/paste), Ctrl+X (cut), Alt, Cmd combinations
+    // But ALLOW Shift combinations (needed for Hindi IME and special characters like !, @, etc.)
     if (hasModifier) {
       e.preventDefault();
       return;
@@ -345,12 +388,27 @@ export default function TypingTestPage() {
     
     // Typing test specific restrictions
     if (testContent?.type === 'typing') {
-      // Only allow: Shift, Enter, Space, and regular characters (letters, numbers, punctuation)
-      const allowedKeys = ['Shift', 'Enter', ' ', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowDown'];
+      // Allow keys needed for IME input (Hindi, Chinese, Japanese, etc.) and regular typing
+      // Block only keys that would disrupt the typing flow
+      const blockList = ['Tab', 'Home', 'End', 'PageUp', 'PageDown', 'Escape'];
+      
+      // Allow Shift+any key for IME support (common in Hindi input methods)
+      // Allow Ctrl+C, Ctrl+V for copy/paste
+      // Allow all single character keys (letters, numbers, punctuation)
+      // Allow navigation and editing keys
+      const allowedKeys = ['Shift', 'Control', 'Alt', 'Meta', 'Enter', ' ', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowDown'];
       const isRegularCharacter = e.key.length === 1; // Single character key (letters, numbers, punctuation)
       
-      // Block all keys except the allowed ones and regular characters
-      if (!allowedKeys.includes(e.key) && !isRegularCharacter) {
+      // Block only specific keys that would navigate away
+      if (blockList.includes(e.key)) {
+        e.preventDefault();
+        return;
+      }
+      
+      // Allow all modifier keys and regular characters for IME support
+      // Don't block key combinations like Shift+number or Ctrl+key
+      if (!allowedKeys.includes(e.key) && !isRegularCharacter && !e.ctrlKey && !e.metaKey) {
+        // Only block non-allowed special keys (not modifiers or characters)
         e.preventDefault();
         return;
       }
@@ -478,6 +536,88 @@ export default function TypingTestPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Highlight the next word to type
+  const getHighlightedContent = () => {
+    if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
+
+    // If highlighter is disabled, return original content as-is
+    if (!highlighterEnabled) {
+      return testContent.text;
+    }
+
+    // Extract plain text to find words, preserving paragraph tokens
+    const plainText = stripHtmlPreserveParagraphs(testContent.text);
+    const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
+
+    // Determine which word index corresponds to the word currently being typed
+    const tokens = typedText.split(/\s+/).filter(w => w && w !== PARA_TOKEN);
+    let currentIndex: number | null = null;
+    if (typedText.trim() === "") {
+      currentIndex = 0;
+    } else if (/\s$/.test(typedText)) {
+      currentIndex = tokens.length;
+    } else {
+      currentIndex = Math.max(0, tokens.length - 1);
+    }
+
+    if (currentIndex === null || currentIndex >= words.length) {
+      return testContent.text;
+    }
+
+    const targetWord = words[currentIndex];
+    if (!targetWord) return testContent.text;
+
+    // For Hindi and other scripts, use a more robust approach:
+    // Replace the exact target word string, counting occurrences
+    // We need to be careful to only replace in text content, not in HTML tags
+    
+    let wordOccurrenceCount = 0;
+    let foundTargetWord = false;
+    
+    const htmlContent = testContent.text;
+    
+    // Split by HTML tags, process only text nodes
+    const parts = htmlContent.split(/(<[^>]+>)/);
+    
+    const processedParts = parts.map((part) => {
+      if (part.startsWith('<')) {
+        // This is an HTML tag, return as-is
+        return part;
+      }
+      
+      if (foundTargetWord || !part) {
+        // Already found the word, or empty part
+        return part;
+      }
+      
+      // This is a text node - count words and replace
+      const textWords = part.split(/(\s+)/); // Split preserving whitespace
+      
+      return textWords.map((segment) => {
+        if (foundTargetWord || !segment || /^\s+$/.test(segment)) {
+          // Already found, or just whitespace
+          return segment;
+        }
+        
+        // Check if this segment is a word and matches our target
+        if (segment === targetWord) {
+          if (wordOccurrenceCount === currentIndex) {
+            foundTargetWord = true;
+            return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${segment}</span>`;
+          }
+          wordOccurrenceCount++;
+        } else if (!/^\s+$/.test(segment)) {
+          // Count non-whitespace segments as word occurrences for proper indexing
+          wordOccurrenceCount++;
+        }
+        
+        return segment;
+      }).join('');
+    }).join('');
+
+    return processedParts;
+  };
+
   if (isContentLoading) {
     return (
       <div className="p-8 flex items-center justify-center">
@@ -535,6 +675,53 @@ export default function TypingTestPage() {
               />
               <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
             </div>
+
+            {/* Auto-scroll Toggle for Typing Tests */}
+            {testContent.type === 'typing' && autoScrollEnabled !== null && (
+              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+                <Button
+                  type="button"
+                  variant={autoScrollEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoScrollEnabled(!autoScrollEnabled)}
+                  className={cn(
+                    "gap-2 transition-all",
+                    autoScrollEnabled 
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md" 
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  title={autoScrollEnabled ? "Click to disable auto-scroll" : "Click to enable auto-scroll"}
+                >
+                  <ArrowDown size={16} />
+                  <span className="text-xs font-medium">
+                    {autoScrollEnabled ? "Auto-scroll ON" : "Auto-scroll OFF"}
+                  </span>
+                </Button>
+              </div>
+            )}
+
+            {testContent.type === 'typing' && (
+              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+                <Button
+                  type="button"
+                  variant={highlighterEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHighlighterEnabled(!highlighterEnabled)}
+                  className={cn(
+                    "gap-2 transition-all",
+                    highlighterEnabled 
+                      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-md" 
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  title={highlighterEnabled ? "Click to disable word highlighting" : "Click to enable word highlighting"}
+                >
+                  <Type size={16} />
+                  <span className="text-xs font-medium">
+                    {highlighterEnabled ? "Highlight ON" : "Highlight OFF"}
+                  </span>
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className={cn(
@@ -620,12 +807,10 @@ export default function TypingTestPage() {
             </CardHeader>
             <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef}>
               <div 
-                className={cn("leading-relaxed whitespace-pre-wrap select-none transition-all", fontClass)}
+                className={cn("leading-relaxed select-none transition-all", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
-              >
-                {/* Highlight Logic could go here, for now simpler implementation */}
-                {testContent.text}
-              </div>
+                dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
+              />
             </CardContent>
           </Card>
         )}

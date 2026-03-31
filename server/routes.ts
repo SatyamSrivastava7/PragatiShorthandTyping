@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import busboy from "busboy";
@@ -16,6 +16,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { stripHtml, removeParaTokens, countWords } from "./htmlStripper";
 
 // Session user type
 declare module "express-session" {
@@ -599,6 +600,36 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get content" });
     }
   });
+
+  // Get PDF file for Pitman tests (on-demand, minimizes initial download size)
+  app.get("/api/content/:id/pdf", async (req, res) => {
+    // Set content-type immediately for all responses
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid content ID" });
+      }
+
+      const pdfData = await storage.getContentPdf(id);
+      
+      if (!pdfData) {
+        return res.status(404).json({ message: "Content not found" });
+      }
+
+      if (!pdfData.pdfFile) {
+        return res.status(404).json({ message: "PDF not available" });
+      }
+      
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.json({ pdfFile: pdfData.pdfFile });
+    } catch (error) {
+      console.error("Error fetching PDF:", error);
+      res.status(500).json({ message: "Failed to get PDF" });
+    }
+  });
   
   // Create content (with FormData using busboy for streaming file uploads)
   app.post("/api/content/upload", async (req, res) => {
@@ -846,6 +877,26 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to get result" });
     }
   });
+
+  // Bulk fetch results by IDs (POST) - returns authoritative DB records for given result IDs
+  app.post("/api/results/bulk", async (req, res) => {
+    try {
+      const ids = req.body?.ids;
+      if (!Array.isArray(ids)) {
+        return res.status(400).json({ message: "Invalid payload, expected { ids: number[] }" });
+      }
+
+      // Convert to numbers and filter invalid
+      const numericIds = ids.map((i: any) => Number(i)).filter((n: number) => Number.isFinite(n));
+      if (numericIds.length === 0) return res.json([]);
+
+      const results = await storage.getResultsByIds(numericIds);
+      res.json(results);
+    } catch (error) {
+      console.error("Error in bulk results fetch:", error);
+      res.status(500).json({ message: "Failed to fetch results" });
+    }
+  });
   
   // Create result
   app.post("/api/results", async (req, res) => {
@@ -867,23 +918,49 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Content not found" });
       }
       
-      // Calculate pass/fail result based on 5% mistake rule for all test types
-      // More than 5% mistakes = Fail, 5% or less = Pass
-      const mistakes = parseFloat(req.body.mistakes) || 0;
-      const totalWords = parseFloat(req.body.words) || 0;
-      const mistakePercentage = totalWords > 0 ? (mistakes / totalWords) * 100 : 0;
+      // ===== Store 4 versions for proper metrics & rendering =====
+      // 1. Original text WITH HTML (for rendering/PDF)
+      const originalTextWithHtml = contentItem.text;
+      
+      // 2. Original text WITHOUT HTML (for metrics calculation)
+      const originalTextClean = stripHtml(contentItem.text);
+      
+      // 3. Typed text as sent by client (with PARA_TOKENs for rendering)
+      const typedTextWithPara = req.body.typedText;
+      
+      // 4. Typed text WITHOUT HTML or PARA_TOKENs (for metrics calculation)
+      const typedTextClean = stripHtml(removeParaTokens(req.body.typedText));
+      
+      // Validate metrics using clean text
+      const recalculatedWords = countWords(typedTextClean, false);
+      const clientWords = parseFloat(req.body.words) || 0;
+      const clientMistakes = parseFloat(req.body.mistakes) || 0;
+      
+      // Use recalculated words if there's a significant difference (catches HTML stripping issues)
+      const wordsToUse = recalculatedWords > 0 && recalculatedWords !== clientWords ? recalculatedWords : clientWords;
+      const mistakesToUse = clientMistakes;
+      
+      // Calculate pass/fail based on 5% mistake rule using validated metrics
+      const mistakePercentage = wordsToUse > 0 ? (mistakesToUse / wordsToUse) * 100 : 0;
       const calculatedResult = mistakePercentage > 5 ? 'Fail' : 'Pass';
       
-      // Build complete result data
+      // Build complete result data with all 4 text versions
       const resultData = {
         ...req.body,
         studentId: user.id,
-        studentDisplayId: user.studentId, // PIPS format ID for display
+        studentDisplayId: user.studentId,
         studentName: user.name,
         contentTitle: contentItem.title,
         contentType: contentItem.type,
-        originalText: contentItem.text,
+        // Store all 4 versions
+        originalText: originalTextWithHtml,
+        originalTextClean: originalTextClean,
+        typedText: typedTextWithPara,
+        typedTextClean: typedTextClean,
         language: contentItem.language || 'english',
+        // Use validated metrics
+        words: wordsToUse,
+        mistakes: String(mistakesToUse),
         result: calculatedResult,
       };
       
@@ -894,6 +971,7 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
+      console.error("Result creation error:", error);
       res.status(500).json({ message: "Failed to create result" });
     }
   });
