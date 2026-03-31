@@ -490,7 +490,7 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Enhanced Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-8 text-white shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-700 via-purple-700 to-pink-600 p-8 text-white shadow-2xl">
         <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,black)]" />
         <div className="relative space-y-4">
           {/* Top Section: Avatar & Name + Expiry */}
