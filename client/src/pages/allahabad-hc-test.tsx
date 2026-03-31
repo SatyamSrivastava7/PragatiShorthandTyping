@@ -303,23 +303,23 @@ export default function AllahabadHCTestPage() {
       return;
     }
     
+    setIsActive(true);
+  };
+
+  // Start test timer
+  const handleStart = () => {
+    startTimeRef.current = Date.now();
+    totalDurationRef.current = 0;
+    
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
+    // Set cooldown for 30 minutes from now when timer starts
     if (testContent && currentUser) {
       const cooldownKey = `test_cooldown_${testContent.id}_${currentUser.id}`;
       const cooldownEnd = Date.now() + (30 * 60 * 1000);
       localStorage.setItem(cooldownKey, cooldownEnd.toString());
       setCooldownRemaining(30 * 60 * 1000);
     }
-    
-    setIsActive(true);
-  };
-
-  // Start test timer
-  const handleStart = () => {
-    setIsActive(true);
-    startTimeRef.current = Date.now();
-    totalDurationRef.current = 0;
-    
-    if (intervalRef.current) clearInterval(intervalRef.current);
     
     intervalRef.current = setInterval(() => {
       setTimeLeft(prev => {
@@ -340,7 +340,10 @@ export default function AllahabadHCTestPage() {
 
   const handleStartClick = () => {
     handleStartTest();
-    handleStart();
+    // Only start timer if test was actually started (not blocked by cooldown)
+    if (!cooldownRemaining) {
+      handleStart();
+    }
   };
 
   // Stop test
