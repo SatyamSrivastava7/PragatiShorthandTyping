@@ -295,24 +295,6 @@ export default function AllahabadHCTestPage() {
     // Reset scroll tracking when test starts
     setUserScrolled(false);
     
-    // Check cooldown before starting
-    if (cooldownRemaining > 0) {
-      toast({
-        variant: "destructive",
-        title: "Test Cooldown Active",
-        description: `Please wait ${Math.ceil(cooldownRemaining / 60000)} minutes before starting this test again.`,
-      });
-      return;
-    }
-    
-    // Set cooldown for 30 minutes from now
-    if (testContent && currentUser) {
-      const cooldownKey = `test_cooldown_${testContent.id}_${currentUser.id}`;
-      const cooldownEnd = Date.now() + (30 * 60 * 1000); // 30 minutes
-      localStorage.setItem(cooldownKey, cooldownEnd.toString());
-      setCooldownRemaining(30 * 60 * 1000);
-    }
-    
     setIsActive(true);
     startTimeRef.current = Date.now();
     totalDurationRef.current = 0;
