@@ -1166,6 +1166,7 @@ export const generateResultPDF = async (result: Result) => {
       typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
     } else {
       // Safeguard: ensure PARA_TOKEN never appears as literal text in output
+      // Preserve HTML formatting in typed text (e.g., <b>, <i>, <u>)
       const displayText = item.typed === PARA_TOKEN ? '' : stripHtmlEntities(item.typed);
       if (displayText) {
         typedHtml += `<span>${displayText}</span> `;

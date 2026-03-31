@@ -379,8 +379,8 @@ export default function AllahabadHCTestPage() {
     );
   }
 
-  // Show cooldown message
-  if (cooldownRemaining > 0) {
+  // Show cooldown message only if test is finished and user hasn't seen the modal yet
+  if (cooldownRemaining > 0 && !isFinished) {
     const minutes = Math.floor(cooldownRemaining / 60000);
     const seconds = Math.floor((cooldownRemaining % 60000) / 1000);
     

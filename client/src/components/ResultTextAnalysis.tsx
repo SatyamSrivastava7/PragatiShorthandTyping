@@ -97,14 +97,14 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
         // Show trailing words (not attempted by user) in gray
         if (item.status === 'trailing') {
           return (
-            <span key={i} className={cn(wordWrapperClass, "text-muted-foreground/50")}>{stripHtmlEntities(item.original)}</span>
+            <span key={i} className={cn(wordWrapperClass, "text-muted-foreground/50")} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />
           );
         }
         
         // Missing word - show in green brackets
         if (item.status === 'missing') {
           return (
-            <span key={i} className={cn(wordWrapperClass, "text-green-600 font-medium")}>[{stripHtmlEntities(item.original)}]</span>
+            <span key={i} className={cn(wordWrapperClass, "text-green-600 font-medium")}>[<span dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />]</span>
           );
         }
         
@@ -112,10 +112,8 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
         if (item.status === 'substitution') {
           return (
             <span key={i} className={wordWrapperClass}>
-              <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1">
-                {stripHtmlEntities(item.typed)}
-              </span>
-              <span className="text-green-600 font-medium">[{stripHtmlEntities(item.original)}]</span>
+              <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1" dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />
+              <span className="text-green-600 font-medium">[<span dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />]</span>
             </span>
           );
         }
@@ -123,17 +121,15 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
         // Extra word (typed but not in original) - show underlined in red
         if (item.status === 'extra') {
           return (
-            <span key={i} className={cn(wordWrapperClass, "text-red-600 decoration-red-600 decoration-2 underline underline-offset-2")}> 
-              {stripHtmlEntities(item.typed)}
-            </span>
+            <span key={i} className={cn(wordWrapperClass, "text-red-600 decoration-red-600 decoration-2 underline underline-offset-2")} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />
           );
         }
         
-        // Match - show normally, but safeguard against literal PARA_TOKEN display
+        // Match - show normally, with HTML formatting preserved
         if (item.typed === PARA_TOKEN || item.original === PARA_TOKEN) {
           return <div key={i} className="w-full my-2" />;
         }
-        return <span key={i} className={wordWrapperClass}>{stripHtmlEntities(item.typed)}</span>;
+        return <span key={i} className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />;
       })}
     </div>
   );
