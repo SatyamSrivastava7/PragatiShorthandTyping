@@ -582,41 +582,41 @@ export default function StudentDashboard() {
 
           {/* Stats Section */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
-              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-200" /> : (countsQuery.data?.typing ?? 0)}</p>
-              <p className="text-xs text-blue-100 font-medium">Typing Tests</p>
+            <div className="bg-gradient-to-br from-blue-500/30 to-blue-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-blue-400/50 hover:border-blue-300 hover:from-blue-500/40 hover:to-blue-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-100" /> : (countsQuery.data?.typing ?? 0)}</p>
+              <p className="text-xs text-blue-50 font-semibold">Typing Tests</p>
             </div>
-            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
-              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-200" /> : (countsQuery.data?.shorthand ?? 0)}</p>
-              <p className="text-xs text-blue-100 font-medium">Shorthand</p>
+            <div className="bg-gradient-to-br from-orange-500/30 to-orange-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-orange-400/50 hover:border-orange-300 hover:from-orange-500/40 hover:to-orange-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-100" /> : (countsQuery.data?.shorthand ?? 0)}</p>
+              <p className="text-xs text-orange-50 font-semibold">Shorthand</p>
             </div>
-            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
-              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-200" /> : (countsQuery.data?.pitman ?? 0)}</p>
-              <p className="text-xs text-blue-100 font-medium">Pitman</p>
+            <div className="bg-gradient-to-br from-red-500/30 to-red-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-red-400/50 hover:border-red-300 hover:from-red-500/40 hover:to-red-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-100" /> : (countsQuery.data?.pitman ?? 0)}</p>
+              <p className="text-xs text-red-50 font-semibold">Pitman</p>
             </div>
-            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
-              <p className="text-3xl font-bold mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-violet-200" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
-              <p className="text-xs text-blue-100 font-medium">Allahabad HC</p>
+            <div className="bg-gradient-to-br from-violet-500/30 to-violet-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-violet-400/50 hover:border-violet-300 hover:from-violet-500/40 hover:to-violet-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-violet-100" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
+              <p className="text-xs text-violet-50 font-semibold">Allahabad HC</p>
             </div>
-            <div className="bg-white/15 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-white/20 hover:bg-white/20 transition-colors">
-              <p className="text-3xl font-bold mb-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
-              <p className="text-xs text-blue-100 font-medium">Results</p>
+            <div className="bg-gradient-to-br from-green-500/30 to-green-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-green-400/50 hover:border-green-300 hover:from-green-500/40 hover:to-green-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
+              <p className="text-xs text-green-50 font-semibold">Results</p>
             </div>
             {(() => {
               const { daysLeft, status, message } = calculateDaysLeftForDeactivation(currentUser?.validUntil);
               if (status === 'no-expiry') return null;
               
               const bgColor = status === 'expired' 
-                ? 'bg-red-500/40 border-red-300/40' 
+                ? 'bg-gradient-to-br from-red-600/40 to-red-700/40 border-red-400/60 hover:border-red-300' 
                 : status === 'expiring-soon' 
-                ? 'bg-yellow-500/40 border-yellow-300/40' 
-                : 'bg-white/15 border-white/20';
+                ? 'bg-gradient-to-br from-yellow-500/40 to-yellow-600/40 border-yellow-400/60 hover:border-yellow-300' 
+                : 'bg-gradient-to-br from-cyan-500/30 to-cyan-600/30 border-cyan-400/50 hover:border-cyan-300';
               
               const textColor = status === 'expired' 
-                ? 'text-red-100' 
+                ? 'text-red-50' 
                 : status === 'expiring-soon' 
-                ? 'text-yellow-100' 
-                : 'text-blue-100';
+                ? 'text-yellow-50' 
+                : 'text-cyan-50';
 
               const icon = status === 'expired' 
                 ? <AlertTriangle className="h-5 w-5" />
@@ -625,12 +625,12 @@ export default function StudentDashboard() {
                 : <Clock className="h-5 w-5" />;
 
               return (
-                <div className={`${bgColor} backdrop-blur-md rounded-xl px-4 py-3 text-center border`}>
-                  <div className="flex items-center justify-center mb-1">
+                <div className={`${bgColor} backdrop-blur-md rounded-xl px-4 py-3 text-center border transition-all`}>
+                  <div className="flex items-center justify-center mb-1 text-white">
                     {icon}
                   </div>
-                  <p className="text-3xl font-bold mb-1">{daysLeft ?? 0}</p>
-                  <p className={`text-xs ${textColor} font-medium`}>{message}</p>
+                  <p className="text-3xl font-bold text-white mb-1">{daysLeft ?? 0}</p>
+                  <p className={`text-xs ${textColor} font-semibold`}>{message}</p>
                 </div>
               );
             })()}
