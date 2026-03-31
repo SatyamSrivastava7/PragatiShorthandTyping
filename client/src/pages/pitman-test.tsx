@@ -373,7 +373,7 @@ export default function PitmanTestPage() {
       </div>
 
       {/* Main Workspace - Two Column Layout */}
-      <div className="flex-1 flex gap-6 min-h-0">
+      <div className="flex-1 flex gap-6 min-h-[600px]">
         
         {/* Left Section: PDF Viewer */}
         <Card className="flex flex-col overflow-hidden border-2 shadow-sm flex-1 basis-1/2">
