@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateShorthandMetrics, cn, stripHtml, replaceNewlinesWithParaToken, PARA_TOKEN } from "@/lib/utils";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,6 +172,12 @@ export default function PitmanTestPage() {
         title: "Test Submitted!",
         description: "Your results have been recorded.",
       });
+
+      // Invalidate results queries to ensure fresh data
+      await queryClient.invalidateQueries({ queryKey: ['results'] });
+      
+      // Also refetch the counts specifically
+      await queryClient.invalidateQueries({ queryKey: ['results', 'counts'] });
 
       setSubmissionFailed(false);
       setShowResultModal(true);

@@ -915,8 +915,11 @@ export async function registerRoutes(
       // Get content details
       const contentItem = await storage.getContent(req.body.contentId);
       if (!contentItem) {
+        console.error("Content not found for contentId:", req.body.contentId);
         return res.status(404).json({ message: "Content not found" });
       }
+      
+      console.log("Creating result for content:", { contentId: contentItem.id, contentType: contentItem.type, contentTitle: contentItem.title });
       
       // ===== Store 4 versions for proper metrics & rendering =====
       // 1. Original text WITH HTML (for rendering/PDF)
@@ -965,10 +968,13 @@ export async function registerRoutes(
       };
       
       const validatedData = insertResultSchema.parse(resultData);
+      console.log("Validated result data:", { id: validatedData.contentId, type: validatedData.contentType, words: validatedData.words });
       const result = await storage.createResult(validatedData);
+      console.log("Result created successfully:", { resultId: result.id, contentType: result.contentType });
       res.status(201).json(result);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Zod validation error:", fromZodError(error).message);
         return res.status(400).json({ message: fromZodError(error).message });
       }
       console.error("Result creation error:", error);
