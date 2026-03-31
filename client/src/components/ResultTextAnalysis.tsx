@@ -69,6 +69,60 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
 
   const lineHeightClass = "leading-relaxed";
 
+  // Build HTML mapping for typed text to preserve formatting on matched words
+  const htmlTextMap = new Map<string, string[]>();
+  if (contentType === 'allahabad-hc' && typedText && typedText.includes('<')) {
+    // Extract words with their HTML formatting from typedText
+    // Split by word boundaries while preserving HTML tags
+    let currentHtmlChunk = '';
+    let currentStrippedWord = '';
+    let i = 0;
+    
+    while (i < typedText.length) {
+      const char = typedText[i];
+      
+      // Check for HTML tag
+      if (char === '<') {
+        const tagEnd = typedText.indexOf('>', i);
+        if (tagEnd !== -1) {
+          // Add entire tag to HTML chunk
+          currentHtmlChunk += typedText.substring(i, tagEnd + 1);
+          i = tagEnd + 1;
+          continue;
+        }
+      }
+      
+      // Check for whitespace (word boundary)
+      if (/\s/.test(char)) {
+        if (currentStrippedWord.trim()) {
+          const key = currentStrippedWord.trim().toLowerCase();
+          if (!htmlTextMap.has(key)) {
+            htmlTextMap.set(key, []);
+          }
+          htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
+        }
+        currentHtmlChunk = '';
+        currentStrippedWord = '';
+        i++;
+        continue;
+      }
+      
+      // Regular character - add to both
+      currentHtmlChunk += char;
+      currentStrippedWord += char;
+      i++;
+    }
+    
+    // Add final word if exists
+    if (currentStrippedWord.trim()) {
+      const key = currentStrippedWord.trim().toLowerCase();
+      if (!htmlTextMap.has(key)) {
+        htmlTextMap.set(key, []);
+      }
+      htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
+    }
+  }
+
   // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
   const normalizedAlignment = alignment.reduce((acc: AlignmentEntry[], item) => {
     const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
@@ -147,6 +201,18 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
         if (item.typed === PARA_TOKEN || item.original === PARA_TOKEN) {
           return <div key={i} className="w-full my-2" />;
         }
+        
+        // For Allahabad-HC with HTML: use mapped HTML version if available
+        if (contentType === 'allahabad-hc' && htmlTextMap.size > 0 && item.typed) {
+          const typedKey = item.typed.trim().toLowerCase();
+          const htmlVersions = htmlTextMap.get(typedKey);
+          
+          if (htmlVersions && htmlVersions.length > 0) {
+            const htmlVersion = htmlVersions.shift()!;
+            return <span key={i} className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: htmlVersion }} />;
+          }
+        }
+        
         return <span key={i} className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />;
       })}
     </div>
