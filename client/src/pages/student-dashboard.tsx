@@ -590,7 +590,7 @@ export default function StudentDashboard() {
               <p className="text-xs text-blue-100">Pitman Exercise</p>
             </div>
             <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
+              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-violet-500" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
               <p className="text-xs text-blue-100">Allahabad HC</p>
             </div>
             <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
@@ -655,7 +655,7 @@ export default function StudentDashboard() {
           </TabsTrigger>
           <TabsTrigger
             value="allahabad-hc_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
           >
             <Keyboard className="h-4 w-4" /> Allahabad HC
           </TabsTrigger>
@@ -1309,8 +1309,8 @@ export default function StudentDashboard() {
           <div className="mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <Keyboard className="h-5 w-5 text-red-600" />
+                <div className="p-2 bg-violet-100 rounded-lg">
+                  <Keyboard className="h-5 w-5 text-violet-600" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Allahabad HC Typing Test</h3>
@@ -1331,7 +1331,7 @@ export default function StudentDashboard() {
           </div>
           {allahabadHCQuery?.isLoading ? (
             <div className="flex items-center justify-center p-12">
-              <Loader2 className="h-8 w-8 animate-spin text-red-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
               <span className="ml-3 text-muted-foreground">Loading tests...</span>
             </div>
           ) : (
@@ -1347,7 +1347,7 @@ export default function StudentDashboard() {
                       }}
                       className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
                     >
-                      <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                      <Folder className="h-12 w-12 text-violet-500 fill-violet-100" />
                       <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
                     </div>
                   ))}
@@ -1366,7 +1366,7 @@ export default function StudentDashboard() {
                   </div>
                   {allahabadHCFoldersQuery.isLoading ? (
                     <div className="flex items-center justify-center p-12">
-                      <Loader2 className="h-6 w-6 animate-spin text-red-500" />
+                      <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
                       <span className="ml-3 text-muted-foreground">Loading folders...</span>
                     </div>
                   ) : (
@@ -1375,9 +1375,9 @@ export default function StudentDashboard() {
                         {/* Option to view all tests without folder filter */}
                         <div
                           onClick={() => setSelectedAllahabadHCFolderId(null)}
-                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-red-50/50"
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-violet-50/50"
                         >
-                          <Folder className="h-12 w-12 text-red-600 fill-red-200" />
+                          <Folder className="h-12 w-12 text-violet-600 fill-violet-200" />
                           <span className="font-medium text-center text-sm">All Tests</span>
                         </div>
                         {/* Show available folders */}
@@ -1389,7 +1389,7 @@ export default function StudentDashboard() {
                               onClick={() => setSelectedAllahabadHCFolderId(folder.id)}
                               className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
                             >
-                              <Folder className="h-12 w-12 text-red-500 fill-red-100" />
+                              <Folder className="h-12 w-12 text-violet-500 fill-violet-100" />
                               <span className="font-medium text-center text-sm">{folder.name}</span>
                             </div>
                           ))}
@@ -1477,7 +1477,7 @@ export default function StudentDashboard() {
                             </CardContent>
                             <CardFooter className="pt-4 border-t bg-slate-50">
                               <Button
-                                className="w-full bg-gradient-to-r from-red-500 to-red-600 shadow-md group-hover:shadow-lg transition-shadow"
+                                className="w-full bg-gradient-to-r from-violet-500 to-violet-600 shadow-md group-hover:shadow-lg transition-shadow"
                                 onClick={() => setLocation(`/test/${test.id}`)}
                               >
                                 <PlayCircle className="mr-2 h-4 w-4" /> Start Test

@@ -264,7 +264,7 @@ export default function AllahabadHCTestPage() {
 
   return (
     <div className={cn("w-full", isFullScreen ? "fixed inset-0 z-50 bg-white overflow-auto" : "")}>
-      <div className={cn("mx-auto", isFullScreen ? "p-4" : "max-w-6xl p-8")}>
+      <div className={cn("mx-auto w-full", isFullScreen ? "p-4" : "p-6")}>
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
@@ -339,7 +339,7 @@ export default function AllahabadHCTestPage() {
         )}
 
         {/* Content and Editor */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
           {/* Original Text */}
           <Card className="shadow-lg border-0">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b">
@@ -348,7 +348,7 @@ export default function AllahabadHCTestPage() {
             <CardContent className="p-6">
               <div
                 className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-y-auto"
-                style={{ fontSize: `${fontSize}px`, maxHeight: "400px", lineHeight: "1.8" }}
+                style={{ fontSize: `${fontSize}px`, maxHeight: "500px", lineHeight: "1.8" }}
                 dangerouslySetInnerHTML={{ __html: testContent.text || "" }}
               />
             </CardContent>
