@@ -155,6 +155,23 @@ export async function registerRoutes(
         }
       }
       
+      // Check if user already has active session
+      const existingSession = await storage.getSessionByUserId(user.id);
+      if (existingSession) {
+        return res.status(403).json({ message: "User is logged in another device" });
+      }
+      
+      // Create new session in database and store ID on user record
+      const sessionId = req.sessionID;
+      
+      await storage.createSession({
+        userId: user.id,
+        sessionId,
+      });
+      
+      // Update user's currentSessionId for cheap validation on future requests
+      await storage.updateUser(user.id, { currentSessionId: sessionId });
+      
       // Set session
       req.session.userId = user.id;
       
@@ -191,6 +208,23 @@ export async function registerRoutes(
       if (!isValid) {
         return res.status(401).json({ message: "Invalid admin credentials" });
       }
+      
+      // Check if admin already has active session
+      const existingSession = await storage.getSessionByUserId(user.id);
+      if (existingSession) {
+        return res.status(403).json({ message: "User is logged in another device" });
+      }
+      
+      // Create new session in database and store ID on user record
+      const sessionId = req.sessionID;
+      
+      await storage.createSession({
+        userId: user.id,
+        sessionId,
+      });
+      
+      // Update user's currentSessionId for cheap validation on future requests
+      await storage.updateUser(user.id, { currentSessionId: sessionId });
       
       // Set session and save it before responding
       req.session.userId = user.id;
@@ -243,6 +277,26 @@ export async function registerRoutes(
         return res.json({ user: null });
       }
       
+      // Check for stale session (30 min timeout)
+      if (user.currentSessionId) {
+        const session = await storage.getSessionByUserId(user.id);
+        if (session && session.sessionId === req.sessionID) {
+          const now = new Date();
+          const lastActivity = new Date(session.lastActivityTime);
+          const minutesSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60);
+          
+          if (minutesSinceActivity > 30) {
+            // Auto logout due to inactivity
+            await storage.deleteSession(session.sessionId);
+            req.session.destroy(() => {});
+            return res.json({ user: null, expired: true, message: "Session expired due to inactivity" });
+          }
+          
+          // Update activity time
+          await storage.updateSessionActivity(session.sessionId);
+        }
+      }
+      
       // Check if student is disabled by admin
       if (user.role === 'student' && !user.isPaymentCompleted) {
         // Destroy session immediately
@@ -271,13 +325,28 @@ export async function registerRoutes(
   });
   
   // Logout
-  app.post("/api/auth/logout", (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Failed to logout" });
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      // Clear currentSessionId on user record
+      if (req.session.userId) {
+        await storage.updateUser(req.session.userId, { currentSessionId: null });
       }
-      res.json({ message: "Logged out successfully" });
-    });
+      
+      // Delete the session from database
+      if (req.sessionID) {
+        await storage.deleteSession(req.sessionID);
+      }
+      
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({ message: "Failed to logout" });
+        }
+        res.json({ message: "Logged out successfully" });
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Failed to logout" });
+    }
   });
 
   // Reset password

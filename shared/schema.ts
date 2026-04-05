@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   validUntil: timestamp("valid_until"),
   accessEnabledAt: timestamp("access_enabled_at"),
   purchasedPdfs: text("purchased_pdfs").array().default(sql`ARRAY[]::text[]`),
+  currentSessionId: varchar("current_session_id", { length: 255 }), // Current active session ID for cheap validation
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
@@ -189,10 +190,27 @@ export const notices = pgTable("notices", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// User Sessions - minimal tracking for restricting concurrent logins
+export const sessions = pgTable("sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sessionId: varchar("session_id", { length: 255 }).notNull().unique(),
+  loginTime: timestamp("login_time").defaultNow().notNull(),
+  lastActivityTime: timestamp("last_activity_time").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("sessions_user_id_idx").on(table.userId),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertSessionSchema = createInsertSchema(sessions).omit({
+  id: true,
+  loginTime: true,
+  lastActivityTime: true,
 });
 
 export const insertTestFolderSchema = createInsertSchema(testFolders).omit({
@@ -287,3 +305,6 @@ export type InsertSetting = z.infer<typeof insertSettingSchema>;
 
 export type Notice = typeof notices.$inferSelect;
 export type InsertNotice = z.infer<typeof insertNoticeSchema>;
+
+export type Session = typeof sessions.$inferSelect;
+export type InsertSession = z.infer<typeof insertSessionSchema>;
