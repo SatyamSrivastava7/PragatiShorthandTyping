@@ -796,12 +796,20 @@ export default function AdminDashboard() {
   const shorthandObserverRef = useRef<HTMLTableRowElement | null>(null);
   const pitmanObserverRef = useRef<HTMLTableRowElement | null>(null);
 
-  // Reset visible count when tab changes or content changes
+  // Search State for Manage Tests
+  const [searchTyping, setSearchTyping] = useState("");
+  const [searchShorthand, setSearchShorthand] = useState("");
+  const [searchPitman, setSearchPitman] = useState("");
+
+  // Reset visible count and search when tab changes or content changes
   useEffect(() => {
     if (activeTab === "manage") {
       setVisibleTypingCount(ITEMS_PER_BATCH);
       setVisibleShorthandCount(ITEMS_PER_BATCH);
       setVisiblePitmanCount(ITEMS_PER_BATCH);
+      setSearchTyping("");
+      setSearchShorthand("");
+      setSearchPitman("");
     }
   }, [activeTab, content.length]);
 
@@ -816,6 +824,7 @@ export default function AdminDashboard() {
   const getTypingTests = () => {
     return content
       .filter((c) => c.type === "typing")
+      .filter((c) => c.title.toLowerCase().includes(searchTyping.toLowerCase()))
       .sort((a, b) => {
         // Sort by creation date (newest first), regardless of enabled/disabled status
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -825,6 +834,7 @@ export default function AdminDashboard() {
   const getShorthandTests = () => {
     return content
       .filter((c) => c.type === "shorthand")
+      .filter((c) => c.title.toLowerCase().includes(searchShorthand.toLowerCase()))
       .sort((a, b) => {
         // Sort by creation date (newest first), regardless of enabled/disabled status
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -834,6 +844,7 @@ export default function AdminDashboard() {
   const getPitmanTests = () => {
     return content
       .filter((c) => c.type === "pitman")
+      .filter((c) => c.title.toLowerCase().includes(searchPitman.toLowerCase()))
       .sort((a, b) => {
         // Sort by creation date (newest first), regardless of enabled/disabled status
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -2712,26 +2723,47 @@ export default function AdminDashboard() {
                               </CardDescription>
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            disabled={isRefreshingContent}
-                            onClick={async () => {
-                              setIsRefreshingContent(true);
-                              await queryClient.invalidateQueries({
-                                queryKey: ["content", "list"],
-                              });
-                              setIsRefreshingContent(false);
-                            }}
-                            data-testid={`button-refresh-${type}-tests`}
-                          >
-                            <RefreshCw
-                              className={cn(
-                                "h-4 w-4",
-                                isRefreshingContent && "animate-spin",
-                              )}
+                          <div className="flex items-center gap-3">
+                            <Input
+                              type="text"
+                              placeholder={`Search ${type} tests...`}
+                              value={
+                                type === "typing" ? searchTyping :
+                                type === "shorthand" ? searchShorthand :
+                                searchPitman
+                              }
+                              onChange={(e) => {
+                                if (type === "typing") {
+                                  setSearchTyping(e.target.value);
+                                } else if (type === "shorthand") {
+                                  setSearchShorthand(e.target.value);
+                                } else {
+                                  setSearchPitman(e.target.value);
+                                }
+                              }}
+                              className="w-48 h-9"
                             />
-                          </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              disabled={isRefreshingContent}
+                              onClick={async () => {
+                                setIsRefreshingContent(true);
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["content", "list"],
+                                });
+                                setIsRefreshingContent(false);
+                              }}
+                              data-testid={`button-refresh-${type}-tests`}
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "h-4 w-4",
+                                  isRefreshingContent && "animate-spin",
+                                )}
+                              />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
