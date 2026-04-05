@@ -236,7 +236,7 @@ export class DatabaseStorage implements IStorage {
       language: content.language,
       createdAt: content.createdAt,
       folderId: content.folderId,
-    }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt)) as any;
+    }).from(content).where(eq(content.isEnabled, true)).orderBy(sql`${content.dateFor}::date DESC`) as any;
   }
 
   async getEnabledContentListPaged(type?: string, language?: string, folderId?: number, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]> {
@@ -266,8 +266,8 @@ export class DatabaseStorage implements IStorage {
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
     // Build base query - sort by dateFor as DATE in descending order (latest first)
-    // Cast to DATE to ensure proper chronological sorting instead of lexicographic string sorting
-    let q: any = db.select(columns).from(content).where(whereClause).orderBy(sql`CAST(${content.dateFor} AS DATE) DESC`);
+    // Cast varchar dateFor to DATE type to ensure proper chronological sorting
+    let q: any = db.select(columns).from(content).where(whereClause).orderBy(sql`${content.dateFor}::date DESC`);
 
     // Only apply limit/offset when they are finite numbers
     if (Number.isFinite(limit as number)) {
@@ -281,7 +281,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEnabledContent(): Promise<Content[]> {
-    return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
+    return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(sql`${content.dateFor}::date DESC`);
   }
 
   async getResultsPaged(type?: string, studentId?: number, limit?: number, offset?: number): Promise<Result[]> {
