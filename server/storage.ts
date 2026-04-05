@@ -265,8 +265,8 @@ export class DatabaseStorage implements IStorage {
 
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
-    // Build base query
-    let q: any = db.select(columns).from(content).where(whereClause).orderBy(desc(content.createdAt));
+    // Build base query - sort by dateFor in descending order (latest first)
+    let q: any = db.select(columns).from(content).where(whereClause).orderBy(desc(content.dateFor));
 
     // Only apply limit/offset when they are finite numbers
     if (Number.isFinite(limit as number)) {
