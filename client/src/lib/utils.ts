@@ -1076,46 +1076,35 @@ export const generateResultPDF = async (result: Result) => {
   let trailingWords: string[] = [];
   let shorthandRecalcMistakes = 0;
   let shorthandRecalcTrailing = 0;
-  let useFullFormattedText = false;
 
-  if (result.contentType === "typing" || result.contentType === "allahabad-hc") {
-    // For Allahabad-HC with RichTextEditor HTML: display full formatted text
-    if (result.contentType === "allahabad-hc" && result.typedText && result.typedText.includes('<')) {
-      useFullFormattedText = true;
-    }
-    
-    // DP alignment with trailing error fix for typing tests
-    // For alignment calculation: strip HTML but keep PARA_TOKEN to align at word level
-    // Display will use original text with HTML formatting preserved
+  if (result.contentType === "typing") {
     const alignmentOriginalText = stripHtml(result.originalText || '');
     const alignmentTypedText = stripHtml(result.typedText || '');
-    
     displayAlignment = getTypingAlignment(alignmentOriginalText, alignmentTypedText);
-    trailingWords = displayAlignment
-      .filter(item => item.status === "trailing")
-      .map(item => item.original);
+    trailingWords = displayAlignment.filter(item => item.status === "trailing").map(item => item.original);
+  } else if (result.contentType === "allahabad-hc") {
+    // Use clean versions (no HTML, no PARA tokens) — same logic as ResultTextAnalysis component
+    const cleanPara = /\[\[PARA?\]?\]?|\[\[PAR\]?/g;
+    const alignmentOriginalText = (result.originalTextClean || stripHtml(result.originalText || ''))
+      .replace(cleanPara, '').replace(/\s+/g, ' ').trim();
+    const alignmentTypedText = (result.typedTextClean || stripHtml(result.typedText || ''))
+      .replace(cleanPara, '').replace(/\s+/g, ' ').trim();
+    displayAlignment = getTypingAlignment(alignmentOriginalText, alignmentTypedText);
+    trailingWords = displayAlignment.filter(item => item.status === "trailing").map(item => item.original);
   } else {
-    // DP alignment for shorthand
-    // For alignment calculation: strip HTML but keep PARA_TOKEN to align at word level
-    // Display will use original text with HTML formatting preserved
     const alignmentOriginalText = stripHtml(result.originalText || '');
     const alignmentTypedText = stripHtml(result.typedText || '');
-    
     const { mistakes: recalcMistakes, attemptedAlignment, alignment, trailingWords: recalcTrailing } = calculateAlignedMistakes(alignmentOriginalText, alignmentTypedText);
     displayAlignment = attemptedAlignment;
     shorthandRecalcMistakes = recalcMistakes;
     shorthandRecalcTrailing = recalcTrailing;
-    
-    // Calculate trailing words for shorthand
     const trailingItems = alignment.filter((item) => {
       const isInAttempted = attemptedAlignment.some(
         (a) => a.original === item.original && a.typed === item.typed && a.status === item.status
       );
       return !isInAttempted && item.original !== "";
     });
-    trailingWords = trailingItems
-      .map((item) => item.original)
-      .filter((w) => w);
+    trailingWords = trailingItems.map((item) => item.original).filter((w) => w);
   }
 
   // Count actual missing words (not trailing)
@@ -1123,185 +1112,156 @@ export const generateResultPDF = async (result: Result) => {
     item => item.status === "missing"
   ).length;
 
-  const paraStyle = 'style="text-align:justify;text-justify:inter-word;margin:0 0 8px 0;"';
-  let typedHtml = `<p ${paraStyle}>`;
+  // ── Build typedHtml ─────────────────────────────────────────────────────────
+  const PCOLOR = '-webkit-print-color-adjust:exact;print-color-adjust:exact';
+  let typedHtml = '';
 
-  // For Allahabad-HC with full formatted text, reconstruct HTML with error highlighting preserved
-  if (useFullFormattedText) {
-    // First, build a mapping of stripped text to HTML chunks from typedText
-    // This allows us to find the original HTML for each matched word
-    const htmlTextMap = new Map<string, string[]>();
-    
-    // Extract words with their HTML formatting from result.typedText
-    // Split by word boundaries while preserving HTML tags
-    let currentHtmlChunk = '';
-    let currentStrippedWord = '';
-    let i = 0;
-    const typedTextStr = result.typedText || '';
-    
-    while (i < typedTextStr.length) {
-      const char = typedTextStr[i];
-      
-      // Check for HTML tag
-      if (char === '<') {
-        const tagEnd = typedTextStr.indexOf('>', i);
-        if (tagEnd !== -1) {
-          // Add entire tag to HTML chunk
-          currentHtmlChunk += typedTextStr.substring(i, tagEnd + 1);
-          i = tagEnd + 1;
-          continue;
-        }
-      }
-      
-      // Check for whitespace (word boundary)
-      if (/\s/.test(char)) {
-        if (currentStrippedWord.trim()) {
-          const key = currentStrippedWord.trim().toLowerCase();
-          if (!htmlTextMap.has(key)) {
-            htmlTextMap.set(key, []);
+  if (result.contentType === 'allahabad-hc') {
+    // ── Allahabad-HC: parse block structure, preserve paragraph/alignment/formatting ──
+    // Uses the same approach as ResultTextAnalysis component: inline CSS styles
+    // so that bold, italic, underline survive browser print resets.
+
+    const INLINE_HC = new Set(['strong','b','em','i','u','s','del','ins','mark']);
+
+    interface HcWord { plain: string; css: string; }
+    interface HcBlock { textAlign?: string; words: HcWord[]; isEmpty: boolean; }
+
+    function parseHcBlocks(raw: string): HcBlock[] {
+      const blocks: HcBlock[] = [];
+      const processed = raw.replace(/\[\[PARA?\]?\]?|\[\[PAR\]?/g, ' __PARA__ ');
+      const chunks = processed.split(/<\/div\s*>/i);
+      for (const rawChunk of chunks) {
+        const chunk = rawChunk.trim();
+        if (!chunk) continue;
+        const alignMatch = chunk.match(/text-align\s*:\s*(\w+)/i);
+        const textAlign = alignMatch?.[1]?.toLowerCase();
+        const inner = chunk.replace(/^<div[^>]*>/i, '').trim();
+        if (!inner || inner === '__PARA__') { blocks.push({ isEmpty: true, words: [] }); continue; }
+        const words: HcWord[] = [];
+        const active: string[] = [];
+        const tokRe = /(<[^>]+>)|(\S+)/g;
+        let tm: RegExpExecArray | null;
+        while ((tm = tokRe.exec(inner)) !== null) {
+          const tok = tm[0];
+          if (tok.startsWith('<')) {
+            if (tok.startsWith('</')) {
+              const tag = tok.match(/<\/(\w+)/)?.[1]?.toLowerCase() ?? '';
+              if (INLINE_HC.has(tag)) { const idx = active.lastIndexOf(tag); if (idx !== -1) active.splice(idx, 1); }
+            } else if (!tok.endsWith('/>')) {
+              const tag = tok.match(/<(\w+)/)?.[1]?.toLowerCase() ?? '';
+              if (INLINE_HC.has(tag)) active.push(tag);
+            }
+            continue;
           }
-          htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
-        }
-        currentHtmlChunk = '';
-        currentStrippedWord = '';
-        i++;
-        continue;
-      }
-      
-      // Regular character - add to both
-      currentHtmlChunk += char;
-      currentStrippedWord += char;
-      i++;
-    }
-    
-    // Add final word if exists
-    if (currentStrippedWord.trim()) {
-      const key = currentStrippedWord.trim().toLowerCase();
-      if (!htmlTextMap.has(key)) {
-        htmlTextMap.set(key, []);
-      }
-      htmlTextMap.get(key)!.push(currentHtmlChunk.trim());
-    }
-    
-    // Normalize excessive consecutive paragraph tokens for alignment (3+) while preserving intentional spacing (1-2)
-    const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
-      const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
-      
-      if (!isParaToken) {
-        acc.push(item);
-        return acc;
-      }
-      
-      // Count consecutive paragraph tokens at the end
-      let consecutiveCount = 0;
-      for (let j = acc.length - 1; j >= 0; j--) {
-        const prevItem = acc[j];
-        if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
-          consecutiveCount++;
-        } else {
-          break;
-        }
-      }
-      
-      // Allow up to 2 consecutive paragraph tokens, collapse 3+
-      if (consecutiveCount < 2) {
-        acc.push(item);
-      }
-      
-      return acc;
-    }, []);
-    
-    // Apply alignment-based error highlighting while preserving HTML formatting
-    let reconstructedHtml = '';
-    for (let i = 0; i < normalizedAlignment.length; i++) {
-      const item = normalizedAlignment[i];
-      
-      if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
-        reconstructedHtml += `</p><p ${paraStyle}>`;
-        continue;
-      }
-      
-      if (item.status === "trailing") {
-        continue;
-      } else if (item.status === "missing") {
-        reconstructedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-      } else if (item.status === "substitution") {
-        reconstructedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-      } else if (item.status === "extra") {
-        reconstructedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
-      } else {
-        // Match - preserve HTML formatting from original typedText
-        if (item.typed) {
-          const typedKey = item.typed.trim().toLowerCase();
-          const htmlVersions = htmlTextMap.get(typedKey);
-          
-          // Use the HTML version if available, otherwise use plain text
-          if (htmlVersions && htmlVersions.length > 0) {
-            // Use the first available HTML version and remove it so duplicates use different versions
-            const htmlVersion = htmlVersions.shift()!;
-            reconstructedHtml += `<span>${htmlVersion}</span> `;
-          } else {
-            reconstructedHtml += `<span>${stripHtmlEntities(item.typed)}</span> `;
+          if (tok === '__PARA__') continue;
+          const parts: string[] = [];
+          const decs: string[] = [];
+          for (const t of active) {
+            if (t === 'b' || t === 'strong') parts.push('font-weight:bold');
+            if (t === 'i' || t === 'em') parts.push('font-style:italic');
+            if (t === 'u') decs.push('underline');
+            if (t === 's' || t === 'del') decs.push('line-through');
           }
+          if (decs.length) parts.push(`text-decoration:${decs.join(' ')}`);
+          words.push({ plain: stripHtmlEntities(tok), css: parts.join(';') });
         }
+        blocks.push({ textAlign, words, isEmpty: words.length === 0 });
       }
+      return blocks;
     }
-    typedHtml = reconstructedHtml;
-    if (!typedHtml.includes('</p>')) {
-      typedHtml += `</p>`;
+
+    const hcBlocks = parseHcBlocks(result.typedText || '');
+    const allHcWords = hcBlocks.flatMap(b => b.words);
+
+    // Cumulative word counts per block — detect paragraph boundaries
+    const hcBlockEnds: number[] = [];
+    { let c = 0; for (const b of hcBlocks) { c += b.words.length; hcBlockEnds.push(c); } }
+
+    // Enrich alignment entries with per-word CSS + paragraph break signals
+    type HcEntry = AlignmentEntry & { wordCss?: string; breakAfter?: boolean; blockAlign?: string; };
+    let hcSeq = 0;
+    const hcEntries: HcEntry[] = displayAlignment.map(item => {
+      if (!item.typed || item.typed === PARA_TOKEN) return { ...item };
+      const info = allHcWords[hcSeq++];
+      const breakAfter = hcBlockEnds.includes(hcSeq) && hcSeq < allHcWords.length;
+      let blockAlign: string | undefined;
+      let cur = 0;
+      for (const b of hcBlocks) { cur += b.words.length; if (hcSeq <= cur) { blockAlign = b.textAlign; break; } }
+      return { ...item, wordCss: info?.css ?? '', breakAfter, blockAlign };
+    });
+
+    // Build HTML paragraph by paragraph
+    const paraChunks: string[] = [];
+    let curWords: string[] = [];
+    let curAlign: string | undefined;
+
+    const flushPara = () => {
+      if (!curWords.length) return;
+      const alignCss = curAlign === 'center'
+        ? 'text-align:center'
+        : 'text-align:justify;text-justify:inter-word';
+      paraChunks.push(`<p style="${alignCss};margin:0 0 8px 0;${PCOLOR}">${curWords.join(' ')}</p>`);
+      curWords = [];
+      curAlign = undefined;
+    };
+
+    for (const item of hcEntries) {
+      if (item.status === 'trailing') continue;
+      const e = item as HcEntry;
+      if (!curAlign && e.blockAlign) curAlign = e.blockAlign;
+
+      if (item.status === 'missing') {
+        curWords.push(`<span style="color:#15803d;font-weight:bold;${PCOLOR}">[${stripHtmlEntities(item.original)}]</span>`);
+      } else if (item.status === 'substitution') {
+        const errCss = `${e.wordCss ? e.wordCss + ';' : ''}text-decoration:underline;text-decoration-color:red;color:#dc2626;${PCOLOR}`;
+        curWords.push(`<span style="${errCss}">${stripHtmlEntities(item.typed)}</span> <span style="color:#15803d;font-weight:bold;${PCOLOR}">[${stripHtmlEntities(item.original)}]</span>`);
+      } else if (item.status === 'extra') {
+        const errCss = `${e.wordCss ? e.wordCss + ';' : ''}text-decoration:underline;text-decoration-color:red;color:#dc2626;${PCOLOR}`;
+        curWords.push(`<span style="${errCss}">${stripHtmlEntities(item.typed)}</span>`);
+      } else if (item.typed && item.typed !== PARA_TOKEN) {
+        const spanStyle = e.wordCss ? ` style="${e.wordCss}"` : '';
+        curWords.push(`<span${spanStyle}>${stripHtmlEntities(item.typed)}</span>`);
+      }
+
+      if (e.breakAfter) flushPara();
     }
+    flushPara();
+    typedHtml = paraChunks.join('\n');
+
   } else {
-    // Normalize excessive consecutive paragraph tokens (3+) while preserving intentional spacing (1-2)
+    // ── Typing / Shorthand: paragraph-token aware rendering ───────────────────
+    const paraStyle = 'style="text-align:justify;text-justify:inter-word;margin:0 0 8px 0;"';
+    typedHtml = `<p ${paraStyle}>`;
+
     const normalizedAlignment = displayAlignment.reduce((acc: AlignmentEntry[], item) => {
-      const isParaToken = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
-      
-      if (!isParaToken) {
-        acc.push(item);
-        return acc;
-      }
-      
-      // Count consecutive paragraph tokens at the end
-      let consecutiveCount = 0;
+      const isPara = item.original === PARA_TOKEN || item.typed === PARA_TOKEN;
+      if (!isPara) { acc.push(item); return acc; }
+      let run = 0;
       for (let j = acc.length - 1; j >= 0; j--) {
-        const prevItem = acc[j];
-        if (prevItem.original === PARA_TOKEN || prevItem.typed === PARA_TOKEN) {
-          consecutiveCount++;
-        } else {
-          break;
-        }
+        const p = acc[j];
+        if (p.original === PARA_TOKEN || p.typed === PARA_TOKEN) run++;
+        else break;
       }
-      
-      // Allow up to 2 consecutive paragraph tokens, collapse 3+
-      if (consecutiveCount < 2) {
-        acc.push(item);
-      }
-      // If we already have 2+ consecutive, skip additional ones
-      
+      if (run < 2) acc.push(item);
       return acc;
     }, []);
 
-    for (let i = 0; i < normalizedAlignment.length; i++) {
-      const item = normalizedAlignment[i];
+    for (const item of normalizedAlignment) {
       if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
         typedHtml += `</p><p ${paraStyle}>`;
         continue;
       }
-      
-      if (item.status === "trailing") {
+      if (item.status === 'trailing') {
         continue;
-      } else if (item.status === "missing") {
-        typedHtml += `<span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-      } else if (item.status === "substitution") {
-        typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> <span style="color: #15803d; font-weight: bold; -webkit-print-color-adjust: exact;">[${stripHtmlEntities(item.original)}]</span> `;
-      } else if (item.status === "extra") {
-        typedHtml += `<span style="text-decoration: underline; text-decoration-color: red; text-decoration-thickness: 2px; color: #dc2626; -webkit-print-color-adjust: exact;">${stripHtmlEntities(item.typed)}</span> `;
+      } else if (item.status === 'missing') {
+        typedHtml += `<span style="color:#15803d;font-weight:bold;${PCOLOR}">[${stripHtmlEntities(item.original)}]</span> `;
+      } else if (item.status === 'substitution') {
+        typedHtml += `<span style="text-decoration:underline;text-decoration-color:red;text-decoration-thickness:2px;color:#dc2626;${PCOLOR}">${stripHtmlEntities(item.typed)}</span> <span style="color:#15803d;font-weight:bold;${PCOLOR}">[${stripHtmlEntities(item.original)}]</span> `;
+      } else if (item.status === 'extra') {
+        typedHtml += `<span style="text-decoration:underline;text-decoration-color:red;text-decoration-thickness:2px;color:#dc2626;${PCOLOR}">${stripHtmlEntities(item.typed)}</span> `;
       } else {
-        // Safeguard: ensure PARA_TOKEN never appears as literal text in output
-        // Preserve HTML formatting in typed text (e.g., <b>, <i>, <u>)
         const displayText = item.typed === PARA_TOKEN ? '' : stripHtmlEntities(item.typed);
-        if (displayText) {
-          typedHtml += `<span>${displayText}</span> `;
-        }
+        if (displayText) typedHtml += `<span>${displayText}</span> `;
       }
     }
     typedHtml += `</p>`;
