@@ -511,70 +511,10 @@ export default function StudentDashboard() {
     staleTime: 1000 * 60 * 2,
   });
 
-  // ── helper: language picker cards ─────────────────────────────────────────
-  const LANG_CARDS = [
-    { lang: 'english', label: 'English', sub: 'Latin Script', from: 'from-blue-500', to: 'to-indigo-600', flag: '🇬🇧' },
-    { lang: 'hindi',   label: 'हिंदी',  sub: 'Devanagari Script', from: 'from-orange-500', to: 'to-red-500', flag: '🇮🇳' },
-  ];
-
-  function LangPicker({ onSelect, accentFrom, accentTo }: { onSelect: (l: string) => void; accentFrom?: string; accentTo?: string }) {
-    return (
-      <div className="grid grid-cols-2 gap-5 max-w-sm mx-auto py-8">
-        {LANG_CARDS.map(({ lang, label, sub, from, to, flag }) => (
-          <button
-            key={lang}
-            onClick={() => onSelect(lang)}
-            className={`group cursor-pointer rounded-2xl p-7 flex flex-col items-center justify-center gap-3 bg-gradient-to-br ${from} ${to} text-white shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 border-0`}
-          >
-            <span className="text-4xl">{flag}</span>
-            <div className="text-center">
-              <p className="font-bold text-lg leading-tight">{label}</p>
-              <p className="text-white/70 text-xs mt-0.5">{sub}</p>
-            </div>
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  // ── helper: folder grid ────────────────────────────────────────────────────
-  function FolderGrid({ folders, onSelectAll, onSelectFolder, accentColor }: {
-    folders: any[];
-    onSelectAll: () => void;
-    onSelectFolder: (id: number) => void;
-    accentColor: string;
-  }) {
-    return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        <button
-          onClick={onSelectAll}
-          className={`flex items-center gap-3 p-3.5 rounded-xl border-2 ${accentColor} bg-white shadow-sm hover:shadow-md transition-all text-left`}
-        >
-          <div className="p-2 rounded-lg bg-current/10">
-            <Folder className="h-5 w-5" />
-          </div>
-          <span className="font-semibold text-sm truncate">All Tests</span>
-        </button>
-        {folders.map((folder: any) => (
-          <button
-            key={folder.id}
-            onClick={() => onSelectFolder(folder.id)}
-            className="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all text-left"
-          >
-            <div className="p-2 rounded-lg bg-slate-100 shrink-0">
-              <Folder className="h-5 w-5 text-slate-500 fill-slate-200" />
-            </div>
-            <span className="font-medium text-sm text-slate-700 truncate">{folder.name}</span>
-          </button>
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-5 p-4 md:p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-700 to-purple-800 p-6 md:p-8 text-white shadow-2xl">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+      {/* Enhanced Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-700 to-purple-800 p-8 text-white shadow-2xl">
         <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,black)]" />
         <div className="relative space-y-4">
           {/* Top Section: Avatar & Name + Expiry */}
@@ -725,128 +665,232 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-        <div className="overflow-x-auto pb-1 mb-5">
-          <TabsList className="inline-flex w-max min-w-full bg-white border border-slate-200 shadow-sm p-1.5 rounded-xl h-auto gap-1.5">
-            {[
-              { value: 'typing_tests',     icon: <Keyboard className="h-4 w-4 shrink-0" />, label: 'Typing',       active: 'from-blue-500 to-indigo-600' },
-              { value: 'shorthand_tests',  icon: <Mic      className="h-4 w-4 shrink-0" />, label: 'Shorthand',    active: 'from-orange-500 to-amber-500' },
-              { value: 'pitman_tests',     icon: <BookOpen className="h-4 w-4 shrink-0" />, label: 'Pitman',       active: 'from-red-500 to-rose-600' },
-              { value: 'allahabad-hc_tests', icon: <Keyboard className="h-4 w-4 shrink-0" />, label: 'Allahabad HC', active: 'from-violet-500 to-purple-600' },
-              { value: 'results',          icon: <BarChart className="h-4 w-4 shrink-0" />, label: 'My Results',   active: 'from-green-500 to-emerald-600' },
-              { value: 'store',            icon: <FileText className="h-4 w-4 shrink-0" />, label: 'PDF Store',    active: 'from-purple-500 to-pink-500' },
-            ].map(({ value, icon, label, active }) => (
-              <TabsTrigger
-                key={value}
-                value={value}
-                className={`flex items-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold text-slate-600 transition-all whitespace-nowrap data-[state=active]:bg-gradient-to-r data-[state=active]:${active} data-[state=active]:text-white data-[state=active]:shadow-md data-[state=inactive]:hover:bg-slate-100`}
-              >
-                {icon} {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
+        <TabsList className="grid w-full grid-cols-6 mb-8 bg-gradient-to-r from-slate-100 to-slate-50 shadow-md border border-slate-200 p-2 rounded-xl h-auto gap-2">
+          <TabsTrigger
+            value="typing_tests"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <Keyboard className="h-4 w-4" /> Typing Tests
+          </TabsTrigger>
+          <TabsTrigger
+            value="shorthand_tests"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <Mic className="h-4 w-4" /> Shorthand
+          </TabsTrigger>
+          <TabsTrigger
+            value="pitman_tests"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <BookOpen className="h-4 w-4" /> Pitman Exercise
+          </TabsTrigger>
+          <TabsTrigger
+            value="allahabad-hc_tests"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <Keyboard className="h-4 w-4" /> Allahabad HC
+          </TabsTrigger>
+          <TabsTrigger
+            value="results"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <BarChart className="h-4 w-4" /> My Results
+          </TabsTrigger>
+          <TabsTrigger
+            value="store"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <BookOpen className="h-4 w-4" /> PDF Store
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="typing_tests">
-          {/* Header row */}
-          <div className="flex items-center justify-between gap-3 mb-5">
-            <div className="flex items-center gap-3">
-              {selectedTypingLanguage && (
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => {
-                  if (selectedTypingFolderId !== undefined) setSelectedTypingFolderId(undefined);
-                  else { setSelectedTypingLanguage(null); setSelectedTypingFolderId(undefined); }
-                }}>
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-blue-50 border border-blue-100 rounded-xl">
-                  <Keyboard className="h-5 w-5 text-blue-600" />
+          <div className="mb-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Keyboard className="h-6 w-6 text-blue-700" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-gray-900 leading-tight">
-                    {!selectedTypingLanguage ? 'Typing Tests' : selectedTypingFolderId === undefined ? `${selectedTypingLanguage === 'hindi' ? 'Hindi' : 'English'} — Choose Folder` : `${selectedTypingLanguage === 'hindi' ? 'Hindi' : 'English'} Typing`}
-                  </h3>
-                  <p className="text-xs text-gray-500">{countsQuery?.data?.typing ?? 0} tests available</p>
+                  <h3 className="font-bold text-xl text-gray-900">Typing Tests</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
                 </div>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search tests..."
+                  value={typingSearch}
+                  onChange={(e) => setTypingSearch(e.target.value)}
+                  className="pl-10 bg-white shadow-sm border-gray-300"
+                  data-testid="input-search-typing"
+                />
               </div>
             </div>
-            {selectedTypingFolderId !== undefined && (
-              <div className="relative w-56">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <Input placeholder="Search tests..." value={typingSearch} onChange={(e) => setTypingSearch(e.target.value)} className="pl-9 h-8 text-sm bg-white" data-testid="input-search-typing" />
-              </div>
-            )}
           </div>
-
-          {!selectedTypingLanguage ? (
-            <LangPicker onSelect={(l) => { setSelectedTypingLanguage(l); setSelectedTypingFolderId(undefined); }} />
-          ) : selectedTypingFolderId === undefined ? (
-            typingFoldersQuery.isLoading ? (
-              <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /><span className="ml-3 text-sm text-muted-foreground">Loading folders...</span></div>
-            ) : (
-              <div className="space-y-4">
-                <FolderGrid
-                  folders={((typingFoldersQuery.data?.pages || []) as any[]).reduce((a: any[], p: any[]) => [...a, ...p], [])}
-                  onSelectAll={() => setSelectedTypingFolderId(null)}
-                  onSelectFolder={(id) => setSelectedTypingFolderId(id)}
-                  accentColor="border-blue-400 text-blue-600"
-                />
-                {typingFoldersQuery.hasNextPage && (
-                  <div className="flex justify-center pt-2">
-                    <Button size="sm" variant="outline" onClick={() => typingFoldersQuery.fetchNextPage()} disabled={typingFoldersQuery.isFetchingNextPage}>
-                      {typingFoldersQuery.isFetchingNextPage ? 'Loading...' : 'More Folders'}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )
+          {typingQuery?.isLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <span className="ml-3 text-muted-foreground">Loading tests...</span>
+            </div>
           ) : (
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {typingQuery.isError ? (
-                  <div className="col-span-full text-center py-8 text-destructive text-sm">Failed to load tests</div>
-                ) : typingQuery.isLoading ? (
-                  <div className="col-span-full flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-blue-500" /></div>
-                ) : ((typingQuery.data?.pages ?? []) as any[])
-                  .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
-                  .filter((t: any) => t && t.language?.toLowerCase() === selectedTypingLanguage)
-                  .filter((t: any) => selectedTypingFolderId === null ? true : t.folderId === selectedTypingFolderId)
-                  .filter((t: any) => t.title?.toLowerCase().includes(typingSearch.toLowerCase()))
-                  .map((test: any) => {
-                    if (!test?.id) return null;
-                    return (
-                      <Card key={test.id} className="flex flex-col border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden group rounded-xl">
-                        <div className="h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500" />
-                        <CardHeader className="pb-2 pt-4 px-4">
-                          <CardTitle className="text-sm font-semibold leading-snug line-clamp-2 text-gray-900">{test.title}</CardTitle>
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-xs font-medium capitalize">{test.language || 'English'}</span>
-                            <span className="text-xs text-muted-foreground">{format(new Date(test.dateFor), "d MMM yyyy")}</span>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="py-2 px-4">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" /><span className="font-medium text-gray-700">{test.duration} min</span>
-                            <span className="mx-1 text-slate-300">·</span>
-                            <Keyboard className="h-3.5 w-3.5" /><span>Typing</span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="pt-3 pb-4 px-4 border-t border-slate-100 bg-slate-50/60 mt-auto">
-                          <Button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-sm gap-2 shadow-sm group-hover:shadow-md transition-shadow" onClick={() => setLocation(`/test/${test.id}`)}>
-                            <PlayCircle className="h-4 w-4" /> Start Test
+            <div>
+              {!selectedTypingLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => {
+                        setSelectedTypingLanguage(lang);
+                        setSelectedTypingFolderId(undefined); // Reset folder selection when changing language
+                      }}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
+                      <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : selectedTypingFolderId === undefined ? (
+                // Show folder selection
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedTypingLanguage(null);
+                      setSelectedTypingFolderId(undefined);
+                    }}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedTypingLanguage} - Select Folder</h4>
+                  </div>
+                  {typingFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Option to view all tests without folder filter */}
+                        <div
+                          onClick={() => setSelectedTypingFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-blue-50/50"
+                        >
+                          <Folder className="h-12 w-12 text-blue-600 fill-blue-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
+                        </div>
+                        {/* Show available folders */}
+                        {((typingFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedTypingFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
+                      </div>
+                      {typingFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button 
+                            onClick={() => typingFoldersQuery.fetchNextPage()} 
+                            disabled={typingFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {typingFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
                           </Button>
-                        </CardFooter>
-                      </Card>
-                    );
-                  }).filter(Boolean)}
-              </div>
-              {typingQuery.hasNextPage && (
-                <div className="flex justify-center pt-2">
-                  <Button size="sm" variant="outline" onClick={() => typingQuery.fetchNextPage()} disabled={typingQuery.isFetchingNextPage}>
-                    {typingQuery.isFetchingNextPage ? 'Loading...' : 'Load more tests'}
-                  </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setSelectedTypingFolderId(undefined);
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedTypingLanguage} {selectedTypingFolderId !== null ? `- ${((typingFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedTypingFolderId)?.name || 'Folder'}` : '- All Tests'} Typing Tests
+                    </h4>
+                  </div>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {typingQuery.isError ? (
+                      <div className="col-span-full text-center py-8">
+                        <p className="text-destructive mb-2">Failed to load tests</p>
+                        <p className="text-sm text-muted-foreground">{typingQuery.error instanceof Error ? typingQuery.error.message : 'Unknown error'}</p>
+                      </div>
+                    ) : ((typingQuery.data?.pages ?? []) as any[])
+                      .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
+                      .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedTypingLanguage || 'english'))
+                      .filter((t: any) => selectedTypingFolderId === null ? true : t.folderId === selectedTypingFolderId)
+                      .filter((t: any) => t.title && t.title.toLowerCase().includes(typingSearch.toLowerCase()))
+                      .map((test: any) => {
+                        if (!test || !test.id) return null;
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
+
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-blue-500 to-blue-600" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
+                              </div>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="font-medium text-foreground">{test.duration} min</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Keyboard className="h-4 w-4" />
+                                  <span>Typing</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                            <CardFooter className="pt-4 border-t bg-slate-50">
+                              <Button
+                                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-md group-hover:shadow-lg transition-shadow"
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                              >
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      })
+                      .filter(Boolean)}
+                  </div>
+                  {typingQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button onClick={() => typingQuery.fetchNextPage()} disabled={typingQuery.isFetchingNextPage}>
+                        {typingQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
+
             </div>
           )}
         </TabsContent>
