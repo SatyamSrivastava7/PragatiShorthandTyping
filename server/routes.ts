@@ -122,15 +122,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Mobile and password are required" });
       }
       
-      // Find user
-      const user = await storage.getUserByMobile(mobile);
+      // Find student user (role-specific lookup allows same mobile for admin and student)
+      const user = await storage.getUserByMobileAndRole(mobile, 'student');
       if (!user) {
         return res.status(401).json({ message: "Invalid credentials" });
-      }
-      
-      // Block admin login on student login page
-      if (user.role === 'admin') {
-        return res.status(403).json({ message: "Admin accounts must use the admin login page." });
       }
       
       // Verify password
@@ -175,15 +170,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Mobile and password are required" });
       }
       
-      // Find user
-      const user = await storage.getUserByMobile(mobile);
+      // Find admin user (role-specific lookup allows same mobile for admin and student)
+      const user = await storage.getUserByMobileAndRole(mobile, 'admin');
       if (!user) {
         return res.status(401).json({ message: "Invalid admin credentials" });
-      }
-      
-      // Only allow admin users
-      if (user.role !== 'admin') {
-        return res.status(403).json({ message: "This login is for administrators only." });
       }
       
       // Verify password
