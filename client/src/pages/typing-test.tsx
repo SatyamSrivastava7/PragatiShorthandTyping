@@ -636,7 +636,10 @@ export default function TypingTestPage() {
   const fontClass = testContent.language === 'hindi' ? 'font-mangal' : 'font-times';
 
   return (
-    <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
+    <div
+      className={cn("flex flex-col space-y-4", isFullScreen ? "fixed inset-0 z-50 p-6" : "p-4")}
+      style={{ height: isFullScreen ? '100vh' : 'calc(100vh - 64px)', maxHeight: isFullScreen ? '100vh' : 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#ffffff', position: isFullScreen ? 'fixed' : 'relative', zIndex: isFullScreen ? 50 : 1 }}
+    >
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
         <div className="flex items-center gap-4">
@@ -833,10 +836,10 @@ export default function TypingTestPage() {
               onClick={handleClick}
               disabled={!isActive}
               className={cn(
-                "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none bg-transparent leading-relaxed", 
+                "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none leading-relaxed", 
                 fontClass
               )}
-              style={{ fontSize: `${fontSize}px` }}
+              style={{ fontSize: `${fontSize}px`, backgroundColor: '#ffffff' }}
               placeholder={isActive ? "Start typing here..." : "Waiting to start..."}
               spellCheck={false}
               autoComplete="off"
