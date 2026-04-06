@@ -638,7 +638,7 @@ export default function TypingTestPage() {
   return (
     <div
       className={cn("flex flex-col space-y-4", isFullScreen ? "fixed inset-0 z-50 p-6" : "p-4")}
-      style={{ height: isFullScreen ? '100vh' : 'calc(100vh - 64px)', maxHeight: isFullScreen ? '100vh' : 'calc(100vh - 64px)', overflow: 'hidden', backgroundColor: '#ffffff', position: isFullScreen ? 'fixed' : 'relative', zIndex: isFullScreen ? 50 : 1 }}
+      style={{ height: isFullScreen ? '100vh' : '100%', maxHeight: isFullScreen ? '100vh' : '100%', overflow: 'hidden', backgroundColor: '#ffffff', position: isFullScreen ? 'fixed' : 'relative', zIndex: isFullScreen ? 50 : 1 }}
     >
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
