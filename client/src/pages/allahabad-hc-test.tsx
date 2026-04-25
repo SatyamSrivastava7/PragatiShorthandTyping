@@ -227,7 +227,7 @@ export default function AllahabadHCTestPage() {
     
     const now = Date.now();
     const boostedActive = (typedWords <= paraScrollUntilWordsRef.current) || (now <= paraScrollUntilTimeRef.current);
-    const scrollFactor = boostedActive ? 0.8 : 0.35;
+    const scrollFactor = boostedActive ? 0.5 : 0.25;
 
     if (Math.abs(diff) < 2 && !boostedActive) return;
     

@@ -50,6 +50,15 @@ export function RichTextEditor({
   const [fontSize, setFontSize] = useState("16");
   const [lineSpacing, setLineSpacing] = useState("1.5");
   const [isEditing, setIsEditing] = useState(false);
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    alignLeft: false,
+    alignCenter: false,
+    alignRight: false,
+    alignJustify: false,
+  });
 
   // Initialize editor content from value prop
   useEffect(() => {
@@ -96,8 +105,22 @@ export function RichTextEditor({
     if (editorRef.current) {
       setIsEditing(true);
       onChange(editorRef.current.innerHTML);
+      updateActiveFormats();
       setTimeout(() => setIsEditing(false), 100);
     }
+  };
+
+  const updateActiveFormats = () => {
+    // Check which formatting commands are currently active at cursor position
+    setActiveFormats({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      underline: document.queryCommandState("underline"),
+      alignLeft: document.queryCommandState("justifyLeft"),
+      alignCenter: document.queryCommandState("justifyCenter"),
+      alignRight: document.queryCommandState("justifyRight"),
+      alignJustify: document.queryCommandState("justifyFull"),
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -111,9 +134,11 @@ export function RichTextEditor({
     if ((e.ctrlKey || e.metaKey) && e.key === "z") {
       e.preventDefault();
       document.execCommand("undo");
+      setTimeout(() => updateActiveFormats(), 0);
     } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
       e.preventDefault();
       document.execCommand("redo");
+      setTimeout(() => updateActiveFormats(), 0);
     }
   };
 
@@ -132,16 +157,22 @@ export function RichTextEditor({
     icon: React.ReactNode,
     command: string,
     title: string,
+    isActive: boolean,
     value?: string
   ) => (
     <Button
       type="button"
       variant="outline"
       size="sm"
-      className="h-8 w-8 p-0"
+      className={cn(
+        "h-8 w-8 p-0",
+        isActive && "bg-primary text-primary-foreground hover:bg-primary/90 border-primary"
+      )}
       onMouseDown={(e) => {
         e.preventDefault();
         execCommand(command, value);
+        // Update active formats after command executes
+        setTimeout(() => updateActiveFormats(), 0);
       }}
       title={title}
     >
@@ -157,16 +188,18 @@ export function RichTextEditor({
       <div className="border rounded-t-md bg-slate-50 dark:bg-slate-900 p-2 flex flex-wrap gap-1">
         {/* Text Format */}
         <div className="flex gap-1 border-r pr-2">
-          {formatButton(<Bold className="h-4 w-4" />, "bold", "Bold (Ctrl+B)")}
+          {formatButton(<Bold className="h-4 w-4" />, "bold", "Bold (Ctrl+B)", activeFormats.bold)}
           {formatButton(
             <Italic className="h-4 w-4" />,
             "italic",
-            "Italic (Ctrl+I)"
+            "Italic (Ctrl+I)",
+            activeFormats.italic
           )}
           {formatButton(
             <Underline className="h-4 w-4" />,
             "underline",
-            "Underline (Ctrl+U)"
+            "Underline (Ctrl+U)",
+            activeFormats.underline
           )}
         </div>
 
@@ -213,22 +246,26 @@ export function RichTextEditor({
           {formatButton(
             <AlignLeft className="h-4 w-4" />,
             "justifyLeft",
-            "Align Left"
+            "Align Left",
+            activeFormats.alignLeft
           )}
           {formatButton(
             <AlignCenter className="h-4 w-4" />,
             "justifyCenter",
-            "Align Center"
+            "Align Center",
+            activeFormats.alignCenter
           )}
           {formatButton(
             <AlignRight className="h-4 w-4" />,
             "justifyRight",
-            "Align Right"
+            "Align Right",
+            activeFormats.alignRight
           )}
           {formatButton(
             <AlignJustify className="h-4 w-4" />,
             "justifyFull",
-            "Justify"
+            "Justify",
+            activeFormats.alignJustify
           )}
         </div>
       </div>
@@ -244,6 +281,7 @@ export function RichTextEditor({
             onChange(editorRef.current.innerHTML);
           }
         }}
+        onMouseUp={() => updateActiveFormats()}
         contentEditable
         suppressContentEditableWarning
         className={cn(

@@ -298,7 +298,7 @@ export default function TypingTestPage() {
     // Determine if boosted scroll should be active (typed-word window or time window)
     const now = Date.now();
     const boostedActive = (typedWords <= paraScrollUntilWordsRef.current) || (now <= paraScrollUntilTimeRef.current);
-    const scrollFactor = boostedActive ? 0.8 : 0.35;
+    const scrollFactor = boostedActive ? 0.5 : 0.25;
 
     // Only auto-scroll if difference is significant (more than 2px) when not boosted
     if (Math.abs(diff) < 2 && !boostedActive) return;

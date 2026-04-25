@@ -160,60 +160,84 @@ export function ResultTextAnalysis({ originalText, typedText, originalTextClean,
         "text-justify"
       )}
     >
-      {normalizedAlignment.map((item, i) => {
-        // Paragraph token - render as a paragraph break
-        if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
-          return <div key={i} className="w-full my-2" />;
-        }
-        // Show trailing words (not attempted by user) in gray
-        if (item.status === 'trailing') {
-          return (
-            <span key={i} className={cn(wordWrapperClass, "text-muted-foreground/50")} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />
-          );
-        }
+      {normalizedAlignment.length > 0 ? (() => {
+        const paragraphs: React.ReactNode[][] = [[]];
         
-        // Missing word - show in green brackets
-        if (item.status === 'missing') {
-          return (
-            <span key={i} className={cn(wordWrapperClass, "text-green-600 font-medium")}>[<span dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />]</span>
-          );
-        }
-        
-        // Substitution - show typed (errored) word FIRST, then correct word in green brackets
-        if (item.status === 'substitution') {
-          return (
-            <span key={i} className={wordWrapperClass}>
-              <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1" dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />
-              <span className="text-green-600 font-medium">[<span dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />]</span>
-            </span>
-          );
-        }
-        
-        // Extra word (typed but not in original) - show underlined in red
-        if (item.status === 'extra') {
-          return (
-            <span key={i} className={cn(wordWrapperClass, "text-red-600 decoration-red-600 decoration-2 underline underline-offset-2")} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />
-          );
-        }
-        
-        // Match - show normally, with HTML formatting preserved
-        if (item.typed === PARA_TOKEN || item.original === PARA_TOKEN) {
-          return <div key={i} className="w-full my-2" />;
-        }
-        
-        // For Allahabad-HC with HTML: use mapped HTML version if available
-        if (contentType === 'allahabad-hc' && htmlTextMap.size > 0 && item.typed) {
-          const typedKey = item.typed.trim().toLowerCase();
-          const htmlVersions = htmlTextMap.get(typedKey);
+        // Group alignment items into paragraphs
+        for (let i = 0; i < normalizedAlignment.length; i++) {
+          const item = normalizedAlignment[i];
           
-          if (htmlVersions && htmlVersions.length > 0) {
-            const htmlVersion = htmlVersions.shift()!;
-            return <span key={i} className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: htmlVersion }} />;
+          // If this is a paragraph token, start a new paragraph
+          if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) {
+            if (paragraphs[paragraphs.length - 1].length > 0) {
+              // Only create a new paragraph if current one has content
+              paragraphs.push([]);
+            }
+            continue;
+          }
+          
+          // Add item to current paragraph
+          let element: React.ReactNode = null;
+          
+          // Show trailing words (not attempted by user) in gray
+          if (item.status === 'trailing') {
+            element = (
+              <span className={cn(wordWrapperClass, "text-muted-foreground/50")} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />
+            );
+          }
+          // Missing word - show in green brackets
+          else if (item.status === 'missing') {
+            element = (
+              <span className={cn(wordWrapperClass, "text-green-600 font-medium")}>[<span dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />]</span>
+            );
+          }
+          // Substitution - show typed (errored) word FIRST, then correct word in green brackets
+          else if (item.status === 'substitution') {
+            element = (
+              <span className={wordWrapperClass}>
+                <span className="text-red-600 decoration-red-600 decoration-2 underline underline-offset-2 mr-1" dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />
+                <span className="text-green-600 font-medium">[<span dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.original) }} />]</span>
+              </span>
+            );
+          }
+          // Extra word (typed but not in original) - show underlined in red
+          else if (item.status === 'extra') {
+            element = (
+              <span className={cn(wordWrapperClass, "text-red-600 decoration-red-600 decoration-2 underline underline-offset-2")} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />
+            );
+          }
+          // Match - show normally, with HTML formatting preserved
+          else {
+            // For Allahabad-HC with HTML: use mapped HTML version if available
+            if (contentType === 'allahabad-hc' && htmlTextMap.size > 0 && item.typed) {
+              const typedKey = item.typed.trim().toLowerCase();
+              const htmlVersions = htmlTextMap.get(typedKey);
+              
+              if (htmlVersions && htmlVersions.length > 0) {
+                const htmlVersion = htmlVersions.shift()!;
+                element = <span className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: htmlVersion }} />;
+              } else {
+                element = <span className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />;
+              }
+            } else {
+              element = <span className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />;
+            }
+          }
+          
+          if (element) {
+            paragraphs[paragraphs.length - 1].push(
+              <React.Fragment key={`${paragraphs.length - 1}-${i}`}>{element}</React.Fragment>
+            );
           }
         }
         
-        return <span key={i} className={wordWrapperClass} dangerouslySetInnerHTML={{ __html: stripHtmlEntities(item.typed) }} />;
-      })}
+        // Render paragraphs as separate block elements
+        return paragraphs.map((para, pIdx) => (
+          <p key={pIdx} className="mb-2">
+            {para}
+          </p>
+        ));
+      })() : null}
     </div>
   );
 }
