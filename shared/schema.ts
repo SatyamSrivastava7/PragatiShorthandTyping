@@ -7,7 +7,7 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  mobile: varchar("mobile", { length: 15 }).notNull().unique(),
+  mobile: varchar("mobile", { length: 15 }).notNull(),
   batch: text("batch").notNull(),
   studentId: varchar("student_id", { length: 50 }).unique(),
   email: text("email"),
