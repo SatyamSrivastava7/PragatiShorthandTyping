@@ -1838,7 +1838,7 @@ export default function AdminDashboard() {
       let head: string[][] = [];
       let body: Array<string[] | (string | number)[]> = [];
 
-      if (type === 'typing') {
+      if (type === 'typing' || type === 'allahabad-hc') {
         // Prefer DB-stored fields. If some fields are missing, we fall back conservatively.
         head = [[
           'Rank',
