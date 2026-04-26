@@ -421,14 +421,14 @@ export default function AllahabadHCTestPage() {
 
   return (
     <div
-      className={cn("flex flex-col space-y-4", isFullScreen ? "fixed inset-0 z-50 p-6" : "p-4")}
+      className={cn("flex flex-col space-y-4", isFullScreen ? "fixed inset-0 z-[60] p-6" : "p-4")}
       style={{
         height: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
         maxHeight: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
         overflow: 'hidden',
         backgroundColor: '#ffffff',
         position: isFullScreen ? 'fixed' : 'relative',
-        zIndex: isFullScreen ? 50 : 1,
+        zIndex: isFullScreen ? 60 : 1,
       }}
     >
       {/* Header Bar */}
