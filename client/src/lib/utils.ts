@@ -23,8 +23,9 @@ export function stripHtmlPreserveParagraphs(html: string): string {
                 .replace(/<\s*\/\s*div\s*>/gi, '\n\n')
                 .replace(/<\s*div[^>]*>/gi, '\n\n');
 
-  // Strip remaining tags
-  s = s.replace(/<[^>]+>/g, '');
+  // Strip remaining tags — replace with a space so adjacent words across
+  // inline-tag boundaries don't merge (whitespace is collapsed below).
+  s = s.replace(/<[^>]+>/g, ' ');
 
   // Strip HTML entities like &nbsp; before processing
   s = stripHtmlEntities(s);
@@ -63,9 +64,12 @@ export function stripHtmlEntities(text: string): string {
 }
 
 // Strip HTML tags without preserving paragraph structure
+// IMPORTANT: Replace tags with a space (not empty string) so adjacent words
+// across block boundaries (e.g. </div><div>) don't merge into a single word.
+// Whitespace is collapsed afterwards so this never produces extra spaces.
 export function stripHtml(html: string): string {
   if (!html) return '';
-  let s = html.replace(/<[^>]+>/g, '');
+  let s = html.replace(/<[^>]+>/g, ' ');
   s = stripHtmlEntities(s);
   s = s.replace(/\s+/g, ' ').trim();
   return s;
