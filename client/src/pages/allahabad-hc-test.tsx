@@ -560,10 +560,10 @@ export default function AllahabadHCTestPage() {
                 placeholder={isActive ? "Start typing here..." : "Waiting to start..."}
                 label=""
                 showWordCount={true}
+                fillHeight={true}
                 fontClass={testContent.language === "hindi" ? "font-mangal" : ""}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                className="!min-h-0 h-full !rounded-none !border-0"
               />
             </div>
             

@@ -31,6 +31,7 @@ interface RichTextEditorProps {
   label?: string;
   fontClass?: string;
   showWordCount?: boolean;
+  fillHeight?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLDivElement>) => void;
 }
@@ -43,6 +44,7 @@ export function RichTextEditor({
   label,
   fontClass = "",
   showWordCount = true,
+  fillHeight = false,
   onKeyDown: customOnKeyDown,
   onPaste: customOnPaste,
 }: RichTextEditorProps) {
@@ -181,11 +183,11 @@ export function RichTextEditor({
   );
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", fillHeight && "flex flex-col h-full space-y-0")}>
       {label && <Label className="text-sm font-medium">{label}</Label>}
 
       {/* Toolbar */}
-      <div className="border rounded-t-md bg-slate-50 dark:bg-slate-900 p-2 flex flex-wrap gap-1">
+      <div className={cn("border rounded-t-md bg-slate-50 dark:bg-slate-900 p-2 flex flex-wrap gap-1 shrink-0", fillHeight && "rounded-none border-x-0 border-t-0")}>
         {/* Text Format */}
         <div className="flex gap-1 border-r pr-2">
           {formatButton(<Bold className="h-4 w-4" />, "bold", "Bold (Ctrl+B)", activeFormats.bold)}
@@ -285,7 +287,9 @@ export function RichTextEditor({
         contentEditable
         suppressContentEditableWarning
         className={cn(
-          "min-h-[200px] p-4 border-2 rounded-b-md bg-white dark:bg-zinc-900 focus:outline-none focus:border-primary/50 overflow-auto",
+          fillHeight
+            ? "flex-1 min-h-0 p-4 bg-white dark:bg-zinc-900 focus:outline-none overflow-auto"
+            : "min-h-[200px] p-4 border-2 rounded-b-md bg-white dark:bg-zinc-900 focus:outline-none focus:border-primary/50 overflow-auto",
           fontClass,
           className
         )}
@@ -294,7 +298,7 @@ export function RichTextEditor({
 
       {/* Word Count */}
       {showWordCount && (
-        <p className="text-xs text-muted-foreground">
+        <p className={cn("text-xs text-muted-foreground", fillHeight && "px-4 py-2 border-t shrink-0 bg-muted/30")}>
           {value.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length}{" "}
           words |{" "}
           {value.replace(/<[^>]*>/g, "").length} characters
