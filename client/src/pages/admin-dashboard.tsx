@@ -798,6 +798,14 @@ export default function AdminDashboard() {
   const [visiblePitmanCount, setVisiblePitmanCount] = useState(ITEMS_PER_BATCH);
   const [visibleAllahabadHCCount, setVisibleAllahabadHCCount] = useState(ITEMS_PER_BATCH);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Per-test-type search filter for the "Manage Tests" tab
+  const [manageTestsSearch, setManageTestsSearch] = useState<{
+    typing: string;
+    shorthand: string;
+    pitman: string;
+    "allahabad-hc": string;
+  }>({ typing: "", shorthand: "", pitman: "", "allahabad-hc": "" });
   const typingObserverRef = useRef<HTMLTableRowElement | null>(null);
   const shorthandObserverRef = useRef<HTMLTableRowElement | null>(null);
   const pitmanObserverRef = useRef<HTMLTableRowElement | null>(null);
@@ -862,15 +870,31 @@ export default function AdminDashboard() {
   const pitmanTests = getPitmanTests();
   const allahabadHCTests = getAllahabadHCTests();
 
-  // Get visible items for lazy loading
-  const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
-  const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
-  const visiblePitmanTests = pitmanTests.slice(0, visiblePitmanCount);
-  const visibleAllahabadHCTests = allahabadHCTests.slice(0, visibleAllahabadHCCount);
-  const hasMoreTyping = visibleTypingCount < typingTests.length;
-  const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
-  const hasMorePitman = visiblePitmanCount < pitmanTests.length;
-  const hasMoreAllahabadHC = visibleAllahabadHCCount < allahabadHCTests.length;
+  // Apply per-type search filter (matches title, language, or folder name)
+  const matchesSearch = (item: any, query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const folderName = (getFolderNameById(item.folderId) || "").toLowerCase();
+    return (
+      (item.title || "").toLowerCase().includes(q) ||
+      (item.language || "").toLowerCase().includes(q) ||
+      folderName.includes(q)
+    );
+  };
+  const filteredTypingTests = typingTests.filter((t) => matchesSearch(t, manageTestsSearch.typing));
+  const filteredShorthandTests = shorthandTests.filter((t) => matchesSearch(t, manageTestsSearch.shorthand));
+  const filteredPitmanTests = pitmanTests.filter((t) => matchesSearch(t, manageTestsSearch.pitman));
+  const filteredAllahabadHCTests = allahabadHCTests.filter((t) => matchesSearch(t, manageTestsSearch["allahabad-hc"]));
+
+  // Get visible items for lazy loading (after search filter)
+  const visibleTypingTests = filteredTypingTests.slice(0, visibleTypingCount);
+  const visibleShorthandTests = filteredShorthandTests.slice(0, visibleShorthandCount);
+  const visiblePitmanTests = filteredPitmanTests.slice(0, visiblePitmanCount);
+  const visibleAllahabadHCTests = filteredAllahabadHCTests.slice(0, visibleAllahabadHCCount);
+  const hasMoreTyping = visibleTypingCount < filteredTypingTests.length;
+  const hasMoreShorthand = visibleShorthandCount < filteredShorthandTests.length;
+  const hasMorePitman = visiblePitmanCount < filteredPitmanTests.length;
+  const hasMoreAllahabadHC = visibleAllahabadHCCount < filteredAllahabadHCTests.length;
 
   // Load more typing tests
   const loadMoreTyping = useCallback(() => {
@@ -2840,26 +2864,44 @@ export default function AdminDashboard() {
                               </CardDescription>
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            disabled={isRefreshingContent}
-                            onClick={async () => {
-                              setIsRefreshingContent(true);
-                              await queryClient.invalidateQueries({
-                                queryKey: ["content", "list"],
-                              });
-                              setIsRefreshingContent(false);
-                            }}
-                            data-testid={`button-refresh-${type}-tests`}
-                          >
-                            <RefreshCw
-                              className={cn(
-                                "h-4 w-4",
-                                isRefreshingContent && "animate-spin",
-                              )}
-                            />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                              <Input
+                                type="text"
+                                placeholder="Search tests..."
+                                value={manageTestsSearch[type as keyof typeof manageTestsSearch]}
+                                onChange={(e) =>
+                                  setManageTestsSearch((prev) => ({
+                                    ...prev,
+                                    [type]: e.target.value,
+                                  }))
+                                }
+                                className="pl-8 h-9 w-44 sm:w-56 bg-white"
+                                data-testid={`input-search-${type}-tests`}
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              disabled={isRefreshingContent}
+                              onClick={async () => {
+                                setIsRefreshingContent(true);
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["content", "list"],
+                                });
+                                setIsRefreshingContent(false);
+                              }}
+                              data-testid={`button-refresh-${type}-tests`}
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "h-4 w-4",
+                                  isRefreshingContent && "animate-spin",
+                                )}
+                              />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
