@@ -1341,7 +1341,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Missing Words</td><td class="error">${missingWordsCount}</td>
         </tr>
         ${
-          result.contentType === "typing"
+          result.contentType === "typing" || result.contentType === "allahabad-hc"
             ? `
         <tr>
           <td>No. of Punctuation Mistakes</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
