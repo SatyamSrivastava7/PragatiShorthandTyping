@@ -4001,6 +4001,48 @@ export default function AdminDashboard() {
                           </Button>
                         </div>
                       )}
+                      {type === "pitman" && hasNextPitman && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextPitman()}
+                            disabled={isFetchingNextPitman}
+                          >
+                            {isFetchingNextPitman ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Pitman Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      {type === "allahabad-hc" && hasNextAllahabadHC && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextAllahabadHC()}
+                            disabled={isFetchingNextAllahabadHC}
+                          >
+                            {isFetchingNextAllahabadHC ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Allahabad HC Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </TabsContent>
                   ))}
                 </Tabs>
