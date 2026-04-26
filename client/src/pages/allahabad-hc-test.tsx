@@ -193,41 +193,46 @@ export default function AllahabadHCTestPage() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-scroll logic - keeps the current word on or above line 3 of the visible area
+  // Auto-scroll logic - when current word reaches the 3rd-last visible line,
+  // scroll up by exactly enough lines so the marker sits one line above (4th-last),
+  // revealing one new line at the bottom.
   useEffect(() => {
     if (autoScrollEnabled === null || !autoScrollEnabled || !originalTextRef.current) return;
     if (!isActive) return;
     if (userScrolled) return; // respect manual scroll
 
     const container = originalTextRef.current;
-
-    // Find current word marker rendered by getHighlightedContent
     const marker = container.querySelector('.current-word-marker') as HTMLElement | null;
     if (!marker) return;
 
-    // Compute line height from the inner content's font/line-height
-    const innerContent = container.firstElementChild as HTMLElement | null;
-    const styleSource = innerContent || container;
+    // Determine line height from the inner content
+    const inner = container.firstElementChild as HTMLElement | null;
+    const styleSource = inner || container;
     const computed = window.getComputedStyle(styleSource);
     let lineHeight = parseFloat(computed.lineHeight);
     if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-      lineHeight = parseFloat(computed.fontSize) * 1.5 || 24;
+      lineHeight = (parseFloat(computed.fontSize) || 16) * 1.5;
     }
 
-    // Position of the marker relative to the container's content
+    const visibleLines = Math.floor(container.clientHeight / lineHeight);
+    if (visibleLines < 4) return;
+
+    // Marker position relative to container content
     const containerRect = container.getBoundingClientRect();
     const markerRect = marker.getBoundingClientRect();
     const markerOffsetTop = markerRect.top - containerRect.top + container.scrollTop;
 
-    // Visible-line index of the marker (0 = first visible line)
-    const visibleLineIndex = (markerOffsetTop - container.scrollTop) / lineHeight;
+    // Marker's current visible-line index from top (0-indexed)
+    const markerLineFromTop = Math.round((markerOffsetTop - container.scrollTop) / lineHeight);
 
-    // Trigger: when the marker is on line 3 or below (index >= 2),
-    // scroll just enough so the marker sits on line 1 — pushing previous lines up.
-    if (visibleLineIndex >= 2) {
-      const targetScrollTop = markerOffsetTop; // place marker at top of visible area (line 1)
-      const newScroll = Math.max(container.scrollTop, targetScrollTop);
-      if (newScroll !== container.scrollTop) {
+    // 3rd-last visible line index (0-indexed). e.g. visibleLines=8 → index 5
+    const thirdLastLineIndex = visibleLines - 3;
+
+    if (markerLineFromTop >= thirdLastLineIndex) {
+      // Bring marker to (thirdLastLineIndex - 1) i.e. 4th-last → reveals one new line at bottom
+      const targetLineFromTop = thirdLastLineIndex - 1;
+      const newScroll = Math.max(0, markerOffsetTop - targetLineFromTop * lineHeight);
+      if (newScroll > container.scrollTop) {
         isAutoScrollingRef.current = true;
         container.scrollTop = newScroll;
         lastScrollTopRef.current = newScroll;

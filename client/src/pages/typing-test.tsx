@@ -250,77 +250,52 @@ export default function TypingTestPage() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-scroll logic - scrolls original text to follow typing progress
-  // Content moves from bottom to top (current word stays near top of visible area)
+  // Auto-scroll logic - when current word reaches the 3rd-last visible line,
+  // scroll up by exactly enough lines so the marker sits one line above (4th-last),
+  // revealing one new line at the bottom.
   useEffect(() => {
     if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
-    if (!isActive) return; // Only scroll when test is active
-    
-    // no skip - we will handle boosted paragraph scrolling via paraScrollUntilWordsRef
-    
+    if (!isActive) return;
+    if (userScrolled) return; // respect manual scroll
+
     const container = originalTextRef.current;
-    const originalText = testContent.text;
-    
-    // Strip HTML tags while preserving paragraph markers for accurate word counting
-    const plainText = stripHtmlPreserveParagraphs(originalText);
+    const marker = container.querySelector('.current-word-marker') as HTMLElement | null;
+    if (!marker) return;
 
-    // Count paragraphs typed by user and words to detect Enter and set boosted window
-    const processedTyped = replaceNewlinesWithParaToken(typedText);
-    const paraCount = (processedTyped.match(/\[\[PARA\]\]/g) || []).length;
-
-    // Count words typed by user (treat newlines as PARA_TOKEN)
-    const typedWords = processedTyped.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
-
-    // Check if a new paragraph was added (user pressed Enter)
-    const isNewParagraph = paraCount > lastParaCountRef.current;
-    if (isNewParagraph) {
-      lastParaCountRef.current = paraCount;
-      // Boost scrolling for next 5 typed words OR for 1.5s, whichever is longer
-      paraScrollUntilWordsRef.current = typedWords + 5;
-      paraScrollUntilTimeRef.current = Date.now() + 1500; // 1.5 seconds
+    // Determine line height from the inner content
+    const inner = container.firstElementChild as HTMLElement | null;
+    const styleSource = inner || container;
+    const computed = window.getComputedStyle(styleSource);
+    let lineHeight = parseFloat(computed.lineHeight);
+    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+      lineHeight = (parseFloat(computed.fontSize) || 16) * 1.5;
     }
-    const originalWords = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
-    const totalOriginalWords = originalWords.length;
-    
-    if (totalOriginalWords === 0) return;
-    
-    // Calculate scroll position based on word progress
-    const scrollableHeight = container.scrollHeight - container.clientHeight;
-    const progress = Math.min(typedWords / totalOriginalWords, 1);
-    
-    // Target position: current word should appear near top (20% from top)
-    // This makes content scroll up as user types (bottom to top feel)
-    const targetScrollPosition = Math.max(0, progress * scrollableHeight);
-    
-    const currentScroll = container.scrollTop;
-    let diff = targetScrollPosition - currentScroll;
-    
-    // Determine if boosted scroll should be active (typed-word window or time window)
-    const now = Date.now();
-    const boostedActive = (typedWords <= paraScrollUntilWordsRef.current) || (now <= paraScrollUntilTimeRef.current);
-    const scrollFactor = boostedActive ? 0.5 : 0.25;
 
-    // Only auto-scroll if difference is significant (more than 2px) when not boosted
-    if (Math.abs(diff) < 2 && !boostedActive) return;
-    
-    // If user has manually scrolled, only do "catch-up" scrolling
-    // when they fall more than 30% behind the target position
-    if (userScrolled && !boostedActive) {
-      const lagThreshold = scrollableHeight * 0.3;
-      if (diff < lagThreshold) return; // User is ahead or close enough, don't interfere
+    const visibleLines = Math.floor(container.clientHeight / lineHeight);
+    if (visibleLines < 4) return; // need a sensible viewport
+
+    // Marker position relative to container content
+    const containerRect = container.getBoundingClientRect();
+    const markerRect = marker.getBoundingClientRect();
+    const markerOffsetTop = markerRect.top - containerRect.top + container.scrollTop;
+
+    // Marker's current visible-line index from the top (0-indexed)
+    const markerLineFromTop = Math.round((markerOffsetTop - container.scrollTop) / lineHeight);
+
+    // 3rd-last visible line index (0-indexed). e.g. visibleLines=8 → index 5
+    const thirdLastLineIndex = visibleLines - 3;
+
+    if (markerLineFromTop >= thirdLastLineIndex) {
+      // Bring marker to (thirdLastLineIndex - 1) i.e. 4th-last → reveals one new line at bottom
+      const targetLineFromTop = thirdLastLineIndex - 1;
+      const newScroll = Math.max(0, markerOffsetTop - targetLineFromTop * lineHeight);
+      if (newScroll > container.scrollTop) {
+        isAutoScrollingRef.current = true;
+        container.scrollTop = newScroll;
+        lastScrollTopRef.current = newScroll;
+      }
     }
-    
-    // Apply scroll with appropriate factor (higher for paragraph breaks)
-    let newScroll = currentScroll + diff * scrollFactor;
-    
-
-    
-    // Mark as programmatic scroll to avoid triggering manual scroll detection
-    isAutoScrollingRef.current = true;
-    container.scrollTop = newScroll;
-    lastScrollTopRef.current = newScroll;
-    
-  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled]);
+  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled, highlighterEnabled]);
 
   const startTest = () => {
     // Reset scroll tracking when test starts
@@ -540,11 +515,6 @@ export default function TypingTestPage() {
   const getHighlightedContent = () => {
     if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
 
-    // If highlighter is disabled, return original content as-is
-    if (!highlighterEnabled) {
-      return testContent.text;
-    }
-
     // Extract plain text to find words, preserving paragraph tokens
     const plainText = stripHtmlPreserveParagraphs(testContent.text);
     const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
@@ -575,6 +545,9 @@ export default function TypingTestPage() {
     let foundTargetWord = false;
     
     const htmlContent = testContent.text;
+    const highlightStyle = highlighterEnabled
+      ? 'background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;'
+      : '';
     
     // Split by HTML tags, process only text nodes
     const parts = htmlContent.split(/(<[^>]+>)/);
@@ -603,7 +576,7 @@ export default function TypingTestPage() {
         if (segment === targetWord) {
           if (wordOccurrenceCount === currentIndex) {
             foundTargetWord = true;
-            return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${segment}</span>`;
+            return `<span class="current-word-marker" style="${highlightStyle}">${segment}</span>`;
           }
           wordOccurrenceCount++;
         } else if (!/^\s+$/.test(segment)) {
