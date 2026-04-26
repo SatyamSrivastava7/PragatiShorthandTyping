@@ -12,7 +12,7 @@
  */
 
 import { db } from "../db";
-import { results } from "../../shared/schema";
+import { results, content } from "../../shared/schema";
 import { desc, eq } from "drizzle-orm";
 
 const PARA_TOKEN = '[[PARA]]';
@@ -32,7 +32,9 @@ function stripHtmlEntities(text: string): string {
 
 function stripHtml(html: string): string {
   if (!html) return '';
-  let s = html.replace(/<[^>]+>/g, '');
+  // Replace tags with a space (not empty) so adjacent words across
+  // block boundaries (e.g. </div><div>) don't merge into one word.
+  let s = html.replace(/<[^>]+>/g, ' ');
   s = stripHtmlEntities(s);
   s = s.replace(/\s+/g, ' ').trim();
   return s;
@@ -45,7 +47,8 @@ function stripHtmlPreserveParagraphs(html: string): string {
               .replace(/<\s*p[^>]*>/gi, '\n\n')
               .replace(/<\s*\/\s*div\s*>/gi, '\n\n')
               .replace(/<\s*div[^>]*>/gi, '\n\n');
-  s = s.replace(/<[^>]+>/g, '');
+  // Replace remaining inline tags with a space so words don't merge.
+  s = s.replace(/<[^>]+>/g, ' ');
   s = stripHtmlEntities(s);
   s = s.replace(/\r\n|\r/g, '\n');
   s = s.replace(/\n+/g, ` ${PARA_TOKEN} `);
@@ -652,9 +655,17 @@ function calculateShorthandMetrics(originalText: string, typedText: string, time
 }
 
 async function regenerateResults() {
-  console.log("Regenerating results: updating metrics, HTML resolution, and PARA tokens for latest 50 of each test type...\n");
-  
-  const testTypes = ["typing", "shorthand", "pitman"];
+  // Parse CLI flags. Examples:
+  //   --shorthand           -> only shorthand
+  //   --allahabad-hc        -> only allahabad-hc
+  //   (no args)             -> typing, shorthand, pitman (default behaviour)
+  const args = process.argv.slice(2);
+  const allTypes = ["typing", "shorthand", "pitman", "allahabad-hc"];
+  const flagged = allTypes.filter((t) => args.includes(`--${t}`));
+  const testTypes = flagged.length > 0 ? flagged : ["typing", "shorthand", "pitman"];
+
+  console.log(`Regenerating results for: ${testTypes.join(", ")}\n`);
+
   let totalUpdated = 0;
   let totalSkipped = 0;
 
@@ -694,10 +705,24 @@ async function regenerateResults() {
         continue;
       }
 
-      const timeInMinutes = result.time;
+      // The live tests pass `testContent.duration` (minutes) into
+      // calculateTypingMetrics for gross/net speed. Match that exactly so
+      // recalculation reproduces the same speed numbers.
+      const [contentRow] = await db
+        .select({ duration: content.duration })
+        .from(content)
+        .where(eq(content.id, result.contentId));
+
+      if (!contentRow) {
+        console.log(`Skipping result ${result.id} - content ${result.contentId} not found`);
+        skipped++;
+        continue;
+      }
+
+      const timeInMinutes = contentRow.duration;
       
       try {
-        if (testType === "typing" || testType === "pitman") {
+        if (testType === "typing" || testType === "pitman" || testType === "allahabad-hc") {
           // Both typing and pitman use same metrics calculation
           const metrics = calculateTypingMetrics(
             originalTextForMetrics,
