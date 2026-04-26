@@ -193,61 +193,50 @@ export default function AllahabadHCTestPage() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-scroll logic
+  // Auto-scroll logic - keeps the current word on or above line 3 of the visible area
   useEffect(() => {
     if (autoScrollEnabled === null || !autoScrollEnabled || !originalTextRef.current) return;
     if (!isActive) return;
-    
+    if (userScrolled) return; // respect manual scroll
+
     const container = originalTextRef.current;
-    const originalText = testContent?.text || "";
-    
-    const plainText = stripHtmlPreserveParagraphs(originalText);
-    const processedTyped = replaceNewlinesWithParaToken(typedText);
-    const paraCount = (processedTyped.match(/\[\[PARA\]\]/g) || []).length;
-    const typedWords = processedTyped.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN).length;
 
-    const isNewParagraph = paraCount > lastParaCountRef.current;
-    if (isNewParagraph) {
-      lastParaCountRef.current = paraCount;
-      paraScrollUntilWordsRef.current = typedWords + 5;
-      paraScrollUntilTimeRef.current = Date.now() + 1500;
-    }
-    
-    const originalWords = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
-    const totalOriginalWords = originalWords.length;
-    
-    if (totalOriginalWords === 0) return;
-    
-    const scrollableHeight = container.scrollHeight - container.clientHeight;
-    const progress = Math.min(typedWords / totalOriginalWords, 1);
-    const targetScrollPosition = Math.max(0, progress * scrollableHeight);
-    
-    const currentScroll = container.scrollTop;
-    let diff = targetScrollPosition - currentScroll;
-    
-    const now = Date.now();
-    const boostedActive = (typedWords <= paraScrollUntilWordsRef.current) || (now <= paraScrollUntilTimeRef.current);
-    const scrollFactor = boostedActive ? 0.5 : 0.25;
+    // Find current word marker rendered by getHighlightedContent
+    const marker = container.querySelector('.current-word-marker') as HTMLElement | null;
+    if (!marker) return;
 
-    if (Math.abs(diff) < 2 && !boostedActive) return;
-    
-    if (userScrolled && !boostedActive) {
-      const lagThreshold = scrollableHeight * 0.3;
-      if (diff < lagThreshold) return;
+    // Compute line height from the inner content's font/line-height
+    const innerContent = container.firstElementChild as HTMLElement | null;
+    const styleSource = innerContent || container;
+    const computed = window.getComputedStyle(styleSource);
+    let lineHeight = parseFloat(computed.lineHeight);
+    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+      lineHeight = parseFloat(computed.fontSize) * 1.5 || 24;
     }
-    
-    isAutoScrollingRef.current = true;
-    container.scrollTop = currentScroll + diff * scrollFactor;
-    lastScrollTopRef.current = container.scrollTop;
-    
-  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled]);
+
+    // Position of the marker relative to the container's content
+    const containerRect = container.getBoundingClientRect();
+    const markerRect = marker.getBoundingClientRect();
+    const markerOffsetTop = markerRect.top - containerRect.top + container.scrollTop;
+
+    // Visible-line index of the marker (0 = first visible line)
+    const visibleLineIndex = (markerOffsetTop - container.scrollTop) / lineHeight;
+
+    // Trigger: when the marker is on line 3 or below (index >= 2),
+    // scroll just enough so the marker sits on line 1 — pushing previous lines up.
+    if (visibleLineIndex >= 2) {
+      const targetScrollTop = markerOffsetTop; // place marker at top of visible area (line 1)
+      const newScroll = Math.max(container.scrollTop, targetScrollTop);
+      if (newScroll !== container.scrollTop) {
+        isAutoScrollingRef.current = true;
+        container.scrollTop = newScroll;
+        lastScrollTopRef.current = newScroll;
+      }
+    }
+  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled, highlighterEnabled]);
 
   const getHighlightedContent = () => {
     if (!testContent) return '';
-
-    if (!highlighterEnabled) {
-      return testContent.text;
-    }
 
     const plainText = stripHtmlPreserveParagraphs(testContent.text);
     const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
@@ -275,6 +264,10 @@ export default function AllahabadHCTestPage() {
     const htmlContent = testContent.text;
     const parts = htmlContent.split(/(<[^>]+>)/);
     
+    const highlightStyle = highlighterEnabled
+      ? 'background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;'
+      : '';
+    
     const processedParts = parts.map((part) => {
       if (part.startsWith('<')) {
         return part;
@@ -294,7 +287,7 @@ export default function AllahabadHCTestPage() {
         if (segment === targetWord) {
           if (wordOccurrenceCount === currentIndex) {
             foundTargetWord = true;
-            return `<span style="background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;">${segment}</span>`;
+            return `<span class="current-word-marker" style="${highlightStyle}">${segment}</span>`;
           }
           wordOccurrenceCount++;
         } else if (!/^\s+$/.test(segment)) {
@@ -531,7 +524,7 @@ export default function AllahabadHCTestPage() {
       <div className="flex-1 flex flex-col gap-6 min-h-0">
         
         {/* Original Content */}
-        <Card className="flex flex-col h-[30%] overflow-hidden border-2 shadow-sm shrink-0">
+        <Card className="flex flex-col h-[45%] overflow-hidden border-2 shadow-sm shrink-0">
           <CardHeader className="py-2 bg-muted/50 border-b min-h-[40px] px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Original Text</CardTitle>
           </CardHeader>
