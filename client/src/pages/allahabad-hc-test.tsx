@@ -380,7 +380,14 @@ export default function AllahabadHCTestPage() {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!isActive) return;
-    
+
+    // Block Tab key entirely so the student cannot move focus away from the
+    // editor to other buttons on the screen during the test.
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      return;
+    }
+
     const hasModifier = e.ctrlKey || e.altKey || e.metaKey;
     
     // Block Ctrl+C, Ctrl+V (copy/paste), Ctrl+X (cut), Alt, Cmd combinations
