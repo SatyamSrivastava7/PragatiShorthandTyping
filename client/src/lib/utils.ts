@@ -1125,10 +1125,29 @@ export const generateResultPDF = async (result: Result) => {
     // Uses the same approach as ResultTextAnalysis component: inline CSS styles
     // so that bold, italic, underline survive browser print resets.
 
-    const INLINE_HC = new Set(['strong','b','em','i','u','s','del','ins','mark']);
+    const INLINE_HC = new Set(['strong','b','em','i','u','s','del','ins','mark','span','font']);
 
     interface HcWord { plain: string; css: string; }
     interface HcBlock { textAlign?: string; words: HcWord[]; isEmpty: boolean; }
+    interface HcActive { tag: string; bold?: boolean; italic?: boolean; underline?: boolean; lineThrough?: boolean; }
+
+    function parseStyleAttr(tok: string, e: HcActive) {
+      const sm = tok.match(/style\s*=\s*"([^"]*)"|style\s*=\s*'([^']*)'/i);
+      if (!sm) return;
+      const s = (sm[1] ?? sm[2] ?? '').toLowerCase();
+      const fw = s.match(/font-weight\s*:\s*([^;]+)/);
+      if (fw) {
+        const v = fw[1].trim();
+        if (v === 'bold' || v === 'bolder' || (parseInt(v, 10) >= 600)) e.bold = true;
+      }
+      const fs = s.match(/font-style\s*:\s*([^;]+)/);
+      if (fs && /italic|oblique/.test(fs[1])) e.italic = true;
+      const td = s.match(/text-decoration(?:-line)?\s*:\s*([^;]+)/);
+      if (td) {
+        if (/underline/.test(td[1])) e.underline = true;
+        if (/line-through/.test(td[1])) e.lineThrough = true;
+      }
+    }
 
     function parseHcBlocks(raw: string): HcBlock[] {
       const blocks: HcBlock[] = [];
@@ -1142,7 +1161,7 @@ export const generateResultPDF = async (result: Result) => {
         const inner = chunk.replace(/^<div[^>]*>/i, '').trim();
         if (!inner || inner === '__PARA__') { blocks.push({ isEmpty: true, words: [] }); continue; }
         const words: HcWord[] = [];
-        const active: string[] = [];
+        const active: HcActive[] = [];
         const tokRe = /(<[^>]+>)|([^\s<]+)/g;
         let tm: RegExpExecArray | null;
         while ((tm = tokRe.exec(inner)) !== null) {
@@ -1150,23 +1169,38 @@ export const generateResultPDF = async (result: Result) => {
           if (tok.startsWith('<')) {
             if (tok.startsWith('</')) {
               const tag = tok.match(/<\/(\w+)/)?.[1]?.toLowerCase() ?? '';
-              if (INLINE_HC.has(tag)) { const idx = active.lastIndexOf(tag); if (idx !== -1) active.splice(idx, 1); }
+              if (INLINE_HC.has(tag)) {
+                for (let i = active.length - 1; i >= 0; i--) {
+                  if (active[i].tag === tag) { active.splice(i, 1); break; }
+                }
+              }
             } else if (!tok.endsWith('/>')) {
               const tag = tok.match(/<(\w+)/)?.[1]?.toLowerCase() ?? '';
-              if (INLINE_HC.has(tag)) active.push(tag);
+              if (INLINE_HC.has(tag)) {
+                const e: HcActive = { tag };
+                if (tag === 'b' || tag === 'strong') e.bold = true;
+                if (tag === 'i' || tag === 'em') e.italic = true;
+                if (tag === 'u') e.underline = true;
+                if (tag === 's' || tag === 'del') e.lineThrough = true;
+                parseStyleAttr(tok, e);
+                active.push(e);
+              }
             }
             continue;
           }
           if (tok === '__PARA__') continue;
           const parts: string[] = [];
           const decs: string[] = [];
-          for (const t of active) {
-            if (t === 'b' || t === 'strong') parts.push('font-weight:bold');
-            if (t === 'i' || t === 'em') parts.push('font-style:italic');
-            if (t === 'u') decs.push('underline');
-            if (t === 's' || t === 'del') decs.push('line-through');
+          let bold = false, italic = false;
+          for (const e of active) {
+            if (e.bold) bold = true;
+            if (e.italic) italic = true;
+            if (e.underline) decs.push('underline');
+            if (e.lineThrough) decs.push('line-through');
           }
-          if (decs.length) parts.push(`text-decoration:${decs.join(' ')}`);
+          if (bold) parts.push('font-weight:bold');
+          if (italic) parts.push('font-style:italic');
+          if (decs.length) parts.push(`text-decoration:${Array.from(new Set(decs)).join(' ')}`);
           words.push({ plain: stripHtmlEntities(tok), css: parts.join(';') });
         }
         blocks.push({ textAlign, words, isEmpty: words.length === 0 });

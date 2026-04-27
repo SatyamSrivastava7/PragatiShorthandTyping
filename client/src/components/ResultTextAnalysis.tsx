@@ -58,12 +58,39 @@ function parseTypedHtmlIntoBlocks(typedText: string): TypedBlock[] {
   return blocks;
 }
 
-const INLINE_TAGS = new Set(["strong", "b", "em", "i", "u", "s", "del", "ins", "mark"]);
+const INLINE_TAGS = new Set(["strong", "b", "em", "i", "u", "s", "del", "ins", "mark", "span", "font"]);
+
+interface ActiveEntry {
+  tag: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  lineThrough?: boolean;
+}
+
+/** Parse a style="..." attribute on an opening inline tag and translate it into active flags. */
+function parseInlineStyleAttr(token: string, entry: ActiveEntry) {
+  const styleMatch = token.match(/style\s*=\s*"([^"]*)"|style\s*=\s*'([^']*)'/i);
+  if (!styleMatch) return;
+  const styleStr = (styleMatch[1] ?? styleMatch[2] ?? "").toLowerCase();
+  const fw = styleStr.match(/font-weight\s*:\s*([^;]+)/);
+  if (fw) {
+    const v = fw[1].trim();
+    if (v === "bold" || v === "bolder" || (parseInt(v, 10) >= 600)) entry.bold = true;
+  }
+  const fs = styleStr.match(/font-style\s*:\s*([^;]+)/);
+  if (fs && /italic|oblique/.test(fs[1])) entry.italic = true;
+  const td = styleStr.match(/text-decoration(?:-line)?\s*:\s*([^;]+)/);
+  if (td) {
+    if (/underline/.test(td[1])) entry.underline = true;
+    if (/line-through/.test(td[1])) entry.lineThrough = true;
+  }
+}
 
 /** Walk inline HTML and extract each whitespace-separated word together with its CSS style. */
 function extractWordsWithInlineStyles(html: string): WordInfo[] {
   const result: WordInfo[] = [];
-  const activeTags: string[] = [];
+  const activeStack: ActiveEntry[] = [];
   const tokenRegex = /(<[^>]+>)|([^\s<]+)/g;
   let m: RegExpExecArray | null;
 
@@ -74,12 +101,21 @@ function extractWordsWithInlineStyles(html: string): WordInfo[] {
       if (token.startsWith("</")) {
         const tag = token.match(/<\/(\w+)/)?.[1]?.toLowerCase() ?? "";
         if (INLINE_TAGS.has(tag)) {
-          const idx = activeTags.lastIndexOf(tag);
-          if (idx !== -1) activeTags.splice(idx, 1);
+          for (let i = activeStack.length - 1; i >= 0; i--) {
+            if (activeStack[i].tag === tag) { activeStack.splice(i, 1); break; }
+          }
         }
       } else if (!token.endsWith("/>")) {
         const tag = token.match(/<(\w+)/)?.[1]?.toLowerCase() ?? "";
-        if (INLINE_TAGS.has(tag)) activeTags.push(tag);
+        if (INLINE_TAGS.has(tag)) {
+          const entry: ActiveEntry = { tag };
+          if (tag === "b" || tag === "strong") entry.bold = true;
+          if (tag === "i" || tag === "em") entry.italic = true;
+          if (tag === "u") entry.underline = true;
+          if (tag === "s" || tag === "del") entry.lineThrough = true;
+          parseInlineStyleAttr(token, entry);
+          activeStack.push(entry);
+        }
       }
       continue;
     }
@@ -88,17 +124,19 @@ function extractWordsWithInlineStyles(html: string): WordInfo[] {
 
     const plain = stripHtmlEntities(token);
 
-    // Build inline style from active tags — explicit CSS beats Tailwind preflight reset
+    // Build inline style from active stack — explicit CSS beats Tailwind preflight reset
     const style: CSSProperties = {};
     const textDecorations: string[] = [];
-
-    for (const tag of activeTags) {
-      if (tag === "b" || tag === "strong") style.fontWeight = "bold";
-      if (tag === "i" || tag === "em") style.fontStyle = "italic";
-      if (tag === "u") textDecorations.push("underline");
-      if (tag === "s" || tag === "del") textDecorations.push("line-through");
+    let bold = false, italic = false;
+    for (const e of activeStack) {
+      if (e.bold) bold = true;
+      if (e.italic) italic = true;
+      if (e.underline) textDecorations.push("underline");
+      if (e.lineThrough) textDecorations.push("line-through");
     }
-    if (textDecorations.length > 0) style.textDecoration = textDecorations.join(" ");
+    if (bold) style.fontWeight = "bold";
+    if (italic) style.fontStyle = "italic";
+    if (textDecorations.length > 0) style.textDecoration = Array.from(new Set(textDecorations)).join(" ");
 
     result.push({ plain, style });
   }
