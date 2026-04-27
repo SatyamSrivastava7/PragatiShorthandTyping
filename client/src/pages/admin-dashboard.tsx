@@ -3942,11 +3942,13 @@ export default function AdminDashboard() {
                                             >
                                               {result.contentType === "shorthand"
                                                 ? stripHtml(result.originalText || "")
-                                                : stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
-                                                    <p key={i} className="mb-2 last:mb-0">
-                                                      {para.trim()}
-                                                    </p>
-                                                  ))
+                                                : result.contentType === "allahabad-hc"
+                                                  ? <div dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
+                                                  : stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
+                                                      <p key={i} className="mb-2 last:mb-0">
+                                                        {para.trim()}
+                                                      </p>
+                                                    ))
                                               }
                                             </div>
                                           </div>
