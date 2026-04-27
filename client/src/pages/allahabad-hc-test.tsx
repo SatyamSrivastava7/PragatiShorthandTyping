@@ -298,23 +298,32 @@ export default function AllahabadHCTestPage() {
         return part;
       }
       
-      const textWords = part.split(/(\s+)/);
-      
+      // Treat HTML whitespace entities (&nbsp;, &#160;, &#xa0;) as whitespace
+      // so a run of "&nbsp;" used for centering doesn't get counted as words.
+      const textWords = part.split(/((?:\s|&nbsp;|&#160;|&#xa0;)+)/i);
+
       return textWords.map((segment) => {
-        if (foundTargetWord || !segment || /^\s+$/.test(segment)) {
+        if (foundTargetWord || !segment) {
           return segment;
         }
-        
-        if (segment === targetWord) {
+
+        // Decode entities for comparison only — keep original segment in output
+        // so visual layout (e.g. non-breaking spaces) is preserved.
+        const decoded = stripHtmlEntities(segment);
+        if (/^\s*$/.test(decoded)) {
+          return segment;
+        }
+
+        if (decoded === targetWord) {
           if (wordOccurrenceCount === currentIndex) {
             foundTargetWord = true;
             return `<span class="current-word-marker" style="${highlightStyle}">${segment}</span>`;
           }
           wordOccurrenceCount++;
-        } else if (!/^\s+$/.test(segment)) {
+        } else {
           wordOccurrenceCount++;
         }
-        
+
         return segment;
       }).join('');
     }).join('');
