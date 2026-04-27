@@ -64,7 +64,7 @@ const INLINE_TAGS = new Set(["strong", "b", "em", "i", "u", "s", "del", "ins", "
 function extractWordsWithInlineStyles(html: string): WordInfo[] {
   const result: WordInfo[] = [];
   const activeTags: string[] = [];
-  const tokenRegex = /(<[^>]+>)|(\S+)/g;
+  const tokenRegex = /(<[^>]+>)|([^\s<]+)/g;
   let m: RegExpExecArray | null;
 
   while ((m = tokenRegex.exec(html)) !== null) {

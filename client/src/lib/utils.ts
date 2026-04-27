@@ -1143,7 +1143,7 @@ export const generateResultPDF = async (result: Result) => {
         if (!inner || inner === '__PARA__') { blocks.push({ isEmpty: true, words: [] }); continue; }
         const words: HcWord[] = [];
         const active: string[] = [];
-        const tokRe = /(<[^>]+>)|(\S+)/g;
+        const tokRe = /(<[^>]+>)|([^\s<]+)/g;
         let tm: RegExpExecArray | null;
         while ((tm = tokRe.exec(inner)) !== null) {
           const tok = tm[0];
