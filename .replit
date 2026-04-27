@@ -49,3 +49,4 @@ outputType = "webview"
 mockupState = "FULLSTACK"
 integrations = ["javascript_database:1.0.0"]
 expertMode = true
+stack = "FULLSTACK_JS"
