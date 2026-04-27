@@ -1849,12 +1849,12 @@ export default function AdminDashboard() {
       // Title
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${title}`, pageWidth / 2, 25, { align: 'center' });
+      doc.text(`${title}`, pageWidth / 2, 24, { align: 'center' });
       
       // Summary - left and right on same line
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      const summaryY = 33;
+      const summaryY = 30;
       doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, summaryY);
       doc.text(`Total Students: ${sortedResults.length}`, pageWidth - 14, summaryY, { align: 'right' });
       
@@ -1929,7 +1929,7 @@ export default function AdminDashboard() {
       autoTable(doc, {
         head: head,
         body: body,
-        startY: 45,
+        startY: 35,
         theme: 'grid',
         tableWidth: 'auto',
         // Reduce cell padding to make table rows shorter
@@ -1949,12 +1949,12 @@ export default function AdminDashboard() {
         } as any,
         columnStyles: {
           0: { halign: 'center', columnWidth: 10 },
-          1: { halign: 'left', columnWidth: 88 },
-          2: { halign: 'center', columnWidth: 14 },
-          3: { halign: 'center', columnWidth: 14 },
-          4: { halign: 'center', columnWidth: 14 },
-          5: { halign: 'center', columnWidth: 14 },
-          6: { halign: 'center', columnWidth: 14 },
+          1: { halign: 'left', columnWidth: 100 },
+          2: { halign: 'center', columnWidth: 12 },
+          3: { halign: 'center', columnWidth: 12 },
+          4: { halign: 'center', columnWidth: 12 },
+          5: { halign: 'center', columnWidth: 12 },
+          6: { halign: 'center', columnWidth: 12 },
         } as any,
         margin: 12,
         didDrawPage: (data: any) => {
