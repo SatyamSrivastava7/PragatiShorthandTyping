@@ -49,9 +49,9 @@ export function RichTextEditor({
   onPaste: customOnPaste,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const isEditingRef = useRef(false);
   const [fontSize, setFontSize] = useState("16");
   const [lineSpacing, setLineSpacing] = useState("1.5");
-  const [isEditing, setIsEditing] = useState(false);
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -62,58 +62,25 @@ export function RichTextEditor({
     alignJustify: false,
   });
 
-  // Initialize editor content from value prop
+  // Initialize editor content from value prop. Use a ref-based isEditing flag
+  // so we never overwrite the DOM mid-typing (state version had a race condition
+  // with React's batched re-renders that wiped the caret on every keystroke).
   useEffect(() => {
-    if (editorRef.current && !isEditing) {
-      // Only update if not currently editing to avoid cursor displacement
-      if (editorRef.current.innerHTML !== value) {
+    if (editorRef.current && !isEditingRef.current) {
+      if (editorRef.current.innerHTML !== (value || "")) {
         editorRef.current.innerHTML = value || "";
       }
     }
-  }, [value, isEditing]);
-
-  const execCommand = (command: string, value?: string) => {
-    // Ensure the editor is focused before executing command
-    if (editorRef.current) {
-      // Save the current selection before focusing
-      const selection = window.getSelection();
-      let savedRange = null;
-      
-      if (selection && selection.rangeCount > 0) {
-        savedRange = selection.getRangeAt(0);
-      }
-      
-      editorRef.current.focus();
-      
-      // Restore the selection if we had one
-      if (savedRange) {
-        const selection = window.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(savedRange);
-        }
-      }
-      
-      // Use a small delay to ensure focus is applied before command
-      setTimeout(() => {
-        document.execCommand(command, false, value);
-        // Ensure cursor stays in editor after command
-        editorRef.current?.focus();
-      }, 0);
-    }
-  };
-
-  const handleInput = () => {
-    if (editorRef.current) {
-      setIsEditing(true);
-      onChange(editorRef.current.innerHTML);
-      updateActiveFormats();
-      setTimeout(() => setIsEditing(false), 100);
-    }
-  };
+  }, [value]);
 
   const updateActiveFormats = () => {
-    // Check which formatting commands are currently active at cursor position
+    // Only query when our editor actually owns the selection — otherwise we'd
+    // report formats from some other contenteditable on the page.
+    if (!editorRef.current) return;
+    const sel = window.getSelection();
+    const inEditor =
+      sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode);
+    if (!inEditor && document.activeElement !== editorRef.current) return;
     setActiveFormats({
       bold: document.queryCommandState("bold"),
       italic: document.queryCommandState("italic"),
@@ -125,22 +92,74 @@ export function RichTextEditor({
     });
   };
 
+  // Live-update toolbar state on caret movement (arrow keys, mouse, etc.)
+  useEffect(() => {
+    const handler = () => {
+      const sel = window.getSelection();
+      if (sel && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
+        updateActiveFormats();
+      }
+    };
+    document.addEventListener("selectionchange", handler);
+    return () => document.removeEventListener("selectionchange", handler);
+  }, []);
+
+  /** Place a collapsed caret at the end of the editor if the selection is
+   *  outside it. Needed when user clicks a formatting button before ever
+   *  clicking into the editor. */
+  const ensureCaretInEditor = () => {
+    if (!editorRef.current) return;
+    const sel = window.getSelection();
+    const hasRangeInEditor =
+      sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode);
+    if (hasRangeInEditor) return;
+    editorRef.current.focus();
+    const range = document.createRange();
+    range.selectNodeContents(editorRef.current);
+    range.collapse(false);
+    const s = window.getSelection();
+    s?.removeAllRanges();
+    s?.addRange(range);
+  };
+
+  const execCommand = (command: string, value?: string) => {
+    if (!editorRef.current) return;
+    ensureCaretInEditor();
+    // Run synchronously — any setTimeout/focus reshuffle here breaks the
+    // "click bold then type" Word-style behavior because the browser loses
+    // the pending format mode that execCommand sets on a collapsed caret.
+    document.execCommand(command, false, value);
+    updateActiveFormats();
+  };
+
+  const handleInput = () => {
+    if (!editorRef.current) return;
+    isEditingRef.current = true;
+    onChange(editorRef.current.innerHTML);
+    updateActiveFormats();
+    // Release the guard on the next microtask, after React's re-render from
+    // onChange has been processed by the value-effect above.
+    queueMicrotask(() => {
+      isEditingRef.current = false;
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Call custom handler first if provided
     if (customOnKeyDown) {
       customOnKeyDown(e);
       if (e.defaultPrevented) return;
     }
-    
-    // Allow keyboard shortcuts to work properly
     if ((e.ctrlKey || e.metaKey) && e.key === "z") {
       e.preventDefault();
       document.execCommand("undo");
-      setTimeout(() => updateActiveFormats(), 0);
-    } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
+      updateActiveFormats();
+    } else if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === "y" || (e.shiftKey && e.key === "z"))
+    ) {
       e.preventDefault();
       document.execCommand("redo");
-      setTimeout(() => updateActiveFormats(), 0);
+      updateActiveFormats();
     }
   };
 
