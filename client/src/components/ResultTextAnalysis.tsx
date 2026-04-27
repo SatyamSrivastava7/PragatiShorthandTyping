@@ -30,7 +30,7 @@ function parseTypedHtmlIntoBlocks(typedText: string): TypedBlock[] {
   const blocks: TypedBlock[] = [];
 
   // Replace [[PARA]] tokens with a distinguishable spacer text
-  const processed = typedText.replace(/\[\[PARA\?\]?\]?|\[\[PAR\]?/g, " __PARA__ ");
+  const processed = typedText.replace(/\[\[PARA?\]?\]?|\[\[PAR\]?/g, " __PARA__ ");
 
   // Split on closing </div> tags to get chunks, each starting (optionally) with an opening <div>
   const chunks = processed.split(/<\/div\s*>/i);
