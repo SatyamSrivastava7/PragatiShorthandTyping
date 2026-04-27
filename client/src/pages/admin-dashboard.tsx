@@ -467,7 +467,7 @@ function EditTestModalComponent({
                 </SelectContent>
               </Select>
             </div>
-            {testId && content.find(c => c.id === testId)?.type === 'typing' && (
+            {testId && (content.find(c => c.id === testId)?.type === 'typing' || content.find(c => c.id === testId)?.type === 'allahabad-hc') && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Auto-scroll</Label>
               <div className="flex items-center gap-2 h-9">
@@ -1312,7 +1312,7 @@ export default function AdminDashboard() {
         duration: parseInt(duration),
         dateFor,
         language: language || 'english',
-        autoScroll: contentType === "typing" ? autoScroll : true,
+        autoScroll: (contentType === "typing" || contentType === "allahabad-hc") ? autoScroll : true,
       };
 
       // Handle PDF upload for Pitman Book Exercise

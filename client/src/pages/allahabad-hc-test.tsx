@@ -209,9 +209,20 @@ export default function AllahabadHCTestPage() {
     const inner = container.firstElementChild as HTMLElement | null;
     const styleSource = inner || container;
     const computed = window.getComputedStyle(styleSource);
+    const fontSizePx = parseFloat(computed.fontSize) || 16;
     let lineHeight = parseFloat(computed.lineHeight);
     if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-      lineHeight = (parseFloat(computed.fontSize) || 16) * 1.5;
+      // "normal" or unparseable -> fall back to 1.5 * font-size
+      lineHeight = fontSizePx * 1.5;
+    } else if (lineHeight < fontSizePx) {
+      // Some browsers report unitless line-height (e.g. "1.625") as the
+      // resolved value. Convert to pixels by multiplying with font-size.
+      lineHeight = lineHeight * fontSizePx;
+    }
+    // Prefer the marker's actual line height if available (most accurate)
+    const markerLineHeight = marker.getBoundingClientRect().height;
+    if (markerLineHeight > 0 && Math.abs(markerLineHeight - lineHeight) > 2) {
+      lineHeight = markerLineHeight;
     }
 
     const visibleLines = Math.floor(container.clientHeight / lineHeight);
