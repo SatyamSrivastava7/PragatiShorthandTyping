@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
-import { calculateTypingMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml } from "@/lib/utils";
+import { calculateTypingMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml, stripHtmlEntities } from "@/lib/utils";
 import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -246,22 +246,22 @@ export default function AllahabadHCTestPage() {
     const plainText = stripHtmlPreserveParagraphs(testContent.text);
     const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
 
-    // Always count tokens from the *cleaned* typed text — splitting raw HTML
-    // by whitespace miscounts when formatting tags wrap mid-word (e.g. "<b>w</b>")
-    // or when the editor inserts <p>/<br> instead of spaces, which broke the
-    // current-word marker (and therefore auto-scroll) right after the user
-    // clicked any formatting button.
-    const cleanedTyped = stripHtmlPreserveParagraphs(typedText)
-      .split(PARA_TOKEN).join(' ')
-      .replace(/\s+/g, ' ');
-    const tokens = cleanedTyped.trim().split(/\s+/).filter(Boolean);
+    // Build a "caret-aware" plain-text view of typedText:
+    //   • <br>, </p>, </div>  → real \n  (these reflect user's Enter keys)
+    //   • all other tags      → removed   (so <b>w</b>, <i>...</i> don't inflate counts)
+    // Then drop ONE trailing \n because contenteditable always wraps the last
+    // line in a <div>/<p>, which would otherwise look like a phantom Enter.
+    let caretText = typedText
+      .replace(/<\s*br\s*\/?>/gi, '\n')
+      .replace(/<\s*\/\s*(p|div)\s*>/gi, '\n')
+      .replace(/<[^>]+>/g, '');
+    caretText = stripHtmlEntities(caretText).replace(/\n$/, '');
 
-    // "Caret is between words" = raw HTML ends with whitespace OR a paragraph
-    // boundary (</p>, </div>, <br>) — i.e. user just pressed space or Enter.
-    const endsAtWordBoundary =
-      cleanedTyped === "" ||
-      /\s$/.test(cleanedTyped) ||
-      /<\s*\/?\s*(p|div|br)\b[^>]*>\s*$/i.test(typedText);
+    const tokens = caretText.split(/\s+/).filter(Boolean);
+
+    // Caret sits between words when text ends with whitespace/newline (real
+    // space or real Enter). For mid-word typing we use tokens.length - 1.
+    const endsAtWordBoundary = caretText === '' || /\s$/.test(caretText);
 
     let currentIndex: number | null = null;
     if (tokens.length === 0) {
