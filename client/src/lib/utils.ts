@@ -1189,6 +1189,11 @@ export const generateResultPDF = async (result: Result) => {
             continue;
           }
           if (tok === '__PARA__') continue;
+          const plainTok = stripHtmlEntities(tok);
+          // Skip pure HTML-entity whitespace (e.g. "&nbsp;"). They collapse to spaces in
+          // the alignment text, so they MUST NOT occupy a slot here or every following
+          // word's style is shifted by the count of leading &nbsp; tokens.
+          if (!plainTok.trim()) continue;
           const parts: string[] = [];
           const decs: string[] = [];
           let bold = false, italic = false;
@@ -1201,7 +1206,7 @@ export const generateResultPDF = async (result: Result) => {
           if (bold) parts.push('font-weight:bold');
           if (italic) parts.push('font-style:italic');
           if (decs.length) parts.push(`text-decoration:${Array.from(new Set(decs)).join(' ')}`);
-          words.push({ plain: stripHtmlEntities(tok), css: parts.join(';') });
+          words.push({ plain: plainTok, css: parts.join(';') });
         }
         blocks.push({ textAlign, words, isEmpty: words.length === 0 });
       }

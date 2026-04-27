@@ -124,6 +124,12 @@ function extractWordsWithInlineStyles(html: string): WordInfo[] {
 
     const plain = stripHtmlEntities(token);
 
+    // Skip tokens that are pure HTML-entity whitespace (e.g. "&nbsp;", "&nbsp;&nbsp;").
+    // These collapse to spaces in the alignment text (stripHtml → stripHtmlEntities →
+    // collapse \s+) so they MUST NOT occupy a slot in allTypedWords, otherwise every
+    // subsequent word's style is shifted by the number of leading &nbsp; tokens.
+    if (!plain.trim()) continue;
+
     // Build inline style from active stack — explicit CSS beats Tailwind preflight reset
     const style: CSSProperties = {};
     const textDecorations: string[] = [];
