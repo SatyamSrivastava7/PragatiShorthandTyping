@@ -736,10 +736,12 @@ export default function AdminDashboard() {
   const { data: englishTypingFolders = [] } = useTestFolders('english', 'typing');
   const { data: englishShorthandFolders = [] } = useTestFolders('english', 'shorthand');
   const { data: englishPitmanFolders = [] } = useTestFolders('english', 'pitman');
+  const { data: englishAllahabadHCFolders = [] } = useTestFolders('english', 'allahabad-hc');
   const { data: hindiTypingFolders = [] } = useTestFolders('hindi', 'typing');
   const { data: hindiShorthandFolders = [] } = useTestFolders('hindi', 'shorthand');
   const { data: hindiPitmanFolders = [] } = useTestFolders('hindi', 'pitman');
-  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...englishPitmanFolders, ...hindiTypingFolders, ...hindiShorthandFolders, ...hindiPitmanFolders];
+  const { data: hindiAllahabadHCFolders = [] } = useTestFolders('hindi', 'allahabad-hc');
+  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...englishPitmanFolders, ...englishAllahabadHCFolders, ...hindiTypingFolders, ...hindiShorthandFolders, ...hindiPitmanFolders, ...hindiAllahabadHCFolders];
   
   // Helper function to get folder name by ID (with memoization to avoid recalculating)
   const getFolderNameById = (folderId: number | null | undefined): string => {
