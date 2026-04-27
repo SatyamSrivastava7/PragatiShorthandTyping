@@ -246,11 +246,27 @@ export default function AllahabadHCTestPage() {
     const plainText = stripHtmlPreserveParagraphs(testContent.text);
     const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
 
-    const tokens = typedText.split(/\s+/).filter(w => w && w !== PARA_TOKEN);
+    // Always count tokens from the *cleaned* typed text — splitting raw HTML
+    // by whitespace miscounts when formatting tags wrap mid-word (e.g. "<b>w</b>")
+    // or when the editor inserts <p>/<br> instead of spaces, which broke the
+    // current-word marker (and therefore auto-scroll) right after the user
+    // clicked any formatting button.
+    const cleanedTyped = stripHtmlPreserveParagraphs(typedText)
+      .split(PARA_TOKEN).join(' ')
+      .replace(/\s+/g, ' ');
+    const tokens = cleanedTyped.trim().split(/\s+/).filter(Boolean);
+
+    // "Caret is between words" = raw HTML ends with whitespace OR a paragraph
+    // boundary (</p>, </div>, <br>) — i.e. user just pressed space or Enter.
+    const endsAtWordBoundary =
+      cleanedTyped === "" ||
+      /\s$/.test(cleanedTyped) ||
+      /<\s*\/?\s*(p|div|br)\b[^>]*>\s*$/i.test(typedText);
+
     let currentIndex: number | null = null;
-    if (typedText.trim() === "") {
+    if (tokens.length === 0) {
       currentIndex = 0;
-    } else if (/\s$/.test(typedText)) {
+    } else if (endsAtWordBoundary) {
       currentIndex = tokens.length;
     } else {
       currentIndex = Math.max(0, tokens.length - 1);
