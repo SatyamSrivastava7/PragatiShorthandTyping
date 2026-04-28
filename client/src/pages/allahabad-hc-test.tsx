@@ -42,6 +42,7 @@ export default function AllahabadHCTestPage() {
   const [userScrolled, setUserScrolled] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const handleSubmitRef = useRef<() => Promise<void>>(async () => {});
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
@@ -184,6 +185,15 @@ export default function AllahabadHCTestPage() {
       setIsSubmitting(false);
     }
   }, [testContent, currentUser, typedText, backspaces, createResult, toast]);
+
+  // Keep a ref to the latest handleSubmit so the auto-submit timer (which
+  // captures handleSubmit in its closure when the test starts) always calls
+  // the up-to-date version with the latest typedText/backspaces values.
+  // Without this, the timer-triggered auto-submit would save an empty string
+  // and zero metrics from the closure created at test start.
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  }, [handleSubmit]);
 
   // Handle manual scroll - detect if user scrolled
   useEffect(() => {
@@ -366,9 +376,13 @@ export default function AllahabadHCTestPage() {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(intervalRef.current!);
+          intervalRef.current = null;
           setIsActive(false);
           setIsFinished(true);
-          handleSubmit();
+          // Call through the ref so we get the latest handleSubmit closure
+          // (with the most recent typedText / backspaces), not the stale one
+          // captured when the timer was created.
+          handleSubmitRef.current();
           return 0;
         }
         if (startTimeRef.current) {
