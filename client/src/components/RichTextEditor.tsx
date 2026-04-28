@@ -50,6 +50,12 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isEditingRef = useRef(false);
+  // Font size is stored as the literal pixel value ("12", "14", "18", ...)
+  // and applied directly to the editor element via inline CSS. We deliberately
+  // do NOT use document.execCommand("fontSize", ...) here because that command
+  // (a) only affects the current selection / next typed character rather than
+  // the whole editor, and (b) wraps content in deprecated <font size="N">
+  // tags using the 1-7 legacy scale that doesn't match real pixel sizes.
   const [fontSize, setFontSize] = useState("16");
   const [lineSpacing, setLineSpacing] = useState("1.5");
   const [activeFormats, setActiveFormats] = useState({
@@ -171,7 +177,6 @@ export function RichTextEditor({
 
   const handleFontSizeChange = (newSize: string) => {
     setFontSize(newSize);
-    execCommand("fontSize", newSize);
   };
 
   const formatButton = (
@@ -232,13 +237,16 @@ export function RichTextEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="min-w-0">
-              <SelectItem value="1">10px</SelectItem>
-              <SelectItem value="2">12px</SelectItem>
-              <SelectItem value="3">16px</SelectItem>
-              <SelectItem value="4">18px</SelectItem>
-              <SelectItem value="5">24px</SelectItem>
-              <SelectItem value="6">32px</SelectItem>
-              <SelectItem value="7">48px</SelectItem>
+              <SelectItem value="12">12px</SelectItem>
+              <SelectItem value="14">14px</SelectItem>
+              <SelectItem value="16">16px</SelectItem>
+              <SelectItem value="18">18px</SelectItem>
+              <SelectItem value="20">20px</SelectItem>
+              <SelectItem value="24">24px</SelectItem>
+              <SelectItem value="28">28px</SelectItem>
+              <SelectItem value="32">32px</SelectItem>
+              <SelectItem value="40">40px</SelectItem>
+              <SelectItem value="48">48px</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -312,7 +320,7 @@ export function RichTextEditor({
           fontClass,
           className
         )}
-        style={{ fontSize: fontSize === "3" ? "16px" : undefined, lineHeight: lineSpacing }}
+        style={{ fontSize: `${fontSize}px`, lineHeight: lineSpacing }}
       />
 
       {/* Word Count */}
