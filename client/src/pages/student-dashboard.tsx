@@ -1778,7 +1778,7 @@ export default function StudentDashboard() {
                                           Original Text
                                         </h4>
                                         <div 
-                                          className={cn("text-sm whitespace-pre-wrap", (result.language as 'english' | 'hindi' | undefined) === 'hindi' ? "font-mangal" : "")}
+                                          className={cn("text-sm whitespace-pre-wrap", (result.language as 'english' | 'hindi' | undefined) === 'hindi' ? "font-mangal" : "font-times")}
                                         >
                                           {result.contentType === "shorthand"
                                             ? stripHtml(result.originalText || "")

@@ -602,7 +602,7 @@ export default function AllahabadHCTestPage() {
                 label=""
                 showWordCount={true}
                 fillHeight={true}
-                fontClass={testContent.language === "hindi" ? "font-mangal" : ""}
+                fontClass={testContent.language === "hindi" ? "font-mangal" : "font-times"}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
               />

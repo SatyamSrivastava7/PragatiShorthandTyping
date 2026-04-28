@@ -460,7 +460,8 @@ export default function PitmanTestPage() {
               onKeyDown={handleKeyDown}
               disabled={!isActive}
               className={cn(
-                "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none leading-relaxed"
+                "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none leading-relaxed",
+                testContent.language === 'hindi' ? 'font-mangal' : 'font-times'
               )}
               style={{ fontSize: `${fontSize}px`, backgroundColor: '#ffffff' }}
               placeholder={isActive ? "Start typing here..." : "Waiting to start..."}
