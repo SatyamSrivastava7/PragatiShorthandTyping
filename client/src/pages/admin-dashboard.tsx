@@ -3826,7 +3826,7 @@ export default function AdminDashboard() {
                                           <Eye className="h-4 w-4 mr-1" /> View
                                         </Button>
                                       </DialogTrigger>
-                                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                      <DialogContent className="max-w-4xl max-h-[85vh] overflow-auto">
                                         <DialogHeader>
                                           <DialogTitle>
                                             Result Analysis
