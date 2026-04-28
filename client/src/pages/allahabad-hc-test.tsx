@@ -156,6 +156,15 @@ export default function AllahabadHCTestPage() {
       await queryClient.invalidateQueries({ queryKey: ['results', 'counts'] });
       
       setIsFinished(true);
+      // Exit our CSS full-screen layer (z-[60]) before showing the success
+      // dialog. Otherwise the Radix Dialog (z-50, rendered via Portal to
+      // document.body) is painted *behind* the full-screen container and the
+      // student never sees the "Test Submitted" confirmation.
+      setIsFullScreen(false);
+      // Also exit any real browser full-screen if it happens to be active.
+      if (typeof document !== 'undefined' && document.fullscreenElement) {
+        try { await document.exitFullscreen(); } catch (_) { /* noop */ }
+      }
       setShowResultModal(true);
       
       toast({
