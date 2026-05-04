@@ -48,7 +48,15 @@ export default function TypingTestPage() {
   const [userScrolled, setUserScrolled] = useState(false); // Track if user manually scrolled
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null); // Null until testContent loads
   const [highlighterEnabled, setHighlighterEnabled] = useState<boolean>(true); // Enable/disable word highlighting
-  
+
+  // Refs to always have the latest typedText and backspaces without stale closures
+  const typedTextRef = useRef<string>("");
+  const backspacesRef = useRef<number>(0);
+
+  // Keep refs in sync with state
+  useEffect(() => { typedTextRef.current = typedText; }, [typedText]);
+  useEffect(() => { backspacesRef.current = backspaces; }, [backspaces]);
+
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -96,7 +104,12 @@ export default function TypingTestPage() {
   }, [testContent, currentUser]);
 
   const handleSubmit = useCallback(async () => {
-    console.log("handleSubmit called", { testContent, currentUser });
+    // Always read from refs so we get the latest typed content,
+    // even when called from the timer interval (avoids stale closure bug).
+    const currentTypedText = typedTextRef.current;
+    const currentBackspaces = backspacesRef.current;
+
+    console.log("handleSubmit called", { testContent, currentUser, typedTextLength: currentTypedText.length });
     
     if (!testContent) {
       console.error("No test content available");
@@ -128,14 +141,14 @@ export default function TypingTestPage() {
     let halfMistakes: string | undefined;
 
     // Process typed text based on test type
-    const storedTypedText = testContent.type === 'typing' ? replaceNewlinesWithParaToken(typedText) : typedText;
+    const storedTypedText = testContent.type === 'typing' ? replaceNewlinesWithParaToken(currentTypedText) : currentTypedText;
     
     // Strip HTML and PARA_TOKEN from both texts for metrics calculation (clean text = no HTML, no PARA_TOKENS)
     const cleanTestText = stripHtml(testContent.text).replace(/\[\[PARA\]\]/g, '');
     const cleanTypedText = stripHtml(storedTypedText).replace(/\[\[PARA\]\]/g, '');
 
     if (testContent.type === 'typing') {
-      metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, backspaces);
+      metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, currentBackspaces);
       // Determine Pass/Fail based on 5% mistake rule
       const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
       result = mistakePercentage > 5 ? 'Fail' : 'Pass';
@@ -144,8 +157,6 @@ export default function TypingTestPage() {
       halfMistakes = String(metrics.halfMistakes ?? 0);
     } else {
       metrics = calculateShorthandMetrics(cleanTestText, cleanTypedText, testContent.duration);
-      const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
-      result = mistakePercentage > 5 ? 'Fail' : 'Pass';
       result = metrics.result;
       grossSpeed = undefined;
       netSpeed = undefined;
@@ -161,7 +172,7 @@ export default function TypingTestPage() {
         time: testContent.duration,
         mistakes: String(metrics.mistakes),
         halfMistakes,
-        backspaces: backspaces,
+        backspaces: currentBackspaces,
         grossSpeed: grossSpeed,
         netSpeed: netSpeed,
         result: result,
@@ -185,7 +196,9 @@ export default function TypingTestPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [testContent, currentUser, typedText, backspaces, createResult, toast]);
+  // typedText and backspaces intentionally omitted — read from refs instead to avoid stale closures
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testContent, currentUser, createResult, toast]);
 
   const finishTest = useCallback(() => {
     if (intervalRef.current) {
