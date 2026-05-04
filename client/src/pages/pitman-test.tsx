@@ -39,7 +39,15 @@ export default function PitmanTestPage() {
   const [pdfZoom, setPdfZoom] = useState(100);
   const [pdfUrl, setPdfUrl] = useState<string>("");
   const pdfIframeRef = useRef<HTMLIFrameElement>(null);
-  
+
+  // Refs to always have the latest typedText and backspaces without stale closures
+  const typedTextRef = useRef<string>("");
+  const backspacesRef = useRef<number>(0);
+
+  // Keep refs in sync with state
+  useEffect(() => { typedTextRef.current = typedText; }, [typedText]);
+  useEffect(() => { backspacesRef.current = backspaces; }, [backspaces]);
+
   // Timer References
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -114,7 +122,12 @@ export default function PitmanTestPage() {
   }, [testContent, currentUser]);
 
   const handleSubmit = useCallback(async () => {
-    console.log("handleSubmit called", { testContent, currentUser });
+    // Always read from refs so we get the latest typed content,
+    // even when called from the timer interval (avoids stale closure bug).
+    const currentTypedText = typedTextRef.current;
+    const currentBackspaces = backspacesRef.current;
+
+    console.log("handleSubmit called", { testContent, currentUser, typedTextLength: currentTypedText.length });
     
     if (!testContent) {
       console.error("No test content available");
@@ -143,7 +156,7 @@ export default function PitmanTestPage() {
     let result: 'Pass' | 'Fail';
 
     // Process typed text the same way as shorthand tests - replace newlines with paragraph token
-    const storedTypedText = replaceNewlinesWithParaToken(typedText);
+    const storedTypedText = replaceNewlinesWithParaToken(currentTypedText);
     
     // Strip HTML from test content and PARA_TOKEN from both texts for metrics calculation only
     const cleanTestText = stripHtml(testContent.text).replace(new RegExp(PARA_TOKEN, 'g'), '');
@@ -161,7 +174,7 @@ export default function PitmanTestPage() {
         time: testContent.duration,
         mistakes: String(metrics.mistakes),
         halfMistakes: String(metrics.halfMistakes ?? 0),
-        backspaces: backspaces,
+        backspaces: currentBackspaces,
         grossSpeed: undefined,
         netSpeed: undefined,
         result: result,
@@ -185,7 +198,9 @@ export default function PitmanTestPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [testContent, currentUser, typedText, backspaces, createResult, toast]);
+  // typedText and backspaces intentionally omitted — read from refs instead to avoid stale closures
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testContent, currentUser, createResult, toast]);
 
   const finishTest = useCallback(() => {
     if (intervalRef.current) {
