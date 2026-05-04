@@ -31,6 +31,9 @@ interface RichTextEditorProps {
   label?: string;
   fontClass?: string;
   showWordCount?: boolean;
+  fillHeight?: boolean;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLDivElement>) => void;
 }
 
 export function RichTextEditor({
@@ -41,91 +44,161 @@ export function RichTextEditor({
   label,
   fontClass = "",
   showWordCount = true,
+  fillHeight = false,
+  onKeyDown: customOnKeyDown,
+  onPaste: customOnPaste,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const isEditingRef = useRef(false);
+  // Font size is stored as the literal pixel value ("12", "14", "18", ...)
+  // and applied directly to the editor element via inline CSS. We deliberately
+  // do NOT use document.execCommand("fontSize", ...) here because that command
+  // (a) only affects the current selection / next typed character rather than
+  // the whole editor, and (b) wraps content in deprecated <font size="N">
+  // tags using the 1-7 legacy scale that doesn't match real pixel sizes.
   const [fontSize, setFontSize] = useState("16");
   const [lineSpacing, setLineSpacing] = useState("1.5");
-  const [isEditing, setIsEditing] = useState(false);
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    alignLeft: false,
+    alignCenter: false,
+    alignRight: false,
+    alignJustify: false,
+  });
 
-  // Initialize editor content from value prop
+  // Initialize editor content from value prop. Use a ref-based isEditing flag
+  // so we never overwrite the DOM mid-typing (state version had a race condition
+  // with React's batched re-renders that wiped the caret on every keystroke).
   useEffect(() => {
-    if (editorRef.current && !isEditing) {
-      // Only update if not currently editing to avoid cursor displacement
-      if (editorRef.current.innerHTML !== value) {
+    if (editorRef.current && !isEditingRef.current) {
+      if (editorRef.current.innerHTML !== (value || "")) {
         editorRef.current.innerHTML = value || "";
       }
     }
-  }, [value, isEditing]);
+  }, [value]);
+
+  const updateActiveFormats = () => {
+    // Only query when our editor actually owns the selection — otherwise we'd
+    // report formats from some other contenteditable on the page.
+    if (!editorRef.current) return;
+    const sel = window.getSelection();
+    const inEditor =
+      sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode);
+    if (!inEditor && document.activeElement !== editorRef.current) return;
+    setActiveFormats({
+      bold: document.queryCommandState("bold"),
+      italic: document.queryCommandState("italic"),
+      underline: document.queryCommandState("underline"),
+      alignLeft: document.queryCommandState("justifyLeft"),
+      alignCenter: document.queryCommandState("justifyCenter"),
+      alignRight: document.queryCommandState("justifyRight"),
+      alignJustify: document.queryCommandState("justifyFull"),
+    });
+  };
+
+  // Live-update toolbar state on caret movement (arrow keys, mouse, etc.)
+  useEffect(() => {
+    const handler = () => {
+      const sel = window.getSelection();
+      if (sel && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
+        updateActiveFormats();
+      }
+    };
+    document.addEventListener("selectionchange", handler);
+    return () => document.removeEventListener("selectionchange", handler);
+  }, []);
+
+  /** Place a collapsed caret at the end of the editor if the selection is
+   *  outside it. Needed when user clicks a formatting button before ever
+   *  clicking into the editor. */
+  const ensureCaretInEditor = () => {
+    if (!editorRef.current) return;
+    const sel = window.getSelection();
+    const hasRangeInEditor =
+      sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode);
+    if (hasRangeInEditor) return;
+    editorRef.current.focus();
+    const range = document.createRange();
+    range.selectNodeContents(editorRef.current);
+    range.collapse(false);
+    const s = window.getSelection();
+    s?.removeAllRanges();
+    s?.addRange(range);
+  };
 
   const execCommand = (command: string, value?: string) => {
-    // Ensure the editor is focused before executing command
-    if (editorRef.current) {
-      // Save the current selection before focusing
-      const selection = window.getSelection();
-      let savedRange = null;
-      
-      if (selection && selection.rangeCount > 0) {
-        savedRange = selection.getRangeAt(0);
-      }
-      
-      editorRef.current.focus();
-      
-      // Restore the selection if we had one
-      if (savedRange) {
-        const selection = window.getSelection();
-        if (selection) {
-          selection.removeAllRanges();
-          selection.addRange(savedRange);
-        }
-      }
-      
-      // Use a small delay to ensure focus is applied before command
-      setTimeout(() => {
-        document.execCommand(command, false, value);
-        // Ensure cursor stays in editor after command
-        editorRef.current?.focus();
-      }, 0);
-    }
+    if (!editorRef.current) return;
+    ensureCaretInEditor();
+    // Run synchronously — any setTimeout/focus reshuffle here breaks the
+    // "click bold then type" Word-style behavior because the browser loses
+    // the pending format mode that execCommand sets on a collapsed caret.
+    document.execCommand(command, false, value);
+    updateActiveFormats();
   };
 
   const handleInput = () => {
-    if (editorRef.current) {
-      setIsEditing(true);
-      onChange(editorRef.current.innerHTML);
-      setTimeout(() => setIsEditing(false), 100);
-    }
+    if (!editorRef.current) return;
+    isEditingRef.current = true;
+    onChange(editorRef.current.innerHTML);
+    updateActiveFormats();
+    // Release the guard on the next microtask, after React's re-render from
+    // onChange has been processed by the value-effect above.
+    queueMicrotask(() => {
+      isEditingRef.current = false;
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Allow keyboard shortcuts to work properly
+    if (customOnKeyDown) {
+      customOnKeyDown(e);
+      if (e.defaultPrevented) return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === "z") {
       e.preventDefault();
       document.execCommand("undo");
-    } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
+      updateActiveFormats();
+    } else if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === "y" || (e.shiftKey && e.key === "z"))
+    ) {
       e.preventDefault();
       document.execCommand("redo");
+      updateActiveFormats();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (customOnPaste) {
+      customOnPaste(e);
     }
   };
 
   const handleFontSizeChange = (newSize: string) => {
     setFontSize(newSize);
-    execCommand("fontSize", newSize);
   };
 
   const formatButton = (
     icon: React.ReactNode,
     command: string,
     title: string,
+    isActive: boolean,
     value?: string
   ) => (
     <Button
       type="button"
       variant="outline"
       size="sm"
-      className="h-8 w-8 p-0"
+      className={cn(
+        "h-8 w-8 p-0",
+        isActive && "bg-primary text-primary-foreground hover:bg-primary/90 border-primary"
+      )}
       onMouseDown={(e) => {
         e.preventDefault();
         execCommand(command, value);
+        // Update active formats after command executes
+        setTimeout(() => updateActiveFormats(), 0);
       }}
       title={title}
     >
@@ -134,23 +207,25 @@ export function RichTextEditor({
   );
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", fillHeight && "flex flex-col h-full space-y-0")}>
       {label && <Label className="text-sm font-medium">{label}</Label>}
 
       {/* Toolbar */}
-      <div className="border rounded-t-md bg-slate-50 dark:bg-slate-900 p-2 flex flex-wrap gap-1">
+      <div className={cn("border rounded-t-md bg-slate-50 dark:bg-slate-900 p-2 flex flex-wrap gap-1 shrink-0", fillHeight && "rounded-none border-x-0 border-t-0")}>
         {/* Text Format */}
         <div className="flex gap-1 border-r pr-2">
-          {formatButton(<Bold className="h-4 w-4" />, "bold", "Bold (Ctrl+B)")}
+          {formatButton(<Bold className="h-4 w-4" />, "bold", "Bold (Ctrl+B)", activeFormats.bold)}
           {formatButton(
             <Italic className="h-4 w-4" />,
             "italic",
-            "Italic (Ctrl+I)"
+            "Italic (Ctrl+I)",
+            activeFormats.italic
           )}
           {formatButton(
             <Underline className="h-4 w-4" />,
             "underline",
-            "Underline (Ctrl+U)"
+            "Underline (Ctrl+U)",
+            activeFormats.underline
           )}
         </div>
 
@@ -162,13 +237,16 @@ export function RichTextEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="min-w-0">
-              <SelectItem value="1">10px</SelectItem>
-              <SelectItem value="2">12px</SelectItem>
-              <SelectItem value="3">16px</SelectItem>
-              <SelectItem value="4">18px</SelectItem>
-              <SelectItem value="5">24px</SelectItem>
-              <SelectItem value="6">32px</SelectItem>
-              <SelectItem value="7">48px</SelectItem>
+              <SelectItem value="12">12px</SelectItem>
+              <SelectItem value="14">14px</SelectItem>
+              <SelectItem value="16">16px</SelectItem>
+              <SelectItem value="18">18px</SelectItem>
+              <SelectItem value="20">20px</SelectItem>
+              <SelectItem value="24">24px</SelectItem>
+              <SelectItem value="28">28px</SelectItem>
+              <SelectItem value="32">32px</SelectItem>
+              <SelectItem value="40">40px</SelectItem>
+              <SelectItem value="48">48px</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -197,22 +275,26 @@ export function RichTextEditor({
           {formatButton(
             <AlignLeft className="h-4 w-4" />,
             "justifyLeft",
-            "Align Left"
+            "Align Left",
+            activeFormats.alignLeft
           )}
           {formatButton(
             <AlignCenter className="h-4 w-4" />,
             "justifyCenter",
-            "Align Center"
+            "Align Center",
+            activeFormats.alignCenter
           )}
           {formatButton(
             <AlignRight className="h-4 w-4" />,
             "justifyRight",
-            "Align Right"
+            "Align Right",
+            activeFormats.alignRight
           )}
           {formatButton(
             <AlignJustify className="h-4 w-4" />,
             "justifyFull",
-            "Justify"
+            "Justify",
+            activeFormats.alignJustify
           )}
         </div>
       </div>
@@ -222,24 +304,28 @@ export function RichTextEditor({
         ref={editorRef}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onBlur={() => {
           if (editorRef.current) {
             onChange(editorRef.current.innerHTML);
           }
         }}
+        onMouseUp={() => updateActiveFormats()}
         contentEditable
         suppressContentEditableWarning
         className={cn(
-          "min-h-[200px] p-4 border-2 rounded-b-md bg-white dark:bg-zinc-900 focus:outline-none focus:border-primary/50 overflow-auto",
+          fillHeight
+            ? "flex-1 min-h-0 p-4 bg-white dark:bg-zinc-900 focus:outline-none overflow-auto"
+            : "min-h-[200px] p-4 border-2 rounded-b-md bg-white dark:bg-zinc-900 focus:outline-none focus:border-primary/50 overflow-auto",
           fontClass,
           className
         )}
-        style={{ fontSize: fontSize === "3" ? "16px" : undefined, lineHeight: lineSpacing }}
+        style={{ fontSize: `${fontSize}px`, lineHeight: lineSpacing }}
       />
 
       {/* Word Count */}
       {showWordCount && (
-        <p className="text-xs text-muted-foreground">
+        <p className={cn("text-xs text-muted-foreground", fillHeight && "px-4 py-2 border-t shrink-0 bg-muted/30")}>
           {value.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length}{" "}
           words |{" "}
           {value.replace(/<[^>]*>/g, "").length} characters

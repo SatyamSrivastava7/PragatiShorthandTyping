@@ -467,7 +467,7 @@ function EditTestModalComponent({
                 </SelectContent>
               </Select>
             </div>
-            {testId && content.find(c => c.id === testId)?.type === 'typing' && (
+            {testId && (content.find(c => c.id === testId)?.type === 'typing' || content.find(c => c.id === testId)?.type === 'allahabad-hc') && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Auto-scroll</Label>
               <div className="flex items-center gap-2 h-9">
@@ -490,7 +490,7 @@ function EditTestModalComponent({
           {/* Folder Selector */}
           <FolderSelector
             language={editLanguage}
-            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" | "pitman" || "typing"}
+            type={content.find(c => c.id === testId)?.type as "typing" | "shorthand" | "pitman" | "allahabad-hc" || "typing"}
             selectedFolderId={editSelectedTestFolderId}
             onFolderSelect={setEditSelectedTestFolderId}
           />
@@ -668,7 +668,7 @@ export default function AdminDashboard() {
   
   // Selected results for download
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
-  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand' | 'pitman'>('typing');
+  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand' | 'pitman' | 'allahabad-hc'>('typing');
 
   const {
     content,
@@ -697,6 +697,11 @@ export default function AdminDashboard() {
     activeTab === "results" && hasVisitedResults,
     { type: 'pitman', limit: 50 }
   );
+  const { results: allahabadHCResults, fetchNextPage: fetchNextAllahabadHC, isFetchingNextPage: isFetchingNextAllahabadHC, hasNextPage: hasNextAllahabadHC } = useResults(
+    undefined,
+    activeTab === "results" && hasVisitedResults,
+    { type: 'allahabad-hc', limit: 50 }
+  );
   const { deleteResult } = useResults(undefined, false);
   const { users, updateUser, deleteUser } = useUsers(true); // Admin needs all users
   const {
@@ -724,17 +729,19 @@ export default function AdminDashboard() {
   const contentLanguages = Array.from(new Set(content.map(c => c.language || 'english'))) as Array<'english' | 'hindi'>;
   
   // Get unique types from content to minimize API calls
-  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand' | 'pitman'>;
+  const contentTypes = Array.from(new Set(content.map(c => c.type))) as Array<'typing' | 'shorthand' | 'pitman' | 'allahabad-hc'>;
   
   // Only fetch test folders for languages and types that have content
   // This avoids unnecessary API calls
   const { data: englishTypingFolders = [] } = useTestFolders('english', 'typing');
   const { data: englishShorthandFolders = [] } = useTestFolders('english', 'shorthand');
   const { data: englishPitmanFolders = [] } = useTestFolders('english', 'pitman');
+  const { data: englishAllahabadHCFolders = [] } = useTestFolders('english', 'allahabad-hc');
   const { data: hindiTypingFolders = [] } = useTestFolders('hindi', 'typing');
   const { data: hindiShorthandFolders = [] } = useTestFolders('hindi', 'shorthand');
   const { data: hindiPitmanFolders = [] } = useTestFolders('hindi', 'pitman');
-  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...englishPitmanFolders, ...hindiTypingFolders, ...hindiShorthandFolders, ...hindiPitmanFolders];
+  const { data: hindiAllahabadHCFolders = [] } = useTestFolders('hindi', 'allahabad-hc');
+  const allTestFolders = [...englishTypingFolders, ...englishShorthandFolders, ...englishPitmanFolders, ...englishAllahabadHCFolders, ...hindiTypingFolders, ...hindiShorthandFolders, ...hindiPitmanFolders, ...hindiAllahabadHCFolders];
   
   // Helper function to get folder name by ID (with memoization to avoid recalculating)
   const getFolderNameById = (folderId: number | null | undefined): string => {
@@ -791,10 +798,20 @@ export default function AdminDashboard() {
   const [visibleTypingCount, setVisibleTypingCount] = useState(ITEMS_PER_BATCH);
   const [visibleShorthandCount, setVisibleShorthandCount] = useState(ITEMS_PER_BATCH);
   const [visiblePitmanCount, setVisiblePitmanCount] = useState(ITEMS_PER_BATCH);
+  const [visibleAllahabadHCCount, setVisibleAllahabadHCCount] = useState(ITEMS_PER_BATCH);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Per-test-type search filter for the "Manage Tests" tab
+  const [manageTestsSearch, setManageTestsSearch] = useState<{
+    typing: string;
+    shorthand: string;
+    pitman: string;
+    "allahabad-hc": string;
+  }>({ typing: "", shorthand: "", pitman: "", "allahabad-hc": "" });
   const typingObserverRef = useRef<HTMLTableRowElement | null>(null);
   const shorthandObserverRef = useRef<HTMLTableRowElement | null>(null);
   const pitmanObserverRef = useRef<HTMLTableRowElement | null>(null);
+  const allahabadHCObserverRef = useRef<HTMLTableRowElement | null>(null);
 
   // Reset visible count when tab changes or content changes
   useEffect(() => {
@@ -802,6 +819,7 @@ export default function AdminDashboard() {
       setVisibleTypingCount(ITEMS_PER_BATCH);
       setVisibleShorthandCount(ITEMS_PER_BATCH);
       setVisiblePitmanCount(ITEMS_PER_BATCH);
+      setVisibleAllahabadHCCount(ITEMS_PER_BATCH);
     }
   }, [activeTab, content.length]);
 
@@ -840,17 +858,45 @@ export default function AdminDashboard() {
       });
   };
 
+  const getAllahabadHCTests = () => {
+    return content
+      .filter((c) => c.type === "allahabad-hc")
+      .sort((a, b) => {
+        // Sort by creation date (newest first), regardless of enabled/disabled status
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  };
+
   const typingTests = getTypingTests();
   const shorthandTests = getShorthandTests();
   const pitmanTests = getPitmanTests();
+  const allahabadHCTests = getAllahabadHCTests();
 
-  // Get visible items for lazy loading
-  const visibleTypingTests = typingTests.slice(0, visibleTypingCount);
-  const visibleShorthandTests = shorthandTests.slice(0, visibleShorthandCount);
-  const visiblePitmanTests = pitmanTests.slice(0, visiblePitmanCount);
-  const hasMoreTyping = visibleTypingCount < typingTests.length;
-  const hasMoreShorthand = visibleShorthandCount < shorthandTests.length;
-  const hasMorePitman = visiblePitmanCount < pitmanTests.length;
+  // Apply per-type search filter (matches title, language, or folder name)
+  const matchesSearch = (item: any, query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const folderName = (getFolderNameById(item.folderId) || "").toLowerCase();
+    return (
+      (item.title || "").toLowerCase().includes(q) ||
+      (item.language || "").toLowerCase().includes(q) ||
+      folderName.includes(q)
+    );
+  };
+  const filteredTypingTests = typingTests.filter((t) => matchesSearch(t, manageTestsSearch.typing));
+  const filteredShorthandTests = shorthandTests.filter((t) => matchesSearch(t, manageTestsSearch.shorthand));
+  const filteredPitmanTests = pitmanTests.filter((t) => matchesSearch(t, manageTestsSearch.pitman));
+  const filteredAllahabadHCTests = allahabadHCTests.filter((t) => matchesSearch(t, manageTestsSearch["allahabad-hc"]));
+
+  // Get visible items for lazy loading (after search filter)
+  const visibleTypingTests = filteredTypingTests.slice(0, visibleTypingCount);
+  const visibleShorthandTests = filteredShorthandTests.slice(0, visibleShorthandCount);
+  const visiblePitmanTests = filteredPitmanTests.slice(0, visiblePitmanCount);
+  const visibleAllahabadHCTests = filteredAllahabadHCTests.slice(0, visibleAllahabadHCCount);
+  const hasMoreTyping = visibleTypingCount < filteredTypingTests.length;
+  const hasMoreShorthand = visibleShorthandCount < filteredShorthandTests.length;
+  const hasMorePitman = visiblePitmanCount < filteredPitmanTests.length;
+  const hasMoreAllahabadHC = visibleAllahabadHCCount < filteredAllahabadHCTests.length;
 
   // Load more typing tests
   const loadMoreTyping = useCallback(() => {
@@ -881,6 +927,16 @@ export default function AdminDashboard() {
       setIsLoadingMore(false);
     }, 300);
   }, [isLoadingMore, hasMorePitman, pitmanTests.length]);
+
+  // Load more allahabad-hc tests
+  const loadMoreAllahabadHC = useCallback(() => {
+    if (isLoadingMore || !hasMoreAllahabadHC) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setVisibleAllahabadHCCount(prev => Math.min(prev + ITEMS_PER_BATCH, allahabadHCTests.length));
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, hasMoreAllahabadHC, allahabadHCTests.length]);
 
   // Intersection Observer for typing tests
   useEffect(() => {
@@ -999,9 +1055,48 @@ export default function AdminDashboard() {
     };
   }, [hasMorePitman, isLoadingMore, pitmanTests.length, visiblePitmanCount, activeTab, loadMorePitman]);
 
+  // Intersection Observer for allahabad-hc tests
+  useEffect(() => {
+    if (activeTab !== "manage") return;
+    const currentRef = allahabadHCObserverRef.current;
+    if (!currentRef || !hasMoreAllahabadHC) return;
+
+    // Check if IntersectionObserver is available
+    if (typeof IntersectionObserver === 'undefined') {
+      // Fallback for older browsers: load more on scroll
+      const handleScroll = () => {
+        if (hasMoreAllahabadHC && !isLoadingMore) {
+          const rect = currentRef?.getBoundingClientRect();
+          if (rect && rect.bottom < window.innerHeight + 100) {
+            loadMoreAllahabadHC();
+          }
+        }
+      };
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreAllahabadHC && !isLoadingMore) {
+          loadMoreAllahabadHC();
+        }
+      },
+      { threshold: 0.1, rootMargin: '50px' }
+    );
+
+    observer.observe(currentRef);
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [hasMoreAllahabadHC, isLoadingMore, allahabadHCTests.length, visibleAllahabadHCCount, activeTab, loadMoreAllahabadHC]);
+
   // Upload State
   const [title, setTitle] = useState("");
-  const [contentType, setContentType] = useState<"typing" | "shorthand" | "pitman">(
+  const [contentType, setContentType] = useState<"typing" | "shorthand" | "pitman" | "allahabad-hc">(
     "typing",
   );
   const [textContent, setTextContent] = useState("");
@@ -1217,7 +1312,7 @@ export default function AdminDashboard() {
         duration: parseInt(duration),
         dateFor,
         language: language || 'english',
-        autoScroll: contentType === "typing" ? autoScroll : true,
+        autoScroll: (contentType === "typing" || contentType === "allahabad-hc") ? autoScroll : true,
       };
 
       // Handle PDF upload for Pitman Book Exercise
@@ -1653,7 +1748,7 @@ export default function AdminDashboard() {
           new Date(a.submittedAt).getTime(),
       );
 
-  const handleDownloadSelectedResults = async (type: 'typing' | 'shorthand' | 'pitman') => {
+  const handleDownloadSelectedResults = async (type: 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc') => {
     try {
       if (!selectedResultIds || selectedResultIds.length === 0) {
         toast({
@@ -1690,10 +1785,10 @@ export default function AdminDashboard() {
       }
 
       // Sort according to requested type:
-      // - typing: highest netSpeed first (descending)
-      // - shorthand: lowest mistake% first (ascending)
+      // - typing/allahabad-hc: highest netSpeed first (descending)
+      // - shorthand/pitman: lowest mistake% first (ascending)
       const sortedResults = [...selectedResults];
-      if (type === 'typing') {
+      if (type === 'typing' || type === 'allahabad-hc') {
         sortedResults.sort((a, b) => {
           const netA = Number(a.netSpeed) || 0;
           const netB = Number(b.netSpeed) || 0;
@@ -1732,8 +1827,12 @@ export default function AdminDashboard() {
         title = 'Shorthand Test Results Report';
       } else if(type === 'typing') {
         title = 'Typing Test Results Report';
-      } else {
+      } else if(type === 'pitman') {
         title = 'Pitman Test Results Report';
+      } else if(type === 'allahabad-hc') {
+        title = 'Allahabad HC Typing Test Results Report';
+      } else {
+        title = 'Test Results Report';
       }
       
       // Institute Header
@@ -1752,12 +1851,12 @@ export default function AdminDashboard() {
       // Title
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${title}`, pageWidth / 2, 25, { align: 'center' });
+      doc.text(`${title}`, pageWidth / 2, 24, { align: 'center' });
       
       // Summary - left and right on same line
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      const summaryY = 33;
+      const summaryY = 30;
       doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, summaryY);
       doc.text(`Total Students: ${sortedResults.length}`, pageWidth - 14, summaryY, { align: 'right' });
       
@@ -1765,7 +1864,7 @@ export default function AdminDashboard() {
       let head: string[][] = [];
       let body: Array<string[] | (string | number)[]> = [];
 
-      if (type === 'typing') {
+      if (type === 'typing' || type === 'allahabad-hc') {
         // Prefer DB-stored fields. If some fields are missing, we fall back conservatively.
         head = [[
           'Rank',
@@ -1832,7 +1931,7 @@ export default function AdminDashboard() {
       autoTable(doc, {
         head: head,
         body: body,
-        startY: 45,
+        startY: 35,
         theme: 'grid',
         tableWidth: 'auto',
         // Reduce cell padding to make table rows shorter
@@ -1851,13 +1950,13 @@ export default function AdminDashboard() {
           fillColor: [242, 242, 242],
         } as any,
         columnStyles: {
-          0: { halign: 'center', columnWidth: 12 },
-          1: { halign: 'left', columnWidth: 60 },
-          2: { halign: 'center', columnWidth: 16 },
-          3: { halign: 'center', columnWidth: 16 },
-          4: { halign: 'center', columnWidth: 16 },
-          5: { halign: 'center', columnWidth: 14 },
-          6: { halign: 'center', columnWidth: 14 },
+          0: { halign: 'center', columnWidth: 10 },
+          1: { halign: 'left', columnWidth: 100 },
+          2: { halign: 'center', columnWidth: 12 },
+          3: { halign: 'center', columnWidth: 12 },
+          4: { halign: 'center', columnWidth: 12 },
+          5: { halign: 'center', columnWidth: 12 },
+          6: { halign: 'center', columnWidth: 12 },
         } as any,
         margin: 12,
         didDrawPage: (data: any) => {
@@ -1898,6 +1997,7 @@ export default function AdminDashboard() {
   const displayTypingResults = filterResultsByStudent(typingResults);
   const displayShorthandResults = filterResultsByStudent(shorthandResults);
   const displayPitmanResults = filterResultsByStudent(pitmanResults);
+  const displayAllahabadHCResults = filterResultsByStudent(allahabadHCResults);
 
   const filteredStudents = users
     .filter(
@@ -2335,6 +2435,47 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
+            {/* Allahabad HC Typing Test Section */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mt-8 pt-8 border-t">
+              <Card
+                className={cn(
+                  "cursor-pointer transition-all duration-200 border-2",
+                  contentType === "allahabad-hc"
+                    ? "border-red-500 bg-red-50/50 shadow-md"
+                    : "border-transparent hover:border-slate-200 hover:shadow-sm",
+                )}
+                onClick={() => setContentType("allahabad-hc")}
+              >
+                <CardContent className="p-5 flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "p-3 rounded-xl",
+                      contentType === "allahabad-hc"
+                        ? "bg-red-500 text-white"
+                        : "bg-slate-100 text-slate-500",
+                    )}
+                  >
+                    <Keyboard className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3
+                      className={cn(
+                        "font-semibold",
+                        contentType === "allahabad-hc"
+                          ? "text-red-700"
+                          : "text-gray-700",
+                      )}
+                    >
+                      Allahabad HC Typing Test
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Typing test with rich text formatting support
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Main Form Card */}
             <Card className="shadow-lg border-0">
               <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50/50 border-b">
@@ -2346,7 +2487,9 @@ export default function AdminDashboard() {
                         ? "bg-blue-100"
                         : contentType === "shorthand"
                           ? "bg-orange-100"
-                          : "bg-purple-100",
+                          : contentType === "pitman"
+                            ? "bg-purple-100"
+                            : "bg-red-100",
                     )}
                   >
                     {contentType === "typing" ? (
@@ -2360,15 +2503,19 @@ export default function AdminDashboard() {
                       />
                     ) : contentType === "shorthand" ? (
                       <Mic className="h-4 w-4 text-orange-600" />
-                    ) : (
+                    ) : contentType === "pitman" ? (
                       <BookOpen className="h-4 w-4 text-purple-600" />
+                    ) : (
+                      <Keyboard className="h-4 w-4 text-red-600" />
                     )}
                   </div>
                   {contentType === "typing"
                     ? "Typing Test Details"
                     : contentType === "shorthand"
                       ? "Shorthand Test Details"
-                      : "Pitman Book Exercise Details"}
+                      : contentType === "pitman"
+                        ? "Pitman Book Exercise Details"
+                        : "Allahabad HC Typing Test Details"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -2413,7 +2560,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        Duration {contentType === "typing" || contentType === "pitman" ? "(2-60 min)" : "(2-90 min)"}
+                        Duration {(contentType === "typing" || contentType === "pitman" || contentType === "allahabad-hc") ? "(2-60 min)" : "(2-90 min)"}
                       </Label>
                       <Select value={duration} onValueChange={setDuration}>
                         <SelectTrigger className="bg-white">
@@ -2444,7 +2591,7 @@ export default function AdminDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {contentType === "typing" && (
+                    {(contentType === "typing" || contentType === "allahabad-hc") && (
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">
                           Auto-scroll
@@ -2665,6 +2812,7 @@ export default function AdminDashboard() {
                   { type: "typing", tests: visibleTypingTests, allTests: typingTests, observerRef: typingObserverRef, hasMore: hasMoreTyping },
                   { type: "shorthand", tests: visibleShorthandTests, allTests: shorthandTests, observerRef: shorthandObserverRef, hasMore: hasMoreShorthand },
                   { type: "pitman", tests: visiblePitmanTests, allTests: pitmanTests, observerRef: pitmanObserverRef, hasMore: hasMorePitman },
+                  { type: "allahabad-hc", tests: visibleAllahabadHCTests, allTests: allahabadHCTests, observerRef: allahabadHCObserverRef, hasMore: hasMoreAllahabadHC },
                 ].map(({ type, tests: visibleTests, allTests, observerRef, hasMore }) => {
                   const testCount = allTests.length;
                   const activeCount = allTests.filter((c) => c.isEnabled).length;
@@ -2680,7 +2828,9 @@ export default function AdminDashboard() {
                             ? "bg-gradient-to-r from-blue-50 to-indigo-50"
                             : type === "shorthand"
                               ? "bg-gradient-to-r from-orange-50 to-amber-50"
-                              : "bg-gradient-to-r from-purple-50 to-pink-50",
+                              : type === "pitman"
+                              ? "bg-gradient-to-r from-purple-50 to-pink-50"
+                              : "bg-gradient-to-r from-red-50 to-rose-50",
                         )}
                       >
                         <div className="flex items-center justify-between">
@@ -2692,46 +2842,68 @@ export default function AdminDashboard() {
                                   ? "bg-blue-100"
                                   : type === "shorthand"
                                     ? "bg-orange-100"
-                                    : "bg-purple-100",
+                                    : type === "pitman"
+                                    ? "bg-purple-100"
+                                    : "bg-red-100",
                               )}
                             >
                               {type === "typing" ? (
                                 <Keyboard className="h-5 w-5 text-blue-600" />
                               ) : type === "shorthand" ? (
                                 <Mic className="h-5 w-5 text-orange-600" />
-                              ) : (
+                              ) : type === "pitman" ? (
                                 <BookOpen className="h-5 w-5 text-purple-600" />
+                              ) : (
+                                <Keyboard className="h-5 w-5 text-red-600" />
                               )}
                             </div>
                             <div>
                               <CardTitle className="text-lg capitalize">
-                                {type} Tests
+                                {type === "allahabad-hc" ? "Allahabad HC" : type} Tests
                               </CardTitle>
                               <CardDescription>
                                 {testCount} tests, {activeCount} active
                               </CardDescription>
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            disabled={isRefreshingContent}
-                            onClick={async () => {
-                              setIsRefreshingContent(true);
-                              await queryClient.invalidateQueries({
-                                queryKey: ["content", "list"],
-                              });
-                              setIsRefreshingContent(false);
-                            }}
-                            data-testid={`button-refresh-${type}-tests`}
-                          >
-                            <RefreshCw
-                              className={cn(
-                                "h-4 w-4",
-                                isRefreshingContent && "animate-spin",
-                              )}
-                            />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                              <Input
+                                type="text"
+                                placeholder="Search tests..."
+                                value={manageTestsSearch[type as keyof typeof manageTestsSearch]}
+                                onChange={(e) =>
+                                  setManageTestsSearch((prev) => ({
+                                    ...prev,
+                                    [type]: e.target.value,
+                                  }))
+                                }
+                                className="pl-8 h-9 w-44 sm:w-56 bg-white"
+                                data-testid={`input-search-${type}-tests`}
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              disabled={isRefreshingContent}
+                              onClick={async () => {
+                                setIsRefreshingContent(true);
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["content", "list"],
+                                });
+                                setIsRefreshingContent(false);
+                              }}
+                              data-testid={`button-refresh-${type}-tests`}
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "h-4 w-4",
+                                  isRefreshingContent && "animate-spin",
+                                )}
+                              />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
@@ -2839,7 +3011,7 @@ export default function AdminDashboard() {
                                           <div className="space-y-4">
                                             <FolderSelector
                                               language={item.language || 'english'}
-                                              type={item.type as "typing" | "shorthand" | "pitman"}
+                                              type={item.type as "typing" | "shorthand" | "pitman" | "allahabad-hc"}
                                               selectedFolderId={item.folderId || null}
                                               onFolderSelect={async (folderId) => {
                                                 try {
@@ -3452,7 +3624,7 @@ export default function AdminDashboard() {
                   defaultValue="typing"
                   value={activeResultsTab}
                   onValueChange={(tab) => {
-                    setActiveResultsTab(tab as 'typing' | 'shorthand' | 'pitman');
+                    setActiveResultsTab(tab as 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc');
                     setSelectedResultIds([]); // Clear selections when switching tabs
                   }}
                   className="w-full"
@@ -3476,6 +3648,12 @@ export default function AdminDashboard() {
                         className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
                       >
                         <BookOpen className="h-4 w-4 mr-2" /> Pitman Results
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="allahabad-hc"
+                        className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
+                      >
+                        <Keyboard className="h-4 w-4 mr-2" /> Allahabad HC Results
                       </TabsTrigger>
                     </TabsList>
                     <Button
@@ -3512,7 +3690,7 @@ export default function AdminDashboard() {
                     </Button>
                   </div>
 
-                  {["typing", "shorthand", "pitman"].map((type) => (
+                  {["typing", "shorthand", "pitman", "allahabad-hc"].map((type) => (
                     <TabsContent key={type} value={type} className="m-0">
                       <div className="max-h-[500px] overflow-auto">
                         <Table>
@@ -3520,9 +3698,9 @@ export default function AdminDashboard() {
                             <TableRow>
                               <TableHead className="w-12">
                                 <Checkbox
-                                  checked={selectedResultIds.length > 0 && selectedResultIds.length === (type === "typing" ? displayTypingResults?.length : type === "shorthand" ? displayShorthandResults?.length : displayPitmanResults?.length)}
+                                  checked={selectedResultIds.length > 0 && selectedResultIds.length === (type === "typing" ? displayTypingResults?.length : type === "shorthand" ? displayShorthandResults?.length : type === "pitman" ? displayPitmanResults?.length : displayAllahabadHCResults?.length)}
                                   onCheckedChange={(checked) => {
-                                    const results = type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : displayPitmanResults;
+                                    const results = type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : type === "pitman" ? displayPitmanResults : displayAllahabadHCResults;
                                     if (checked) {
                                       const resultIds = results?.map(r => r.id) || [];
                                       const combined = [...selectedResultIds, ...resultIds];
@@ -3555,7 +3733,7 @@ export default function AdminDashboard() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : displayPitmanResults)?.map(
+                            {(type === "typing" ? displayTypingResults : type === "shorthand" ? displayShorthandResults : type === "pitman" ? displayPitmanResults : displayAllahabadHCResults)?.map(
                               (result) => (
                                 <TableRow
                                   key={result.id}
@@ -3605,7 +3783,7 @@ export default function AdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="text-sm space-y-1">
-                                      {result.contentType === "typing" ? (
+                                      {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                         <>
                                           <div className="flex items-center gap-2">
                                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
@@ -3648,7 +3826,7 @@ export default function AdminDashboard() {
                                           <Eye className="h-4 w-4 mr-1" /> View
                                         </Button>
                                       </DialogTrigger>
-                                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                      <DialogContent className="max-w-4xl max-h-[85vh] overflow-auto">
                                         <DialogHeader>
                                           <DialogTitle>
                                             Result Analysis
@@ -3704,8 +3882,7 @@ export default function AdminDashboard() {
                                               </span>
                                             </div>
                                             <div>
-                                              {result.contentType ===
-                                                "typing" ? (
+                                              {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                                 <span>
                                                   <span className="font-semibold">
                                                     Gross Speed:
@@ -3747,7 +3924,7 @@ export default function AdminDashboard() {
                                                   | "english"
                                                   | "hindi") || "english"
                                               }
-                                              contentType={result.contentType as 'typing' | 'shorthand'}
+                                              contentType={result.contentType as 'typing' | 'shorthand' | 'allahabad-hc'}
                                             />
                                           </div>
 
@@ -3765,11 +3942,13 @@ export default function AdminDashboard() {
                                             >
                                               {result.contentType === "shorthand"
                                                 ? stripHtml(result.originalText || "")
-                                                : stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
-                                                    <p key={i} className="mb-2 last:mb-0">
-                                                      {para.trim()}
-                                                    </p>
-                                                  ))
+                                                : result.contentType === "allahabad-hc"
+                                                  ? <div dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
+                                                  : stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
+                                                      <p key={i} className="mb-2 last:mb-0">
+                                                        {para.trim()}
+                                                      </p>
+                                                    ))
                                               }
                                             </div>
                                           </div>
@@ -3863,6 +4042,48 @@ export default function AdminDashboard() {
                               <>
                                 <ChevronDown className="h-4 w-4 mr-2" />
                                 Load More Shorthand Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      {type === "pitman" && hasNextPitman && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextPitman()}
+                            disabled={isFetchingNextPitman}
+                          >
+                            {isFetchingNextPitman ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Pitman Results
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      {type === "allahabad-hc" && hasNextAllahabadHC && (
+                        <div className="flex justify-center py-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => fetchNextAllahabadHC()}
+                            disabled={isFetchingNextAllahabadHC}
+                          >
+                            {isFetchingNextAllahabadHC ? (
+                              <>
+                                <Spinner className="h-4 w-4 mr-2" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4 mr-2" />
+                                Load More Allahabad HC Results
                               </>
                             )}
                           </Button>

@@ -22,8 +22,9 @@ export function stripHtmlPreserveParagraphs(html: string): string {
   s = s.replace(/<\s*\/\s*div\s*>/gi, '\n\n');
   s = s.replace(/<\s*div[^>]*>/gi, '\n\n');
 
-  // Strip all remaining HTML tags
-  s = s.replace(/<[^>]+>/g, '');
+  // Strip all remaining HTML tags (replace with space so adjacent
+  // inline tags like </span><span> don't merge words together)
+  s = s.replace(/<[^>]+>/g, ' ');
 
   // Strip HTML entities
   s = stripHtmlEntities(s);
@@ -54,8 +55,9 @@ export function stripHtml(html: string): string {
   s = s.replace(/<\s*\/\s*div\s*>/gi, ' ');
   s = s.replace(/<\s*div[^>]*>/gi, ' ');
 
-  // Strip all remaining HTML tags
-  s = s.replace(/<[^>]+>/g, '');
+  // Strip all remaining HTML tags (replace with space so adjacent
+  // inline tags like </span><span> don't merge words together)
+  s = s.replace(/<[^>]+>/g, ' ');
 
   // Strip HTML entities
   s = stripHtmlEntities(s);

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateShorthandMetrics, cn, stripHtml, replaceNewlinesWithParaToken, PARA_TOKEN } from "@/lib/utils";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -172,6 +173,12 @@ export default function PitmanTestPage() {
         description: "Your results have been recorded.",
       });
 
+      // Invalidate results queries to ensure fresh data
+      await queryClient.invalidateQueries({ queryKey: ['results'] });
+      
+      // Also refetch the counts specifically
+      await queryClient.invalidateQueries({ queryKey: ['results', 'counts'] });
+
       setSubmissionFailed(false);
       setShowResultModal(true);
     } catch (error) {
@@ -321,7 +328,17 @@ export default function PitmanTestPage() {
   }
 
   return (
-    <div className={cn("h-full flex flex-col space-y-4 max-h-[calc(100vh-4rem)]", isFullScreen ? "fixed inset-0 z-50 bg-background p-6 max-h-screen" : "")}>
+    <div
+      className={cn("flex flex-col space-y-4", isFullScreen ? "fixed inset-0 z-[60] p-6" : "p-4")}
+      style={{
+        height: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
+        maxHeight: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
+        overflow: 'hidden',
+        backgroundColor: '#ffffff',
+        position: isFullScreen ? 'fixed' : 'relative',
+        zIndex: isFullScreen ? 60 : 1,
+      }}
+    >
       {/* Header Bar */}
       <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
         <div className="flex items-center gap-4">
@@ -373,7 +390,7 @@ export default function PitmanTestPage() {
       </div>
 
       {/* Main Workspace - Two Column Layout */}
-      <div className="flex-1 flex gap-6 min-h-0">
+      <div className="flex-1 flex gap-6 min-h-[600px]">
         
         {/* Left Section: PDF Viewer */}
         <Card className="flex flex-col overflow-hidden border-2 shadow-sm flex-1 basis-1/2">
@@ -443,9 +460,10 @@ export default function PitmanTestPage() {
               onKeyDown={handleKeyDown}
               disabled={!isActive}
               className={cn(
-                "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none bg-transparent leading-relaxed"
+                "w-full h-full resize-none p-4 border-0 focus-visible:ring-0 rounded-none leading-relaxed",
+                testContent.language === 'hindi' ? 'font-mangal' : 'font-times'
               )}
-              style={{ fontSize: `${fontSize}px` }}
+              style={{ fontSize: `${fontSize}px`, backgroundColor: '#ffffff' }}
               placeholder={isActive ? "Start typing here..." : "Waiting to start..."}
               spellCheck={false}
               autoComplete="off"
@@ -514,7 +532,7 @@ export default function PitmanTestPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-center">
-            <Link href="/student">
+            <Link href="/student?tab=pitman_tests">
               <Button type="button" variant="default" className="w-full">
                 Back to Dashboard
               </Button>

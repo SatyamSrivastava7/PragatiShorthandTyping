@@ -68,6 +68,21 @@ import { queryClient } from "@/lib/queryClient";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
+  const [location] = useLocation();
+  
+  // Get tab from query params
+  const getTabFromUrl = () => {
+    try {
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const tab = params.get('tab');
+      return tab && ['typing_tests', 'shorthand_tests', 'pitman_tests', 'allahabad-hc_tests', 'results', 'store'].includes(tab) 
+        ? tab 
+        : 'typing_tests';
+    } catch {
+      return 'typing_tests';
+    }
+  };
+
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const {
     folders: pdfFolders,
@@ -122,6 +137,7 @@ export default function StudentDashboard() {
   const [typingSearch, setTypingSearch] = useState("");
   const [shorthandSearch, setShorthandSearch] = useState("");
   const [pitmanSearch, setPitmanSearch] = useState("");
+  const [allahabadHCSearch, setAllahabadHCSearch] = useState("");
   
   // Selected video speeds per test for shorthand
   const [selectedVideoSpeeds, setSelectedVideoSpeeds] = useState<Record<number, string>>({}); // testId -> speed (60, 80, 100, 120)
@@ -130,14 +146,25 @@ export default function StudentDashboard() {
   const [selectedTypingLanguage, setSelectedTypingLanguage] = useState<string | null>(null);
   const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
   const [selectedPitmanLanguage, setSelectedPitmanLanguage] = useState<string | null>(null);
+  const [selectedAllahabadHCLanguage, setSelectedAllahabadHCLanguage] = useState<string | null>(null);
   
   // Selected folder per test type (null = show folders, number = show tests in that folder, undefined = no folder filter)
   const [selectedTypingFolderId, setSelectedTypingFolderId] = useState<number | null | undefined>(undefined);
   const [selectedShorthandFolderId, setSelectedShorthandFolderId] = useState<number | null | undefined>(undefined);
   const [selectedPitmanFolderId, setSelectedPitmanFolderId] = useState<number | null | undefined>(undefined);
+  const [selectedAllahabadHCFolderId, setSelectedAllahabadHCFolderId] = useState<number | null | undefined>(undefined);
   
-  // Active main tab
-  const [activeTab, setActiveTab] = useState<string>('typing_tests');
+  // Active main tab - initialize from URL query params
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromUrl());
+
+  // Update URL when tab changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', activeTab);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [activeTab]);
+
   // Pagination settings
   const PAGE_SIZE = 6;
   const PAGE_SIZE_RESULTS = 5;
@@ -147,6 +174,7 @@ export default function StudentDashboard() {
   const typingFoldersQuery = useLatestTestFolders(selectedTypingLanguage || 'english', 6, 'typing');
   const shorthandFoldersQuery = useLatestTestFolders(selectedShorthandLanguage || 'english', 6, 'shorthand');
   const pitmanFoldersQuery = useLatestTestFolders(selectedPitmanLanguage || 'english', 6, 'pitman');
+  const allahabadHCFoldersQuery = useLatestTestFolders(selectedAllahabadHCLanguage || 'english', 6, 'allahabad-hc');
 
   // Typing: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
   const typingQuery = useInfiniteQuery({
@@ -205,6 +233,25 @@ export default function StudentDashboard() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Allahabad HC: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
+  const allahabadHCQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'allahabad-hc', selectedAllahabadHCLanguage, selectedAllahabadHCFolderId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({ 
+        type: 'allahabad-hc', 
+        language: selectedAllahabadHCLanguage || 'english',
+        folderId: selectedAllahabadHCFolderId || undefined,
+        limit: PAGE_SIZE, 
+        offset: pageParam 
+      });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'allahabad-hc_tests' && !!selectedAllahabadHCLanguage && selectedAllahabadHCFolderId !== undefined,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
   // paging is handled by react-query `useInfiniteQuery` (typingQuery, shorthandQuery, pitmanQuery)
 
   // Results: counts and paged lists (5 per page) for typing and shorthand
@@ -249,6 +296,19 @@ export default function StudentDashboard() {
     queryKey: ['results', 'paged', 'pitman', currentUser?.id],
     queryFn: async ({ pageParam = 0 }) => {
       const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'pitman', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 15, // 15 minutes
+  });
+
+  const allahabadHCResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'allahabad-hc', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'allahabad-hc', limit: PAGE_SIZE_RESULTS, offset: pageParam });
       return res;
     },
     initialPageParam: 0,
@@ -454,124 +514,111 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Enhanced Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
-        <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,black)]" />
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="relative group">
-              <Avatar className="w-16 h-16 border-2 border-white/30 shadow-lg">
-                {currentUser?.profilePicture ? (
-                  <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
-                ) : null}
-                <AvatarFallback className="bg-white/20 text-white text-xl font-bold">
-                  {currentUser?.name?.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <button
-                onClick={() => profilePicInputRef.current?.click()}
-                className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                disabled={isUploadingProfilePic}
-                data-testid="button-upload-profile-pic"
-              >
-                {isUploadingProfilePic ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
-              </button>
-              <input
-                ref={profilePicInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleProfilePicUpload}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold tracking-tight drop-shadow-sm">Welcome, {currentUser?.name}!</h1>
-                <Dialog open={showEditNameDialog} onOpenChange={setShowEditNameDialog}>
-                  <DialogTrigger asChild>
-                    <button className="p-1.5 hover:bg-white/20 rounded-lg transition-colors" title="Edit name">
-                      <Edit2 className="h-5 w-5" />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[400px]">
-                    <DialogHeader>
-                      <DialogTitle>Edit Your Name</DialogTitle>
-                      <DialogDescription>
-                        Update your name as it appears on your profile.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <Input
-                        value={editedName}
-                        onChange={(e) => setEditedName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="text-base"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleSaveName();
-                          }
-                        }}
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowEditNameDialog(false);
-                          setEditedName(currentUser?.name || "");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleSaveName}
-                        disabled={updateNameMutation.isPending}
-                        className="gap-2"
-                      >
-                        {updateNameMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                        Save
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-700 to-purple-800 p-8 text-white shadow-2xl">
+        <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,black)]" />
+        <div className="relative space-y-4">
+          {/* Top Section: Avatar & Name + Expiry */}
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex items-center gap-5 flex-1">
+              <div className="relative group">
+                <Avatar className="w-20 h-20 border-3 border-white/40 shadow-lg bg-white/20 shrink-0">
+                  {currentUser?.profilePicture ? (
+                    <AvatarImage src={currentUser.profilePicture} alt={currentUser.name} />
+                  ) : null}
+                  <AvatarFallback className="bg-white/30 text-white text-2xl font-bold">
+                    {currentUser?.name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  onClick={() => profilePicInputRef.current?.click()}
+                  className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  disabled={isUploadingProfilePic}
+                  data-testid="button-upload-profile-pic"
+                >
+                  {isUploadingProfilePic ? <Loader2 className="h-6 w-6 animate-spin" /> : <Camera className="h-6 w-6" />}
+                </button>
+                <input
+                  ref={profilePicInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfilePicUpload}
+                />
               </div>
-              <p className="text-blue-100 flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">ID: {currentUser?.studentId}</span>
-                Student Dashboard
-              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-4xl font-bold tracking-tight">Welcome, {currentUser?.name}!</h1>
+                  <Dialog open={showEditNameDialog} onOpenChange={setShowEditNameDialog}>
+                    <DialogTrigger asChild>
+                      <button className="p-2 hover:bg-white/20 rounded-lg transition-colors" title="Edit name">
+                        <Edit2 className="h-5 w-5" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[400px]">
+                      <DialogHeader>
+                        <DialogTitle>Edit Your Name</DialogTitle>
+                        <DialogDescription>
+                          Update your name as it appears on your profile.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <Input
+                          value={editedName}
+                          onChange={(e) => setEditedName(e.target.value)}
+                          placeholder="Enter your name"
+                          className="text-base"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveName();
+                            }
+                          }}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowEditNameDialog(false);
+                            setEditedName(currentUser?.name || "");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleSaveName}
+                          disabled={updateNameMutation.isPending}
+                          className="gap-2"
+                        >
+                          {updateNameMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <p className="text-blue-100 text-sm flex items-center gap-2">
+                  <span className="px-3 py-1 bg-white/25 backdrop-blur-sm rounded-full text-xs font-semibold">ID: {currentUser?.studentId}</span>
+                  Student Dashboard
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-3">
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" /> : (countsQuery.data?.typing ?? 0)}</p>
-              <p className="text-xs text-blue-100">Typing Tests</p>
-            </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-500" /> : (countsQuery.data?.shorthand ?? 0)}</p>
-              <p className="text-xs text-blue-100">Shorthand</p>
-            </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.pitman ?? 0)}</p>
-              <p className="text-xs text-blue-100">Pitman Exercise</p>
-            </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
-              <p className="text-xs text-blue-100">Results</p>
-            </div>
+
+            {/* Expiry Status on Right */}
             {(() => {
               const { daysLeft, status, message } = calculateDaysLeftForDeactivation(currentUser?.validUntil);
               if (status === 'no-expiry') return null;
               
               const bgColor = status === 'expired' 
-                ? 'bg-red-500/30' 
+                ? 'bg-gradient-to-br from-red-600/40 to-red-700/40 border-red-400/60' 
                 : status === 'expiring-soon' 
-                ? 'bg-yellow-500/30' 
-                : 'bg-blue-500/30';
+                ? 'bg-gradient-to-br from-yellow-500/40 to-yellow-600/40 border-yellow-400/60' 
+                : 'bg-gradient-to-br from-cyan-500/30 to-cyan-600/30 border-cyan-400/50';
               
               const textColor = status === 'expired' 
-                ? 'text-red-100' 
+                ? 'text-red-50' 
                 : status === 'expiring-soon' 
-                ? 'text-yellow-100' 
-                : 'text-blue-100';
+                ? 'text-yellow-50' 
+                : 'text-cyan-50';
 
               const icon = status === 'expired' 
                 ? <AlertTriangle className="h-6 w-6" />
@@ -580,48 +627,78 @@ export default function StudentDashboard() {
                 : <Clock className="h-6 w-6" />;
 
               return (
-                <div className={`${bgColor} rounded-xl px-5 py-3 text-center min-w-[140px] border border-white/20`}>
-                  <div className="flex items-center justify-center mb-1">
+                <div className={`${bgColor} backdrop-blur-md rounded-xl px-6 py-4 text-center border shrink-0 min-w-[140px]`}>
+                  <div className="flex items-center justify-center mb-2 text-white">
                     {icon}
                   </div>
-                  <p className="text-2xl font-bold">{daysLeft ?? 0}</p>
-                  <p className={`text-xs ${textColor}`}>{message}</p>
+                  <p className="text-3xl font-bold text-white mb-1">{daysLeft ?? 0}</p>
+                  <p className={`text-xs ${textColor} font-semibold leading-tight`}>{message}</p>
                 </div>
               );
             })()}
+          </div>
+
+          {/* Stats Section */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="bg-gradient-to-br from-blue-500/30 to-blue-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-blue-400/50 hover:border-blue-300 hover:from-blue-500/40 hover:to-blue-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-100" /> : (countsQuery.data?.typing ?? 0)}</p>
+              <p className="text-xs text-blue-50 font-semibold">Typing Tests</p>
+            </div>
+            <div className="bg-gradient-to-br from-orange-500/30 to-orange-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-orange-400/50 hover:border-orange-300 hover:from-orange-500/40 hover:to-orange-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-100" /> : (countsQuery.data?.shorthand ?? 0)}</p>
+              <p className="text-xs text-orange-50 font-semibold">Shorthand</p>
+            </div>
+            <div className="bg-gradient-to-br from-red-500/30 to-red-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-red-400/50 hover:border-red-300 hover:from-red-500/40 hover:to-red-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-100" /> : (countsQuery.data?.pitman ?? 0)}</p>
+              <p className="text-xs text-red-50 font-semibold">Pitman</p>
+            </div>
+            <div className="bg-gradient-to-br from-violet-500/30 to-violet-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-violet-400/50 hover:border-violet-300 hover:from-violet-500/40 hover:to-violet-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-violet-100" /> : (countsQuery.data?.['allahabad-hc'] ?? 0)}</p>
+              <p className="text-xs text-violet-50 font-semibold">Allahabad HC</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-500/30 to-green-600/30 backdrop-blur-md rounded-xl px-4 py-3 text-center border border-green-400/50 hover:border-green-300 hover:from-green-500/40 hover:to-green-600/40 transition-all">
+              <p className="text-3xl font-bold text-white mb-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
+              <p className="text-xs text-green-50 font-semibold">Results</p>
+            </div>
           </div>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+        <TabsList className="grid w-full grid-cols-6 mb-8 bg-gradient-to-r from-slate-100 to-slate-50 shadow-md border border-slate-200 p-2 rounded-xl h-auto gap-2">
           <TabsTrigger
             value="typing_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <Keyboard className="h-4 w-4" /> Typing Tests
           </TabsTrigger>
           <TabsTrigger
             value="shorthand_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <Mic className="h-4 w-4" /> Shorthand
           </TabsTrigger>
           <TabsTrigger
             value="pitman_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <BookOpen className="h-4 w-4" /> Pitman Exercise
           </TabsTrigger>
           <TabsTrigger
+            value="allahabad-hc_tests"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <Keyboard className="h-4 w-4" /> Allahabad HC
+          </TabsTrigger>
+          <TabsTrigger
             value="results"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <BarChart className="h-4 w-4" /> My Results
           </TabsTrigger>
           <TabsTrigger
             value="store"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <BookOpen className="h-4 w-4" /> PDF Store
           </TabsTrigger>
@@ -629,23 +706,23 @@ export default function StudentDashboard() {
 
         <TabsContent value="typing_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Keyboard className="h-5 w-5 text-blue-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Keyboard className="h-6 w-6 text-blue-700" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Typing Tests</h3>
-                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
+                  <h3 className="font-bold text-xl text-gray-900">Typing Tests</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search tests..."
                   value={typingSearch}
                   onChange={(e) => setTypingSearch(e.target.value)}
-                  className="pl-10 bg-white shadow-sm"
+                  className="pl-10 bg-white shadow-sm border-gray-300"
                   data-testid="input-search-typing"
                 />
               </div>
@@ -820,23 +897,23 @@ export default function StudentDashboard() {
 
         <TabsContent value="shorthand_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Mic className="h-5 w-5 text-orange-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <Mic className="h-6 w-6 text-orange-700" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Shorthand Tests</h3>
-                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.shorthand ?? 0} tests available`}</p>
+                  <h3 className="font-bold text-xl text-gray-900">Shorthand Tests</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.shorthand ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search tests..."
                   value={shorthandSearch}
                   onChange={(e) => setShorthandSearch(e.target.value)}
-                  className="pl-10 bg-white shadow-sm"
+                  className="pl-10 bg-white shadow-sm border-gray-300"
                   data-testid="input-search-shorthand"
                 />
               </div>
@@ -1055,23 +1132,23 @@ export default function StudentDashboard() {
 
         <TabsContent value="pitman_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <BookOpen className="h-5 w-5 text-red-600" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-red-100 rounded-lg">
+                  <BookOpen className="h-6 w-6 text-red-700" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg">Pitman Exercise</h3>
-                  <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.pitman ?? 0} tests available`}</p>
+                  <h3 className="font-bold text-xl text-gray-900">Pitman Exercise</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.pitman ?? 0} tests available`}</p>
                 </div>
               </div>
               <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search tests..."
                   value={pitmanSearch}
                   onChange={(e) => setPitmanSearch(e.target.value)}
-                  className="pl-10 bg-white shadow-sm"
+                  className="pl-10 bg-white shadow-sm border-gray-300"
                   data-testid="input-search-pitman"
                 />
               </div>
@@ -1259,69 +1336,264 @@ export default function StudentDashboard() {
           )}
         </TabsContent>
 
+        <TabsContent value="allahabad-hc_tests">
+          <div className="mb-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-violet-100 rounded-lg">
+                  <Keyboard className="h-6 w-6 text-violet-700" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xl text-gray-900">Allahabad HC Tests</h3>
+                  <p className="text-sm text-gray-600">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.['allahabad-hc'] ?? 0} tests available`}</p>
+                </div>
+              </div>
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search tests..."
+                  value={allahabadHCSearch}
+                  onChange={(e) => setAllahabadHCSearch(e.target.value)}
+                  className="pl-10 bg-white shadow-sm border-gray-300"
+                  data-testid="input-search-allahabad-hc"
+                />
+              </div>
+            </div>
+          </div>
+          {allahabadHCQuery?.isLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+              <span className="ml-3 text-muted-foreground">Loading tests...</span>
+            </div>
+          ) : (
+            <div>
+              {!selectedAllahabadHCLanguage ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {['english', 'hindi'].map((lang) => (
+                    <div
+                      key={lang}
+                      onClick={() => {
+                        setSelectedAllahabadHCLanguage(lang);
+                        setSelectedAllahabadHCFolderId(undefined); // Reset folder selection when changing language
+                      }}
+                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <Folder className="h-12 w-12 text-violet-500 fill-violet-100" />
+                      <span className="font-medium text-center capitalize">{lang?.toUpperCase()}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : selectedAllahabadHCFolderId === undefined ? (
+                // Show folder selection
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedAllahabadHCLanguage(null);
+                      setSelectedAllahabadHCFolderId(undefined);
+                    }}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">{selectedAllahabadHCLanguage} - Select Folder</h4>
+                  </div>
+                  {allahabadHCFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-violet-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Option to view all tests without folder filter */}
+                        <div
+                          onClick={() => setSelectedAllahabadHCFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-violet-50/50"
+                        >
+                          <Folder className="h-12 w-12 text-violet-600 fill-violet-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
+                        </div>
+                        {/* Show available folders */}
+                        {((allahabadHCFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedAllahabadHCFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-violet-500 fill-violet-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
+                      </div>
+                      {allahabadHCFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button 
+                            onClick={() => allahabadHCFoldersQuery.fetchNextPage()} 
+                            disabled={allahabadHCFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {allahabadHCFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => {
+                        setSelectedAllahabadHCFolderId(undefined);
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedAllahabadHCLanguage} {selectedAllahabadHCFolderId !== null ? `- ${((allahabadHCFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedAllahabadHCFolderId)?.name || 'Folder'}` : '- All Tests'} Allahabad HC Tests
+                    </h4>
+                  </div>
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                    {allahabadHCQuery.isError ? (
+                      <div className="col-span-full text-center py-8">
+                        <p className="text-destructive mb-2">Failed to load tests</p>
+                        <p className="text-sm text-muted-foreground">{allahabadHCQuery.error instanceof Error ? allahabadHCQuery.error.message : 'Unknown error'}</p>
+                      </div>
+                    ) : ((allahabadHCQuery.data?.pages ?? []) as any[])
+                      .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
+                      .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedAllahabadHCLanguage || 'english'))
+                      .filter((t: any) => selectedAllahabadHCFolderId === null ? true : t.folderId === selectedAllahabadHCFolderId)
+                      .filter((t: any) => t.title && t.title.toLowerCase().includes(allahabadHCSearch.toLowerCase()))
+                      .map((test: any) => {
+                        if (!test || !test.id) return null;
+                        const result = getResultForContent(test.id?.toString());
+                        const isCompleted = !!result;
+
+                        return (
+                          <Card
+                            key={test.id}
+                            className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group"
+                          >
+                            <div className="h-2 bg-gradient-to-r from-red-500 to-red-600" />
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium shrink-0 capitalize">
+                                  {test.language || "English"}
+                                </span>
+                              </div>
+                              <CardDescription className="text-xs text-muted-foreground mt-2">
+                                {format(new Date(test.dateFor), "PPP")}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1 pb-4">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground flex items-center gap-2">
+                                    <Clock className="h-4 w-4" /> Duration
+                                  </span>
+                                  <span className="font-semibold">{test.duration} min</span>
+                                </div>
+                                {isCompleted && (
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground flex items-center gap-2">
+                                      <CheckCircle className="h-4 w-4 text-green-600" /> Status
+                                    </span>
+                                    <span className="font-semibold text-green-600">Completed</span>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                            <CardFooter className="pt-4 border-t bg-slate-50">
+                              <Button
+                                className="w-full bg-gradient-to-r from-violet-500 to-violet-600 shadow-md group-hover:shadow-lg transition-shadow"
+                                onClick={() => setLocation(`/test/${test.id}`)}
+                              >
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                              </Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      })}
+                  </div>
+                  {allahabadHCQuery.hasNextPage && (
+                    <div className="flex justify-center mt-4">
+                      <Button onClick={() => allahabadHCQuery.fetchNextPage()} disabled={allahabadHCQuery.isFetchingNextPage}>
+                        {allahabadHCQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
         <TabsContent value="results">
           <div className="mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <BarChart className="h-5 w-5 text-green-600" />
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <BarChart className="h-6 w-6 text-green-700" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">My Results</h3>
-                <p className="text-sm text-muted-foreground">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)} total results</p>
+                <h3 className="font-bold text-xl text-gray-900">My Results</h3>
+                <p className="text-sm text-gray-600">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)} total results</p>
               </div>
             </div>
           </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-blue-100">Typing Tests</p>
-                    <p className="text-2xl font-bold mt-1">{typingResultsCount}</p>
+                    <p className="text-sm text-blue-100 font-medium">Typing Tests</p>
+                    <p className="text-3xl font-bold mt-1">{typingResultsCount}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <Keyboard className="h-5 w-5" />
+                    <Keyboard className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-orange-500 to-orange-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-orange-100">Shorthand Tests</p>
-                    <p className="text-2xl font-bold mt-1">{shorthandResultsCount}</p>
+                    <p className="text-sm text-orange-100 font-medium">Shorthand Tests</p>
+                    <p className="text-3xl font-bold mt-1">{shorthandResultsCount}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <Mic className="h-5 w-5" />
+                    <Mic className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md bg-gradient-to-br from-red-500 to-red-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-red-500 to-red-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-red-100">Pitman Tests</p>
-                    <p className="text-2xl font-bold mt-1">{pitmanResultsCount}</p>
+                    <p className="text-sm text-red-100 font-medium">Pitman Tests</p>
+                    <p className="text-3xl font-bold mt-1">{pitmanResultsCount}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <BookOpen className="h-5 w-5" />
+                    <BookOpen className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white">
+            <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-green-100">Total Results</p>
-                    <p className="text-2xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
+                    <p className="text-sm text-green-100 font-medium">Total Results</p>
+                    <p className="text-3xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <Award className="h-5 w-5" />
+                    <Award className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
@@ -1342,11 +1614,14 @@ export default function StudentDashboard() {
                     <TabsTrigger value="pitman_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
                       <BookOpen className="h-4 w-4 mr-2" /> Pitman Results
                     </TabsTrigger>
+                    <TabsTrigger value="allahabad-hc_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                      <Keyboard className="h-4 w-4 mr-2" /> Allahabad HC Results
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
-                {["typing", "shorthand", "pitman"].map((type) => {
-                  const resultsQuery = type === 'typing' ? typingResultsQuery : type === 'shorthand' ? shorthandResultsQuery : pitmanResultsQuery;
+                {["typing", "shorthand", "pitman", "allahabad-hc"].map((type) => {
+                  const resultsQuery = type === 'typing' ? typingResultsQuery : type === 'shorthand' ? shorthandResultsQuery : type === 'pitman' ? pitmanResultsQuery : allahabadHCResultsQuery;
                   const pages = resultsQuery.data?.pages ?? [];
                   const flatResults = pages.flat();
 
@@ -1359,8 +1634,8 @@ export default function StudentDashboard() {
                             className="p-4 rounded-xl border bg-white hover:shadow-md transition-shadow flex items-center justify-between"
                           >
                             <div className="flex items-center gap-4">
-                              <div className={`p-2 rounded-lg ${type === 'typing' ? 'bg-blue-100' : type === 'shorthand' ? 'bg-orange-100' : 'bg-red-100'}`}>
-                                {type === 'typing' ? <Keyboard className="h-5 w-5 text-blue-600" /> : type === 'shorthand' ? <Mic className="h-5 w-5 text-orange-600" /> : <BookOpen className="h-5 w-5 text-red-600" />}
+                              <div className={`p-2 rounded-lg ${type === 'typing' ? 'bg-blue-100' : type === 'shorthand' ? 'bg-orange-100' : type === 'pitman' ? 'bg-red-100' : 'bg-red-100'}`}>
+                                {type === 'typing' ? <Keyboard className="h-5 w-5 text-blue-600" /> : type === 'shorthand' ? <Mic className="h-5 w-5 text-orange-600" /> : type === 'pitman' ? <BookOpen className="h-5 w-5 text-red-600" /> : <Keyboard className="h-5 w-5 text-red-600" />}
                               </div>
                               <div>
                                 <h4 className="font-semibold">{result.contentTitle}</h4>
@@ -1368,7 +1643,7 @@ export default function StudentDashboard() {
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
-                              {result.contentType === "typing" ? (
+                              {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                 <div className="flex items-center gap-3">
                                   <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
                                     {result.grossSpeed} WPM
@@ -1403,7 +1678,7 @@ export default function StudentDashboard() {
                                       <Eye className="h-4 w-4 mr-1" /> View
                                     </Button>
                                   </DialogTrigger>
-                                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
+                                  <DialogContent className="max-w-4xl max-h-[85vh] overflow-auto">
                                     <DialogHeader>
                                       <DialogTitle>Result Analysis</DialogTitle>
                                     </DialogHeader>
@@ -1457,7 +1732,7 @@ export default function StudentDashboard() {
                                           </span>
                                         </div>
                                         <div>
-                                          {result.contentType === "typing" ? (
+                                          {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                             <span>
                                               <span className="font-semibold">
                                                 Gross Speed:
@@ -1494,7 +1769,7 @@ export default function StudentDashboard() {
                                           originalTextClean={result.originalTextClean || undefined}
                                           typedTextClean={result.typedTextClean || undefined}
                                           language={(result.language as 'english' | 'hindi') || undefined}
-                                          contentType={result.contentType as 'typing' | 'shorthand'}
+                                          contentType={result.contentType as 'typing' | 'shorthand' | 'allahabad-hc'}
                                         />
                                       </div>
 
@@ -1503,7 +1778,7 @@ export default function StudentDashboard() {
                                           Original Text
                                         </h4>
                                         <div 
-                                          className={cn("text-sm whitespace-pre-wrap", (result.language as 'english' | 'hindi' | undefined) === 'hindi' ? "font-mangal" : "")}
+                                          className={cn("text-sm whitespace-pre-wrap", (result.language as 'english' | 'hindi' | undefined) === 'hindi' ? "font-mangal" : "font-times")}
                                         >
                                           {result.contentType === "shorthand"
                                             ? stripHtml(result.originalText || "")
@@ -1556,59 +1831,61 @@ export default function StudentDashboard() {
         </TabsContent>
 
         <TabsContent value="store">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                {currentFolder && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setCurrentFolder(null)}
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                <CardTitle>
-                  {currentFolder
-                    ? pdfFolders.find((f) => f.id === parseInt(currentFolder))?.name
-                    : "PDF Store"}
-                </CardTitle>
+          <div className="mb-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <BookOpen className="h-6 w-6 text-purple-700" />
               </div>
-              <CardDescription>
-                {currentFolder
-                  ? "Browse and purchase study materials."
-                  : "Select a folder to browse PDFs."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+              <div>
+                <h3 className="font-bold text-xl text-gray-900">PDF Study Store</h3>
+                <p className="text-sm text-gray-600">Purchase and access study materials</p>
+              </div>
+            </div>
+          </div>
+          
+          <Card className="shadow-lg border-gray-200">
+            <CardContent className="p-6">
               {!currentFolder ? (
                 // Folder View
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {pdfFolders.map((folder) => (
-                    <div
-                      key={folder.id}
-                      onClick={() => setCurrentFolder(folder.id.toString())}
-                      className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
-                    >
-                      <Folder className="h-12 w-12 text-blue-500 fill-blue-100" />
-                      <span className="font-medium text-center">
-                        {folder.name}
-                      </span>
-                    </div>
-                  ))}
-                  {pdfFolders.length === 0 && (
-                    <p className="col-span-full text-center text-muted-foreground">
-                      No folders available.
-                    </p>
-                  )}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-gray-700 mb-4">Select a Category</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {pdfFolders.map((folder) => (
+                      <div
+                        key={folder.id}
+                        onClick={() => setCurrentFolder(folder.id.toString())}
+                        className="cursor-pointer border-2 border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-3 hover:border-purple-400 hover:bg-purple-50 transition-all hover:shadow-md"
+                      >
+                        <Folder className="h-12 w-12 text-purple-500 fill-purple-100" />
+                        <span className="font-semibold text-center text-gray-900 text-sm">
+                          {folder.name}
+                        </span>
+                      </div>
+                    ))}
+                    {pdfFolders.length === 0 && (
+                      <p className="col-span-full text-center text-gray-500">
+                        No folders available.
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 // PDF List View
                 <div className="space-y-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentFolder(null)}
+                    className="mb-4"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Folders
+                  </Button>
+                  
                   {resourcesLoading ? (
                     <div className="flex items-center justify-center p-12">
-                      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                      <span className="ml-3 text-muted-foreground">Loading PDFs...</span>
+                      <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                      <span className="ml-3 text-gray-600">Loading PDFs...</span>
                     </div>
                   ) : (
                     <>
@@ -1622,13 +1899,15 @@ export default function StudentDashboard() {
                           return (
                             <div
                               key={pdf.id}
-                              className="flex items-center justify-between p-4 border rounded-lg"
+                              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white"
                             >
-                              <div className="flex items-center gap-3">
-                                <FileText className="h-8 w-8 text-red-500" />
-                                <div>
-                                  <h4 className="font-medium">{pdf.name}</h4>
-                                  <p className="text-xs text-muted-foreground">
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className="p-3 bg-red-100 rounded-lg">
+                                  <FileText className="h-5 w-5 text-red-600" />
+                                </div>
+                                <div className="flex-1">
+                                  <h4 className="font-semibold text-gray-900">{pdf.name}</h4>
+                                  <p className="text-sm text-gray-600">
                                     {pdf.pageCount} Pages
                                   </p>
                                 </div>
@@ -1637,8 +1916,7 @@ export default function StudentDashboard() {
                               <div>
                                 {isPurchased ? (
                                   <Button
-                                    variant="outline"
-                                    className="text-green-600 border-green-200 bg-green-50"
+                                    className="bg-green-500 hover:bg-green-600 text-white"
                                     onClick={() =>
                                       handleDownloadPdf(pdf.id.toString(), pdf.url)
                                     }
@@ -1647,6 +1925,7 @@ export default function StudentDashboard() {
                                   </Button>
                                 ) : (
                                   <Button
+                                    className="bg-purple-600 hover:bg-purple-700 text-white"
                                     onClick={() =>
                                       initiateBuyPdf(pdf.id.toString(), parseInt(pdf.price))
                                     }
@@ -1657,7 +1936,7 @@ export default function StudentDashboard() {
                                     ) : (
                                       <ShoppingCart className="mr-2 h-4 w-4" />
                                     )}
-                                    Buy for ₹{pdf.price}
+                                    Buy ₹{pdf.price}
                                   </Button>
                                 )}
                               </div>
@@ -1666,7 +1945,7 @@ export default function StudentDashboard() {
                         })}
                       {pdfResources.filter((p) => p.folderId?.toString() === currentFolder)
                         .length === 0 && (
-                          <p className="text-center text-muted-foreground">
+                          <p className="text-center text-gray-600 py-8">
                             No PDFs in this folder.
                           </p>
                         )}

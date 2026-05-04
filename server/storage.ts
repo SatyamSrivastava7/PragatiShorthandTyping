@@ -37,6 +37,7 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByMobile(mobile: string): Promise<User | undefined>;
+  getUserByMobileAndRole(mobile: string, role: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined>;
@@ -129,6 +130,13 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByMobile(mobile: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.mobile, mobile));
+    return user || undefined;
+  }
+
+  async getUserByMobileAndRole(mobile: string, role: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      sql`${users.mobile} = ${mobile} AND ${users.role} = ${role}`
+    );
     return user || undefined;
   }
 
@@ -236,7 +244,7 @@ export class DatabaseStorage implements IStorage {
       language: content.language,
       createdAt: content.createdAt,
       folderId: content.folderId,
-    }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt)) as any;
+    }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.dateFor), desc(content.createdAt)) as any;
   }
 
   async getEnabledContentListPaged(type?: string, language?: string, folderId?: number, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]> {
@@ -266,7 +274,7 @@ export class DatabaseStorage implements IStorage {
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
     // Build base query
-    let q: any = db.select(columns).from(content).where(whereClause).orderBy(desc(content.createdAt));
+    let q: any = db.select(columns).from(content).where(whereClause).orderBy(desc(content.dateFor), desc(content.createdAt));
 
     // Only apply limit/offset when they are finite numbers
     if (Number.isFinite(limit as number)) {

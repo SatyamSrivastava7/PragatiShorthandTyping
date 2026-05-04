@@ -10,6 +10,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import StudentDashboard from "@/pages/student-dashboard";
 import TypingTestPage from "@/pages/typing-test";
 import PitmanTestPage from "@/pages/pitman-test";
+import AllahabadHCTestPage from "@/pages/allahabad-hc-test";
 import LandingPage from "@/pages/landing";
 import ContactPage from "@/pages/contact";
 import { Layout } from "@/components/layout";
@@ -37,6 +38,9 @@ function TestRouter() {
   // Route to appropriate test page based on type
   if (testContent?.type === 'pitman') {
     return <PitmanTestPage />;
+  }
+  if (testContent?.type === 'allahabad-hc') {
+    return <AllahabadHCTestPage />;
   }
 
   // Default to typing/shorthand test page for typing and shorthand types

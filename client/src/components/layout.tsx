@@ -13,6 +13,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
+  // Hide footer on test pages so it never bleeds through the test interface
+  const isTestPage = /^\/test\//.test(location);
+
   const handleLogout = async () => {
     await logout();
   };
@@ -156,15 +159,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Main Content */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto bg-slate-50 flex flex-col">
-            <div className="flex-1">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className={isTestPage ? "flex-1 min-h-0 overflow-auto bg-white" : "flex-1 min-h-0 overflow-auto bg-slate-50 flex flex-col"} style={{ position: 'relative' }}>
+            <div className={isTestPage ? "h-full" : "flex-1"} style={{ position: 'relative', backgroundColor: isTestPage ? '#ffffff' : undefined }}>
               {children}
             </div>
             
-            {/* Footer - Now Global */}
+            {/* Footer - hidden on test pages to prevent bleed-through */}
+            {!isTestPage && (
             <footer className="w-full py-12 bg-slate-300 text-slate-600 shrink-0 border-t border-slate-200">
               <div className="container px-4 md:px-6 mx-auto">
                 <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -209,6 +213,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             </footer>
+            )}
           </div>
         </main>
       </div>
