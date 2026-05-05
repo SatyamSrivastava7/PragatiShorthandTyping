@@ -42,9 +42,12 @@ export default function AllahabadHCTestPage() {
   const [userScrolled, setUserScrolled] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const handleSubmitRef = useRef<() => Promise<void>>(async () => {});
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
+
+  // Refs to always have the latest typedText and backspaces without stale closures
+  const typedTextRef = useRef<string>("");
+  const backspacesRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
   const isAutoScrollingRef = useRef<boolean>(false);
@@ -86,8 +89,18 @@ export default function AllahabadHCTestPage() {
     return () => clearInterval(interval);
   }, [testContent, currentUser]);
 
+  // Keep refs in sync with state
+  useEffect(() => { typedTextRef.current = typedText; }, [typedText]);
+  useEffect(() => { backspacesRef.current = backspaces; }, [backspaces]);
+
   const handleSubmit = useCallback(async () => {
-    console.log("handleSubmit called", { testContent, currentUser });
+    // Always read from refs so we get the latest typed content,
+    // even when called from the timer interval (avoids stale closure bug).
+    const currentTypedText = typedTextRef.current;
+    const currentBackspaces = backspacesRef.current;
+    const elapsedSeconds = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
+
+    console.log("handleSubmit called", { testContent, currentUser, typedTextLength: currentTypedText.length });
     
     if (!testContent || !currentUser) {
       toast({ variant: "destructive", title: "Error", description: "Missing test or user data" });
@@ -102,7 +115,7 @@ export default function AllahabadHCTestPage() {
       // We need to preserve HTML + PARA_TOKEN while also creating clean versions for metrics
       
       // Convert RichTextEditor HTML to PARA_TOKEN format while preserving HTML formatting
-      let processedTypedText = typedText;
+      let processedTypedText = currentTypedText;
       // Replace <p> closing tags and <br> tags with PARA_TOKEN
       processedTypedText = processedTypedText.replace(/<\s*\/\s*p\s*>/gi, ' [[PARA]] ');
       processedTypedText = processedTypedText.replace(/<\s*br\s*\/?>/gi, ' [[PARA]] ');
@@ -117,7 +130,7 @@ export default function AllahabadHCTestPage() {
       const cleanTypedText = stripHtml(storedTypedText).replace(/\[\[PARA\]\]/g, '');
       
       // Calculate metrics using same logic as typing test
-      const metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, backspaces);
+      const metrics = calculateTypingMetrics(cleanTestText, cleanTypedText, testContent.duration, currentBackspaces);
       
       // Determine Pass/Fail based on 5% mistake rule
       const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
@@ -126,16 +139,16 @@ export default function AllahabadHCTestPage() {
       const netSpeed = String(metrics.netSpeed);
       const halfMistakes = String(metrics.halfMistakes ?? 0);
       
-      console.log("Submitting result:", { contentId: testContent.id, typedText: storedTypedText.substring(0, 100), words: metrics.words, time: totalDurationRef.current, mistakes: metrics.mistakes });
+      console.log("Submitting result:", { contentId: testContent.id, typedText: storedTypedText.substring(0, 100), words: metrics.words, time: elapsedSeconds, mistakes: metrics.mistakes });
       
       const submittedResult = await createResult({
         contentId: testContent.id,
         typedText: storedTypedText,
         words: metrics.words,
-        time: totalDurationRef.current,
+        time: elapsedSeconds,
         mistakes: String(metrics.mistakes),
         halfMistakes,
-        backspaces,
+        backspaces: currentBackspaces,
         grossSpeed,
         netSpeed,
         result: testResult,
@@ -184,16 +197,49 @@ export default function AllahabadHCTestPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [testContent, currentUser, typedText, backspaces, createResult, toast]);
+  // typedText and backspaces intentionally omitted — read from refs instead to avoid stale closures
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testContent, currentUser, createResult, toast]);
 
-  // Keep a ref to the latest handleSubmit so the auto-submit timer (which
-  // captures handleSubmit in its closure when the test starts) always calls
-  // the up-to-date version with the latest typedText/backspaces values.
-  // Without this, the timer-triggered auto-submit would save an empty string
-  // and zero metrics from the closure created at test start.
-  useEffect(() => {
-    handleSubmitRef.current = handleSubmit;
+  const finishTest = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsActive(false);
+    setIsFinished(true);
+    handleSubmit();
   }, [handleSubmit]);
+
+  useEffect(() => {
+    if (isActive) {
+      if (startTimeRef.current === null) {
+        startTimeRef.current = Date.now();
+        totalDurationRef.current = timeLeft;
+      }
+
+      intervalRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+        const remaining = Math.max(0, totalDurationRef.current - elapsed);
+        setTimeLeft(remaining);
+
+        if (remaining === 0) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          finishTest();
+        }
+      }, 100);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isActive, finishTest]);
 
   // Handle manual scroll - detect if user scrolled
   useEffect(() => {
@@ -361,44 +407,16 @@ export default function AllahabadHCTestPage() {
     return processedParts;
   };
 
-  // Start test - combined function matching typing test pattern
+  // Start test - set isActive; the useEffect timer takes over from here
   const handleStartClick = () => {
-    // Reset scroll tracking when test starts
     setUserScrolled(false);
-    
+    startTimeRef.current = null; // reset so useEffect initialises it fresh
     setIsActive(true);
-    startTimeRef.current = Date.now();
-    totalDurationRef.current = 0;
-    
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    
-    intervalRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          intervalRef.current = null;
-          setIsActive(false);
-          setIsFinished(true);
-          // Call through the ref so we get the latest handleSubmit closure
-          // (with the most recent typedText / backspaces), not the stale one
-          // captured when the timer was created.
-          handleSubmitRef.current();
-          return 0;
-        }
-        if (startTimeRef.current) {
-          totalDurationRef.current = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        }
-        return prev - 1;
-      });
-    }, 1000);
   };
 
   // Stop test
   const handleStop = () => {
-    setIsActive(false);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setIsFinished(true);
-    handleSubmit();
+    finishTest();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
