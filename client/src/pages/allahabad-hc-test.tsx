@@ -48,6 +48,11 @@ export default function AllahabadHCTestPage() {
   // Refs to always have the latest typedText and backspaces without stale closures
   const typedTextRef = useRef<string>("");
   const backspacesRef = useRef<number>(0);
+  // Preserves the last non-empty content — used as a fallback so that an
+  // accidental clear of the editor just before submit cannot wipe the result.
+  const lastNonEmptyTypedTextRef = useRef<string>("");
+  // Synchronous guard that prevents handleSubmit from running twice concurrently.
+  const isSubmittingRef = useRef(false);
   const originalTextRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
   const isAutoScrollingRef = useRef<boolean>(false);
@@ -92,11 +97,18 @@ export default function AllahabadHCTestPage() {
   // Keep refs in sync with state
   useEffect(() => { typedTextRef.current = typedText; }, [typedText]);
   useEffect(() => { backspacesRef.current = backspaces; }, [backspaces]);
+  useEffect(() => { if (typedText.length > 0) lastNonEmptyTypedTextRef.current = typedText; }, [typedText]);
 
   const handleSubmit = useCallback(async () => {
+    // Prevent concurrent double-submission (e.g. early-submit button + auto-submit racing).
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+
     // Always read from refs so we get the latest typed content,
     // even when called from the timer interval (avoids stale closure bug).
-    const currentTypedText = typedTextRef.current;
+    // Fall back to lastNonEmptyTypedTextRef so an accidental clear of the editor
+    // right before submit doesn't wipe the student's work.
+    const currentTypedText = typedTextRef.current || lastNonEmptyTypedTextRef.current;
     const currentBackspaces = backspacesRef.current;
     const elapsedSeconds = startTimeRef.current ? Math.floor((Date.now() - startTimeRef.current) / 1000) : 0;
 
@@ -196,6 +208,7 @@ export default function AllahabadHCTestPage() {
       });
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   // typedText and backspaces intentionally omitted — read from refs instead to avoid stale closures
   // eslint-disable-next-line react-hooks/exhaustive-deps
