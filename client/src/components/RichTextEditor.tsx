@@ -177,6 +177,23 @@ export function RichTextEditor({
 
   const handleFontSizeChange = (newSize: string) => {
     setFontSize(newSize);
+    // Pasted HTML often carries inline font-size on child elements that override
+    // the parent's font-size. Clear those so the new size takes effect everywhere.
+    if (editorRef.current) {
+      editorRef.current.querySelectorAll<HTMLElement>("*").forEach((el) => {
+        el.style.fontSize = "";
+      });
+    }
+  };
+
+  const handleLineSpacingChange = (newSpacing: string) => {
+    setLineSpacing(newSpacing);
+    // Same issue for line-height — clear child overrides so parent value cascades.
+    if (editorRef.current) {
+      editorRef.current.querySelectorAll<HTMLElement>("*").forEach((el) => {
+        el.style.lineHeight = "";
+      });
+    }
   };
 
   const formatButton = (
@@ -254,7 +271,7 @@ export function RichTextEditor({
         {/* Line Spacing */}
         <div className="flex items-center gap-2 border-r pr-2">
           <Maximize2 className="h-4 w-4 text-muted-foreground" />
-          <Select value={lineSpacing} onValueChange={setLineSpacing}>
+          <Select value={lineSpacing} onValueChange={handleLineSpacingChange}>
             <SelectTrigger className="h-8 w-24 text-xs">
               <SelectValue />
             </SelectTrigger>
