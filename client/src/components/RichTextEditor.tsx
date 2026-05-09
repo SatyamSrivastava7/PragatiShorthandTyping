@@ -183,6 +183,13 @@ export function RichTextEditor({
       editorRef.current.querySelectorAll<HTMLElement>("*").forEach((el) => {
         el.style.fontSize = "";
       });
+      // Sync the updated innerHTML back to parent state so PARA tokens and all
+      // other content are preserved correctly. Without this call the parent's
+      // state (textContent / typedText) would be permanently stale after a
+      // font-size change, causing wrong content to be submitted/uploaded.
+      isEditingRef.current = true;
+      onChange(editorRef.current.innerHTML);
+      queueMicrotask(() => { isEditingRef.current = false; });
     }
   };
 
@@ -193,6 +200,10 @@ export function RichTextEditor({
       editorRef.current.querySelectorAll<HTMLElement>("*").forEach((el) => {
         el.style.lineHeight = "";
       });
+      // Keep parent state in sync (same reason as handleFontSizeChange above).
+      isEditingRef.current = true;
+      onChange(editorRef.current.innerHTML);
+      queueMicrotask(() => { isEditingRef.current = false; });
     }
   };
 
