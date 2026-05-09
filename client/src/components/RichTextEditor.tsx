@@ -324,13 +324,21 @@ export function RichTextEditor({
       />
 
       {/* Word Count */}
-      {showWordCount && (
-        <p className={cn("text-xs text-muted-foreground", fillHeight && "px-4 py-2 border-t shrink-0 bg-muted/30")}>
-          {value.replace(/<[^>]*>/g, "").split(/\s+/).filter(Boolean).length}{" "}
-          words |{" "}
-          {value.replace(/<[^>]*>/g, "").length} characters
-        </p>
-      )}
+      {showWordCount && (() => {
+        const clean = value
+          .replace(/<[^>]*>/g, " ")        // strip HTML tags → space
+          .replace(/\[\[PARA\]\]/g, " ")    // strip para tokens → space
+          .replace(/&[a-z]+;|&#\d+;/gi, " ") // strip HTML entities (&nbsp; etc.)
+          .replace(/\s+/g, " ")             // collapse whitespace
+          .trim();
+        const words = clean ? clean.split(" ").filter(Boolean).length : 0;
+        const chars = clean.replace(/\s/g, "").length;
+        return (
+          <p className={cn("text-xs text-muted-foreground", fillHeight && "px-4 py-2 border-t shrink-0 bg-muted/30")}>
+            {words} words | {chars} characters
+          </p>
+        );
+      })()}
     </div>
   );
 }
