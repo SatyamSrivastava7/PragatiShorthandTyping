@@ -343,12 +343,12 @@ export function RichTextEditor({
         suppressContentEditableWarning
         className={cn(
           fillHeight
-            ? "flex-1 min-h-0 p-4 bg-white dark:bg-zinc-900 focus:outline-none overflow-auto"
-            : "min-h-[200px] p-4 border-2 rounded-b-md bg-white dark:bg-zinc-900 focus:outline-none focus:border-primary/50 overflow-auto",
+            ? "flex-1 min-h-0 p-4 bg-white dark:bg-zinc-900 focus:outline-none overflow-y-auto overflow-x-hidden break-words"
+            : "min-h-[200px] p-4 border-2 rounded-b-md bg-white dark:bg-zinc-900 focus:outline-none focus:border-primary/50 overflow-y-auto overflow-x-hidden break-words",
           fontClass,
           className
         )}
-        style={{ fontSize: `${fontSize}px`, lineHeight: lineSpacing }}
+        style={{ fontSize: `${fontSize}px`, lineHeight: lineSpacing, wordBreak: "break-word", overflowWrap: "break-word" }}
       />
 
       {/* Word Count */}
