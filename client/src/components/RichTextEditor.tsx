@@ -172,6 +172,66 @@ export function RichTextEditor({
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     if (customOnPaste) {
       customOnPaste(e);
+      if (e.defaultPrevented) return;
+    }
+
+    // Clean paste: strip layout-breaking inline styles (fixed widths, margins,
+    // floats, etc.) that Word/browser pastes add, while preserving visual
+    // formatting (bold, italic, underline, text-align).
+    const html = e.clipboardData.getData("text/html");
+    if (html) {
+      e.preventDefault();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Remove non-visual elements injected by Word/Office
+      doc.querySelectorAll("style, script, meta, link").forEach((el) => el.remove());
+
+      // Strip all inline styles except visual-only ones
+      doc.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
+        const s = el.style;
+        const keep: Partial<CSSStyleDeclaration> = {};
+        if (s.fontWeight)     keep.fontWeight     = s.fontWeight;
+        if (s.fontStyle)      keep.fontStyle      = s.fontStyle;
+        if (s.textDecoration) keep.textDecoration = s.textDecoration;
+        if (s.textAlign)      keep.textAlign      = s.textAlign;
+        el.removeAttribute("style");
+        Object.entries(keep).forEach(([k, v]) => {
+          (el.style as any)[k] = v;
+        });
+      });
+
+      // Strip class/lang/id attributes that reference external Office CSS
+      doc.querySelectorAll("[class],[lang],[id]").forEach((el) => {
+        el.removeAttribute("class");
+        el.removeAttribute("lang");
+        el.removeAttribute("id");
+      });
+
+      document.execCommand("insertHTML", false, doc.body.innerHTML);
+      if (editorRef.current) {
+        isEditingRef.current = true;
+        onChange(editorRef.current.innerHTML);
+        queueMicrotask(() => { isEditingRef.current = false; });
+      }
+      return;
+    }
+
+    // Fallback: plain text — insert preserving newlines as <br>
+    const text = e.clipboardData.getData("text/plain");
+    if (text) {
+      e.preventDefault();
+      const escaped = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\n/g, "<br>");
+      document.execCommand("insertHTML", false, escaped);
+      if (editorRef.current) {
+        isEditingRef.current = true;
+        onChange(editorRef.current.innerHTML);
+        queueMicrotask(() => { isEditingRef.current = false; });
+      }
     }
   };
 
