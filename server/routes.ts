@@ -624,6 +624,13 @@ export async function registerRoutes(
   // Create content (with FormData using busboy for streaming file uploads)
   app.post("/api/content/upload", async (req, res) => {
     try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const uploadUser = await storage.getUser(req.session.userId);
+      if (!uploadUser || uploadUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
       const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB limit
       const formData: Record<string, string> = {};
       let fileSize = 0;
@@ -707,6 +714,13 @@ export async function registerRoutes(
   // Create content (original JSON endpoint)
   app.post("/api/content", async (req, res) => {
     try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
       const validatedData = insertContentSchema.parse(req.body);
       const content = await storage.createContent(validatedData);
       res.status(201).json(content);

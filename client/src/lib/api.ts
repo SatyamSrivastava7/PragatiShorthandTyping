@@ -17,8 +17,8 @@ async function fetchApi<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
-    // If we get a 403 (Forbidden) because user access was disabled, redirect to auth
-    if (response.status === 403 && error.message?.includes('disabled')) {
+    // Redirect to auth on 401 (session expired) or 403 access-disabled
+    if (response.status === 401 || (response.status === 403 && error.message?.includes('disabled'))) {
       window.location.href = '/auth';
     }
     throw new Error(error.message || `HTTP ${response.status}`);
@@ -182,12 +182,14 @@ export const contentApi = {
 
   create: (data: {
     title: string;
-    type: 'typing' | 'shorthand';
+    type: 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc';
     text: string;
     duration: number;
     dateFor: string;
     language?: 'english' | 'hindi';
     folderId?: number;
+    autoScroll?: boolean;
+    pdfFile?: string;
     video60wpm?: string;
     video80wpm?: string;
     video100wpm?: string;
@@ -209,12 +211,14 @@ export const contentApi = {
 
   update: (id: number, data: Partial<{
     title: string;
-    type: 'typing' | 'shorthand';
+    type: 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc';
     text: string;
     duration: number;
     dateFor: string;
     language: 'english' | 'hindi';
     folderId: number;
+    autoScroll: boolean;
+    pdfFile: string;
     video60wpm: string;
     video80wpm: string;
     video100wpm: string;

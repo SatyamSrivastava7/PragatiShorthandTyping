@@ -1301,11 +1301,22 @@ export default function AdminDashboard() {
     });
 
     try {
-      // Process text based on test type
-      const processedText = contentType === "shorthand" ? stripHtml(textContent) : textContent;
+      // Process text based on test type:
+      // - shorthand: strip all HTML (plain text only)
+      // - typing / allahabad-hc: strip inline CSS styles (keep paragraph structure, remove TipTap bloat)
+      // - pitman: keep as-is
+      const stripInlineStyles = (html: string) => html.replace(/\s*style="[^"]*"/gi, '');
+      let processedText: string;
+      if (contentType === "shorthand") {
+        processedText = stripHtml(textContent);
+      } else if (contentType === "typing" || contentType === "allahabad-hc") {
+        processedText = stripInlineStyles(textContent);
+      } else {
+        processedText = textContent;
+      }
 
       // Build upload data with optional video links
-      const createData: any = {
+      const createData: Parameters<typeof createContent>[0] = {
         title,
         type: contentType,
         text: processedText,
@@ -1330,7 +1341,7 @@ export default function AdminDashboard() {
       if (video100wpmLink) createData.video100wpm = video100wpmLink;
       if (video120wpmLink) createData.video120wpm = video120wpmLink;
 
-      await createContent(createData as any);
+      await createContent(createData);
 
       toast({
         variant: "success",
