@@ -174,3 +174,15 @@ h1, h2, h3, h4, h5, h6 {
 .font-times {
   font-family: 'Times New Roman', Times, serif;
 }
+
+/* Rich editor — force all pasted child elements to stay within the editor
+   width so long paragraphs wrap instead of overflowing horizontally.
+   Word/browser pastes inject fixed widths (e.g. width:612pt) on <p> tags
+   which is wider than our editor container; this overrides them. */
+.rich-editor-content * {
+  max-width: 100% !important;
+  width: auto !important;
+  box-sizing: border-box !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
