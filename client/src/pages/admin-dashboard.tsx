@@ -283,11 +283,11 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           <Eye className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="mt-4 max-h-[60vh] overflow-auto p-4 bg-muted rounded">
+        <div className="mt-4 max-h-[75vh] overflow-auto p-4 bg-muted rounded">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
