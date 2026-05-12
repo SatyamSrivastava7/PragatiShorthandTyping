@@ -296,7 +296,14 @@ function PreviewDialog({ contentId, title }: { contentId: number; title: string 
           ) : (
             <>
               <div 
-                className={cn("text-sm leading-relaxed break-words", fullContent?.language === "hindi" ? "font-mangal" : "")}
+                className={cn(
+                  "text-sm leading-relaxed break-words",
+                  "[&_strong]:font-bold [&_b]:font-bold [&_em]:italic [&_i]:italic [&_u]:underline",
+                  "[&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-bold",
+                  "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
+                  "[&_p]:mb-2 [&_div]:mb-1",
+                  fullContent?.language === "hindi" ? "font-mangal" : ""
+                )}
                 dangerouslySetInnerHTML={{ __html: fullContent?.text || "Content not available" }}
               />
             </>
@@ -1305,7 +1312,15 @@ export default function AdminDashboard() {
       // - shorthand: strip all HTML (plain text only)
       // - typing / allahabad-hc: strip inline CSS styles (keep paragraph structure, remove TipTap bloat)
       // - pitman: keep as-is
-      const stripInlineStyles = (html: string) => html.replace(/\s*style="[^"]*"/gi, '');
+      const stripInlineStyles = (html: string) =>
+        html.replace(/\s*style="([^"]*)"/gi, (_match, styles: string) => {
+          const cleaned = styles
+            .split(';')
+            .map((s: string) => s.trim())
+            .filter((s: string) => s && !s.toLowerCase().startsWith('border-color') && !s.toLowerCase().startsWith('outline-color'))
+            .join('; ');
+          return cleaned ? ` style="${cleaned}"` : '';
+        });
       let processedText: string;
       if (contentType === "shorthand") {
         processedText = stripHtml(textContent);
