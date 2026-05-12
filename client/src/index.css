@@ -186,3 +186,37 @@ h1, h2, h3, h4, h5, h6 {
   word-break: break-word !important;
   overflow-wrap: break-word !important;
 }
+
+/* Rich content preview — restore browser-default rendering for HTML
+   formatting elements that Tailwind Preflight may have neutralised,
+   and ensure inline styles (text-align, font-weight, etc.) from the
+   editor are honoured correctly. */
+.rich-content-preview {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.rich-content-preview b,
+.rich-content-preview strong {
+  font-weight: bold;
+}
+.rich-content-preview i,
+.rich-content-preview em {
+  font-style: italic;
+}
+.rich-content-preview u {
+  text-decoration: underline;
+}
+.rich-content-preview s,
+.rich-content-preview strike {
+  text-decoration: line-through;
+}
+.rich-content-preview h1 { font-size: 2em;    font-weight: bold; margin: 0.67em 0; }
+.rich-content-preview h2 { font-size: 1.5em;  font-weight: bold; margin: 0.75em 0; }
+.rich-content-preview h3 { font-size: 1.17em; font-weight: bold; margin: 0.83em 0; }
+.rich-content-preview p,
+.rich-content-preview div { margin-bottom: 0.4em; }
+.rich-content-preview ul { list-style-type: disc;    padding-left: 1.5em; }
+.rich-content-preview ol { list-style-type: decimal; padding-left: 1.5em; }
+/* Block-level elements produced by execCommand("justify*") carry
+   text-align as an inline style — no extra CSS needed, but we do NOT
+   override it here so the inline value always wins. */
