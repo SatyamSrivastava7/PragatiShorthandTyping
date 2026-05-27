@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
-import { calculateTypingMetrics, calculateShorthandMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml } from "@/lib/utils";
+import { calculateTypingMetrics, calculateShorthandMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml, stripHtmlEntities } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -601,27 +601,32 @@ export default function TypingTestPage() {
         return part;
       }
       
-      // This is a text node - count words and replace
-      const textWords = part.split(/(\s+)/); // Split preserving whitespace
-      
+      // Treat HTML whitespace entities (&nbsp;, &#160;, &#xa0;) as whitespace
+      // so they don't get counted as word characters (mirrors allahabad-hc logic).
+      const textWords = part.split(/((?:\s|&nbsp;|&#160;|&#xa0;)+)/i);
+
       return textWords.map((segment) => {
-        if (foundTargetWord || !segment || /^\s+$/.test(segment)) {
-          // Already found, or just whitespace
+        if (foundTargetWord || !segment) {
           return segment;
         }
-        
-        // Check if this segment is a word and matches our target
-        if (segment === targetWord) {
+
+        // Decode entities for comparison only — keep original segment in output
+        // so visual layout (e.g. non-breaking spaces) is preserved.
+        const decoded = stripHtmlEntities(segment);
+        if (/^\s*$/.test(decoded)) {
+          return segment;
+        }
+
+        if (decoded === targetWord) {
           if (wordOccurrenceCount === currentIndex) {
             foundTargetWord = true;
             return `<span class="current-word-marker" style="${highlightStyle}">${segment}</span>`;
           }
           wordOccurrenceCount++;
-        } else if (!/^\s+$/.test(segment)) {
-          // Count non-whitespace segments as word occurrences for proper indexing
+        } else {
           wordOccurrenceCount++;
         }
-        
+
         return segment;
       }).join('');
     }).join('');
