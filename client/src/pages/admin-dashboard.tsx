@@ -1814,7 +1814,15 @@ export default function AdminDashboard() {
         sortedResults.sort((a, b) => {
           const netA = Number(a.netSpeed) || 0;
           const netB = Number(b.netSpeed) || 0;
-          return netB - netA; // descending: highest net speed first
+          if (netB !== netA) return netB - netA; // descending: highest net speed first
+          // Tiebreaker: higher accuracy first
+          const wordsA = Number(a.words) || 0;
+          const wordsB = Number(b.words) || 0;
+          const mistakesA = parseFloat(String(a.mistakes)) || 0;
+          const mistakesB = parseFloat(String(b.mistakes)) || 0;
+          const accA = wordsA > 0 ? (wordsA - mistakesA) / wordsA : 0;
+          const accB = wordsB > 0 ? (wordsB - mistakesB) / wordsB : 0;
+          return accB - accA; // descending: higher accuracy first
         });
       } else {
         const calcMistakePercent = (r: any) => {
