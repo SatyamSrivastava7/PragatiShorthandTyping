@@ -64,6 +64,8 @@ export function stripHtml(html: string): string {
 
   // Collapse multiple spaces and newlines
   s = s.replace(/[\s\n]+/g, ' ').trim();
+  // Remove spaces before punctuation (artefact of replacing HTML tags with spaces)
+  s = s.replace(/\s+([,।॥.;:!?)\]])/g, '$1');
 
   return s;
 }

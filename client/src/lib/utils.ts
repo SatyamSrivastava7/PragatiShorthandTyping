@@ -72,6 +72,11 @@ export function stripHtml(html: string): string {
   let s = html.replace(/<[^>]+>/g, ' ');
   s = stripHtmlEntities(s);
   s = s.replace(/\s+/g, ' ').trim();
+  // Remove spaces that appear right before punctuation — these are an artefact
+  // of replacing inline HTML tags (e.g. </span>) with spaces.  Hindi text is
+  // especially affected because word-processors wrap each word in a lang-tagged
+  // <span>, so "word</span>," becomes "word ," after stripping.
+  s = s.replace(/\s+([,।॥.;:!?)\]])/g, '$1');
   return s;
 }
 
