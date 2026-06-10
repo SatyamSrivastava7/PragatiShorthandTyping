@@ -1735,7 +1735,7 @@ export default function AdminDashboard() {
       let tbodyHtml = '';
 
       if (type === 'typing') {
-        theadHtml = `<tr><th>Rank</th><th>Name</th><th>Words Typed</th><th>Accuracy</th><th>Mistakes</th><th>Gross Speed (WPM)</th><th>Net Speed (WPM)</th></tr>`;
+        theadHtml = `<tr><th>Rank</th><th>Name</th><th>Words Typed</th><th>Accuracy</th><th>Mistakes</th><th>Gross Speed (WPM)</th><th>Net Speed (WPM)</th><th>Result</th></tr>`;
         tbodyHtml = sortedResults.map((result, idx) => {
           const rank = idx + 1;
           const totalMistakes = result.mistakes ?? 'N/A';
@@ -1744,7 +1744,9 @@ export default function AdminDashboard() {
           const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
           const grossSpeed = result.grossSpeed ?? 'N/A';
           const netSpeed = result.netSpeed ?? 'N/A';
-          return `<tr><td>${rank}</td><td>${result.studentName ?? 'Unknown'}</td><td>${totalWordsTyped}</td><td>${accurancyDisplay}</td><td>${totalMistakes}</td><td>${grossSpeed}</td><td>${netSpeed}</td></tr>`;
+          const netSpeedNum = Number(result.netSpeed) || 0;
+          const passOrFail = netSpeedNum >= 30 ? '<span style="color:#15803d;font-weight:bold;">Pass</span>' : '<span style="color:#dc2626;font-weight:bold;">Fail</span>';
+          return `<tr><td>${rank}</td><td>${result.studentName ?? 'Unknown'}</td><td>${totalWordsTyped}</td><td>${accurancyDisplay}</td><td>${totalMistakes}</td><td>${grossSpeed}</td><td>${netSpeed}</td><td>${passOrFail}</td></tr>`;
         }).join('');
       } else {
         theadHtml = `<tr><th>Rank</th><th>Student Name</th><th>Original Words</th><th>Words Typed</th><th>Mistakes</th><th>Mistake%</th><th>Result</th></tr>`;
