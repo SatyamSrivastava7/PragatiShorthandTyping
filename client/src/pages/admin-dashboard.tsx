@@ -98,8 +98,6 @@ import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { FolderSelector } from "@/components/FolderSelector";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { queryClient } from "@/lib/queryClient";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 // Shared fetch with retry (handles stale-process HTML responses)
 async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
@@ -1847,166 +1845,85 @@ export default function AdminDashboard() {
         });
       }
 
-      // Generate PDF
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
+      // Generate PDF using browser-native print
       let title = '';
-
-      if(type === 'shorthand') {
+      if (type === 'shorthand') {
         title = 'Shorthand Test Results Report';
-      } else if(type === 'typing') {
+      } else if (type === 'typing') {
         title = 'Typing Test Results Report';
-      } else if(type === 'pitman') {
+      } else if (type === 'pitman') {
         title = 'Pitman Test Results Report';
-      } else if(type === 'allahabad-hc') {
+      } else if (type === 'allahabad-hc') {
         title = 'Allahabad HC Typing Test Results Report';
       } else {
         title = 'Test Results Report';
       }
-      
-      // Institute Header
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Pragati Institute of Professional Studies', pageWidth / 2, 10, { align: 'center' });
-      
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Prayagraj | Email: pragatiprofessionalstudies@gmail.com | Phone: +91 9026212705', pageWidth / 2, 15, { align: 'center' });
-      
-      // Divider line
-      doc.setDrawColor(100, 100, 100);
-      doc.line(14, 17, pageWidth - 14, 17);
-      
-      // Title
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${title}`, pageWidth / 2, 24, { align: 'center' });
-      
-      // Summary - left and right on same line
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const summaryY = 30;
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, summaryY);
-      doc.text(`Total Students: ${sortedResults.length}`, pageWidth - 14, summaryY, { align: 'right' });
-      
-      // Table data and headers
-      let head: string[][] = [];
-      let body: Array<string[] | (string | number)[]> = [];
+
+      let theadHtml = '';
+      let tbodyHtml = '';
 
       if (type === 'typing' || type === 'allahabad-hc') {
-        // Prefer DB-stored fields. If some fields are missing, we fall back conservatively.
-        head = [[
-          'Rank',
-          'Name',
-          'Words Typed',
-          'Accuracy',
-          'Mistakes',
-          'Gross Speed (WPM)',
-          'Net Speed (WPM)'
-        ]];
-
-        body = sortedResults.map((result, idx) => {
+        theadHtml = `<tr><th>Rank</th><th>Name</th><th>Words Typed</th><th>Accuracy</th><th>Mistakes</th><th>Gross Speed (WPM)</th><th>Net Speed (WPM)</th><th>Result</th></tr>`;
+        tbodyHtml = sortedResults.map((result, idx) => {
           const rank = idx + 1;
           const totalMistakes = result.mistakes ?? 'N/A';
           const totalWordsTyped = result.words ?? 'N/A';
-          // Use DB fields where available. originalText may be present in DB; avoid heavy recalculation.
           const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
           const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
           const grossSpeed = result.grossSpeed ?? 'N/A';
           const netSpeed = result.netSpeed ?? 'N/A';
-
-          return [
-            rank,
-            result.studentName ?? 'Unknown',
-            totalWordsTyped,
-            accurancyDisplay,
-            totalMistakes,
-            grossSpeed,
-            netSpeed,
-          ];
-        });
+          const netSpeedNum = Number(result.netSpeed) || 0;
+          const passOrFail = netSpeedNum >= 30
+            ? '<span style="color:#15803d;font-weight:bold;">Pass</span>'
+            : '<span style="color:#dc2626;font-weight:bold;">Fail</span>';
+          return `<tr><td>${rank}</td><td>${result.studentName ?? 'Unknown'}</td><td>${totalWordsTyped}</td><td>${accurancyDisplay}</td><td>${totalMistakes}</td><td>${grossSpeed}</td><td>${netSpeed}</td><td>${passOrFail}</td></tr>`;
+        }).join('');
       } else {
-        // Shorthand: keep previous columns (Mistakes %, Result, etc.) but use DB fields where possible
-        head = [[
-          'Rank',
-          'Student Name',
-          'Original Words',
-          'Words Typed',
-          'Mistakes',
-          'Mistake%',
-          'Result'
-        ]];
-
-        body = sortedResults.map((result, idx) => {
+        theadHtml = `<tr><th>Rank</th><th>Student Name</th><th>Original Words</th><th>Words Typed</th><th>Mistakes</th><th>Mistake%</th><th>Result</th></tr>`;
+        tbodyHtml = sortedResults.map((result, idx) => {
           const rank = idx + 1;
           const mistakes = Number(result.mistakes) || 0;
           const originalWordsNum = result.originalText ? (type === 'shorthand' ? (result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length : stripHtmlPreserveParagraphs(result.originalText || '').split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length) : 0;
           const originalWords = originalWordsNum > 0 ? originalWordsNum : 'N/A';
           const mistakePercentage = originalWordsNum > 0 ? ((mistakes / originalWordsNum) * 100).toFixed(2) : 'N/A';
-
-          return [
-            rank,
-            result.studentName ?? 'Unknown',
-            originalWords,
-            result.words?.toString() || 'N/A',
-            mistakes.toString(),
-            `${mistakePercentage}%`,
-            result.result || 'N/A',
-          ];
-        });
+          return `<tr><td>${rank}</td><td>${result.studentName ?? 'Unknown'}</td><td>${originalWords}</td><td>${result.words?.toString() || 'N/A'}</td><td>${mistakes}</td><td>${mistakePercentage}%</td><td>${result.result || 'N/A'}</td></tr>`;
+        }).join('');
       }
 
-      // Generate table using autoTable
-      autoTable(doc, {
-        head: head,
-        body: body,
-        startY: 35,
-        theme: 'grid',
-        tableWidth: 'auto',
-        // Reduce cell padding to make table rows shorter
-        headStyles: {
-          fillColor: [59, 130, 246], // Blue color
-          textColor: 255,
-          fontStyle: 'bold',
-          halign: 'center',
-          cellPadding: 4,
-        } as any,
-        bodyStyles: {
-          textColor: 0,
-          cellPadding: 2,
-        } as any,
-        alternateRowStyles: {
-          fillColor: [242, 242, 242],
-        } as any,
-        columnStyles: {
-          0: { halign: 'center', columnWidth: 10 },
-          1: { halign: 'left', columnWidth: 100 },
-          2: { halign: 'center', columnWidth: 12 },
-          3: { halign: 'center', columnWidth: 12 },
-          4: { halign: 'center', columnWidth: 12 },
-          5: { halign: 'center', columnWidth: 12 },
-          6: { halign: 'center', columnWidth: 12 },
-        } as any,
-        margin: 12,
-        didDrawPage: (data: any) => {
-          // Footer
-          const pageCount = (doc as any).internal.pages.length;
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.text(
-            `Page ${data.pageNumber} of ${pageCount}`,
-            pageWidth / 2,
-            pageHeight - 10,
-            { align: 'center' }
-          );
-        },
-      });
+      const printHtml = `<!DOCTYPE html><html><head><title>${title}</title><style>
+        body { font-family: Arial, sans-serif; padding: 10px; color: #000; }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4 landscape; margin: 10mm; } }
+        h1 { font-size: 16px; text-align: center; margin: 0 0 2px 0; }
+        p.sub { text-align: center; font-size: 10px; color: #555; margin: 0 0 4px 0; }
+        h2 { font-size: 14px; text-align: center; margin: 0 0 4px 0; }
+        .meta { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th { background-color: #3b82f6; color: #fff; padding: 5px 4px; text-align: center; border: 1px solid #ddd; }
+        td { padding: 3px 4px; border: 1px solid #ddd; text-align: center; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        td:nth-child(2) { text-align: left; }
+      </style></head><body>
+        <h1>Pragati Institute of Professional Studies</h1>
+        <p class="sub">Prayagraj | Email: pragatiprofessionalstudies@gmail.com | Phone: +91 9026212705</p>
+        <hr/>
+        <h2>${title}</h2>
+        <div class="meta"><span>Generated on: ${new Date().toLocaleString()}</span><span>Total Students: ${sortedResults.length}</span></div>
+        <table><thead>${theadHtml}</thead><tbody>${tbodyHtml}</tbody></table>
+      </body></html>`;
 
-      // Save PDF with timestamp
-      const filename = `${type}_results_${new Date().toISOString().slice(0, 10)}_${Date.now()}.pdf`;
-      doc.save(filename);
-      
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+      document.body.appendChild(iframe);
+      const iframeDoc = iframe.contentWindow?.document;
+      if (iframeDoc) {
+        iframeDoc.open(); iframeDoc.write(printHtml); iframeDoc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 60000);
+        }, 400);
+      }
+
       toast({
         title: "Success",
         description: `Downloaded ${sortedResults.length} results as PDF.`,
