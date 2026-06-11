@@ -1892,7 +1892,7 @@ export default function AdminDashboard() {
 
       const printHtml = `<!DOCTYPE html><html><head><title>${title}</title><style>
         body { font-family: Arial, sans-serif; padding: 10px; color: #000; }
-        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4 landscape; margin: 10mm; } }
+        @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4 portrait; margin: 10mm; } }
         h1 { font-size: 16px; text-align: center; margin: 0 0 2px 0; }
         p.sub { text-align: center; font-size: 10px; color: #555; margin: 0 0 4px 0; }
         h2 { font-size: 14px; text-align: center; margin: 0 0 4px 0; }
