@@ -688,7 +688,7 @@ export default function StudentDashboard() {
             value="allahabad-hc_tests"
             className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
-            <Keyboard className="h-4 w-4" /> Allahabad HC
+            <Keyboard className="h-4 w-4" /> Alld HC Typing
           </TabsTrigger>
           <TabsTrigger
             value="results"
