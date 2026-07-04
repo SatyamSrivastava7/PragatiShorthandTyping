@@ -1,0 +1,2 @@
+- [Text comparison architecture](text-comparison-architecture.md) — one shared normalizeForComparison/alignment pipeline powers all test types (typing/shorthand/allahabad-hc/pitman), scoring, review, and PDF.
+- [Regenerate-results script flags](regenerate-results-script.md) — server/scripts/regenerate-results.ts supports --hindi/--english and --limit=N flags for targeted metric recalculation.

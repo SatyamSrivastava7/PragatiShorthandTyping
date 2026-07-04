@@ -13,7 +13,7 @@
 
 import { db } from "../db";
 import { results, content } from "../../shared/schema";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 const PARA_TOKEN = '[[PARA]]';
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
@@ -659,27 +659,46 @@ async function regenerateResults() {
   // Parse CLI flags. Examples:
   //   --shorthand           -> only shorthand
   //   --allahabad-hc        -> only allahabad-hc
+  //   --hindi / --english   -> restrict to a language
+  //   --limit=100           -> override the per-type row limit (default 50)
   //   (no args)             -> typing, shorthand, pitman (default behaviour)
   const args = process.argv.slice(2);
   const allTypes = ["typing", "shorthand", "pitman", "allahabad-hc"];
   const flagged = allTypes.filter((t) => args.includes(`--${t}`));
   const testTypes = flagged.length > 0 ? flagged : ["typing", "shorthand", "pitman"];
 
-  console.log(`Regenerating results for: ${testTypes.join(", ")}\n`);
+  const languageArg = args.includes("--hindi")
+    ? "hindi"
+    : args.includes("--english")
+    ? "english"
+    : null;
+
+  const limitArg = args.find((a) => a.startsWith("--limit="));
+  const rowLimit = limitArg ? parseInt(limitArg.split("=")[1], 10) : 50;
+
+  console.log(
+    `Regenerating results for: ${testTypes.join(", ")}` +
+      (languageArg ? ` (language: ${languageArg})` : "") +
+      ` [limit: ${rowLimit} per type]\n`
+  );
 
   let totalUpdated = 0;
   let totalSkipped = 0;
 
   for (const testType of testTypes) {
     console.log(`\n=== Processing ${testType} tests ===`);
-    
-    // Get latest 50 results of this type (ordered by submitted_at DESC = latest first)
+
+    const whereClause = languageArg
+      ? and(eq(results.contentType, testType), eq(results.language, languageArg))
+      : eq(results.contentType, testType);
+
+    // Get latest N results of this type (ordered by submitted_at DESC = latest first)
     const testResults = await db
       .select()
       .from(results)
-      .where(eq(results.contentType, testType))
+      .where(whereClause)
       .orderBy(desc(results.submittedAt))
-      .limit(50);
+      .limit(rowLimit);
 
     console.log(`Found ${testResults.length} ${testType} results to process.`);
 
