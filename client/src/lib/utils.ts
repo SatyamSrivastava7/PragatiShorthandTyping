@@ -93,6 +93,10 @@ const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
 // - Quotes: " (left double U+201C), " (right double U+201D), ' (left single U+2018), ' (right single U+2019), etc.
 function normalizeForComparison(text: string): string {
   return text
+    .normalize("NFC") // Canonicalize Unicode composition (e.g. Devanagari matras/conjuncts
+                       // that are visually identical but encoded with different code point
+                       // sequences — without this, correctly typed Hindi words like
+                       // "उद्योगों" can be wrongly marked as mistakes)
     .replace(/\.\.\./g, "…") // Normalize three dots to unicode ellipsis
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-") // Normalize all dash-like characters to hyphen
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"') // Normalize curved/smart double quotes to straight quote

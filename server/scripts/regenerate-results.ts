@@ -58,6 +58,7 @@ function stripHtmlPreserveParagraphs(html: string): string {
 
 function normalizeForComparison(text: string): string {
   return text
+    .normalize("NFC")
     .replace(/\.\.\./g, "…")
     .replace(/[\u2010-\u2015\u2212\u2E3A\u2E3B\uFE58\uFE63\uFF0D]/g, "-")
     .replace(/[\u201C\u201D\u00AB\u00BB\uFF02]/g, '"')
