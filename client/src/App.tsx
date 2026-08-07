@@ -36,14 +36,14 @@ function TestRouter() {
   }
 
   // Route to appropriate test page based on type
-  if (testContent?.type === 'pitman') {
+  if (testContent?.type === 'pitman' || testContent?.type === 'high-court-pitman') {
     return <PitmanTestPage />;
   }
   if (testContent?.type === 'allahabad-hc') {
     return <AllahabadHCTestPage />;
   }
 
-  // Default to typing/shorthand test page for typing and shorthand types
+  // Default to typing/shorthand test page for typing, shorthand, and high-court types
   return <TypingTestPage />;
 }
 

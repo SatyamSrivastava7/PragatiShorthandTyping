@@ -75,7 +75,7 @@ export default function StudentDashboard() {
     try {
       const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
       const tab = params.get('tab');
-      return tab && ['typing_tests', 'shorthand_tests', 'pitman_tests', 'allahabad-hc_tests', 'results', 'store'].includes(tab) 
+      return tab && ['typing_tests', 'shorthand_tests', 'pitman_tests', 'allahabad-hc_tests', 'high-court_tests', 'results', 'store'].includes(tab) 
         ? tab 
         : 'typing_tests';
     } catch {
@@ -138,6 +138,7 @@ export default function StudentDashboard() {
   const [shorthandSearch, setShorthandSearch] = useState("");
   const [pitmanSearch, setPitmanSearch] = useState("");
   const [allahabadHCSearch, setAllahabadHCSearch] = useState("");
+  const [highCourtSearch, setHighCourtSearch] = useState("");
   
   // Selected video speeds per test for shorthand
   const [selectedVideoSpeeds, setSelectedVideoSpeeds] = useState<Record<number, string>>({}); // testId -> speed (60, 80, 100, 120)
@@ -147,6 +148,10 @@ export default function StudentDashboard() {
   const [selectedShorthandLanguage, setSelectedShorthandLanguage] = useState<string | null>(null);
   const [selectedPitmanLanguage, setSelectedPitmanLanguage] = useState<string | null>(null);
   const [selectedAllahabadHCLanguage, setSelectedAllahabadHCLanguage] = useState<string | null>(null);
+  // High Court: 3-level navigation: language → test type → folder → tests
+  const [selectedHighCourtLanguage, setSelectedHighCourtLanguage] = useState<string | null>(null);
+  const [selectedHighCourtTestType, setSelectedHighCourtTestType] = useState<string | null>(null);
+  const [selectedHighCourtFolderId, setSelectedHighCourtFolderId] = useState<number | null | undefined>(undefined);
   
   // Selected folder per test type (null = show folders, number = show tests in that folder, undefined = no folder filter)
   const [selectedTypingFolderId, setSelectedTypingFolderId] = useState<number | null | undefined>(undefined);
@@ -175,6 +180,9 @@ export default function StudentDashboard() {
   const shorthandFoldersQuery = useLatestTestFolders(selectedShorthandLanguage || 'english', 6, 'shorthand');
   const pitmanFoldersQuery = useLatestTestFolders(selectedPitmanLanguage || 'english', 6, 'pitman');
   const allahabadHCFoldersQuery = useLatestTestFolders(selectedAllahabadHCLanguage || 'english', 6, 'allahabad-hc');
+  const highCourtTypingFoldersQuery = useLatestTestFolders(selectedHighCourtLanguage || 'english', 6, 'high-court-typing');
+  const highCourtShorthandFoldersQuery = useLatestTestFolders(selectedHighCourtLanguage || 'english', 6, 'high-court-shorthand');
+  const highCourtPitmanFoldersQuery = useLatestTestFolders(selectedHighCourtLanguage || 'english', 6, 'high-court-pitman');
 
   // Typing: useInfiniteQuery per folder (only fetch when folder is selected, not just language)
   const typingQuery = useInfiniteQuery({
@@ -252,6 +260,61 @@ export default function StudentDashboard() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // High Court: useInfiniteQuery per content type / folder
+  const highCourtTypingQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'high-court-typing', selectedHighCourtLanguage, selectedHighCourtFolderId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({
+        type: 'high-court-typing',
+        language: selectedHighCourtLanguage || 'english',
+        folderId: selectedHighCourtFolderId || undefined,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'high-court_tests' && selectedHighCourtTestType === 'high-court-typing' && !!selectedHighCourtLanguage && selectedHighCourtFolderId !== undefined,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const highCourtShorthandQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'high-court-shorthand', selectedHighCourtLanguage, selectedHighCourtFolderId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({
+        type: 'high-court-shorthand',
+        language: selectedHighCourtLanguage || 'english',
+        folderId: selectedHighCourtFolderId || undefined,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'high-court_tests' && selectedHighCourtTestType === 'high-court-shorthand' && !!selectedHighCourtLanguage && selectedHighCourtFolderId !== undefined,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const highCourtPitmanQuery = useInfiniteQuery({
+    queryKey: ['content', 'enabled', 'list', 'high-court-pitman', selectedHighCourtLanguage, selectedHighCourtFolderId],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).contentApi.getEnabledList({
+        type: 'high-court-pitman',
+        language: selectedHighCourtLanguage || 'english',
+        folderId: selectedHighCourtFolderId || undefined,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+      });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'high-court_tests' && selectedHighCourtTestType === 'high-court-pitman' && !!selectedHighCourtLanguage && selectedHighCourtFolderId !== undefined,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+  });
+
   // paging is handled by react-query `useInfiniteQuery` (typingQuery, shorthandQuery, pitmanQuery)
 
   // Results: counts and paged lists (5 per page) for typing and shorthand
@@ -314,8 +377,47 @@ export default function StudentDashboard() {
     initialPageParam: 0,
     enabled: activeTab === 'results' && !!currentUser?.id,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 15, // 15 minutes
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 15,
+  });
+
+  const highCourtTypingResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'high-court-typing', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'high-court-typing', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 15,
+  });
+
+  const highCourtShorthandResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'high-court-shorthand', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'high-court-shorthand', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 15,
+  });
+
+  const highCourtPitmanResultsQuery = useInfiniteQuery({
+    queryKey: ['results', 'paged', 'high-court-pitman', currentUser?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await (await import('@/lib/api')).resultsApi.getPaged({ studentId: currentUser?.id, type: 'high-court-pitman', limit: PAGE_SIZE_RESULTS, offset: pageParam });
+      return res;
+    },
+    initialPageParam: 0,
+    enabled: activeTab === 'results' && !!currentUser?.id,
+    getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 15,
   });
 
   // When selection or active tab changes, react-query handles fetching (enabled flag)
@@ -501,6 +603,10 @@ export default function StudentDashboard() {
   const typingResultsCount = (resultsCountsQuery.data?.typing) ?? 0;
   const shorthandResultsCount = resultsCountsQuery.data?.shorthand ?? 0;
   const pitmanResultsCount = resultsCountsQuery.data?.pitman ?? 0;
+  const highCourtTypingResultsCount = (resultsCountsQuery.data as any)?.['high-court-typing'] ?? 0;
+  const highCourtShorthandResultsCount = (resultsCountsQuery.data as any)?.['high-court-shorthand'] ?? 0;
+  const highCourtPitmanResultsCount = (resultsCountsQuery.data as any)?.['high-court-pitman'] ?? 0;
+  const highCourtResultsCount = highCourtTypingResultsCount + highCourtShorthandResultsCount + highCourtPitmanResultsCount;
 
   // Fetch lightweight counts for UI (avoid fetching full lists just for counts)
   const countsQuery = useQuery({
@@ -665,7 +771,7 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-        <TabsList className="grid w-full grid-cols-6 mb-8 bg-gradient-to-r from-slate-100 to-slate-50 shadow-md border border-slate-200 p-2 rounded-xl h-auto gap-2">
+        <TabsList className="grid w-full grid-cols-7 mb-8 bg-gradient-to-r from-slate-100 to-slate-50 shadow-md border border-slate-200 p-2 rounded-xl h-auto gap-2">
           <TabsTrigger
             value="typing_tests"
             className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
@@ -689,6 +795,12 @@ export default function StudentDashboard() {
             className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
           >
             <Keyboard className="h-4 w-4" /> Alld HC Typing
+          </TabsTrigger>
+          <TabsTrigger
+            value="high-court_tests"
+            className="rounded-lg py-3 px-2 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white text-gray-700 data-[state=active]:shadow-lg transition-all font-semibold data-[state=inactive]:hover:bg-slate-200"
+          >
+            <Award className="h-4 w-4" /> High Court
           </TabsTrigger>
           <TabsTrigger
             value="results"
@@ -1531,6 +1643,277 @@ export default function StudentDashboard() {
           )}
         </TabsContent>
 
+        {/* ===== HIGH COURT TAB ===== */}
+        <TabsContent value="high-court_tests">
+          <div className="mb-6">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-3 bg-amber-100 rounded-lg">
+                  <Award className="h-6 w-6 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xl text-gray-900">High Court Tests</h3>
+                  <p className="text-sm text-gray-600">
+                    {!selectedHighCourtLanguage
+                      ? 'Select a language to continue'
+                      : !selectedHighCourtTestType
+                      ? `${selectedHighCourtLanguage.toUpperCase()} – Select test type`
+                      : selectedHighCourtFolderId === undefined
+                      ? `${selectedHighCourtLanguage.toUpperCase()} – Select folder`
+                      : `${selectedHighCourtLanguage.toUpperCase()} – ${
+                          selectedHighCourtTestType === 'high-court-typing' ? 'Typing Test'
+                          : selectedHighCourtTestType === 'high-court-shorthand' ? 'Shorthand Test'
+                          : 'Pitman Test'
+                        }`}
+                  </p>
+                </div>
+              </div>
+              {selectedHighCourtTestType && selectedHighCourtFolderId !== undefined && (
+                <div className="relative w-72">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search tests..."
+                    value={highCourtSearch}
+                    onChange={(e) => setHighCourtSearch(e.target.value)}
+                    className="pl-10 bg-white shadow-sm border-gray-300"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Level 1: Language selection */}
+          {!selectedHighCourtLanguage ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {['english', 'hindi'].map((lang) => (
+                <div
+                  key={lang}
+                  onClick={() => {
+                    setSelectedHighCourtLanguage(lang);
+                    setSelectedHighCourtTestType(null);
+                    setSelectedHighCourtFolderId(undefined);
+                  }}
+                  className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                >
+                  <Folder className="h-12 w-12 text-amber-500 fill-amber-100" />
+                  <span className="font-medium text-center capitalize">{lang.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
+
+          ) : !selectedHighCourtTestType ? (
+            /* Level 2: Test type selection */
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" onClick={() => setSelectedHighCourtLanguage(null)}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h4 className="text-sm font-semibold capitalize">{selectedHighCourtLanguage} – Select Test Type</h4>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {[
+                  { type: 'high-court-typing', label: 'Typing Test', folderColor: 'text-blue-500 fill-blue-100' },
+                  { type: 'high-court-shorthand', label: 'Shorthand Test', folderColor: 'text-orange-500 fill-orange-100' },
+                  { type: 'high-court-pitman', label: 'Pitman Test', folderColor: 'text-red-500 fill-red-100' },
+                ].map(({ type, label, folderColor }) => (
+                  <div
+                    key={type}
+                    onClick={() => {
+                      setSelectedHighCourtTestType(type);
+                      setSelectedHighCourtFolderId(undefined);
+                    }}
+                    className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <Folder className={`h-12 w-12 ${folderColor}`} />
+                    <span className="font-medium text-center">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          ) : selectedHighCourtFolderId === undefined ? (
+            /* Level 3: Folder selection */
+            (() => {
+              const activeFoldersQuery =
+                selectedHighCourtTestType === 'high-court-typing' ? highCourtTypingFoldersQuery
+                : selectedHighCourtTestType === 'high-court-shorthand' ? highCourtShorthandFoldersQuery
+                : highCourtPitmanFoldersQuery;
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedHighCourtTestType(null)}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedHighCourtLanguage} – {
+                        selectedHighCourtTestType === 'high-court-typing' ? 'Typing Test'
+                        : selectedHighCourtTestType === 'high-court-shorthand' ? 'Shorthand Test'
+                        : 'Pitman Test'
+                      } – Select Folder
+                    </h4>
+                  </div>
+                  {activeFoldersQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+                      <span className="ml-3 text-muted-foreground">Loading folders...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div
+                          onClick={() => setSelectedHighCourtFolderId(null)}
+                          className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors bg-amber-50/50"
+                        >
+                          <Folder className="h-12 w-12 text-amber-600 fill-amber-200" />
+                          <span className="font-medium text-center text-sm">All Tests</span>
+                        </div>
+                        {((activeFoldersQuery.data?.pages || []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...page], [])
+                          .map((folder: any) => (
+                            <div
+                              key={folder.id}
+                              onClick={() => setSelectedHighCourtFolderId(folder.id)}
+                              className="cursor-pointer border rounded-lg p-6 flex flex-col items-center justify-center gap-3 hover:bg-muted/50 transition-colors"
+                            >
+                              <Folder className="h-12 w-12 text-amber-500 fill-amber-100" />
+                              <span className="font-medium text-center text-sm">{folder.name}</span>
+                            </div>
+                          ))}
+                      </div>
+                      {activeFoldersQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button
+                            onClick={() => activeFoldersQuery.fetchNextPage()}
+                            disabled={activeFoldersQuery.isFetchingNextPage}
+                            variant="outline"
+                          >
+                            {activeFoldersQuery.isFetchingNextPage ? 'Loading more folders...' : 'Load More Folders'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()
+
+          ) : (
+            /* Level 4: Tests list */
+            (() => {
+              const activeContentQuery =
+                selectedHighCourtTestType === 'high-court-typing' ? highCourtTypingQuery
+                : selectedHighCourtTestType === 'high-court-shorthand' ? highCourtShorthandQuery
+                : highCourtPitmanQuery;
+              const activeFoldersQuery =
+                selectedHighCourtTestType === 'high-court-typing' ? highCourtTypingFoldersQuery
+                : selectedHighCourtTestType === 'high-court-shorthand' ? highCourtShorthandFoldersQuery
+                : highCourtPitmanFoldersQuery;
+              const accentFrom =
+                selectedHighCourtTestType === 'high-court-typing' ? 'from-blue-500 to-blue-600'
+                : selectedHighCourtTestType === 'high-court-shorthand' ? 'from-orange-500 to-orange-600'
+                : 'from-red-500 to-red-600';
+              const badgeColor =
+                selectedHighCourtTestType === 'high-court-typing' ? 'bg-blue-100 text-blue-700'
+                : selectedHighCourtTestType === 'high-court-shorthand' ? 'bg-orange-100 text-orange-700'
+                : 'bg-red-100 text-red-700';
+              const testTypeLabel =
+                selectedHighCourtTestType === 'high-court-typing' ? 'Typing Test'
+                : selectedHighCourtTestType === 'high-court-shorthand' ? 'Shorthand Test'
+                : 'Pitman Test';
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedHighCourtFolderId(undefined)}>
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <h4 className="text-sm font-semibold capitalize">
+                      {selectedHighCourtLanguage} – {testTypeLabel}
+                      {selectedHighCourtFolderId !== null
+                        ? ` – ${((activeFoldersQuery.data?.pages || []) as any[]).reduce((acc: any[], page: any[]) => [...acc, ...page], []).find((f: any) => f.id === selectedHighCourtFolderId)?.name || 'Folder'}`
+                        : ' – All Tests'}
+                    </h4>
+                  </div>
+                  {activeContentQuery.isLoading ? (
+                    <div className="flex items-center justify-center p-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+                      <span className="ml-3 text-muted-foreground">Loading tests...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                        {activeContentQuery.isError ? (
+                          <div className="col-span-full text-center py-8">
+                            <p className="text-destructive mb-2">Failed to load tests</p>
+                            <p className="text-sm text-muted-foreground">{activeContentQuery.error instanceof Error ? activeContentQuery.error.message : 'Unknown error'}</p>
+                          </div>
+                        ) : ((activeContentQuery.data?.pages ?? []) as any[])
+                          .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
+                          .filter((t: any) => t && ((t.language || 'english').toString().toLowerCase()) === (selectedHighCourtLanguage || 'english'))
+                          .filter((t: any) => selectedHighCourtFolderId === null ? true : t.folderId === selectedHighCourtFolderId)
+                          .filter((t: any) => t.title && t.title.toLowerCase().includes(highCourtSearch.toLowerCase()))
+                          .map((test: any) => {
+                            if (!test || !test.id) return null;
+                            const result = getResultForContent(test.id?.toString());
+                            const isCompleted = !!result;
+                            return (
+                              <Card key={test.id} className="flex flex-col border-0 shadow-md hover:shadow-lg transition-all overflow-hidden group">
+                                <div className={`h-2 bg-gradient-to-r ${accentFrom}`} />
+                                <CardHeader className="pb-3">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <CardTitle className="text-lg leading-tight">{test.title}</CardTitle>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 capitalize ${badgeColor}`}>
+                                      {test.language || 'English'}
+                                    </span>
+                                  </div>
+                                  <CardDescription className="text-xs text-muted-foreground mt-2">
+                                    {format(new Date(test.dateFor), 'PPP')}
+                                  </CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1 pb-4">
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-muted-foreground flex items-center gap-2">
+                                        <Clock className="h-4 w-4" /> Duration
+                                      </span>
+                                      <span className="font-semibold">{test.duration} min</span>
+                                    </div>
+                                    {isCompleted && (
+                                      <div className="flex items-center justify-between text-sm">
+                                        <span className="text-muted-foreground flex items-center gap-2">
+                                          <CheckCircle className="h-4 w-4 text-green-600" /> Status
+                                        </span>
+                                        <span className="font-semibold text-green-600">Completed</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </CardContent>
+                                <CardFooter className="pt-4 border-t bg-slate-50">
+                                  <Button
+                                    className={`w-full bg-gradient-to-r ${accentFrom} shadow-md group-hover:shadow-lg transition-shadow`}
+                                    onClick={() => setLocation(`/test/${test.id}`)}
+                                  >
+                                    <PlayCircle className="mr-2 h-4 w-4" /> Start Test
+                                  </Button>
+                                </CardFooter>
+                              </Card>
+                            );
+                          })}
+                      </div>
+                      {activeContentQuery.hasNextPage && (
+                        <div className="flex justify-center mt-4">
+                          <Button onClick={() => activeContentQuery.fetchNextPage()} disabled={activeContentQuery.isFetchingNextPage}>
+                            {activeContentQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()
+          )}
+        </TabsContent>
+
         <TabsContent value="results">
           <div className="mb-6">
             <div className="flex items-center gap-4">
@@ -1545,7 +1928,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <Card className="border-0 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
@@ -1585,15 +1968,28 @@ export default function StudentDashboard() {
                 </div>
               </CardContent>
             </Card>
+            <Card className="border-0 shadow-md bg-gradient-to-br from-amber-500 to-amber-600 text-white hover:shadow-lg transition-shadow">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-amber-100 font-medium">High Court</p>
+                    <p className="text-3xl font-bold mt-1">{highCourtResultsCount}</p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <Award className="h-6 w-6" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             <Card className="border-0 shadow-md bg-gradient-to-br from-green-500 to-green-600 text-white hover:shadow-lg transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-100 font-medium">Total Results</p>
-                    <p className="text-3xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
+                    <p className="text-3xl font-bold mt-1">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount + highCourtResultsCount)}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-xl">
-                    <Award className="h-6 w-6" />
+                    <BarChart className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
@@ -1604,7 +2000,7 @@ export default function StudentDashboard() {
             <CardContent className="p-0">
               <Tabs defaultValue="typing_results" className="w-full">
                 <div className="px-6 pt-4 border-b bg-slate-50">
-                  <TabsList className="bg-white shadow-sm">
+                  <TabsList className="bg-white shadow-sm flex-wrap h-auto gap-1">
                     <TabsTrigger value="typing_results" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
                       <Keyboard className="h-4 w-4 mr-2" /> Typing Results
                     </TabsTrigger>
@@ -1614,14 +2010,30 @@ export default function StudentDashboard() {
                     <TabsTrigger value="pitman_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
                       <BookOpen className="h-4 w-4 mr-2" /> Pitman Results
                     </TabsTrigger>
-                    <TabsTrigger value="allahabad-hc_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                    <TabsTrigger value="allahabad-hc_results" className="data-[state=active]:bg-violet-100 data-[state=active]:text-violet-700">
                       <Keyboard className="h-4 w-4 mr-2" /> Allahabad HC Results
+                    </TabsTrigger>
+                    <TabsTrigger value="high-court-typing_results" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
+                      <Keyboard className="h-4 w-4 mr-2" /> HC Typing
+                    </TabsTrigger>
+                    <TabsTrigger value="high-court-shorthand_results" className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
+                      <Mic className="h-4 w-4 mr-2" /> HC Shorthand
+                    </TabsTrigger>
+                    <TabsTrigger value="high-court-pitman_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
+                      <BookOpen className="h-4 w-4 mr-2" /> HC Pitman
                     </TabsTrigger>
                   </TabsList>
                 </div>
 
-                {["typing", "shorthand", "pitman", "allahabad-hc"].map((type) => {
-                  const resultsQuery = type === 'typing' ? typingResultsQuery : type === 'shorthand' ? shorthandResultsQuery : type === 'pitman' ? pitmanResultsQuery : allahabadHCResultsQuery;
+                {["typing", "shorthand", "pitman", "allahabad-hc", "high-court-typing", "high-court-shorthand", "high-court-pitman"].map((type) => {
+                  const resultsQuery =
+                    type === 'typing' ? typingResultsQuery
+                    : type === 'shorthand' ? shorthandResultsQuery
+                    : type === 'pitman' ? pitmanResultsQuery
+                    : type === 'allahabad-hc' ? allahabadHCResultsQuery
+                    : type === 'high-court-typing' ? highCourtTypingResultsQuery
+                    : type === 'high-court-shorthand' ? highCourtShorthandResultsQuery
+                    : highCourtPitmanResultsQuery;
                   const pages = resultsQuery.data?.pages ?? [];
                   const flatResults = pages.flat();
 
