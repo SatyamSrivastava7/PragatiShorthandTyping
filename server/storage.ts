@@ -9,6 +9,7 @@ import {
   galleryImages,
   settings,
   notices,
+  sessions,
   type User, 
   type InsertUser,
   type Content,
@@ -29,6 +30,8 @@ import {
   type InsertSetting,
   type Notice,
   type InsertNotice,
+  type Session,
+  type InsertSession,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, lt } from "drizzle-orm";
@@ -118,6 +121,13 @@ export interface IStorage {
   getAllNotices(): Promise<Notice[]>;
   updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined>;
   deleteNotice(id: number): Promise<boolean>;
+  
+  // Session methods (minimal - only what's needed)
+  createSession(session: InsertSession): Promise<Session>;
+  getSessionByUserId(userId: number): Promise<Session | undefined>;
+  deleteSession(sessionId: string): Promise<boolean>;
+  deleteSessionsByUserId(userId: number): Promise<boolean>;
+  updateSessionActivity(sessionId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -236,7 +246,7 @@ export class DatabaseStorage implements IStorage {
       language: content.language,
       createdAt: content.createdAt,
       folderId: content.folderId,
-    }).from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt)) as any;
+    }).from(content).where(eq(content.isEnabled, true)).orderBy(sql`${content.dateFor}::date DESC`) as any;
   }
 
   async getEnabledContentListPaged(type?: string, language?: string, folderId?: number, limit?: number, offset?: number): Promise<Omit<Content, 'text' | 'mediaUrl' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]> {
@@ -265,8 +275,9 @@ export class DatabaseStorage implements IStorage {
 
     const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
 
-    // Build base query
-    let q: any = db.select(columns).from(content).where(whereClause).orderBy(desc(content.createdAt));
+    // Build base query - sort by dateFor as DATE in descending order (latest first)
+    // Cast varchar dateFor to DATE type to ensure proper chronological sorting
+    let q: any = db.select(columns).from(content).where(whereClause).orderBy(sql`${content.dateFor}::date DESC`);
 
     // Only apply limit/offset when they are finite numbers
     if (Number.isFinite(limit as number)) {
@@ -280,7 +291,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getEnabledContent(): Promise<Content[]> {
-    return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(desc(content.createdAt));
+    return await db.select().from(content).where(eq(content.isEnabled, true)).orderBy(sql`${content.dateFor}::date DESC`);
   }
 
   async getResultsPaged(type?: string, studentId?: number, limit?: number, offset?: number): Promise<Result[]> {
@@ -753,6 +764,38 @@ export class DatabaseStorage implements IStorage {
 
   async deleteNotice(id: number): Promise<boolean> {
     const result = await db.delete(notices).where(eq(notices.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  // Session methods (minimal - only what's needed)
+  async createSession(session: InsertSession): Promise<Session> {
+    const [result] = await db.insert(sessions).values(session).returning();
+    return result;
+  }
+  
+  async getSessionByUserId(userId: number): Promise<Session | undefined> {
+    const [result] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.userId, userId));
+    return result;
+  }
+  
+  async deleteSession(sessionId: string): Promise<boolean> {
+    const result = await db.delete(sessions).where(eq(sessions.sessionId, sessionId));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  async deleteSessionsByUserId(userId: number): Promise<boolean> {
+    const result = await db.delete(sessions).where(eq(sessions.userId, userId));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  async updateSessionActivity(sessionId: string): Promise<boolean> {
+    const result = await db
+      .update(sessions)
+      .set({ lastActivityTime: new Date() })
+      .where(eq(sessions.sessionId, sessionId));
     return result.rowCount ? result.rowCount > 0 : false;
   }
 }

@@ -540,21 +540,21 @@ export default function StudentDashboard() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" /> : (countsQuery.data?.typing ?? 0)}</p>
-              <p className="text-xs text-blue-100">Typing Tests</p>
+          <div className="flex flex-wrap gap-3">
+            <div className="bg-white/20 rounded-xl px-4 py-3 text-center min-w-[80px]">
+              <p className="text-xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-blue-500" /> : (countsQuery.data?.typing ?? 0)}</p>
+              <p className="text-xs text-blue-100">Typing</p>
             </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-500" /> : (countsQuery.data?.shorthand ?? 0)}</p>
+            <div className="bg-white/20 rounded-xl px-4 py-3 text-center min-w-[80px]">
+              <p className="text-xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-orange-500" /> : (countsQuery.data?.shorthand ?? 0)}</p>
               <p className="text-xs text-blue-100">Shorthand</p>
             </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.pitman ?? 0)}</p>
-              <p className="text-xs text-blue-100">Pitman Exercise</p>
+            <div className="bg-white/20 rounded-xl px-4 py-3 text-center min-w-[80px]">
+              <p className="text-xl font-bold">{countsQuery.isLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-red-500" /> : (countsQuery.data?.pitman ?? 0)}</p>
+              <p className="text-xs text-blue-100">Pitman</p>
             </div>
-            <div className="bg-white/20 rounded-xl px-5 py-3 text-center min-w-[100px]">
-              <p className="text-2xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
+            <div className="bg-white/20 rounded-xl px-4 py-3 text-center min-w-[80px]">
+              <p className="text-xl font-bold">{(typingResultsCount + shorthandResultsCount + pitmanResultsCount)}</p>
               <p className="text-xs text-blue-100">Results</p>
             </div>
             {(() => {
@@ -594,42 +594,44 @@ export default function StudentDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+        <div className="overflow-x-auto mb-6">
+        <TabsList className="grid w-full grid-cols-5 min-w-[560px] bg-white shadow-md border p-1.5 rounded-xl h-auto">
           <TabsTrigger
             value="typing_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-2 gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium text-xs sm:text-sm"
           >
-            <Keyboard className="h-4 w-4" /> Typing Tests
+            <Keyboard className="h-4 w-4 shrink-0" /> <span>Typing Tests</span>
           </TabsTrigger>
           <TabsTrigger
             value="shorthand_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-2 gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium text-xs sm:text-sm"
           >
-            <Mic className="h-4 w-4" /> Shorthand
+            <Mic className="h-4 w-4 shrink-0" /> <span>Shorthand</span>
           </TabsTrigger>
           <TabsTrigger
             value="pitman_tests"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-2 gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium text-xs sm:text-sm"
           >
-            <BookOpen className="h-4 w-4" /> Pitman Exercise
+            <BookOpen className="h-4 w-4 shrink-0" /> <span>Pitman</span>
           </TabsTrigger>
           <TabsTrigger
             value="results"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-2 gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium text-xs sm:text-sm"
           >
-            <BarChart className="h-4 w-4" /> My Results
+            <BarChart className="h-4 w-4 shrink-0" /> <span>My Results</span>
           </TabsTrigger>
           <TabsTrigger
             value="store"
-            className="rounded-lg py-2.5 gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+            className="rounded-lg py-2 gap-1.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium text-xs sm:text-sm"
           >
-            <BookOpen className="h-4 w-4" /> PDF Store
+            <BookOpen className="h-4 w-4 shrink-0" /> <span>PDF Store</span>
           </TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="typing_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Keyboard className="h-5 w-5 text-blue-600" />
@@ -639,8 +641,8 @@ export default function StudentDashboard() {
                   <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.typing ?? 0} tests available`}</p>
                 </div>
               </div>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tests..."
                   value={typingSearch}
@@ -820,7 +822,7 @@ export default function StudentDashboard() {
 
         <TabsContent value="shorthand_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 rounded-lg">
                   <Mic className="h-5 w-5 text-orange-600" />
@@ -830,8 +832,8 @@ export default function StudentDashboard() {
                   <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.shorthand ?? 0} tests available`}</p>
                 </div>
               </div>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tests..."
                   value={shorthandSearch}
@@ -1055,7 +1057,7 @@ export default function StudentDashboard() {
 
         <TabsContent value="pitman_tests">
           <div className="mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-100 rounded-lg">
                   <BookOpen className="h-5 w-5 text-red-600" />
@@ -1065,8 +1067,8 @@ export default function StudentDashboard() {
                   <p className="text-sm text-muted-foreground">{countsQuery?.isLoading ? 'Loading...' : `${countsQuery?.data?.pitman ?? 0} tests available`}</p>
                 </div>
               </div>
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search tests..."
                   value={pitmanSearch}
