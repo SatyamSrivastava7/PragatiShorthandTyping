@@ -65,6 +65,7 @@ import {
 } from "@/components/ui/select";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { queryClient } from "@/lib/queryClient";
+import { HighCourtResultsPanel, HighCourtStudentArea } from "@/components/high-court/HighCourtStudentPanels";
 
 export default function StudentDashboard() {
   const { user: currentUser } = useAuth();
@@ -274,7 +275,7 @@ export default function StudentDashboard() {
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'high-court_tests' && selectedHighCourtTestType === 'high-court-typing' && !!selectedHighCourtLanguage && selectedHighCourtFolderId !== undefined,
+    enabled: false,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
   });
@@ -292,7 +293,7 @@ export default function StudentDashboard() {
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'high-court_tests' && selectedHighCourtTestType === 'high-court-shorthand' && !!selectedHighCourtLanguage && selectedHighCourtFolderId !== undefined,
+    enabled: false,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
   });
@@ -310,7 +311,7 @@ export default function StudentDashboard() {
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'high-court_tests' && selectedHighCourtTestType === 'high-court-pitman' && !!selectedHighCourtLanguage && selectedHighCourtFolderId !== undefined,
+    enabled: false,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
   });
@@ -388,7 +389,7 @@ export default function StudentDashboard() {
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'results' && !!currentUser?.id,
+    enabled: false,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,
@@ -401,7 +402,7 @@ export default function StudentDashboard() {
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'results' && !!currentUser?.id,
+    enabled: false,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,
@@ -414,7 +415,7 @@ export default function StudentDashboard() {
       return res;
     },
     initialPageParam: 0,
-    enabled: activeTab === 'results' && !!currentUser?.id,
+    enabled: false,
     getNextPageParam: (lastPage: any[], pages: any[][]) => (lastPage.length === PAGE_SIZE_RESULTS ? pages.reduce((acc: number, p: any[]) => acc + p.length, 0) : undefined),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 15,
@@ -1645,6 +1646,9 @@ export default function StudentDashboard() {
 
         {/* ===== HIGH COURT TAB ===== */}
         <TabsContent value="high-court_tests">
+          <HighCourtStudentArea />
+          {false && (
+            <>
           <div className="mb-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 flex-1">
@@ -1657,10 +1661,10 @@ export default function StudentDashboard() {
                     {!selectedHighCourtLanguage
                       ? 'Select a language to continue'
                       : !selectedHighCourtTestType
-                      ? `${selectedHighCourtLanguage.toUpperCase()} – Select test type`
+                      ? `${selectedHighCourtLanguage?.toUpperCase()} – Select test type`
                       : selectedHighCourtFolderId === undefined
-                      ? `${selectedHighCourtLanguage.toUpperCase()} – Select folder`
-                      : `${selectedHighCourtLanguage.toUpperCase()} – ${
+                      ? `${selectedHighCourtLanguage?.toUpperCase()} – Select folder`
+                      : `${selectedHighCourtLanguage?.toUpperCase()} – ${
                           selectedHighCourtTestType === 'high-court-typing' ? 'Typing Test'
                           : selectedHighCourtTestType === 'high-court-shorthand' ? 'Shorthand Test'
                           : 'Pitman Test'
@@ -1844,7 +1848,7 @@ export default function StudentDashboard() {
                         {activeContentQuery.isError ? (
                           <div className="col-span-full text-center py-8">
                             <p className="text-destructive mb-2">Failed to load tests</p>
-                            <p className="text-sm text-muted-foreground">{activeContentQuery.error instanceof Error ? activeContentQuery.error.message : 'Unknown error'}</p>
+                            <p className="text-sm text-muted-foreground">{activeContentQuery.error instanceof Error ? activeContentQuery.error?.message : 'Unknown error'}</p>
                           </div>
                         ) : ((activeContentQuery.data?.pages ?? []) as any[])
                           .reduce((acc: any[], page: any[]) => [...acc, ...(Array.isArray(page) ? page : [])], [])
@@ -1911,6 +1915,8 @@ export default function StudentDashboard() {
                 </div>
               );
             })()
+          )}
+            </>
           )}
         </TabsContent>
 
@@ -2013,27 +2019,22 @@ export default function StudentDashboard() {
                     <TabsTrigger value="allahabad-hc_results" className="data-[state=active]:bg-violet-100 data-[state=active]:text-violet-700">
                       <Keyboard className="h-4 w-4 mr-2" /> Allahabad HC Results
                     </TabsTrigger>
-                    <TabsTrigger value="high-court-typing_results" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
-                      <Keyboard className="h-4 w-4 mr-2" /> HC Typing
-                    </TabsTrigger>
-                    <TabsTrigger value="high-court-shorthand_results" className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700">
-                      <Mic className="h-4 w-4 mr-2" /> HC Shorthand
-                    </TabsTrigger>
-                    <TabsTrigger value="high-court-pitman_results" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
-                      <BookOpen className="h-4 w-4 mr-2" /> HC Pitman
+                    <TabsTrigger value="high-court_results" className="data-[state=active]:bg-amber-100 data-[state=active]:text-amber-800">
+                      <Award className="h-4 w-4 mr-2" /> High Court
                     </TabsTrigger>
                   </TabsList>
                 </div>
 
-                {["typing", "shorthand", "pitman", "allahabad-hc", "high-court-typing", "high-court-shorthand", "high-court-pitman"].map((type) => {
+                <TabsContent value="high-court_results" className="p-6">
+                  <HighCourtResultsPanel />
+                </TabsContent>
+
+                {["typing", "shorthand", "pitman", "allahabad-hc"].map((type) => {
                   const resultsQuery =
                     type === 'typing' ? typingResultsQuery
                     : type === 'shorthand' ? shorthandResultsQuery
                     : type === 'pitman' ? pitmanResultsQuery
-                    : type === 'allahabad-hc' ? allahabadHCResultsQuery
-                    : type === 'high-court-typing' ? highCourtTypingResultsQuery
-                    : type === 'high-court-shorthand' ? highCourtShorthandResultsQuery
-                    : highCourtPitmanResultsQuery;
+                    : allahabadHCResultsQuery;
                   const pages = resultsQuery.data?.pages ?? [];
                   const flatResults = pages.flat();
 

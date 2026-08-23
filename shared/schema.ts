@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, numeric, serial, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, numeric, serial, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -253,6 +253,89 @@ export const insertNoticeSchema = createInsertSchema(notices).omit({
   updatedAt: true,
   isActive: true,
 });
+
+// ==================== HIGH COURT TABLES ====================
+
+// High Court Test Sets (exam folders)
+export const highCourtTestSets = pgTable("high_court_test_sets", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  isEnabledIdx: index("hc_test_sets_is_enabled_idx").on(table.isEnabled),
+  createdAtIdx: index("hc_test_sets_created_at_idx").on(table.createdAt),
+}));
+
+// High Court Tests (individual test papers within a set)
+export const highCourtTests = pgTable("high_court_tests", {
+  id: serial("id").primaryKey(),
+  testSetId: integer("test_set_id").notNull().references(() => highCourtTestSets.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  type: varchar("type", { length: 20 }).notNull(), // 'typing' | 'pitman' | 'shorthand'
+  originalText: text("original_text").notNull(),
+  duration: integer("duration").notNull(), // in minutes
+  pdfFile: text("pdf_file"), // base64 encoded PDF (optional, Pitman only)
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  testSetIdIdx: index("hc_tests_test_set_id_idx").on(table.testSetId),
+  typeIdx: index("hc_tests_type_idx").on(table.type),
+}));
+
+// High Court Attempts (upserted per student+test – latest attempt wins)
+export const highCourtAttempts = pgTable("high_court_attempts", {
+  id: serial("id").primaryKey(),
+  testSetId: integer("test_set_id").notNull().references(() => highCourtTestSets.id, { onDelete: "cascade" }),
+  testId: integer("test_id").notNull().references(() => highCourtTests.id, { onDelete: "cascade" }),
+  studentId: integer("student_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentName: text("student_name").notNull(),
+  studentDisplayId: varchar("student_display_id", { length: 50 }),
+  type: varchar("type", { length: 20 }).notNull(), // 'typing' | 'pitman' | 'shorthand'
+  originalText: text("original_text").notNull(),
+  typedText: text("typed_text").notNull(),
+  fullMistakes: integer("full_mistakes").notNull().default(0),
+  halfMistakes: integer("half_mistakes").notNull().default(0),
+  marks: numeric("marks").notNull(),
+  alignmentData: text("alignment_data"), // JSON string of alignment/error entries
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+}, (table) => ({
+  studentTestIdx: uniqueIndex("hc_attempts_student_test_idx").on(table.studentId, table.testId),
+  testSetIdIdx: index("hc_attempts_test_set_id_idx").on(table.testSetId),
+  studentIdIdx: index("hc_attempts_student_id_idx").on(table.studentId),
+}));
+
+// High Court insert schemas
+export const insertHighCourtTestSetSchema = createInsertSchema(highCourtTestSets).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertHighCourtTestSchema = createInsertSchema(highCourtTests).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  pdfFile: z.string().optional(),
+});
+
+export const insertHighCourtAttemptSchema = createInsertSchema(highCourtAttempts).omit({
+  id: true,
+  submittedAt: true,
+}).extend({
+  marks: z.union([z.string(), z.number()]).transform(val => String(val)),
+  alignmentData: z.string().optional(),
+});
+
+// High Court Types
+export type HighCourtTestSet = typeof highCourtTestSets.$inferSelect;
+export type InsertHighCourtTestSet = z.infer<typeof insertHighCourtTestSetSchema>;
+
+export type HighCourtTest = typeof highCourtTests.$inferSelect;
+export type InsertHighCourtTest = z.infer<typeof insertHighCourtTestSchema>;
+
+export type HighCourtAttempt = typeof highCourtAttempts.$inferSelect;
+export type InsertHighCourtAttempt = z.infer<typeof insertHighCourtAttemptSchema>;
+
+// ==================== END HIGH COURT TABLES ====================
 
 // Types
 export type User = typeof users.$inferSelect;

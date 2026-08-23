@@ -11,6 +11,10 @@ import StudentDashboard from "@/pages/student-dashboard";
 import TypingTestPage from "@/pages/typing-test";
 import PitmanTestPage from "@/pages/pitman-test";
 import AllahabadHCTestPage from "@/pages/allahabad-hc-test";
+import HighCourtAdminPage from "@/pages/high-court-admin";
+import HighCourtTypingTestPage from "@/pages/high-court-typing-test";
+import HighCourtPitmanTestPage from "@/pages/high-court-pitman-test";
+import HighCourtShorthandTestPage from "@/pages/high-court-shorthand-test";
 import LandingPage from "@/pages/landing";
 import ContactPage from "@/pages/contact";
 import { Layout } from "@/components/layout";
@@ -36,14 +40,14 @@ function TestRouter() {
   }
 
   // Route to appropriate test page based on type
-  if (testContent?.type === 'pitman' || testContent?.type === 'high-court-pitman') {
+  if (testContent?.type === 'pitman') {
     return <PitmanTestPage />;
   }
   if (testContent?.type === 'allahabad-hc') {
     return <AllahabadHCTestPage />;
   }
 
-  // Default to typing/shorthand test page for typing, shorthand, and high-court types
+  // Default to the established typing/shorthand page for legacy test content only.
   return <TypingTestPage />;
 }
 
@@ -89,8 +93,20 @@ function Router() {
             <Route path="/admin">
               <PrivateRoute component={AdminDashboard} allowedRoles={['admin']} />
             </Route>
+            <Route path="/admin/high-court">
+              <PrivateRoute component={HighCourtAdminPage} allowedRoles={['admin']} />
+            </Route>
             <Route path="/student">
               <PrivateRoute component={StudentDashboard} allowedRoles={['student']} />
+            </Route>
+            <Route path="/high-court/typing/:id">
+              <PrivateRoute component={HighCourtTypingTestPage} allowedRoles={['student']} />
+            </Route>
+            <Route path="/high-court/pitman/:id">
+              <PrivateRoute component={HighCourtPitmanTestPage} allowedRoles={['student']} />
+            </Route>
+            <Route path="/high-court/shorthand/:id">
+              <PrivateRoute component={HighCourtShorthandTestPage} allowedRoles={['student']} />
             </Route>
             <Route path="/test/:id">
               <PrivateRoute component={TestRouter} allowedRoles={['student']} />

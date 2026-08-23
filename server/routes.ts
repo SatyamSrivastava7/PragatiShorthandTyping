@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { stripHtml, removeParaTokens, countWords } from "./htmlStripper";
+import { scoreHighCourtTest } from "./highCourtScorer";
 
 // Session user type
 declare module "express-session" {
@@ -1694,6 +1695,351 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to delete notice" });
     }
   });
+
+  // ==================== HIGH COURT ROUTES ====================
+
+  // Zod schemas for high court input validation
+  const hcTestPaperSchema = z.object({
+    title: z.string().min(1, "title is required"),
+    type: z.enum(["typing", "pitman", "shorthand"]),
+    originalText: z.string().min(1, "originalText is required"),
+    duration: z.number().int().positive("duration must be a positive integer"),
+    pdfFile: z.string().optional(),
+  });
+
+  const hcCreateSetSchema = z.object({
+    name: z.string().min(1, "name is required"),
+    tests: z.array(hcTestPaperSchema).length(3, "Typing, Pitman, and Shorthand papers are all required"),
+  });
+
+  const hcAttemptSchema = z.object({
+    testSetId: z.number().int().positive(),
+    testId: z.number().int().positive(),
+    typedText: z.string(),
+  });
+
+  // Admin: batch-create one test set with its tests atomically
+  app.post("/api/high-court/test-sets", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const parsed = hcCreateSetSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: fromZodError(parsed.error).message });
+      }
+
+      const { name, tests } = parsed.data;
+      const requiredTypes = ["typing", "pitman", "shorthand"];
+      if (new Set(tests.map((test) => test.type)).size !== 3 || !requiredTypes.every((type) => tests.some((test) => test.type === type))) {
+        return res.status(400).json({ message: "Create exactly one Typing, one Pitman, and one Shorthand paper." });
+      }
+      const result = await storage.createHighCourtTestSetWithTests(
+        { name, isEnabled: true },
+        tests.map((t) => ({
+          testSetId: 0, // overridden inside transaction
+          title: t.title,
+          type: t.type,
+          originalText: t.originalText,
+          duration: t.duration,
+          pdfFile: t.pdfFile,
+        }))
+      );
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error creating high court test set:", error);
+      res.status(500).json({ message: "Failed to create high court test set" });
+    }
+  });
+
+  // Student/Admin: list all test sets (enabled only for students)
+  app.get("/api/high-court/test-sets", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const sets = await storage.getAllHighCourtTestSets();
+      // Students only see enabled sets
+      const filtered =
+        currentUser.role === "admin"
+          ? sets
+          : sets.filter((s) => s.isEnabled);
+
+      res.json(filtered);
+    } catch (error) {
+      console.error("Error fetching high court test sets:", error);
+      res.status(500).json({ message: "Failed to fetch high court test sets" });
+    }
+  });
+
+  // Student/Admin: get a single test set with its tests (no text for students)
+  app.get("/api/high-court/test-sets/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid test set ID" });
+      }
+
+      const testSet = await storage.getHighCourtTestSet(id);
+      if (!testSet) {
+        return res.status(404).json({ message: "Test set not found" });
+      }
+      if (currentUser.role !== "admin" && !testSet.isEnabled) {
+        return res.status(404).json({ message: "Test set not found" });
+      }
+
+      const tests = await storage.getHighCourtTestsBySet(id);
+
+      // Students do not receive originalText or pdfFile until they start a test
+      const sanitisedTests =
+        currentUser.role === "admin"
+          ? tests
+          : tests.map(({ originalText: _ot, pdfFile: _pf, ...rest }) => rest);
+
+      res.json({ testSet, tests: sanitisedTests });
+    } catch (error) {
+      console.error("Error fetching high court test set:", error);
+      res.status(500).json({ message: "Failed to fetch high court test set" });
+    }
+  });
+
+  // Student/Admin: get a single test by id (original text exposed – requires auth)
+  app.get("/api/high-court/tests/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid test ID" });
+      }
+
+      const test = await storage.getHighCourtTest(id);
+      if (!test) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+
+      // Verify the parent set is enabled for students
+      if (currentUser.role !== "admin") {
+        const testSet = await storage.getHighCourtTestSet(test.testSetId);
+        if (!testSet || !testSet.isEnabled) {
+          return res.status(404).json({ message: "Test not found" });
+        }
+      }
+
+      res.json(test);
+    } catch (error) {
+      console.error("Error fetching high court test:", error);
+      res.status(500).json({ message: "Failed to fetch high court test" });
+    }
+  });
+
+  // Student: submit a high court attempt (server scores it)
+  app.post("/api/high-court/attempts", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      // Both students and admins can submit
+      if (currentUser.role !== "student" && currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const parsed = hcAttemptSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: fromZodError(parsed.error).message });
+      }
+
+      const { testSetId, testId, typedText } = parsed.data;
+
+      // Validate test set exists and is enabled (students cannot cheat by submitting to disabled sets)
+      const testSet = await storage.getHighCourtTestSet(testSetId);
+      if (!testSet) {
+        return res.status(404).json({ message: "Test set not found" });
+      }
+      if (!testSet.isEnabled && currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Test set is not available" });
+      }
+
+      // Validate test belongs to that set
+      const test = await storage.getHighCourtTest(testId);
+      if (!test || test.testSetId !== testSetId) {
+        return res.status(404).json({ message: "Test not found in this test set" });
+      }
+
+      // Validate type range
+      if (!["typing", "pitman", "shorthand"].includes(test.type)) {
+        return res.status(400).json({ message: "Invalid test type" });
+      }
+
+      // Server-authoritative scoring
+      const scoring = scoreHighCourtTest(
+        test.type as "typing" | "pitman" | "shorthand",
+        test.originalText,
+        typedText
+      );
+
+      const attempt = await storage.upsertHighCourtAttempt({
+        testSetId,
+        testId,
+        studentId: currentUser.id,
+        studentName: currentUser.name,
+        studentDisplayId: currentUser.studentId ?? undefined,
+        type: test.type,
+        originalText: test.originalText,
+        typedText,
+        fullMistakes: scoring.fullMistakes,
+        halfMistakes: scoring.halfMistakes,
+        marks: String(scoring.marks),
+        alignmentData: scoring.alignmentData,
+      });
+
+      res.status(201).json({
+        ...attempt,
+        scoring: {
+          fullMistakes: scoring.fullMistakes,
+          halfMistakes: scoring.halfMistakes,
+          marks: scoring.marks,
+          alignment: JSON.parse(scoring.alignmentData),
+        },
+      });
+    } catch (error) {
+      console.error("Error submitting high court attempt:", error);
+      res.status(500).json({ message: "Failed to submit attempt" });
+    }
+  });
+
+  // Student/Admin: get my high court results grouped by test set
+  app.get("/api/high-court/results/me", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const attempts = await storage.getHighCourtAttemptsByStudent(currentUser.id);
+
+      // Group by testSetId; keep latest attempt per test (already latest due to upsert)
+      // For each set, compute derived totals
+      const setMap = new Map<number, {
+        testSetId: number;
+        attempts: typeof attempts;
+      }>();
+
+      for (const attempt of attempts) {
+        if (!setMap.has(attempt.testSetId)) {
+          setMap.set(attempt.testSetId, { testSetId: attempt.testSetId, attempts: [] });
+        }
+        setMap.get(attempt.testSetId)!.attempts.push(attempt);
+      }
+
+      // Fetch test set names
+      const allSets = await storage.getAllHighCourtTestSets();
+      const setNameMap = new Map(allSets.map((s) => [s.id, s.name]));
+
+      const grouped = Array.from(setMap.values()).map((group) => {
+        const totalMarks = group.attempts.reduce(
+          (sum, a) => sum + parseFloat(String(a.marks)),
+          0
+        );
+        const maxPossible =
+          group.attempts.reduce((sum, a) => {
+            if (a.type === "shorthand") return sum + 200;
+            return sum + 100;
+          }, 0);
+
+        const typedResults: Record<string, {
+          marks: number;
+          fullMistakes: number;
+          halfMistakes: number;
+          submittedAt: Date;
+          alignment: unknown[];
+        }> = {};
+
+        for (const a of group.attempts) {
+          let alignment: unknown[] = [];
+          try {
+            alignment = a.alignmentData ? JSON.parse(a.alignmentData) : [];
+          } catch {
+            alignment = [];
+          }
+          typedResults[a.type] = {
+            marks: parseFloat(String(a.marks)),
+            fullMistakes: a.fullMistakes,
+            halfMistakes: a.halfMistakes,
+            submittedAt: a.submittedAt,
+            alignment,
+          };
+        }
+
+        const asResult = (type: "typing" | "pitman" | "shorthand") => {
+          const value = typedResults[type];
+          if (!value) return null;
+          return {
+            testType: type,
+            testTitle: `${type.charAt(0).toUpperCase()}${type.slice(1)} Test`,
+            marks: value.marks,
+            fullMistakes: value.fullMistakes,
+            halfMistakes: value.halfMistakes,
+            submittedAt: value.submittedAt,
+            alignment: value.alignment,
+          };
+        };
+
+        return {
+          testSetId: group.testSetId,
+          testSetName: setNameMap.get(group.testSetId) ?? "Unknown",
+          testSetTitle: setNameMap.get(group.testSetId) ?? "Unknown",
+          studentName: currentUser.name,
+          totalMarks,
+          maxPossible,
+          completion: group.attempts.length,
+          results: typedResults,
+          typing: asResult("typing"),
+          pitman: asResult("pitman"),
+          shorthand: asResult("shorthand"),
+        };
+      });
+
+      res.json(grouped);
+    } catch (error) {
+      console.error("Error fetching high court results:", error);
+      res.status(500).json({ message: "Failed to fetch high court results" });
+    }
+  });
+
+  // ==================== END HIGH COURT ROUTES ====================
 
   return httpServer;
 }

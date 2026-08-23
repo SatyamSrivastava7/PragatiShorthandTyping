@@ -9,6 +9,9 @@ import {
   galleryImages,
   settings,
   notices,
+  highCourtTestSets,
+  highCourtTests,
+  highCourtAttempts,
   type User, 
   type InsertUser,
   type Content,
@@ -29,6 +32,12 @@ import {
   type InsertSetting,
   type Notice,
   type InsertNotice,
+  type HighCourtTestSet,
+  type InsertHighCourtTestSet,
+  type HighCourtTest,
+  type InsertHighCourtTest,
+  type HighCourtAttempt,
+  type InsertHighCourtAttempt,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, sql, lt } from "drizzle-orm";
@@ -119,6 +128,15 @@ export interface IStorage {
   getAllNotices(): Promise<Notice[]>;
   updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined>;
   deleteNotice(id: number): Promise<boolean>;
+
+  // High Court methods
+  createHighCourtTestSetWithTests(set: InsertHighCourtTestSet, tests: InsertHighCourtTest[]): Promise<{ testSet: HighCourtTestSet; tests: HighCourtTest[] }>;
+  getAllHighCourtTestSets(): Promise<HighCourtTestSet[]>;
+  getHighCourtTestSet(id: number): Promise<HighCourtTestSet | undefined>;
+  getHighCourtTestsBySet(testSetId: number): Promise<HighCourtTest[]>;
+  getHighCourtTest(id: number): Promise<HighCourtTest | undefined>;
+  upsertHighCourtAttempt(attempt: InsertHighCourtAttempt): Promise<HighCourtAttempt>;
+  getHighCourtAttemptsByStudent(studentId: number): Promise<HighCourtAttempt[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -762,6 +780,98 @@ export class DatabaseStorage implements IStorage {
   async deleteNotice(id: number): Promise<boolean> {
     const result = await db.delete(notices).where(eq(notices.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // ==================== HIGH COURT METHODS ====================
+
+  async createHighCourtTestSetWithTests(
+    set: InsertHighCourtTestSet,
+    tests: InsertHighCourtTest[]
+  ): Promise<{ testSet: HighCourtTestSet; tests: HighCourtTest[] }> {
+    return await db.transaction(async (tx) => {
+      const [testSet] = await tx
+        .insert(highCourtTestSets)
+        .values({ ...set, isEnabled: true })
+        .returning();
+
+      const createdTests: HighCourtTest[] = [];
+      for (const t of tests) {
+        const [created] = await tx
+          .insert(highCourtTests)
+          .values({ ...t, testSetId: testSet.id })
+          .returning();
+        createdTests.push(created);
+      }
+
+      return { testSet, tests: createdTests };
+    });
+  }
+
+  async getAllHighCourtTestSets(): Promise<HighCourtTestSet[]> {
+    return await db
+      .select()
+      .from(highCourtTestSets)
+      .orderBy(desc(highCourtTestSets.createdAt));
+  }
+
+  async getHighCourtTestSet(id: number): Promise<HighCourtTestSet | undefined> {
+    const [row] = await db
+      .select()
+      .from(highCourtTestSets)
+      .where(eq(highCourtTestSets.id, id));
+    return row || undefined;
+  }
+
+  async getHighCourtTestsBySet(testSetId: number): Promise<HighCourtTest[]> {
+    return await db
+      .select()
+      .from(highCourtTests)
+      .where(eq(highCourtTests.testSetId, testSetId))
+      .orderBy(asc(highCourtTests.id));
+  }
+
+  async getHighCourtTest(id: number): Promise<HighCourtTest | undefined> {
+    const [row] = await db
+      .select()
+      .from(highCourtTests)
+      .where(eq(highCourtTests.id, id));
+    return row || undefined;
+  }
+
+  async upsertHighCourtAttempt(attempt: InsertHighCourtAttempt): Promise<HighCourtAttempt> {
+    // Check for existing attempt for this student+test
+    const [existing] = await db
+      .select({ id: highCourtAttempts.id })
+      .from(highCourtAttempts)
+      .where(
+        and(
+          eq(highCourtAttempts.studentId, attempt.studentId),
+          eq(highCourtAttempts.testId, attempt.testId)
+        )
+      );
+
+    if (existing) {
+      const [updated] = await db
+        .update(highCourtAttempts)
+        .set({ ...attempt, submittedAt: new Date() })
+        .where(eq(highCourtAttempts.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(highCourtAttempts)
+        .values(attempt)
+        .returning();
+      return created;
+    }
+  }
+
+  async getHighCourtAttemptsByStudent(studentId: number): Promise<HighCourtAttempt[]> {
+    return await db
+      .select()
+      .from(highCourtAttempts)
+      .where(eq(highCourtAttempts.studentId, studentId))
+      .orderBy(desc(highCourtAttempts.submittedAt));
   }
 }
 
