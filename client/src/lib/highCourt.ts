@@ -24,6 +24,7 @@ export interface HighCourtAlignmentEntry {
   typed: string;
   status: "match" | "substitution" | "missing" | "extra";
   severity: "full" | "half" | "none";
+  reason?: string;
 }
 
 export interface HighCourtAttempt {
@@ -84,8 +85,9 @@ function normalizeAlignment(items: any[] = []): HighCourtAlignmentEntry[] {
   return items.map((entry) => ({
     original: entry.original || "",
     typed: entry.typed || "",
-    status: entry.errorType === "ok" ? "match" : !entry.original ? "extra" : !entry.typed ? "missing" : "substitution",
+    status: entry.status || (entry.errorType === "ok" ? "match" : !entry.original ? "extra" : !entry.typed ? "missing" : "substitution"),
     severity: entry.errorType === "ok" ? "none" : entry.errorType === "half" ? "half" : "full",
+    reason: entry.reason,
   }));
 }
 

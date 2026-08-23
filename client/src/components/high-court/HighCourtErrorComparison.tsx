@@ -21,8 +21,16 @@ export function HighCourtErrorComparison({
         }
         if (entry.status === "missing") {
           return (
-            <span key={index} className="mr-1 font-semibold text-emerald-700">
-              [{entry.original}]
+            <span key={index} className="mr-1">
+              <span
+                className={cn(
+                  "rounded px-1 font-semibold",
+                  entry.severity === "half" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700",
+                )}
+              >
+                —
+              </span>
+              <span className="ml-1 font-semibold text-emerald-700">[{entry.original}]</span>
             </span>
           );
         }
@@ -56,7 +64,7 @@ export function HighCourtErrorComparison({
       <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-600">
         <span><b className="text-red-700">Red</b> full mistake</span>
         <span><b className="text-amber-700">Amber</b> half mistake</span>
-        <span><b className="text-emerald-700">[Green]</b> expected text</span>
+        <span><b className="text-emerald-700">[Green]</b> expected text; <b>—</b> omitted word uses its mistake color</span>
       </div>
     </div>
   );
