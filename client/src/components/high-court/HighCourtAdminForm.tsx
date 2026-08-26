@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { highCourtApi } from "@/lib/highCourt";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,11 +18,13 @@ function PaperFields({
   paper,
   onChange,
   pitman,
+  shorthand,
 }: {
   label: string;
   paper: PaperForm;
   onChange: (changes: Partial<PaperForm>) => void;
   pitman?: boolean;
+  shorthand?: boolean;
 }) {
   const uploadPdf = (file: File | undefined) => {
     if (!file) return;
@@ -40,31 +42,28 @@ function PaperFields({
       <CardContent className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
           <div className="space-y-2">
-            <Label>Paper title</Label>
+            <Label>Test Title</Label>
             <Input value={paper.title} onChange={(e) => onChange({ title: e.target.value })} required />
           </div>
           <div className="space-y-2">
-            <Label>Duration (minutes)</Label>
+            <Label>Duration {shorthand ? "(2-90 min)" : "(2-60 min)"}</Label>
             <Input type="number" min="1" max="180" value={paper.duration} onChange={(e) => onChange({ duration: e.target.value })} required />
           </div>
         </div>
         {pitman && (
           <div className="space-y-2">
-            <Label>Optional Pitman reference PDF</Label>
+            <Label>Upload PDF File</Label>
             <Input type="file" accept="application/pdf" onChange={(e) => uploadPdf(e.target.files?.[0])} />
             {paper.pdfFile && <p className="text-xs font-medium text-emerald-700">PDF attached and ready to upload.</p>}
           </div>
         )}
-        <div className="space-y-2">
-          <Label>Question paper text</Label>
-          <Textarea
-            value={paper.text}
-            onChange={(e) => onChange({ text: e.target.value })}
-            placeholder="Paste or type the complete English paper here. HTML is supported for Typing formatting."
-            className="min-h-40"
-            required
-          />
-        </div>
+        <RichTextEditor
+          label="Content Text (Transcript)"
+          value={paper.text}
+          onChange={(text) => onChange({ text })}
+          placeholder="Paste the text content here..."
+          showWordCount
+        />
       </CardContent>
     </Card>
   );
@@ -137,13 +136,13 @@ export function HighCourtAdminForm() {
         <div className="flex items-center gap-3 pt-2">
           <FileText className="h-5 w-5 text-amber-700" />
           <div>
-            <h3 className="font-bold">Three required papers</h3>
+            <h3 className="font-bold">Three required tests</h3>
             <p className="text-sm text-muted-foreground">Complete each paper below, then publish the folder once.</p>
           </div>
         </div>
         <PaperFields label="Typing Test · 100 Marks" paper={typing} onChange={(changes) => setTyping((current) => ({ ...current, ...changes }))} />
         <PaperFields label="Pitman Test · 100 Marks" paper={pitman} onChange={(changes) => setPitman((current) => ({ ...current, ...changes }))} pitman />
-        <PaperFields label="Shorthand Test · 200 Marks" paper={shorthand} onChange={(changes) => setShorthand((current) => ({ ...current, ...changes }))} />
+        <PaperFields label="Shorthand Test · 200 Marks" paper={shorthand} onChange={(changes) => setShorthand((current) => ({ ...current, ...changes }))} shorthand />
 
         <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white/95 p-4 shadow-lg backdrop-blur">
           <p className="text-sm text-muted-foreground">Students will see this as one High Court exam folder.</p>
