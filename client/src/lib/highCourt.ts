@@ -147,6 +147,18 @@ export const highCourtApi = {
     })),
   getMyResults: async () => (await request<any[]>("/api/high-court/results/me")).map(normalizeGroupedResult),
   getAllResults: async () => (await request<any[]>("/api/high-court/results")).map(normalizeGroupedResult),
+  updateTestSet: async (id: number, data: { name?: string; isEnabled?: boolean }) =>
+    request<HighCourtTestSet>(`/api/high-court/test-sets/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteTestSet: async (id: number) =>
+    request<{ success: boolean }>(`/api/high-court/test-sets/${id}`, { method: "DELETE" }),
+  updateTest: async (id: number, data: { title?: string; originalText?: string; duration?: number; pdfFile?: string }) =>
+    request<HighCourtTest>(`/api/high-court/tests/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   createTestSet: async (data: {
     title: string;
     typing: { title: string; text: string; duration: number };

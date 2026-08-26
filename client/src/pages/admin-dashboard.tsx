@@ -102,6 +102,7 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { queryClient } from "@/lib/queryClient";
 import { HighCourtAdminForm } from "@/components/high-court/HighCourtAdminForm";
 import { HighCourtErrorComparison } from "@/components/high-court/HighCourtErrorComparison";
+import { HighCourtManageTests } from "@/components/high-court/HighCourtManageTests";
 import { highCourtApi, HIGH_COURT_PAPERS, type HighCourtGroupedResult } from "@/lib/highCourt";
 import { downloadHighCourtPdf } from "@/lib/highCourtPdf";
 
@@ -3160,6 +3161,7 @@ export default function AdminDashboard() {
                     </Card>
                   );
                 })}
+                <HighCourtManageTests />
               </div>
             )}
           </div>

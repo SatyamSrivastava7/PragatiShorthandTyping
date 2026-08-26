@@ -135,6 +135,9 @@ export interface IStorage {
   getHighCourtTestSet(id: number): Promise<HighCourtTestSet | undefined>;
   getHighCourtTestsBySet(testSetId: number): Promise<HighCourtTest[]>;
   getHighCourtTest(id: number): Promise<HighCourtTest | undefined>;
+  updateHighCourtTestSet(id: number, data: Partial<Pick<HighCourtTestSet, "name" | "isEnabled">>): Promise<HighCourtTestSet | undefined>;
+  deleteHighCourtTestSet(id: number): Promise<void>;
+  updateHighCourtTest(id: number, data: Partial<Pick<HighCourtTest, "title" | "originalText" | "duration" | "pdfFile">>): Promise<HighCourtTest | undefined>;
   upsertHighCourtAttempt(attempt: InsertHighCourtAttempt): Promise<HighCourtAttempt>;
   getHighCourtAttemptsByStudent(studentId: number): Promise<HighCourtAttempt[]>;
   getAllHighCourtAttempts(): Promise<HighCourtAttempt[]>;
@@ -880,6 +883,34 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(highCourtAttempts)
       .orderBy(desc(highCourtAttempts.submittedAt));
+  }
+
+  async updateHighCourtTestSet(
+    id: number,
+    data: Partial<Pick<HighCourtTestSet, "name" | "isEnabled">>
+  ): Promise<HighCourtTestSet | undefined> {
+    const [updated] = await db
+      .update(highCourtTestSets)
+      .set(data)
+      .where(eq(highCourtTestSets.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteHighCourtTestSet(id: number): Promise<void> {
+    await db.delete(highCourtTestSets).where(eq(highCourtTestSets.id, id));
+  }
+
+  async updateHighCourtTest(
+    id: number,
+    data: Partial<Pick<HighCourtTest, "title" | "originalText" | "duration" | "pdfFile">>
+  ): Promise<HighCourtTest | undefined> {
+    const [updated] = await db
+      .update(highCourtTests)
+      .set(data)
+      .where(eq(highCourtTests.id, id))
+      .returning();
+    return updated || undefined;
   }
 }
 

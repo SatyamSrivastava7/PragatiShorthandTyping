@@ -9,11 +9,11 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { highCourtApi } from "@/lib/highCourt";
 import { useToast } from "@/hooks/use-toast";
 
-type PaperForm = { title: string; text: string; duration: string; pdfFile?: string };
+export type PaperForm = { title: string; text: string; duration: string; pdfFile?: string };
 
 const initialPaper = (label: string): PaperForm => ({ title: label, text: "", duration: "5" });
 
-function PaperFields({
+export function PaperFields({
   label,
   paper,
   onChange,

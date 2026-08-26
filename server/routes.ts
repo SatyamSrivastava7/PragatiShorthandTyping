@@ -1777,6 +1777,18 @@ export async function registerRoutes(
           ? sets
           : sets.filter((s) => s.isEnabled);
 
+      // Admins managing exam folders need each paper's title/duration inline
+      // (students only get this once they open a specific folder).
+      if (currentUser.role === "admin") {
+        const withTests = await Promise.all(
+          filtered.map(async (set) => ({
+            ...set,
+            tests: await storage.getHighCourtTestsBySet(set.id),
+          }))
+        );
+        return res.json(withTests);
+      }
+
       res.json(filtered);
     } catch (error) {
       console.error("Error fetching high court test sets:", error);
@@ -1820,6 +1832,111 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching high court test set:", error);
       res.status(500).json({ message: "Failed to fetch high court test set" });
+    }
+  });
+
+  // Admin: rename a test set and/or toggle its enabled state
+  app.patch("/api/high-court/test-sets/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid test set ID" });
+      }
+
+      const hcUpdateSetSchema = z.object({
+        name: z.string().min(1).optional(),
+        isEnabled: z.boolean().optional(),
+      });
+      const parsed = hcUpdateSetSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: fromZodError(parsed.error).message });
+      }
+
+      const updated = await storage.updateHighCourtTestSet(id, parsed.data);
+      if (!updated) {
+        return res.status(404).json({ message: "Test set not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating high court test set:", error);
+      res.status(500).json({ message: "Failed to update high court test set" });
+    }
+  });
+
+  // Admin: delete a test set (cascades to its tests and attempts)
+  app.delete("/api/high-court/test-sets/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid test set ID" });
+      }
+
+      const existing = await storage.getHighCourtTestSet(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Test set not found" });
+      }
+
+      await storage.deleteHighCourtTestSet(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting high court test set:", error);
+      res.status(500).json({ message: "Failed to delete high court test set" });
+    }
+  });
+
+  // Admin: edit a single paper's title/text/duration/pdf
+  app.patch("/api/high-court/tests/:id", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid test ID" });
+      }
+
+      const hcUpdateTestSchema = z.object({
+        title: z.string().min(1).optional(),
+        originalText: z.string().min(1).optional(),
+        duration: z.number().int().positive().optional(),
+        pdfFile: z.string().optional(),
+      });
+      const parsed = hcUpdateTestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: fromZodError(parsed.error).message });
+      }
+
+      const updated = await storage.updateHighCourtTest(id, parsed.data);
+      if (!updated) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating high court test:", error);
+      res.status(500).json({ message: "Failed to update high court test" });
     }
   });
 
