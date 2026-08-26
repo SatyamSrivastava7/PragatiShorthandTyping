@@ -4,15 +4,11 @@ import { Award, CalendarDays, ChevronLeft, Download, Eye, FileText, Loader2, Pen
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { highCourtApi, type HighCourtGroupedResult, type HighCourtTestSet, type HighCourtTestType } from "@/lib/highCourt";
+import { highCourtApi, HIGH_COURT_PAPERS, type HighCourtGroupedResult, type HighCourtTestSet, type HighCourtTestType } from "@/lib/highCourt";
 import { HighCourtErrorComparison } from "./HighCourtErrorComparison";
 import { downloadHighCourtPdf } from "@/lib/highCourtPdf";
 
-const papers: Array<{ type: HighCourtTestType; label: string; max: number; color: string }> = [
-  { type: "typing", label: "Typing", max: 100, color: "from-blue-600 to-indigo-600" },
-  { type: "pitman", label: "Pitman", max: 100, color: "from-rose-600 to-red-600" },
-  { type: "shorthand", label: "Shorthand", max: 200, color: "from-orange-500 to-amber-600" },
-];
+const papers = HIGH_COURT_PAPERS;
 
 const routeFor = (type: HighCourtTestType, id: number) => `/high-court/${type}/${id}`;
 

@@ -13,6 +13,7 @@ import {
   insertGalleryImageSchema,
   insertSettingSchema,
   insertNoticeSchema,
+  type HighCourtAttempt,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -1937,6 +1938,100 @@ export async function registerRoutes(
     }
   });
 
+  // Shared: group a set of High Court attempts (one student's or every student's)
+  // into one combined result per student per test set.
+  function buildGroupedHighCourtResults(
+    attempts: HighCourtAttempt[],
+    setNameMap: Map<number, string>
+  ) {
+    const groupMap = new Map<string, {
+      testSetId: number;
+      studentId: number;
+      studentName: string;
+      studentDisplayId: string | null;
+      attempts: HighCourtAttempt[];
+    }>();
+
+    for (const attempt of attempts) {
+      const key = `${attempt.testSetId}:${attempt.studentId}`;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          testSetId: attempt.testSetId,
+          studentId: attempt.studentId,
+          studentName: attempt.studentName,
+          studentDisplayId: attempt.studentDisplayId,
+          attempts: [],
+        });
+      }
+      groupMap.get(key)!.attempts.push(attempt);
+    }
+
+    return Array.from(groupMap.values()).map((group) => {
+      const totalMarks = group.attempts.reduce(
+        (sum, a) => sum + parseFloat(String(a.marks)),
+        0
+      );
+      const maxPossible = group.attempts.reduce((sum, a) => {
+        if (a.type === "shorthand") return sum + 200;
+        return sum + 100;
+      }, 0);
+
+      const typedResults: Record<string, {
+        marks: number;
+        fullMistakes: number;
+        halfMistakes: number;
+        submittedAt: Date;
+        alignment: unknown[];
+      }> = {};
+
+      for (const a of group.attempts) {
+        let alignment: unknown[] = [];
+        try {
+          alignment = a.alignmentData ? JSON.parse(a.alignmentData) : [];
+        } catch {
+          alignment = [];
+        }
+        typedResults[a.type] = {
+          marks: parseFloat(String(a.marks)),
+          fullMistakes: a.fullMistakes,
+          halfMistakes: a.halfMistakes,
+          submittedAt: a.submittedAt,
+          alignment,
+        };
+      }
+
+      const asResult = (type: "typing" | "pitman" | "shorthand") => {
+        const value = typedResults[type];
+        if (!value) return null;
+        return {
+          testType: type,
+          testTitle: `${type.charAt(0).toUpperCase()}${type.slice(1)} Test`,
+          marks: value.marks,
+          fullMistakes: value.fullMistakes,
+          halfMistakes: value.halfMistakes,
+          submittedAt: value.submittedAt,
+          alignment: value.alignment,
+        };
+      };
+
+      return {
+        testSetId: group.testSetId,
+        testSetName: setNameMap.get(group.testSetId) ?? "Unknown",
+        testSetTitle: setNameMap.get(group.testSetId) ?? "Unknown",
+        studentId: group.studentId,
+        studentName: group.studentName,
+        studentDisplayId: group.studentDisplayId,
+        totalMarks,
+        maxPossible,
+        completion: group.attempts.length,
+        results: typedResults,
+        typing: asResult("typing"),
+        pitman: asResult("pitman"),
+        shorthand: asResult("shorthand"),
+      };
+    });
+  }
+
   // Student/Admin: get my high court results grouped by test set
   app.get("/api/high-court/results/me", async (req, res) => {
     try {
@@ -1949,92 +2044,34 @@ export async function registerRoutes(
       }
 
       const attempts = await storage.getHighCourtAttemptsByStudent(currentUser.id);
-
-      // Group by testSetId; keep latest attempt per test (already latest due to upsert)
-      // For each set, compute derived totals
-      const setMap = new Map<number, {
-        testSetId: number;
-        attempts: typeof attempts;
-      }>();
-
-      for (const attempt of attempts) {
-        if (!setMap.has(attempt.testSetId)) {
-          setMap.set(attempt.testSetId, { testSetId: attempt.testSetId, attempts: [] });
-        }
-        setMap.get(attempt.testSetId)!.attempts.push(attempt);
-      }
-
-      // Fetch test set names
       const allSets = await storage.getAllHighCourtTestSets();
       const setNameMap = new Map(allSets.map((s) => [s.id, s.name]));
 
-      const grouped = Array.from(setMap.values()).map((group) => {
-        const totalMarks = group.attempts.reduce(
-          (sum, a) => sum + parseFloat(String(a.marks)),
-          0
-        );
-        const maxPossible =
-          group.attempts.reduce((sum, a) => {
-            if (a.type === "shorthand") return sum + 200;
-            return sum + 100;
-          }, 0);
-
-        const typedResults: Record<string, {
-          marks: number;
-          fullMistakes: number;
-          halfMistakes: number;
-          submittedAt: Date;
-          alignment: unknown[];
-        }> = {};
-
-        for (const a of group.attempts) {
-          let alignment: unknown[] = [];
-          try {
-            alignment = a.alignmentData ? JSON.parse(a.alignmentData) : [];
-          } catch {
-            alignment = [];
-          }
-          typedResults[a.type] = {
-            marks: parseFloat(String(a.marks)),
-            fullMistakes: a.fullMistakes,
-            halfMistakes: a.halfMistakes,
-            submittedAt: a.submittedAt,
-            alignment,
-          };
-        }
-
-        const asResult = (type: "typing" | "pitman" | "shorthand") => {
-          const value = typedResults[type];
-          if (!value) return null;
-          return {
-            testType: type,
-            testTitle: `${type.charAt(0).toUpperCase()}${type.slice(1)} Test`,
-            marks: value.marks,
-            fullMistakes: value.fullMistakes,
-            halfMistakes: value.halfMistakes,
-            submittedAt: value.submittedAt,
-            alignment: value.alignment,
-          };
-        };
-
-        return {
-          testSetId: group.testSetId,
-          testSetName: setNameMap.get(group.testSetId) ?? "Unknown",
-          testSetTitle: setNameMap.get(group.testSetId) ?? "Unknown",
-          studentName: currentUser.name,
-          totalMarks,
-          maxPossible,
-          completion: group.attempts.length,
-          results: typedResults,
-          typing: asResult("typing"),
-          pitman: asResult("pitman"),
-          shorthand: asResult("shorthand"),
-        };
-      });
-
-      res.json(grouped);
+      res.json(buildGroupedHighCourtResults(attempts, setNameMap));
     } catch (error) {
       console.error("Error fetching high court results:", error);
+      res.status(500).json({ message: "Failed to fetch high court results" });
+    }
+  });
+
+  // Admin: get every student's high court results grouped by test set
+  app.get("/api/high-court/results", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const attempts = await storage.getAllHighCourtAttempts();
+      const allSets = await storage.getAllHighCourtTestSets();
+      const setNameMap = new Map(allSets.map((s) => [s.id, s.name]));
+
+      res.json(buildGroupedHighCourtResults(attempts, setNameMap));
+    } catch (error) {
+      console.error("Error fetching all high court results:", error);
       res.status(500).json({ message: "Failed to fetch high court results" });
     }
   });

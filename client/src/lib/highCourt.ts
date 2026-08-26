@@ -45,7 +45,9 @@ export interface HighCourtAttempt {
 export interface HighCourtGroupedResult {
   testSetId: number;
   testSetTitle: string;
+  studentId?: number;
   studentName: string;
+  studentDisplayId?: string | null;
   typing: HighCourtAttempt | null;
   pitman: HighCourtAttempt | null;
   shorthand: HighCourtAttempt | null;
@@ -55,6 +57,12 @@ export interface HighCourtGroupedResult {
   totalMarks: number;
   complete: boolean;
 }
+
+export const HIGH_COURT_PAPERS: Array<{ type: HighCourtTestType; label: string; max: number; color: string }> = [
+  { type: "typing", label: "Typing", max: 100, color: "from-blue-600 to-indigo-600" },
+  { type: "pitman", label: "Pitman", max: 100, color: "from-rose-600 to-red-600" },
+  { type: "shorthand", label: "Shorthand", max: 200, color: "from-orange-500 to-amber-600" },
+];
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -105,6 +113,26 @@ function normalizeAttempt(raw: any, type?: HighCourtTestType): HighCourtAttempt 
   };
 }
 
+function normalizeGroupedResult(group: any): HighCourtGroupedResult {
+  const paper = (type: HighCourtTestType) => group.results?.[type] ? normalizeAttempt(group.results[type], type) : null;
+  const typing = paper("typing");
+  const pitman = paper("pitman");
+  const shorthand = paper("shorthand");
+  return {
+    testSetId: group.testSetId,
+    testSetTitle: group.testSetTitle || group.testSetName,
+    studentId: group.studentId,
+    studentName: group.studentName || "Student",
+    studentDisplayId: group.studentDisplayId,
+    typing, pitman, shorthand,
+    typingMarks: Number(typing?.marks || 0),
+    pitmanMarks: Number(pitman?.marks || 0),
+    shorthandMarks: Number(shorthand?.marks || 0),
+    totalMarks: Number(group.totalMarks || 0),
+    complete: group.completion === 3,
+  };
+}
+
 export const highCourtApi = {
   getTestSets: async () => (await request<any[]>("/api/high-court/test-sets")).map(normalizeSet),
   getTestSet: async (id: number) => normalizeSet(await request<any>(`/api/high-court/test-sets/${id}`)),
@@ -117,23 +145,8 @@ export const highCourtApi = {
       method: "POST",
       body: JSON.stringify(data),
     })),
-  getMyResults: async () => (await request<any[]>("/api/high-court/results/me")).map((group) => {
-    const paper = (type: HighCourtTestType) => group.results?.[type] ? normalizeAttempt(group.results[type], type) : null;
-    const typing = paper("typing");
-    const pitman = paper("pitman");
-    const shorthand = paper("shorthand");
-    return {
-      testSetId: group.testSetId,
-      testSetTitle: group.testSetTitle || group.testSetName,
-      studentName: group.studentName || "Student",
-      typing, pitman, shorthand,
-      typingMarks: Number(typing?.marks || 0),
-      pitmanMarks: Number(pitman?.marks || 0),
-      shorthandMarks: Number(shorthand?.marks || 0),
-      totalMarks: Number(group.totalMarks || 0),
-      complete: group.completion === 3,
-    };
-  }),
+  getMyResults: async () => (await request<any[]>("/api/high-court/results/me")).map(normalizeGroupedResult),
+  getAllResults: async () => (await request<any[]>("/api/high-court/results")).map(normalizeGroupedResult),
   createTestSet: async (data: {
     title: string;
     typing: { title: string; text: string; duration: number };

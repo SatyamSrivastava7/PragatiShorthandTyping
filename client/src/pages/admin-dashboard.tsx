@@ -82,6 +82,7 @@ import {
   Star,
   BookOpen,
   Award,
+  Trophy,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -100,6 +101,9 @@ import { FolderSelector } from "@/components/FolderSelector";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { queryClient } from "@/lib/queryClient";
 import { HighCourtAdminForm } from "@/components/high-court/HighCourtAdminForm";
+import { HighCourtErrorComparison } from "@/components/high-court/HighCourtErrorComparison";
+import { highCourtApi, HIGH_COURT_PAPERS, type HighCourtGroupedResult } from "@/lib/highCourt";
+import { downloadHighCourtPdf } from "@/lib/highCourtPdf";
 
 // Shared fetch with retry (handles stale-process HTML responses)
 async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
@@ -671,7 +675,13 @@ export default function AdminDashboard() {
   
   // Selected results for download
   const [selectedResultIds, setSelectedResultIds] = useState<number[]>([]);
-  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand' | 'pitman' | 'allahabad-hc'>('typing');
+  const [activeResultsTab, setActiveResultsTab] = useState<'typing' | 'shorthand' | 'pitman' | 'allahabad-hc' | 'high-court'>('typing');
+
+  // High Court admin results (combined 3-paper results across all students)
+  const [highCourtResults, setHighCourtResults] = useState<HighCourtGroupedResult[]>([]);
+  const [isHighCourtResultsLoading, setIsHighCourtResultsLoading] = useState(false);
+  const [selectedHighCourtKeys, setSelectedHighCourtKeys] = useState<string[]>([]);
+  const [selectedHighCourtResult, setSelectedHighCourtResult] = useState<HighCourtGroupedResult | null>(null);
 
   const {
     content,
@@ -1203,6 +1213,92 @@ export default function AdminDashboard() {
   // Refresh Loading States
   const [isRefreshingStudents, setIsRefreshingStudents] = useState(false);
   const [isRefreshingContent, setIsRefreshingContent] = useState(false);
+
+  const fetchHighCourtResults = useCallback(async () => {
+    setIsHighCourtResultsLoading(true);
+    try {
+      const data = await highCourtApi.getAllResults();
+      setHighCourtResults(data);
+    } catch (error) {
+      console.error("Error fetching High Court results:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to load High Court results." });
+    } finally {
+      setIsHighCourtResultsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchHighCourtResults();
+  }, [fetchHighCourtResults]);
+
+  const highCourtResultKey = (result: HighCourtGroupedResult) => `${result.testSetId}:${result.studentId}`;
+
+  const displayHighCourtResults = highCourtResults
+    .filter((result) =>
+      !studentFilter ||
+      result.studentName.toLowerCase().includes(studentFilter.toLowerCase()) ||
+      (result.studentDisplayId || "").toLowerCase().includes(studentFilter.toLowerCase())
+    )
+    .sort((a, b) => {
+      const latest = (r: HighCourtGroupedResult) => Math.max(
+        r.typing ? new Date(r.typing.submittedAt).getTime() : 0,
+        r.pitman ? new Date(r.pitman.submittedAt).getTime() : 0,
+        r.shorthand ? new Date(r.shorthand.submittedAt).getTime() : 0,
+      );
+      return latest(b) - latest(a);
+    });
+
+  const handleDownloadSelectedHighCourtResults = () => {
+    if (selectedHighCourtKeys.length === 0) {
+      toast({ variant: "destructive", title: "No Selection", description: "Please select at least one result to download." });
+      return;
+    }
+
+    const selectedResults = highCourtResults.filter((result) => selectedHighCourtKeys.includes(highCourtResultKey(result)));
+    const sortedResults = [...selectedResults].sort((a, b) => b.totalMarks - a.totalMarks);
+
+    const theadHtml = `<tr><th>Rank</th><th>Name</th><th>Typing</th><th>Pitman</th><th>Shorthand</th><th>Total</th></tr>`;
+    const tbodyHtml = sortedResults.map((result, idx) => {
+      return `<tr><td>${idx + 1}</td><td>${result.studentName}</td><td>${result.typingMarks} / 100</td><td>${result.pitmanMarks} / 100</td><td>${result.shorthandMarks} / 200</td><td><b>${result.totalMarks} / 400</b></td></tr>`;
+    }).join('');
+
+    const printHtml = `<!DOCTYPE html><html><head><title>High Court Results Report</title><style>
+      body { font-family: Arial, sans-serif; padding: 10px; color: #000; }
+      @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } @page { size: A4 portrait; margin: 10mm; } }
+      h1 { font-size: 16px; text-align: center; margin: 0 0 2px 0; }
+      p.sub { text-align: center; font-size: 10px; color: #555; margin: 0 0 4px 0; }
+      h2 { font-size: 14px; text-align: center; margin: 0 0 4px 0; }
+      .meta { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 8px; }
+      table { width: 100%; border-collapse: collapse; font-size: 11px; }
+      th { background-color: #d97706; color: #fff; padding: 5px 4px; text-align: center; border: 1px solid #ddd; }
+      td { padding: 3px 4px; border: 1px solid #ddd; text-align: center; }
+      tr:nth-child(even) { background-color: #f2f2f2; }
+      td:nth-child(2) { text-align: left; }
+    </style></head><body>
+      <h1>Pragati Institute of Professional Studies</h1>
+      <p class="sub">Prayagraj | Email: pragatiprofessionalstudies@gmail.com | Phone: +91 9026212705</p>
+      <hr/>
+      <h2>High Court Results Report</h2>
+      <div class="meta"><span>Generated on: ${new Date().toLocaleString()}</span><span>Total Students: ${sortedResults.length}</span></div>
+      <table><thead>${theadHtml}</thead><tbody>${tbodyHtml}</tbody></table>
+    </body></html>`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const iframeDoc = iframe.contentWindow?.document;
+    if (iframeDoc) {
+      iframeDoc.open(); iframeDoc.write(printHtml); iframeDoc.close();
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 60000);
+      }, 400);
+    }
+
+    toast({ title: "Success", description: `Downloaded ${sortedResults.length} results as PDF.` });
+    setSelectedHighCourtKeys([]);
+  };
   const [isRefreshingResults, setIsRefreshingResults] = useState(false);
 
   // Candidate State
@@ -3575,8 +3671,9 @@ export default function AdminDashboard() {
                   defaultValue="typing"
                   value={activeResultsTab}
                   onValueChange={(tab) => {
-                    setActiveResultsTab(tab as 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc');
+                    setActiveResultsTab(tab as 'typing' | 'shorthand' | 'pitman' | 'allahabad-hc' | 'high-court');
                     setSelectedResultIds([]); // Clear selections when switching tabs
+                    setSelectedHighCourtKeys([]);
                   }}
                   className="w-full"
                 >
@@ -3606,16 +3703,25 @@ export default function AdminDashboard() {
                       >
                         <Keyboard className="h-4 w-4 mr-2" /> Allahabad HC Results
                       </TabsTrigger>
+                      <TabsTrigger
+                        value="high-court"
+                        className="data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700"
+                      >
+                        <Award className="h-4 w-4 mr-2" /> High Court Results
+                      </TabsTrigger>
                     </TabsList>
                     <Button
                       variant="outline"
                       size="icon"
-                      disabled={isRefreshingResults}
+                      disabled={isRefreshingResults || isHighCourtResultsLoading}
                       onClick={async () => {
                         setIsRefreshingResults(true);
-                        await queryClient.invalidateQueries({
-                          queryKey: ["results"],
-                        });
+                        await Promise.all([
+                          queryClient.invalidateQueries({
+                            queryKey: ["results"],
+                          }),
+                          fetchHighCourtResults(),
+                        ]);
                         setIsRefreshingResults(false);
                       }}
                       data-testid="button-refresh-results"
@@ -3623,7 +3729,7 @@ export default function AdminDashboard() {
                       <RefreshCw
                         className={cn(
                           "h-4 w-4",
-                          isRefreshingResults && "animate-spin",
+                          (isRefreshingResults || isHighCourtResultsLoading) && "animate-spin",
                         )}
                       />
                     </Button>
@@ -3631,13 +3737,17 @@ export default function AdminDashboard() {
                       variant="default"
                       size="sm"
                       onClick={() => {
-                        handleDownloadSelectedResults(activeResultsTab);
+                        if (activeResultsTab === "high-court") {
+                          handleDownloadSelectedHighCourtResults();
+                        } else {
+                          handleDownloadSelectedResults(activeResultsTab);
+                        }
                       }}
-                      disabled={selectedResultIds.length === 0}
+                      disabled={activeResultsTab === "high-court" ? selectedHighCourtKeys.length === 0 : selectedResultIds.length === 0}
                       className="ml-2 gap-2 bg-green-600 hover:bg-green-700"
                     >
                       <Download className="h-4 w-4" />
-                      Get Results ({selectedResultIds.length})
+                      Get Results ({activeResultsTab === "high-court" ? selectedHighCourtKeys.length : selectedResultIds.length})
                     </Button>
                   </div>
 
@@ -4042,6 +4152,153 @@ export default function AdminDashboard() {
                       )}
                     </TabsContent>
                   ))}
+
+                  <TabsContent value="high-court" className="m-0">
+                    <div className="max-h-[500px] overflow-auto">
+                      <Table>
+                        <TableHeader className="bg-slate-50 sticky top-0">
+                          <TableRow>
+                            <TableHead className="w-12">
+                              <Checkbox
+                                checked={displayHighCourtResults.length > 0 && selectedHighCourtKeys.length === displayHighCourtResults.length}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedHighCourtKeys(displayHighCourtResults.map(highCourtResultKey));
+                                  } else {
+                                    setSelectedHighCourtKeys([]);
+                                  }
+                                }}
+                              />
+                            </TableHead>
+                            <TableHead className="font-semibold">Student</TableHead>
+                            <TableHead className="font-semibold">Batch</TableHead>
+                            <TableHead className="font-semibold">Exam Folder</TableHead>
+                            <TableHead className="font-semibold">Date</TableHead>
+                            <TableHead className="font-semibold">Metrics</TableHead>
+                            <TableHead className="font-semibold text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {displayHighCourtResults.map((result) => {
+                            const key = highCourtResultKey(result);
+                            const latestAttempt = [result.typing, result.pitman, result.shorthand]
+                              .filter((a): a is NonNullable<typeof a> => !!a)
+                              .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0];
+                            return (
+                              <TableRow key={key} className="hover:bg-slate-50/50">
+                                <TableCell className="w-12">
+                                  <Checkbox
+                                    checked={selectedHighCourtKeys.includes(key)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedHighCourtKeys([...selectedHighCourtKeys, key]);
+                                      } else {
+                                        setSelectedHighCourtKeys(selectedHighCourtKeys.filter((k) => k !== key));
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{result.studentName}</div>
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {result.studentDisplayId || result.studentId}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground">
+                                    {users.find((u) => u.id === result.studentId)?.batch || "-"}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{result.testSetTitle}</div>
+                                  <div className="text-xs text-muted-foreground">English</div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground">
+                                  {latestAttempt ? format(new Date(latestAttempt.submittedAt), "MMM d, p") : "-"}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-sm space-y-1">
+                                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-semibold">
+                                      {result.totalMarks} / 400
+                                    </span>
+                                    <div className="text-xs text-muted-foreground">
+                                      {result.complete ? "All papers submitted" : `${[result.typing, result.pitman, result.shorthand].filter(Boolean).length} / 3 papers submitted`}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right space-x-2">
+                                  <Dialog>
+                                    <DialogTrigger asChild>
+                                      <Button variant="ghost" size="sm" onClick={() => setSelectedHighCourtResult(result)}>
+                                        <Eye className="h-4 w-4 mr-1" /> View
+                                      </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+                                      <DialogHeader>
+                                        <DialogTitle className="flex items-center gap-2">
+                                          <Trophy className="h-5 w-5 text-amber-600" />
+                                          {selectedHighCourtResult?.testSetTitle} — High Court Report
+                                        </DialogTitle>
+                                      </DialogHeader>
+                                      {selectedHighCourtResult && (
+                                        <div className="space-y-5">
+                                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-4">
+                                            <div>
+                                              <p className="text-sm text-amber-800">{selectedHighCourtResult.studentName} · Combined total</p>
+                                              <p className="text-3xl font-bold text-amber-900">
+                                                {selectedHighCourtResult.totalMarks} <span className="text-base">/ 400</span>
+                                              </p>
+                                            </div>
+                                            <Button className="bg-amber-600 hover:bg-amber-700" onClick={() => downloadHighCourtPdf(selectedHighCourtResult)}>
+                                              <Download className="mr-2 h-4 w-4" /> Download 3-page PDF
+                                            </Button>
+                                          </div>
+                                          {HIGH_COURT_PAPERS.map((paper) => {
+                                            const attempt = selectedHighCourtResult[paper.type];
+                                            return (
+                                              <Card key={paper.type}>
+                                                <CardHeader className="pb-3">
+                                                  <CardTitle className="flex items-center justify-between text-base">
+                                                    <span>{paper.label} Test</span>
+                                                    <span className="text-amber-800">{attempt?.marks ?? 0} / {paper.max}</span>
+                                                  </CardTitle>
+                                                  <CardDescription>
+                                                    {attempt
+                                                      ? `Submitted ${format(new Date(attempt.submittedAt), "PPP p")} · ${attempt.mistakes} full / ${attempt.halfMistakes} half mistakes`
+                                                      : "Not submitted yet"}
+                                                  </CardDescription>
+                                                </CardHeader>
+                                                {attempt && (
+                                                  <CardContent>
+                                                    <HighCourtErrorComparison alignment={attempt.alignment} />
+                                                  </CardContent>
+                                                )}
+                                              </Card>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </DialogContent>
+                                  </Dialog>
+                                  <Button variant="outline" size="sm" onClick={() => downloadHighCourtPdf(result)}>
+                                    <Download className="h-4 w-4 mr-1" /> PDF
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          {!isHighCourtResultsLoading && displayHighCourtResults.length === 0 && (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                <Award className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                                No High Court results found
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>

@@ -137,6 +137,7 @@ export interface IStorage {
   getHighCourtTest(id: number): Promise<HighCourtTest | undefined>;
   upsertHighCourtAttempt(attempt: InsertHighCourtAttempt): Promise<HighCourtAttempt>;
   getHighCourtAttemptsByStudent(studentId: number): Promise<HighCourtAttempt[]>;
+  getAllHighCourtAttempts(): Promise<HighCourtAttempt[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -871,6 +872,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(highCourtAttempts)
       .where(eq(highCourtAttempts.studentId, studentId))
+      .orderBy(desc(highCourtAttempts.submittedAt));
+  }
+
+  async getAllHighCourtAttempts(): Promise<HighCourtAttempt[]> {
+    return await db
+      .select()
+      .from(highCourtAttempts)
       .orderBy(desc(highCourtAttempts.submittedAt));
   }
 }
