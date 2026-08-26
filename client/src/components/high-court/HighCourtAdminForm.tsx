@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
-import { ArrowLeft, CheckCircle2, ClipboardPenLine, FileText, Loader2, Upload } from "lucide-react";
+import { Link } from "wouter";
+import { CheckCircle2, ClipboardPenLine, FileText, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -70,8 +70,7 @@ function PaperFields({
   );
 }
 
-export default function HighCourtAdminPage() {
-  const [, setLocation] = useLocation();
+export function HighCourtAdminForm() {
   const { toast } = useToast();
   const [setTitle, setSetTitle] = useState("");
   const [typing, setTyping] = useState<PaperForm>(() => initialPaper("Typing Paper"));
@@ -104,46 +103,53 @@ export default function HighCourtAdminPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-5 md:p-8">
+    <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 p-6 text-white shadow-lg">
-        <div className="flex gap-3">
-          <Button variant="secondary" size="icon" onClick={() => setLocation("/admin")} aria-label="Back to dashboard"><ArrowLeft className="h-4 w-4" /></Button>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Dedicated administration area</p>
-            <h1 className="text-2xl font-bold">High Court Assessment Upload</h1>
-            <p className="mt-1 text-sm text-white/85">Create one exam folder and publish all three required papers at once.</p>
-          </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Admin dashboard · High Court</p>
+          <h2 className="text-2xl font-bold">Create High Court Assessment</h2>
+          <p className="mt-1 max-w-2xl text-sm text-white/85">Publish one exam folder with its Typing, Pitman, and Shorthand papers together.</p>
         </div>
-        <Link href="/student?tab=high-court_tests"><Button variant="secondary">Preview student area</Button></Link>
+        <Link href="/student?tab=high-court_tests">
+          <Button variant="secondary">Preview student area</Button>
+        </Link>
       </div>
 
       {created && (
         <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
-          <CheckCircle2 className="h-5 w-5" /><span><strong>{created}</strong> was published with Typing, Pitman, and Shorthand papers.</span>
+          <CheckCircle2 className="h-5 w-5" />
+          <span><strong>{created}</strong> was published with all three High Court papers.</span>
         </div>
       )}
 
       <form onSubmit={submit} className="space-y-5">
         <Card className="border-amber-200 shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><ClipboardPenLine className="h-5 w-5 text-amber-700" /> Step 1 — Exam folder</CardTitle>
-            <CardDescription>The folder is the shared identifier that combines a student's three High Court scores.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><ClipboardPenLine className="h-5 w-5 text-amber-700" /> Exam folder</CardTitle>
+            <CardDescription>Use a clear name such as “High Court Main Examination – Set 01”. The folder groups all three student scores.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Label>Exam folder name</Label>
-            <Input value={setTitle} onChange={(e) => setSetTitle(e.target.value)} placeholder="Example: High Court Main Examination – Set 01" required />
+            <Label htmlFor="high-court-folder-name">Exam folder name</Label>
+            <Input id="high-court-folder-name" value={setTitle} onChange={(e) => setSetTitle(e.target.value)} placeholder="High Court Main Examination – Set 01" required />
           </CardContent>
         </Card>
 
-        <div className="flex items-center gap-3 pt-2"><FileText className="h-5 w-5 text-amber-700" /><h2 className="font-bold">Step 2 — Upload all three papers</h2></div>
+        <div className="flex items-center gap-3 pt-2">
+          <FileText className="h-5 w-5 text-amber-700" />
+          <div>
+            <h3 className="font-bold">Three required papers</h3>
+            <p className="text-sm text-muted-foreground">Complete each paper below, then publish the folder once.</p>
+          </div>
+        </div>
         <PaperFields label="Typing Test · 100 Marks" paper={typing} onChange={(changes) => setTyping((current) => ({ ...current, ...changes }))} />
         <PaperFields label="Pitman Test · 100 Marks" paper={pitman} onChange={(changes) => setPitman((current) => ({ ...current, ...changes }))} pitman />
         <PaperFields label="Shorthand Test · 200 Marks" paper={shorthand} onChange={(changes) => setShorthand((current) => ({ ...current, ...changes }))} />
 
-        <div className="sticky bottom-4 flex justify-end rounded-xl border bg-white/95 p-4 shadow-lg backdrop-blur">
+        <div className="sticky bottom-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white/95 p-4 shadow-lg backdrop-blur">
+          <p className="text-sm text-muted-foreground">Students will see this as one High Court exam folder.</p>
           <Button type="submit" size="lg" disabled={saving} className="bg-gradient-to-r from-amber-600 to-orange-600">
             {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Upload className="mr-2 h-5 w-5" />}
-            Publish all three High Court papers
+            Publish all three papers
           </Button>
         </div>
       </form>

@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, LogOut, Menu, Home, Phone, LogIn, Mail, MapPin, Award } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, Home, Phone, LogIn, Mail, MapPin } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
@@ -59,17 +59,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 )}>
                   <LayoutDashboard size={20} />
                   Dashboard
-                </div>
-              </Link>
-              <Link href="/admin/high-court">
-                <div className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer",
-                  location === "/admin/high-court"
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/50"
-                )}>
-                  <Award size={20} />
-                  High Court
                 </div>
               </Link>
             </>

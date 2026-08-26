@@ -11,7 +11,6 @@ import StudentDashboard from "@/pages/student-dashboard";
 import TypingTestPage from "@/pages/typing-test";
 import PitmanTestPage from "@/pages/pitman-test";
 import AllahabadHCTestPage from "@/pages/allahabad-hc-test";
-import HighCourtAdminPage from "@/pages/high-court-admin";
 import HighCourtTypingTestPage from "@/pages/high-court-typing-test";
 import HighCourtPitmanTestPage from "@/pages/high-court-pitman-test";
 import HighCourtShorthandTestPage from "@/pages/high-court-shorthand-test";
@@ -92,9 +91,6 @@ function Router() {
             {/* Protected Routes */}
             <Route path="/admin">
               <PrivateRoute component={AdminDashboard} allowedRoles={['admin']} />
-            </Route>
-            <Route path="/admin/high-court">
-              <PrivateRoute component={HighCourtAdminPage} allowedRoles={['admin']} />
             </Route>
             <Route path="/student">
               <PrivateRoute component={StudentDashboard} allowedRoles={['student']} />

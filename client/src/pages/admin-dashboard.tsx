@@ -81,6 +81,7 @@ import {
   Bell,
   Star,
   BookOpen,
+  Award,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -98,6 +99,7 @@ import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
 import { FolderSelector } from "@/components/FolderSelector";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { queryClient } from "@/lib/queryClient";
+import { HighCourtAdminForm } from "@/components/high-court/HighCourtAdminForm";
 
 // Shared fetch with retry (handles stale-process HTML responses)
 async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
@@ -2708,6 +2710,8 @@ export default function AdminDashboard() {
             </Card>
           </div>
         );
+      case "high-court":
+        return <HighCourtAdminForm />;
       case "manage":
         return (
           <div className="space-y-6">
@@ -5016,6 +5020,13 @@ export default function AdminDashboard() {
       icon: FileUp,
       color: "text-green-600",
       bg: "bg-green-100",
+    },
+    {
+      id: "high-court",
+      label: "High Court Upload",
+      icon: Award,
+      color: "text-amber-600",
+      bg: "bg-amber-100",
     },
     {
       id: "manage",
