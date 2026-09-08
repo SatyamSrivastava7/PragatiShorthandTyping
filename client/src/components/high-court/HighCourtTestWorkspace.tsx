@@ -74,36 +74,41 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     }
 
     let objectUrl = "";
-    let cancelled = false;
     setPdfUrl("");
     setPdfError("Loading PDF…");
 
-    fetch(`/api/high-court/tests/${test.id}/pdf`, { credentials: "include" })
-      .then(async (response) => {
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          throw new Error(payload?.message || "The PDF could not be loaded.");
-        }
-        return response.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
-        setPdfUrl(objectUrl);
-        setPdfError("");
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        console.error("Unable to prepare High Court Pitman PDF:", error);
-        setPdfUrl("");
-        setPdfError(error instanceof Error ? error.message : "The PDF could not be opened. Please ask the administrator to upload it again.");
-      });
+    const encodedPdf = test.pdfFile?.trim();
+    if (!encodedPdf) {
+      setPdfError("No PDF has been uploaded for this paper.");
+      return;
+    }
+
+    try {
+      // High Court admin uploads are stored the same way as standalone Pitman
+      // uploads: as a base64 string or a data URL. Decode it in the browser
+      // and use a blob URL so the embedded PDF viewer can load it reliably.
+      const base64 = encodedPdf.startsWith("data:")
+        ? encodedPdf.split(",")[1] || encodedPdf
+        : encodedPdf;
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let index = 0; index < binaryString.length; index++) {
+        bytes[index] = binaryString.charCodeAt(index);
+      }
+
+      objectUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      setPdfUrl(objectUrl);
+      setPdfError("");
+    } catch (error) {
+      console.error("Unable to prepare High Court Pitman PDF:", error);
+      setPdfUrl("");
+      setPdfError("The PDF could not be opened. Please ask the administrator to upload it again.");
+    }
 
     return () => {
-      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [expectedType, test?.id]);
+  }, [expectedType, test?.id, test?.pdfFile]);
 
   const submit = useCallback(async () => {
     if (!test || submittedRef.current) return;
