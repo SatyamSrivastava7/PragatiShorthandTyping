@@ -1981,15 +1981,15 @@ export async function registerRoutes(
     }
   });
 
-  // Admin: serve an attached High Court PDF inline for preview
+  // Student/Admin: serve an attached High Court PDF inline for preview
   app.get("/api/high-court/tests/:id/pdf", async (req, res) => {
     try {
       if (!req.session.userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const currentUser = await storage.getUser(req.session.userId);
-      if (!currentUser || currentUser.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const id = parseInt(req.params.id);
@@ -2000,6 +2000,12 @@ export async function registerRoutes(
       const test = await storage.getHighCourtTest(id);
       if (!test) {
         return res.status(404).json({ message: "Test not found" });
+      }
+      if (currentUser.role !== "admin") {
+        const testSet = await storage.getHighCourtTestSet(test.testSetId);
+        if (!testSet || !testSet.isEnabled) {
+          return res.status(404).json({ message: "Test not found" });
+        }
       }
       if (!test.pdfFile) {
         return res.status(404).json({ message: "PDF not attached" });

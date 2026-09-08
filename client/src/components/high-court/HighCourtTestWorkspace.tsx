@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, Loader2, Maximize, Minimize, Save, Type } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, Loader2, Maximize, Minimize, Save, Type, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const [submitting, setSubmitting] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
   const [pdfError, setPdfError] = useState("");
+  const [pdfZoom, setPdfZoom] = useState(100);
+  const pdfIframeRef = useRef<HTMLIFrameElement>(null);
   const [fontSize, setFontSize] = useState(18);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
@@ -65,33 +67,43 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   }, [params?.id, toast]);
 
   useEffect(() => {
-    if (expectedType !== "pitman" || !test?.pdfFile) {
+    if (expectedType !== "pitman" || !test) {
       setPdfUrl("");
       setPdfError(expectedType === "pitman" && test ? "No PDF has been uploaded for this paper." : "");
       return;
     }
 
     let objectUrl = "";
-    try {
-      const base64 = test.pdfFile.includes(",") ? test.pdfFile.split(",")[1] : test.pdfFile;
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index);
-      }
-      objectUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-      setPdfUrl(objectUrl);
-      setPdfError("");
-    } catch (error) {
-      console.error("Unable to prepare High Court Pitman PDF:", error);
-      setPdfUrl("");
-      setPdfError("The PDF could not be opened. Please ask the administrator to upload it again.");
-    }
+    let cancelled = false;
+    setPdfUrl("");
+    setPdfError("Loading PDF…");
+
+    fetch(`/api/high-court/tests/${test.id}/pdf`, { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          throw new Error(payload?.message || "The PDF could not be loaded.");
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+        setPdfUrl(objectUrl);
+        setPdfError("");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Unable to prepare High Court Pitman PDF:", error);
+        setPdfUrl("");
+        setPdfError(error instanceof Error ? error.message : "The PDF could not be opened. Please ask the administrator to upload it again.");
+      });
 
     return () => {
+      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [expectedType, test]);
+  }, [expectedType, test?.id]);
 
   const submit = useCallback(async () => {
     if (!test || submittedRef.current) return;
@@ -299,14 +311,52 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
         ) : (
           <div className="grid min-h-[620px] gap-4 lg:grid-cols-2">
             <Card className="flex min-h-[430px] flex-col overflow-hidden border-slate-200 shadow-md">
-              <CardHeader className="border-b bg-slate-50 py-4"><CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle></CardHeader>
-              <CardContent className="flex-1 overflow-auto p-6" id="high-court-question-paper">
+                <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50 py-4">
+                  <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
+                  {expectedType === "pitman" && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPdfZoom((value) => Math.max(50, value - 10))}
+                        disabled={pdfZoom <= 50}
+                        className="h-8 w-8 p-0"
+                        aria-label="Zoom out PDF"
+                      >
+                        <ZoomOut size={16} />
+                      </Button>
+                      <span className="min-w-[40px] text-center text-xs font-medium">{pdfZoom}%</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPdfZoom((value) => Math.min(200, value + 10))}
+                        disabled={pdfZoom >= 200}
+                        className="h-8 w-8 p-0"
+                        aria-label="Zoom in PDF"
+                      >
+                        <ZoomIn size={16} />
+                      </Button>
+                    </div>
+                  )}
+                </CardHeader>
+              <CardContent className="flex-1 overflow-auto bg-white p-4 dark:bg-zinc-900" id="high-court-question-paper">
                 {expectedType === "pitman" && pdfUrl ? (
-                  <iframe title="High Court Pitman paper" className="h-full min-h-[500px] w-full rounded border" src={pdfUrl} />
+                  <div className="flex h-full min-h-[500px] w-full items-center justify-center">
+                    <iframe
+                      key={pdfUrl}
+                      ref={pdfIframeRef}
+                      title="High Court Pitman paper"
+                      className="h-full w-full border-0"
+                      style={{ minHeight: "100%", minWidth: "100%", zoom: `${pdfZoom}%` }}
+                      src={pdfUrl}
+                      onLoad={() => console.log("High Court Pitman PDF loaded successfully")}
+                      onError={() => setPdfError("The PDF could not be loaded. Please ask the administrator to upload it again.")}
+                    />
+                  </div>
                 ) : expectedType === "pitman" ? (
                   <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center text-slate-500">
                     <AlertCircle className="mb-3 h-10 w-10" />
-                    <p className="font-semibold">PDF unavailable</p>
+                    <p className="font-semibold">{pdfError === "Loading PDF…" ? "Loading PDF…" : "PDF unavailable"}</p>
                     <p className="mt-1 text-sm">{pdfError || "The PDF could not be loaded."}</p>
                   </div>
                 ) : expectedType === "typing" ? (
