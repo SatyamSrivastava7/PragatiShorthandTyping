@@ -11,17 +11,17 @@ export function HighCourtErrorComparison({
   }
 
   return (
-    <div className="rounded-lg border bg-slate-50 p-4 text-sm leading-7">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border bg-slate-50 p-4 text-sm leading-7 [overflow-wrap:anywhere]">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Error comparison
       </p>
       {alignment.map((entry, index) => {
         if (entry.status === "match") {
-          return <span key={index} className="mr-1 text-slate-700">{entry.typed}</span>;
+          return <span key={index} className="mr-1 [overflow-wrap:anywhere] text-slate-700">{entry.typed}</span>;
         }
         if (entry.status === "missing") {
           return (
-            <span key={index} className="mr-1">
+            <span key={index} className="mr-1 [overflow-wrap:anywhere]">
               <span
                 className={cn(
                   "rounded px-1 font-semibold",
@@ -38,8 +38,8 @@ export function HighCourtErrorComparison({
           return (
             <span
               key={index}
-              className={cn(
-                "mr-1 rounded px-1 font-semibold underline",
+                className={cn(
+                  "mr-1 rounded px-1 font-semibold underline [overflow-wrap:anywhere]",
                 entry.severity === "half" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700",
               )}
             >
@@ -48,7 +48,7 @@ export function HighCourtErrorComparison({
           );
         }
         return (
-          <span key={index} className="mr-1">
+          <span key={index} className="mr-1 [overflow-wrap:anywhere]">
             <span
               className={cn(
                 "rounded px-1 font-semibold underline",

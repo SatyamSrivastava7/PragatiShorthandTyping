@@ -4,9 +4,7 @@ const safe = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 function page(attempt: HighCourtAttempt | null, label: string, maximum: number) {
-  if (!attempt) {
-    return `<section class="page"><h1>${label}</h1><p class="missing">This paper has not been submitted yet.</p></section>`;
-  }
+  if (!attempt) return "";
   const rows = (attempt.alignment || []).map((entry) => {
     const className = entry.status === "match" ? "ok" : entry.severity === "half" ? "half" : "full";
     const expected = entry.original ? `<span class="expected">[${safe(entry.original)}]</span>` : "";
@@ -28,8 +26,13 @@ function page(attempt: HighCourtAttempt | null, label: string, maximum: number) 
 }
 
 export function downloadHighCourtPdf(result: HighCourtGroupedResult) {
-  const win = window.open("", "_blank", "noopener,noreferrer");
+  const win = window.open("", "_blank");
   if (!win) return;
+  const attemptedPages = [
+    page(result.typing, "Typing Test", 100),
+    page(result.pitman, "Pitman Test", 100),
+    page(result.shorthand, "Shorthand Test", 200),
+  ].filter(Boolean).join("");
   const content = `<!doctype html><html><head><title>${safe(result.testSetTitle)} — High Court Report</title>
     <style>
       @page { size: A4; margin: 18mm; } body { font-family: Arial, sans-serif; color:#172033; }
@@ -43,9 +46,7 @@ export function downloadHighCourtPdf(result: HighCourtGroupedResult) {
       .expected { margin-left:3px; color:#15803d; font-weight:700; } .ok { color:#334155; } .missing { color:#64748b; margin-top:28px; }
       footer { position:fixed; bottom:10mm; color:#64748b; font-size:11px; }
     </style></head><body>
-    ${page(result.typing, "Typing Test", 100)}
-    ${page(result.pitman, "Pitman Test", 100)}
-    ${page(result.shorthand, "Shorthand Test", 200)}
+     ${attemptedPages}
     </body></html>`;
   win.document.write(content);
   win.document.close();

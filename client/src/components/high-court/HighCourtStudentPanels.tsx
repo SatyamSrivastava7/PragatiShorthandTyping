@@ -107,13 +107,13 @@ export function HighCourtResultsPanel() {
         </table>
       </div>
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
+        <DialogContent className="w-[calc(100%-1rem)] max-h-[88vh] max-w-4xl overflow-x-hidden overflow-y-auto p-4 sm:p-6">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-600" />{selected?.testSetTitle} — High Court Report</DialogTitle></DialogHeader>
-          {selected && <div className="space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-4"><div><p className="text-sm text-amber-800">Combined total</p><p className="text-3xl font-bold text-amber-900">{selected.totalMarks} <span className="text-base">/ 400</span></p></div><Button className="bg-amber-600 hover:bg-amber-700" onClick={() => downloadHighCourtPdf(selected)}><Download className="mr-2 h-4 w-4" />Download 3-page PDF</Button></div>
+          {selected && <div className="min-w-0 space-y-5">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-4"><div className="min-w-0"><p className="text-sm text-amber-800">Combined total</p><p className="text-3xl font-bold text-amber-900">{selected.totalMarks} <span className="text-base">/ 400</span></p></div><Button className="shrink-0 bg-amber-600 hover:bg-amber-700" onClick={() => downloadHighCourtPdf(selected)}><Download className="mr-2 h-4 w-4" />Download</Button></div>
             {papers.map((paper) => {
               const attempt = selected[paper.type];
-              return <Card key={paper.type}><CardHeader className="pb-3"><CardTitle className="flex items-center justify-between text-base"><span>{paper.label} Test</span><span className="text-amber-800">{attempt?.marks ?? 0} / {paper.max}</span></CardTitle><CardDescription>{attempt ? `Submitted ${new Date(attempt.submittedAt).toLocaleString()} · ${attempt.mistakes} full / ${attempt.halfMistakes} half mistakes` : "Not submitted yet"}</CardDescription></CardHeader>{attempt && <CardContent><HighCourtErrorComparison alignment={attempt.alignment} /></CardContent>}</Card>;
+                return <Card key={paper.type} className="min-w-0 overflow-hidden"><CardHeader className="pb-3"><CardTitle className="flex min-w-0 items-center justify-between gap-3 text-base"><span className="min-w-0">{paper.label} Test</span><span className="shrink-0 text-amber-800">{attempt?.marks ?? 0} / {paper.max}</span></CardTitle><CardDescription className="break-words">{attempt ? `Submitted ${new Date(attempt.submittedAt).toLocaleString()} · ${attempt.mistakes} full / ${attempt.halfMistakes} half mistakes` : "Not submitted yet"}</CardDescription></CardHeader>{attempt && <CardContent className="min-w-0"><HighCourtErrorComparison alignment={attempt.alignment} /></CardContent>}</Card>;
             })}
           </div>}
         </DialogContent>
