@@ -81,7 +81,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className={cn("flex flex-col bg-background", isTestPage ? "h-screen overflow-hidden" : "min-h-screen")}>
       {/* Top Bar */}
       <header className="w-full bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-4">

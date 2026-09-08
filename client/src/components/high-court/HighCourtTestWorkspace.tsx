@@ -321,7 +321,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             </CardContent>
           </Card>
         ) : (
-          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-2">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden sm:grid-cols-2">
             <Card className="flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md">
                 <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
                   <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
@@ -351,7 +351,12 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     </div>
                   )}
                 </CardHeader>
-              <CardContent className="min-h-0 flex-1 overflow-hidden bg-white p-4 dark:bg-zinc-900" id="high-court-question-paper">
+              <CardContent
+                className={`min-h-0 flex-1 bg-white p-4 dark:bg-zinc-900 ${
+                  expectedType === "pitman" ? "overflow-hidden" : "overflow-auto"
+                }`}
+                id="high-court-question-paper"
+              >
                 {expectedType === "pitman" && pdfUrl ? (
                   <HighCourtPdfViewer source={pdfUrl} zoom={pdfZoom} />
                 ) : expectedType === "pitman" ? (
@@ -372,7 +377,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
               <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
                 <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Your response</CardTitle>
               </CardHeader>
-              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+              <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
                 {expectedType === "typing" ? (
                   <RichTextEditor
                     value={typedText}
