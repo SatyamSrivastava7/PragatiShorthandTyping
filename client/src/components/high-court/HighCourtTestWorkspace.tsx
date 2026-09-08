@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { highCourtApi, type HighCourtTest, type HighCourtTestType } from "@/lib/highCourt";
+import { stripHtmlEntities, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const labels: Record<HighCourtTestType, string> = {
@@ -146,36 +147,69 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     question.scrollTop = ratio * Math.max(0, question.scrollHeight - question.clientHeight);
   };
 
-  const typedWordCount = typedText
-    .replace(/<[^>]*>/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean).length;
+  const getHighlightedTypingContent = () => {
+    if (!test || !highlighterEnabled) return test?.text || "";
 
-  const renderTypingQuestion = () => {
-    if (!test) return null;
-    if (!highlighterEnabled || typedWordCount === 0) {
-      return <article className="prose max-w-none whitespace-pre-wrap leading-8 text-slate-800" style={{ fontSize }} dangerouslySetInnerHTML={{ __html: test.text }} />;
+    const originalWords = stripHtmlPreserveParagraphs(test.text)
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word && word !== PARA_TOKEN);
+    const typedPlainText = stripHtmlPreserveParagraphs(typedText);
+    const typedWords = typedPlainText
+      .split(/\s+/)
+      .filter((word) => word && word !== PARA_TOKEN);
+    const hasTrailingWhitespace = /(?:\s|&nbsp;|&#160;|&#xa0;)(?:<\/[^>]+>)*$/i.test(typedText);
+
+    let currentIndex = 0;
+    if (typedPlainText.trim() !== "") {
+      currentIndex = hasTrailingWhitespace ? typedWords.length : Math.max(0, typedWords.length - 1);
     }
 
-    const plainText = test.text
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>|<\/div>/gi, "\n")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/gi, " ");
-    const words = plainText.split(/(\s+)/);
-    let wordIndex = 0;
-    return (
-      <article className="whitespace-pre-wrap leading-8 text-slate-800" style={{ fontSize }}>
-        {words.map((part, index) => {
-          if (/^\s+$/.test(part) || !part) return part;
-          const highlighted = wordIndex < typedWordCount;
-          wordIndex += 1;
-          return <span key={`${index}-${part}`} className={highlighted ? "rounded bg-amber-200" : undefined}>{part}</span>;
-        })}
-      </article>
-    );
+    if (!originalWords.length || currentIndex >= originalWords.length) {
+      return test.text;
+    }
+
+    const targetWord = originalWords[currentIndex];
+    let wordOccurrenceCount = 0;
+    let foundTargetWord = false;
+    const highlightStyle = "background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;";
+
+    return test.text
+      .split(/(<[^>]+>)/)
+      .map((part) => {
+        if (part.startsWith("<") || foundTargetWord || !part) return part;
+
+        return part
+          .split(/((?:\s|&nbsp;|&#160;|&#xa0;)+)/i)
+          .map((segment) => {
+            if (foundTargetWord || !segment) return segment;
+
+            const decoded = stripHtmlEntities(segment);
+            if (/^\s*$/.test(decoded)) return segment;
+
+            if (decoded === targetWord) {
+              if (wordOccurrenceCount === currentIndex) {
+                foundTargetWord = true;
+                return `<span class="current-word-marker" style="${highlightStyle}">${segment}</span>`;
+              }
+              wordOccurrenceCount += 1;
+            } else {
+              wordOccurrenceCount += 1;
+            }
+            return segment;
+          })
+          .join("");
+      })
+      .join("");
   };
+
+  const renderTypingQuestion = () => (
+    <article
+      className="prose max-w-none whitespace-pre-wrap leading-8 text-slate-800"
+      style={{ fontSize }}
+      dangerouslySetInnerHTML={{ __html: getHighlightedTypingContent() }}
+    />
+  );
 
   const formatTime = `${Math.floor(timeLeft / 60).toString().padStart(2, "0")}:${(timeLeft % 60).toString().padStart(2, "0")}`;
 
