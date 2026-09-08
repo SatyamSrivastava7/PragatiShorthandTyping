@@ -67,6 +67,9 @@ export const content = pgTable("content", {
   
   // PDF file for Pitman Book Exercise (optional, stored as base64)
   pdfFile: text("pdf_file"), // Base64 encoded PDF file for pitman book exercise
+
+  // Legacy audio data retained so schema sync does not delete existing values.
+  mediaUrl: text("media_url"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({

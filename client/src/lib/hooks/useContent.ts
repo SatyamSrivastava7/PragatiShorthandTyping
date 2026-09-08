@@ -92,6 +92,7 @@ export function useContent() {
         video100wpm: null,
         video120wpm: null,
         pdfFile: null,
+         mediaUrl: null,
         isEnabled: false,
         autoScroll: true,
         createdAt: new Date(),
@@ -151,6 +152,7 @@ export function useContent() {
         autoScroll,
         createdAt: new Date(),
         folderId: null,
+         mediaUrl: null,
       };
 
       queryClient.setQueryData<Omit<Content, 'text' | 'video60wpm' | 'video80wpm' | 'video100wpm' | 'video120wpm' | 'pdfFile'>[]>(['content', 'list'], (old = []) => [optimisticContent, ...old]);

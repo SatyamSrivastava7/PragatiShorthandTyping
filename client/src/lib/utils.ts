@@ -1138,7 +1138,7 @@ export const generateResultPDF = async (result: Result) => {
     interface HcBlock { textAlign?: string; words: HcWord[]; isEmpty: boolean; }
     interface HcActive { tag: string; bold?: boolean; italic?: boolean; underline?: boolean; lineThrough?: boolean; }
 
-    function parseStyleAttr(tok: string, e: HcActive) {
+    const parseStyleAttr = (tok: string, e: HcActive): void => {
       const sm = tok.match(/style\s*=\s*"([^"]*)"|style\s*=\s*'([^']*)'/i);
       if (!sm) return;
       const s = (sm[1] ?? sm[2] ?? '').toLowerCase();
@@ -1154,9 +1154,9 @@ export const generateResultPDF = async (result: Result) => {
         if (/underline/.test(td[1])) e.underline = true;
         if (/line-through/.test(td[1])) e.lineThrough = true;
       }
-    }
+    };
 
-    function parseHcBlocks(raw: string): HcBlock[] {
+    const parseHcBlocks = (raw: string): HcBlock[] => {
       const blocks: HcBlock[] = [];
       const processed = raw.replace(/\[\[PARA?\]?\]?|\[\[PAR\]?/g, ' __PARA__ ');
       const chunks = processed.split(/<\/div\s*>/i);
@@ -1218,7 +1218,7 @@ export const generateResultPDF = async (result: Result) => {
         blocks.push({ textAlign, words, isEmpty: words.length === 0 });
       }
       return blocks;
-    }
+    };
 
     const hcBlocks = parseHcBlocks(result.typedText || '');
     const allHcWords = hcBlocks.flatMap(b => b.words);

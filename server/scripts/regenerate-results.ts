@@ -728,6 +728,12 @@ async function regenerateResults() {
       // The live tests pass `testContent.duration` (minutes) into
       // calculateTypingMetrics for gross/net speed. Match that exactly so
       // recalculation reproduces the same speed numbers.
+      if (result.contentId === null) {
+        console.log(`Skipping result ${result.id} - content ID is missing`);
+        skipped++;
+        continue;
+      }
+
       const [contentRow] = await db
         .select({ duration: content.duration })
         .from(content)
