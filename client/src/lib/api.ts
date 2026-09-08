@@ -4,7 +4,8 @@ const API_URL = '';
 
 async function fetchApi<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  redirectOnAuthError = true
 ): Promise<T> {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
@@ -18,7 +19,13 @@ async function fetchApi<T>(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
     // Redirect to auth on 401 (session expired) or 403 access-disabled
-    if (response.status === 401 || (response.status === 403 && error.message?.includes('disabled'))) {
+    const isLoginRequest =
+      endpoint === '/api/auth/login' || endpoint === '/api/auth/admin-login';
+    if (
+      redirectOnAuthError &&
+      !isLoginRequest &&
+      (response.status === 401 || (response.status === 403 && error.message?.includes('disabled')))
+    ) {
       window.location.href = '/auth';
     }
     throw new Error(error.message || `HTTP ${response.status}`);
@@ -52,7 +59,7 @@ export const authApi = {
     fetchApi<{ user: User }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ mobile, password }),
-    }),
+    }, false),
 
   logout: () =>
     fetchApi<void>('/api/auth/logout', {
