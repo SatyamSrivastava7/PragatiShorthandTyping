@@ -1255,8 +1255,9 @@ export default function AdminDashboard() {
   }, [toast]);
 
   useEffect(() => {
+    if (activeResultsTab !== "high-court") return;
     fetchHighCourtResults();
-  }, [fetchHighCourtResults]);
+  }, [activeResultsTab, fetchHighCourtResults]);
 
   const highCourtResultKey = (result: HighCourtGroupedResult) => `${result.testSetId}:${result.studentId}`;
 
@@ -3791,12 +3792,12 @@ export default function AdminDashboard() {
                       disabled={isRefreshingResults || isHighCourtResultsLoading}
                       onClick={async () => {
                         setIsRefreshingResults(true);
-                        await Promise.all([
-                          queryClient.invalidateQueries({
-                            queryKey: ["results"],
-                          }),
-                          fetchHighCourtResults(),
-                        ]);
+                        await queryClient.invalidateQueries({
+                          queryKey: ["results"],
+                        });
+                        if (activeResultsTab === "high-court") {
+                          await fetchHighCourtResults();
+                        }
                         setIsRefreshingResults(false);
                       }}
                       data-testid="button-refresh-results"
