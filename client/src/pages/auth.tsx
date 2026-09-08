@@ -38,6 +38,7 @@ export default function AuthPage() {
   const [resetMobile, setResetMobile] = useState("");
   const [resetCity, setResetCity] = useState("");
   const [resetNewPass, setResetNewPass] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Payment Verification State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -60,6 +61,7 @@ export default function AuthPage() {
   // Renewal State
   const [renewalMobile, setRenewalMobile] = useState("");
   const [renewalPassword, setRenewalPassword] = useState("");
+  const [showRenewalPassword, setShowRenewalPassword] = useState(false);
   const [renewalAccessMonths, setRenewalAccessMonths] = useState(1);
 
   const accessPlans = [
@@ -354,7 +356,7 @@ export default function AuthPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 bg-white shadow-md border p-2.5 rounded-xl h-auto">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4 bg-white shadow-md border p-2 rounded-xl h-auto">
               <TabsTrigger 
                 value="login"
                 className="min-w-0 whitespace-nowrap rounded-lg px-2 py-2.5 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
@@ -363,13 +365,13 @@ export default function AuthPage() {
               </TabsTrigger>
               <TabsTrigger 
                 value="register"
-                className="min-w-0 whitespace-nowrap rounded-lg px-2 py-2.5 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+                className="min-w-0 whitespace-nowrap rounded-lg px-1.5 py-2.5 text-[11px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
               >
-                New Student
+                Register
               </TabsTrigger>
               <TabsTrigger
                 value="renew"
-                className="min-w-0 whitespace-nowrap rounded-lg px-2 py-2.5 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+                className="min-w-0 whitespace-nowrap rounded-lg px-1.5 py-2.5 text-[11px] sm:text-xs data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
               >
                 Renew Access
               </TabsTrigger>
@@ -555,15 +557,31 @@ export default function AuthPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="renewalPassword">Password</Label>
-                  <Input
-                    id="renewalPassword"
-                    type="password"
-                    value={renewalPassword}
-                    onChange={(e) => setRenewalPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    data-testid="input-renewal-password"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="renewalPassword"
+                      type={showRenewalPassword ? "text" : "password"}
+                      value={renewalPassword}
+                      onChange={(e) => setRenewalPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      data-testid="input-renewal-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowRenewalPassword(!showRenewalPassword)}
+                      data-testid="button-toggle-renewal-password"
+                    >
+                      {showRenewalPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="renewalAccessMonths">Access Period</Label>
@@ -603,7 +621,30 @@ export default function AuthPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>New Password</Label>
-                  <Input type="password" placeholder="Enter new password" value={resetNewPass} onChange={e => setResetNewPass(e.target.value)} required data-testid="input-reset-password" />
+                  <div className="relative">
+                    <Input
+                      type={showResetPassword ? "text" : "password"}
+                      placeholder="Enter new password"
+                      value={resetNewPass}
+                      onChange={e => setResetNewPass(e.target.value)}
+                      required
+                      data-testid="input-reset-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowResetPassword(!showResetPassword)}
+                      data-testid="button-toggle-reset-password"
+                    >
+                      {showResetPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all" data-testid="button-reset-password">
                   Reset Password
