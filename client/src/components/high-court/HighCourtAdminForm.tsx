@@ -20,12 +20,14 @@ export function PaperFields({
   onChange,
   pitman,
   shorthand,
+  pdfUrl,
 }: {
   label: string;
   paper: PaperForm;
   onChange: (changes: Partial<PaperForm>) => void;
   pitman?: boolean;
   shorthand?: boolean;
+  pdfUrl?: string;
 }) {
   const uploadPdf = (file: File | undefined) => {
     if (!file) return;
@@ -59,7 +61,7 @@ export function PaperFields({
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <p className="font-medium text-emerald-700">PDF attached and ready to upload.</p>
                 <a
-                  href={paper.pdfFile}
+                  href={pdfUrl || paper.pdfFile}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 font-semibold text-purple-700 underline underline-offset-2 hover:text-purple-900"

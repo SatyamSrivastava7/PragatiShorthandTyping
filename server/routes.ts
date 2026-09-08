@@ -1981,6 +1981,45 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: serve an attached High Court PDF inline for preview
+  app.get("/api/high-court/tests/:id/pdf", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid test ID" });
+      }
+
+      const test = await storage.getHighCourtTest(id);
+      if (!test) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+      if (!test.pdfFile) {
+        return res.status(404).json({ message: "PDF not attached" });
+      }
+
+      const encodedPdf = test.pdfFile.includes(",")
+        ? test.pdfFile.slice(test.pdfFile.indexOf(",") + 1)
+        : test.pdfFile;
+      const pdfBuffer = Buffer.from(encodedPdf, "base64");
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", "inline");
+      res.setHeader("Cache-Control", "no-store");
+      return res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error serving High Court PDF:", error);
+      return res.status(500).json({ message: "Failed to load PDF" });
+    }
+  });
+
   // Admin: delete a test set (cascades to its tests and attempts)
   app.delete("/api/high-court/test-sets/:id", async (req, res) => {
     try {

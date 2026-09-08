@@ -277,6 +277,9 @@ export function HighCourtManageTests() {
                                     setEditPapers((prev) => (prev ? { ...prev, pitman: { ...prev.pitman, ...changes } } : prev))
                                   }
                                   pitman
+                                  pdfUrl={editingSet.tests.find((test) => test.type === "pitman")?.id
+                                    ? `/api/high-court/tests/${editingSet.tests.find((test) => test.type === "pitman")!.id}/pdf`
+                                    : undefined}
                                 />
                                 <PaperFields
                                   label="Shorthand Test · 200 Marks"
