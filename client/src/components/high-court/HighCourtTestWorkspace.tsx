@@ -77,38 +77,45 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     setPdfUrl("");
     setPdfError("Loading PDF…");
 
-    const encodedPdf = test.pdfFile?.trim();
-    if (!encodedPdf) {
-      setPdfError("No PDF has been uploaded for this paper.");
-      return;
-    }
+    const controller = new AbortController();
+    const loadPdf = async () => {
+      try {
+        // Fetch through the authenticated High Court PDF route instead of
+        // decoding the base64 field embedded in the test JSON. This keeps the
+        // browser path consistent for large uploads and lets the server
+        // normalize data URLs before returning the PDF bytes.
+        const response = await fetch(`/api/high-court/tests/${test.id}/pdf`, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => null);
+          throw new Error(errorBody?.message || `PDF request failed (${response.status})`);
+        }
 
-    try {
-      // High Court admin uploads are stored the same way as standalone Pitman
-      // uploads: as a base64 string or a data URL. Decode it in the browser
-      // and use a blob URL so the embedded PDF viewer can load it reliably.
-      const base64 = encodedPdf.startsWith("data:")
-        ? encodedPdf.split(",")[1] || encodedPdf
-        : encodedPdf;
-      const binaryString = atob(base64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let index = 0; index < binaryString.length; index++) {
-        bytes[index] = binaryString.charCodeAt(index);
+        const pdfBlob = await response.blob();
+        if (!pdfBlob.size) {
+          throw new Error("The PDF response was empty.");
+        }
+
+        objectUrl = URL.createObjectURL(new Blob([pdfBlob], { type: "application/pdf" }));
+        setPdfUrl(objectUrl);
+        setPdfError("");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error("Unable to load High Court Pitman PDF:", error);
+        setPdfUrl("");
+        setPdfError("The PDF could not be opened. Please ask the administrator to upload it again.");
       }
+    };
 
-      objectUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-      setPdfUrl(objectUrl);
-      setPdfError("");
-    } catch (error) {
-      console.error("Unable to prepare High Court Pitman PDF:", error);
-      setPdfUrl("");
-      setPdfError("The PDF could not be opened. Please ask the administrator to upload it again.");
-    }
+    void loadPdf();
 
     return () => {
+      controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [expectedType, test?.id, test?.pdfFile]);
+  }, [expectedType, test?.id]);
 
   const submit = useCallback(async () => {
     if (!test || submittedRef.current) return;
