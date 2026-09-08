@@ -19,6 +19,9 @@ async function seed() {
       mobile: "9876543210",
       password: hashedPassword,
       name: "Admin",
+      batch: "Administration",
+      city: "N/A",
+      state: "N/A",
       role: "admin",
     });
     
