@@ -354,28 +354,28 @@ export default function AuthPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 bg-white shadow-md border p-2.5 rounded-xl h-auto">
               <TabsTrigger 
                 value="login"
-                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+                className="min-w-0 whitespace-nowrap rounded-lg px-2 py-2.5 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
               >
                 Login
               </TabsTrigger>
               <TabsTrigger 
                 value="register"
-                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+                className="min-w-0 whitespace-nowrap rounded-lg px-2 py-2.5 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
               >
                 New Student
               </TabsTrigger>
               <TabsTrigger
                 value="renew"
-                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+                className="min-w-0 whitespace-nowrap rounded-lg px-2 py-2.5 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
               >
                 Renew Access
               </TabsTrigger>
               <TabsTrigger 
                 value="reset"
-                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+                className="min-w-0 whitespace-nowrap rounded-lg px-2 py-2.5 text-xs sm:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
               >
                 Reset
               </TabsTrigger>
