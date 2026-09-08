@@ -33,6 +33,7 @@ export interface User {
   state?: string;
   isPaymentCompleted?: boolean;
   paymentAmount?: number;
+  accessMonths?: number;
   validUntil?: string;
   purchasedPdfs?: string[];
 }

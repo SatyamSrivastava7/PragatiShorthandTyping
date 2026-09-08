@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/hooks";
 import { useSettings } from "@/lib/hooks";
+import { authApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,7 @@ export default function AuthPage() {
   const [regEmail, setRegEmail] = useState("");
   const [regCity, setRegCity] = useState("");
   const [regState, setRegState] = useState("");
+  const [regAccessMonths, setRegAccessMonths] = useState(1);
 
   // Reset Password State
   const [resetStudentId, setResetStudentId] = useState("");
@@ -47,7 +49,33 @@ export default function AuthPage() {
     email?: string;
     city: string;
     state: string;
+    accessMonths: number;
   } | null>(null);
+  const [pendingRenewal, setPendingRenewal] = useState<{
+    mobile: string;
+    password: string;
+    accessMonths: number;
+  } | null>(null);
+
+  // Renewal State
+  const [renewalMobile, setRenewalMobile] = useState("");
+  const [renewalPassword, setRenewalPassword] = useState("");
+  const [renewalAccessMonths, setRenewalAccessMonths] = useState(1);
+
+  const accessPlans = [
+    { months: 1, label: "1 Month", key: "registrationFee1Month" as const },
+    { months: 3, label: "3 Months", key: "registrationFee3Month" as const },
+    { months: 6, label: "6 Months", key: "registrationFee6Month" as const },
+    { months: 12, label: "12 Months", key: "registrationFee12Month" as const },
+  ];
+  const getPlanFee = (months: number) => {
+    const plan = accessPlans.find((item) => item.months === months);
+    const configuredFee = plan ? Number(settings?.[plan.key] || 0) : 0;
+    if (configuredFee > 0 || months === 1) {
+      return configuredFee || Number(settings?.registrationFee || 0);
+    }
+    return Number(settings?.registrationFee || 0) * months;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +171,9 @@ export default function AuthPage() {
         email: regEmail || undefined,
         city: regCity.trim(),
         state: regState.trim(),
+        accessMonths: regAccessMonths,
       });
+      setPendingRenewal(null);
       setShowPaymentModal(true);
       return;
     }
@@ -157,6 +187,7 @@ export default function AuthPage() {
       email: regEmail || undefined,
       city: regCity.trim(),
       state: regState.trim(),
+      accessMonths: regAccessMonths,
     });
   };
 
@@ -168,6 +199,7 @@ export default function AuthPage() {
     email?: string;
     city: string;
     state: string;
+    accessMonths: number;
   }, paymentConfirmed: boolean = false) => {
     try {
       const result = await register({ ...data, paymentConfirmed });
@@ -187,6 +219,7 @@ export default function AuthPage() {
         setRegEmail("");
         setRegCity("");
         setRegState("");
+        setRegAccessMonths(1);
         setActiveTab("login");
       } else {
         toast({
@@ -201,6 +234,7 @@ export default function AuthPage() {
       // Close payment modal if open
       setShowPaymentModal(false);
       setPendingRegistration(null);
+      setPendingRenewal(null);
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -210,14 +244,71 @@ export default function AuthPage() {
     }
   };
 
+  const completeRenewal = async (
+    data: { mobile: string; password: string; accessMonths: number },
+    paymentConfirmed: boolean = false,
+  ) => {
+    try {
+      const result = await authApi.renew({ ...data, paymentConfirmed });
+      toast({
+        title: "Renewal request submitted",
+        description: result.message,
+        duration: 10000,
+      });
+      setRenewalMobile("");
+      setRenewalPassword("");
+      setRenewalAccessMonths(1);
+      setShowPaymentModal(false);
+      setPendingRegistration(null);
+      setPendingRenewal(null);
+      setActiveTab("login");
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Renewal Failed",
+        description: err.message || "Failed to request access renewal.",
+      });
+    }
+  };
+
   const handlePaymentConfirm = async () => {
-    if (!pendingRegistration) return;
-    await completeRegistration(pendingRegistration, true);
+    if (pendingRenewal) {
+      await completeRenewal(pendingRenewal, true);
+    } else if (pendingRegistration) {
+      await completeRegistration(pendingRegistration, true);
+    }
   };
 
   const handlePaymentCancel = () => {
     setShowPaymentModal(false);
     setPendingRegistration(null);
+    setPendingRenewal(null);
+  };
+
+  const handleRenewal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = {
+      mobile: renewalMobile.trim(),
+      password: renewalPassword,
+      accessMonths: renewalAccessMonths,
+    };
+    if (!data.mobile || !data.password) {
+      toast({
+        variant: "destructive",
+        title: "Details required",
+        description: "Enter your mobile number and password.",
+      });
+      return;
+    }
+
+    if (settings?.requirePaymentVerification) {
+      setPendingRegistration(null);
+      setPendingRenewal(data);
+      setShowPaymentModal(true);
+      return;
+    }
+
+    await completeRenewal(data, true);
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -263,7 +354,7 @@ export default function AuthPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4 bg-white shadow-md border p-1.5 rounded-xl h-auto">
+            <TabsList className="grid w-full grid-cols-4 mb-4 bg-white shadow-md border p-1.5 rounded-xl h-auto">
               <TabsTrigger 
                 value="login"
                 className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
@@ -275,6 +366,12 @@ export default function AuthPage() {
                 className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
               >
                 New Student
+              </TabsTrigger>
+              <TabsTrigger
+                value="renew"
+                className="rounded-lg py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-gray-600 data-[state=active]:shadow-md transition-all font-medium"
+              >
+                Renew Access
               </TabsTrigger>
               <TabsTrigger 
                 value="reset"
@@ -416,8 +513,76 @@ export default function AuthPage() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="regAccessMonths">Access Period</Label>
+                  <select
+                    id="regAccessMonths"
+                    value={regAccessMonths}
+                    onChange={(e) => setRegAccessMonths(Number(e.target.value))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    data-testid="select-register-access-period"
+                  >
+                    {accessPlans.map((plan) => (
+                      <option key={plan.months} value={plan.months}>
+                        {plan.label} — ₹{getPlanFee(plan.months)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <Button type="submit" className="w-full bg-gradient-to-r from-primary to-blue-600 shadow-md hover:shadow-lg transition-all" disabled={isRegistering} data-testid="button-register">
                   {isRegistering ? "Creating Profile..." : "Create Profile"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="renew">
+              <form onSubmit={handleRenewal} className="space-y-4">
+                <div className="rounded-lg bg-purple-50 border border-purple-200 p-3 text-sm text-purple-900">
+                  Use this option if your student account access has expired. After payment, the administrator will activate the selected period.
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="renewalMobile">Mobile Number</Label>
+                  <Input
+                    id="renewalMobile"
+                    value={renewalMobile}
+                    onChange={(e) => setRenewalMobile(e.target.value.replace(/\D/g, ""))}
+                    maxLength={10}
+                    placeholder="Enter 10-digit mobile number"
+                    required
+                    data-testid="input-renewal-mobile"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="renewalPassword">Password</Label>
+                  <Input
+                    id="renewalPassword"
+                    type="password"
+                    value={renewalPassword}
+                    onChange={(e) => setRenewalPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    data-testid="input-renewal-password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="renewalAccessMonths">Access Period</Label>
+                  <select
+                    id="renewalAccessMonths"
+                    value={renewalAccessMonths}
+                    onChange={(e) => setRenewalAccessMonths(Number(e.target.value))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    data-testid="select-renewal-access-period"
+                  >
+                    {accessPlans.map((plan) => (
+                      <option key={plan.months} value={plan.months}>
+                        {plan.label} — ₹{getPlanFee(plan.months)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-purple-500" data-testid="button-renew-access">
+                  Continue to Payment
                 </Button>
               </form>
             </TabsContent>
@@ -471,19 +636,20 @@ export default function AuthPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <QrCode className="h-5 w-5 text-primary" />
-              Payment Required
+              {pendingRenewal ? "Renewal Payment Required" : "Payment Required"}
             </DialogTitle>
             <DialogDescription>
-              Please complete the payment to create your profile. Scan the QR code below with any UPI app.
+              Please complete the payment below, then confirm it to submit your request.
             </DialogDescription>
           </DialogHeader>
           
           <div className="flex flex-col items-center space-y-4 py-4">
-            {/* Registration Fee Amount */}
             <div className="text-center">
-              <p className="text-sm text-muted-foreground">Registration Fee</p>
+              <p className="text-sm text-muted-foreground">
+                {pendingRenewal ? "Access Renewal Fee" : "Registration Fee"} — {accessPlans.find((plan) => plan.months === (pendingRenewal?.accessMonths || pendingRegistration?.accessMonths || regAccessMonths))?.label}
+              </p>
               <p className="text-3xl font-bold text-primary" data-testid="text-payment-amount">
-                ₹{settings?.registrationFee || 0}
+                ₹{getPlanFee(pendingRenewal?.accessMonths || pendingRegistration?.accessMonths || regAccessMonths)}
               </p>
             </div>
 
@@ -517,7 +683,7 @@ export default function AuthPage() {
             {/* Instructions */}
             <div className="text-sm text-muted-foreground text-center space-y-1">
               <p>1. Scan QR code or use UPI ID</p>
-              <p>2. Pay ₹{settings?.registrationFee || 0}</p>
+              <p>2. Pay ₹{getPlanFee(pendingRenewal?.accessMonths || pendingRegistration?.accessMonths || regAccessMonths)}</p>
               <p>3. Click "I have paid" after payment</p>
             </div>
           </div>

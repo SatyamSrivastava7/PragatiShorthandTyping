@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   profilePicture: text("profile_picture"),
   isPaymentCompleted: boolean("is_payment_completed").default(false),
   paymentAmount: numeric("payment_amount"),
+  accessMonths: integer("access_months").default(1).notNull(),
   validUntil: timestamp("valid_until"),
   accessEnabledAt: timestamp("access_enabled_at"),
   purchasedPdfs: text("purchased_pdfs").array().default(sql`ARRAY[]::text[]`),

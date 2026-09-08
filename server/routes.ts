@@ -27,6 +27,38 @@ declare module "express-session" {
   }
 }
 
+const ACCESS_MONTH_OPTIONS = [1, 3, 6, 12] as const;
+type AccessMonths = (typeof ACCESS_MONTH_OPTIONS)[number];
+
+function parseAccessMonths(value: unknown): AccessMonths | null {
+  const months = typeof value === "number" ? value : Number(value);
+  return ACCESS_MONTH_OPTIONS.includes(months as AccessMonths)
+    ? (months as AccessMonths)
+    : null;
+}
+
+function addAccessMonths(from: Date, months: AccessMonths): Date {
+  const result = new Date(from);
+  const day = result.getDate();
+  result.setDate(1);
+  result.setMonth(result.getMonth() + months);
+  const lastDay = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(day, lastDay));
+  return result;
+}
+
+async function getRegistrationFee(months: AccessMonths): Promise<number> {
+  const planSetting = await storage.getSetting(`registrationFee${months}Month`);
+  if (planSetting) {
+    const planFee = Number(planSetting.value);
+    if (Number.isFinite(planFee) && planFee >= 0) return planFee;
+  }
+
+  const legacySetting = await storage.getSetting("registrationFee");
+  const legacyFee = Number(legacySetting?.value);
+  return Number.isFinite(legacyFee) && legacyFee >= 0 ? legacyFee * months : 0;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -41,7 +73,12 @@ export async function registerRoutes(
   app.post("/api/auth/register", async (req, res) => {
     try {
       const { paymentConfirmed, ...userData } = req.body;
-      const validatedData = insertUserSchema.parse({ ...userData, role: 'student' });
+      const accessMonths = parseAccessMonths(userData.accessMonths ?? 1);
+      if (!accessMonths) {
+        return res.status(400).json({ message: "Access period must be 1, 3, 6, or 12 months." });
+      }
+      const validatedData = insertUserSchema.parse({ ...userData, role: 'student', accessMonths });
+      const paymentAmount = await getRegistrationFee(accessMonths);
       
       // Check if payment verification is required
       const paymentVerificationSetting = await storage.getSetting('requirePaymentVerification');
@@ -79,6 +116,7 @@ export async function registerRoutes(
             password: hashedPassword,
             studentId,
             isPaymentCompleted: false,
+            paymentAmount: String(paymentAmount),
           });
           break; // Success, exit retry loop
         } catch (error: any) {
@@ -114,6 +152,56 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to register user" });
     }
   });
+
+  // Request access renewal for an existing student.
+  app.post("/api/auth/renew", async (req, res) => {
+    try {
+      const { mobile, password, accessMonths, paymentConfirmed } = req.body;
+      const months = parseAccessMonths(accessMonths);
+      if (!mobile || !password || !months) {
+        return res.status(400).json({ message: "Mobile, password, and a valid access period are required." });
+      }
+
+      const paymentVerificationSetting = await storage.getSetting("requirePaymentVerification");
+      const requirePaymentVerification = paymentVerificationSetting?.value === "true";
+      if (requirePaymentVerification && !paymentConfirmed) {
+        return res.status(403).json({
+          message: "Payment verification required. Please complete payment and confirm before requesting renewal.",
+        });
+      }
+
+      const user = await storage.getUserByMobileAndRole(mobile, "student");
+      if (!user) {
+        return res.status(404).json({ message: "Student account not found." });
+      }
+
+      const isValid = await bcrypt.compare(password, user.password);
+      if (!isValid) {
+        return res.status(401).json({ message: "Invalid credentials." });
+      }
+
+      const paymentAmount = await getRegistrationFee(months);
+      const updated = await storage.updateUser(user.id, {
+        accessMonths: months,
+        paymentAmount: String(paymentAmount),
+        isPaymentCompleted: false,
+        accessEnabledAt: null,
+        validUntil: null,
+      });
+
+      res.json({
+        success: true,
+        pendingApproval: true,
+        accessMonths: months,
+        paymentAmount,
+        message: "Renewal request submitted. Please contact the administrator to activate your access.",
+        user: updated,
+      });
+    } catch (error) {
+      console.error("Access renewal error:", error);
+      res.status(500).json({ message: "Failed to request access renewal." });
+    }
+  });
   
   // Login (Students only - admins must use /api/auth/admin-login)
   app.post("/api/auth/login", async (req, res) => {
@@ -141,14 +229,14 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Your access has been disabled. Please contact the administrator." });
       }
       
-      // Check if student access has expired (30 days validity)
+      // Check if student access has expired
       if (user.role === 'student' && user.validUntil) {
         const now = new Date();
         const validUntil = new Date(user.validUntil);
         if (now > validUntil) {
           // Auto-disable access when expired
           await storage.updateUser(user.id, { isPaymentCompleted: false, accessEnabledAt: null, validUntil: null });
-          return res.status(403).json({ message: "Your 30-day access has expired. Please contact the administrator to renew." });
+          return res.status(403).json({ message: "Your access has expired. Please use the Renew Access option or contact the administrator." });
         }
       }
       
@@ -242,7 +330,7 @@ export async function registerRoutes(
         return res.json({ user: null, disabled: true, message: "Your access has been disabled. Please contact the administrator." });
       }
       
-      // Check if student access has expired (30 days validity)
+      // Check if student access has expired
       if (user.role === 'student' && user.validUntil) {
         const now = new Date();
         const validUntil = new Date(user.validUntil);
@@ -251,7 +339,7 @@ export async function registerRoutes(
           await storage.updateUser(user.id, { isPaymentCompleted: false, accessEnabledAt: null, validUntil: null });
           // Destroy session
           req.session.destroy(() => {});
-          return res.json({ user: null, expired: true, message: "Your 30-day access has expired." });
+          return res.json({ user: null, expired: true, message: "Your access has expired. Please use the Renew Access option." });
         }
       }
       
@@ -362,21 +450,34 @@ export async function registerRoutes(
         updates.password = await bcrypt.hash(updates.password, 10);
       }
       
-      // Handle access enable/disable with 30-day expiration
-      if (updates.isPaymentCompleted !== undefined) {
-        const existingUser = await storage.getUser(id);
-        if (existingUser) {
-          if (updates.isPaymentCompleted === true && !existingUser.isPaymentCompleted) {
-            // Enabling access - set 30-day validity
-            const now = new Date();
-            const validUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
-            updates.accessEnabledAt = now;
-            updates.validUntil = validUntil;
-          } else if (updates.isPaymentCompleted === false) {
-            // Disabling access - clear validity dates
-            updates.accessEnabledAt = null;
-            updates.validUntil = null;
-          }
+      // Handle access activation, plan changes, and disablement.
+      const existingUser = await storage.getUser(id);
+      if (existingUser) {
+        const selectedMonths = updates.accessMonths !== undefined
+          ? parseAccessMonths(updates.accessMonths)
+          : null;
+
+        if (updates.accessMonths !== undefined && !selectedMonths) {
+          return res.status(400).json({ message: "Access period must be 1, 3, 6, or 12 months." });
+        }
+
+        if (selectedMonths) {
+          const now = new Date();
+          updates.accessMonths = selectedMonths;
+          updates.paymentAmount = String(await getRegistrationFee(selectedMonths));
+          updates.isPaymentCompleted = true;
+          updates.accessEnabledAt = now;
+          updates.validUntil = addAccessMonths(now, selectedMonths);
+        } else if (updates.isPaymentCompleted === true) {
+          const months = parseAccessMonths(existingUser.accessMonths) || 1;
+          const now = new Date();
+          updates.accessMonths = months;
+          updates.paymentAmount = String(await getRegistrationFee(months));
+          updates.accessEnabledAt = now;
+          updates.validUntil = addAccessMonths(now, months);
+        } else if (updates.isPaymentCompleted === false) {
+          updates.accessEnabledAt = null;
+          updates.validUntil = null;
         }
       }
       
@@ -1423,8 +1524,11 @@ export async function registerRoutes(
         const settingsArray = await storage.getAllSettings();
         const settingsObj: Record<string, any> = {};
         for (const s of settingsArray) {
-          if (s.key === 'registrationFee') {
+          if (s.key === 'registrationFee' || /^registrationFee(1|3|6|12)Month$/.test(s.key)) {
             settingsObj.registrationFee = Number(s.value) || 0;
+            if (s.key !== 'registrationFee') {
+              settingsObj[s.key] = Number(s.value) || 0;
+            }
           } else if (['autoScrollEnabled', 'showRegistrationFee', 'showQrCode', 'requirePaymentVerification'].includes(s.key)) {
             settingsObj[s.key] = s.value === 'true';
           } else {
@@ -1467,8 +1571,11 @@ export async function registerRoutes(
       const settingsArray = await storage.getAllSettings();
       const settingsObj: Record<string, any> = {};
       for (const s of settingsArray) {
-        if (s.key === 'registrationFee') {
+        if (s.key === 'registrationFee' || /^registrationFee(1|3|6|12)Month$/.test(s.key)) {
           settingsObj.registrationFee = Number(s.value) || 0;
+          if (s.key !== 'registrationFee') {
+            settingsObj[s.key] = Number(s.value) || 0;
+          }
         } else if (['autoScrollEnabled', 'showRegistrationFee', 'showQrCode', 'requirePaymentVerification'].includes(s.key)) {
           settingsObj[s.key] = s.value === 'true';
         } else {

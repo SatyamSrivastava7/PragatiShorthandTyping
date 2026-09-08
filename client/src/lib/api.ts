@@ -67,6 +67,7 @@ export const authApi = {
     email?: string;
     city?: string;
     state?: string;
+    accessMonths?: number;
     paymentConfirmed?: boolean;
   }) =>
     fetchApi<{ 
@@ -76,6 +77,23 @@ export const authApi = {
       studentId?: string;
       message?: string;
     }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  renew: (data: {
+    mobile: string;
+    password: string;
+    accessMonths: number;
+    paymentConfirmed?: boolean;
+  }) =>
+    fetchApi<{
+      success: boolean;
+      pendingApproval: boolean;
+      accessMonths: number;
+      paymentAmount: number;
+      message: string;
+    }>('/api/auth/renew', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -384,6 +402,10 @@ export const settingsApi = {
   get: () =>
     fetchApi<{
       registrationFee: number;
+      registrationFee1Month: number;
+      registrationFee3Month: number;
+      registrationFee6Month: number;
+      registrationFee12Month: number;
       qrCodeUrl: string;
       instituteName: string;
       autoScrollEnabled: boolean;
@@ -394,6 +416,10 @@ export const settingsApi = {
 
   update: (data: Partial<{
     registrationFee: number;
+    registrationFee1Month: number;
+    registrationFee3Month: number;
+    registrationFee6Month: number;
+    registrationFee12Month: number;
     qrCodeUrl: string;
     instituteName: string;
     autoScrollEnabled: boolean;
@@ -403,6 +429,10 @@ export const settingsApi = {
   }>) =>
     fetchApi<{
       registrationFee: number;
+      registrationFee1Month: number;
+      registrationFee3Month: number;
+      registrationFee6Month: number;
+      registrationFee12Month: number;
       qrCodeUrl: string;
       instituteName: string;
       autoScrollEnabled: boolean;

@@ -777,14 +777,37 @@ export default function AdminDashboard() {
 
   const { toast } = useToast();
 
-  const registrationFee = settings?.registrationFee || 0;
+  const feePlans = [
+    { months: 1, key: "registrationFee1Month" as const, label: "1 Month" },
+    { months: 3, key: "registrationFee3Month" as const, label: "3 Months" },
+    { months: 6, key: "registrationFee6Month" as const, label: "6 Months" },
+    { months: 12, key: "registrationFee12Month" as const, label: "12 Months" },
+  ];
+  const getPlanFee = (months: number) => {
+    const plan = feePlans.find((item) => item.months === months);
+    const configuredFee = plan ? Number(settings?.[plan.key] || 0) : 0;
+    if (configuredFee > 0 || months === 1) {
+      return configuredFee || Number(settings?.registrationFee || 0);
+    }
+    return Number(settings?.registrationFee || 0) * months;
+  };
   const qrCodeUrl = settings?.qrCodeUrl || "";
-  const [localRegFee, setLocalRegFee] = useState<number>(registrationFee);
+  const [localRegFees, setLocalRegFees] = useState<Record<string, number>>({});
+  const feeSettingsEditedRef = useRef(false);
   const setQrCodeUrl = (url: string) => updateSettings?.({ qrCodeUrl: url });
 
   useEffect(() => {
-    setLocalRegFee(registrationFee);
-  }, [registrationFee]);
+    if (!settings) return;
+    feeSettingsEditedRef.current = false;
+    setLocalRegFees(
+      Object.fromEntries(
+        feePlans.map(({ key, months }) => [
+          key,
+          Number(settings[key] || (months === 1 ? settings.registrationFee || 0 : (settings.registrationFee || 0) * months)),
+        ]),
+      ),
+    );
+  }, [settings]);
 
   // Initialize selected image IDs from featured images
   useEffect(() => {
@@ -800,12 +823,15 @@ export default function AdminDashboard() {
   }, [featuredImages]);
 
   useEffect(() => {
-    if (localRegFee === registrationFee) return;
+    if (!settings || !feeSettingsEditedRef.current || Object.keys(localRegFees).length !== feePlans.length) return;
     const timer = setTimeout(() => {
-      updateSettings?.({ registrationFee: localRegFee });
-    }, 3000);
+      updateSettings?.({
+        ...localRegFees,
+        registrationFee: localRegFees.registrationFee1Month || 0,
+      });
+    }, 800);
     return () => clearTimeout(timer);
-  }, [localRegFee]);
+  }, [localRegFees]);
 
   // Lazy Loading State for Manage Tests
   const ITEMS_PER_BATCH = 100; // Initial batch size for admin table
@@ -1487,6 +1513,25 @@ export default function AdminDashboard() {
     });
   };
 
+  const handleStudentAccessPlanChange = async (student: User, months: number) => {
+    try {
+      await updateUser({
+        id: student.id,
+        data: { accessMonths: months },
+      });
+      toast({
+        title: "Access updated",
+        description: `${student.name} now has ${months}-month access.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Update failed",
+        description: error?.message || "Could not update student access.",
+      });
+    }
+  };
+
   const handleDeleteStudent = async (id: number) => {
     if (
       confirm(
@@ -2133,16 +2178,25 @@ export default function AdminDashboard() {
                       Manage student access and payment status
                     </CardDescription>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 w-full lg:w-auto">
-                    <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
-                      <Label className="text-sm font-medium">Reg Fee:</Label>
-                      <Input
-                        type="number"
-                        className="w-20 h-8 text-center font-semibold"
-                        value={localRegFee}
-                        onChange={(e) => setLocalRegFee(Number(e.target.value))}
-                      />
-                    </div>
+                  <div className="flex flex-wrap items-end sm:items-center gap-2 w-full lg:w-auto">
+                    {feePlans.map(({ key, label }) => (
+                      <div key={key} className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
+                        <Label className="text-xs font-medium whitespace-nowrap">{label} Fee:</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          className="w-20 h-8 text-center font-semibold"
+                          value={localRegFees[key] ?? ""}
+                          onChange={(e) => {
+                            feeSettingsEditedRef.current = true;
+                            setLocalRegFees((current) => ({
+                              ...current,
+                              [key]: Math.max(0, Number(e.target.value) || 0),
+                            }));
+                          }}
+                        />
+                      </div>
+                    ))}
                     <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border shadow-sm">
                       <Label className="text-sm font-medium whitespace-nowrap">
                         QR Code:
@@ -2304,19 +2358,38 @@ export default function AdminDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {(() => {
-                              const { daysLeft, status, message } = calculateDaysLeftForDeactivation(student.validUntil);
-                              if (status === 'no-expiry') {
-                                return <span className="text-xs text-gray-400">No expiry</span>;
-                              }
-                              if (status === 'expired') {
-                                return <span className="inline-flex items-center px-2.5 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Expired</span>;
-                              }
-                              if (status === 'expiring-soon') {
-                                return <span className="inline-flex items-center px-2.5 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">{daysLeft} days</span>;
-                              }
-                              return <span className="inline-flex items-center px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{daysLeft} days</span>;
-                            })()}
+                            <div className="flex min-w-[145px] flex-col gap-1.5">
+                              <Select
+                                value={String(student.accessMonths || 1)}
+                                onValueChange={(value) =>
+                                  handleStudentAccessPlanChange(student, Number(value))
+                                }
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue placeholder="Set access" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {feePlans.map(({ months, label }) => (
+                                    <SelectItem key={months} value={String(months)}>
+                                      Activate {label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {(() => {
+                                const { daysLeft, status } = calculateDaysLeftForDeactivation(student.validUntil);
+                                if (status === 'no-expiry') {
+                                  return <span className="text-xs text-gray-400">No expiry</span>;
+                                }
+                                if (status === 'expired') {
+                                  return <span className="inline-flex w-fit items-center px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Expired</span>;
+                                }
+                                if (status === 'expiring-soon') {
+                                  return <span className="inline-flex w-fit items-center px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">{daysLeft} days</span>;
+                                }
+                                return <span className="inline-flex w-fit items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{daysLeft} days</span>;
+                              })()}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
