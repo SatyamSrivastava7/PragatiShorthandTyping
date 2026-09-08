@@ -20,12 +20,14 @@ const colors: Record<HighCourtTestType, string> = {
 };
 
 export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCourtTestType }) {
-  const [, params] = useRoute("/high-court/test/:id");
+  const [, params] = useRoute(`/high-court/${expectedType}/:id`);
   const { toast } = useToast();
   const editorRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const submittedRef = useRef(false);
   const [test, setTest] = useState<HighCourtTest | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [typedText, setTypedText] = useState("");
   const [timeLeft, setTimeLeft] = useState(0);
   const [active, setActive] = useState(false);
@@ -34,13 +36,24 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
 
   useEffect(() => {
     const id = Number(params?.id);
-    if (!id) return;
+    if (!id) {
+      setLoadError("Invalid High Court test link.");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setLoadError("");
     highCourtApi.getTest(id)
       .then((data) => {
         setTest(data);
         setTimeLeft(data.duration * 60);
       })
-      .catch((error) => toast({ variant: "destructive", title: "Unable to load High Court test", description: error.message }));
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "Unable to load this test.";
+        setLoadError(message);
+        toast({ variant: "destructive", title: "Unable to load High Court test", description: message });
+      })
+      .finally(() => setLoading(false));
   }, [params?.id, toast]);
 
   const submit = useCallback(async () => {
@@ -88,8 +101,21 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
 
   const formatTime = `${Math.floor(timeLeft / 60).toString().padStart(2, "0")}:${(timeLeft % 60).toString().padStart(2, "0")}`;
 
-  if (!test) {
+  if (loading) {
     return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-600" /></div>;
+  }
+
+  if (loadError || !test) {
+    return (
+      <div className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center p-8 text-center">
+        <AlertCircle className="mb-3 h-10 w-10 text-red-600" />
+        <p className="font-semibold text-slate-900">Unable to load High Court test</p>
+        <p className="mt-1 text-sm text-slate-600">{loadError || "This test is unavailable."}</p>
+        <Link href="/student?tab=high-court_tests">
+          <Button className="mt-5">Back to High Court tests</Button>
+        </Link>
+      </div>
+    );
   }
 
   if (test.type !== expectedType) {
