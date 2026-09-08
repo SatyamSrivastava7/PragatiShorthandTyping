@@ -2,3 +2,4 @@
 - [Regenerate-results script flags](regenerate-results-script.md) — server/scripts/regenerate-results.ts supports --hindi/--english and --limit=N flags for targeted metric recalculation.
 - [High Court assessment isolation](high-court-assessment-isolation.md) — High Court is a separate English-only assessment domain and must not share legacy tests, scoring, results, or PDFs.
 - [Legacy content audio data](legacy-content-audio.md) — keep the old content media column until its remaining values are explicitly reviewed for deletion.
+- [Development user schema drift](development-user-schema-drift.md) — login depends on access_months; do not rename the unrelated legacy current_session_id column when syncing development schema.
