@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 export type PaperForm = { title: string; text: string; duration: string; pdfFile?: string };
 
 const initialPaper = (label: string): PaperForm => ({ title: label, text: "", duration: "5" });
+const today = () => new Date().toISOString().slice(0, 10);
 
 export function PaperFields({
   label,
@@ -72,6 +73,7 @@ export function PaperFields({
 export function HighCourtAdminForm() {
   const { toast } = useToast();
   const [setTitle, setSetTitle] = useState("");
+  const [dateFor, setDateFor] = useState(today);
   const [typing, setTyping] = useState<PaperForm>(() => initialPaper("Typing Paper"));
   const [pitman, setPitman] = useState<PaperForm>(() => initialPaper("Pitman Paper"));
   const [shorthand, setShorthand] = useState<PaperForm>(() => initialPaper("Shorthand Paper"));
@@ -84,12 +86,14 @@ export function HighCourtAdminForm() {
     try {
       await highCourtApi.createTestSet({
         title: setTitle,
+        dateFor,
         typing: { title: typing.title, text: typing.text, duration: Number(typing.duration) },
         pitman: { title: pitman.title, text: pitman.text, duration: Number(pitman.duration), pdfFile: pitman.pdfFile },
         shorthand: { title: shorthand.title, text: shorthand.text, duration: Number(shorthand.duration) },
       });
       setCreated(setTitle);
       setSetTitle("");
+      setDateFor(today());
       setTyping(initialPaper("Typing Paper"));
       setPitman(initialPaper("Pitman Paper"));
       setShorthand(initialPaper("Shorthand Paper"));
@@ -127,9 +131,15 @@ export function HighCourtAdminForm() {
             <CardTitle className="flex items-center gap-2"><ClipboardPenLine className="h-5 w-5 text-amber-700" /> Exam folder</CardTitle>
             <CardDescription>Use a clear name such as “High Court Main Examination – Set 01”. The folder groups all three student scores.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="high-court-folder-name">Exam folder name</Label>
-            <Input id="high-court-folder-name" value={setTitle} onChange={(e) => setSetTitle(e.target.value)} placeholder="High Court Main Examination – Set 01" required />
+          <CardContent className="grid gap-4 sm:grid-cols-[1fr_180px]">
+            <div className="space-y-2">
+              <Label htmlFor="high-court-folder-name">Exam folder name</Label>
+              <Input id="high-court-folder-name" value={setTitle} onChange={(e) => setSetTitle(e.target.value)} placeholder="High Court Main Examination – Set 01" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="high-court-date">Schedule date</Label>
+              <Input id="high-court-date" type="date" value={dateFor} onChange={(e) => setDateFor(e.target.value)} required />
+            </div>
           </CardContent>
         </Card>
 

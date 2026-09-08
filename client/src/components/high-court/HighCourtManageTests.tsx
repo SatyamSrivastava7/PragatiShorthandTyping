@@ -39,6 +39,7 @@ export function HighCourtManageTests() {
   const [search, setSearch] = useState("");
   const [editingSet, setEditingSet] = useState<HighCourtTestSet | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [editDateFor, setEditDateFor] = useState("");
   const [editPapers, setEditPapers] = useState<EditPapers | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -67,6 +68,7 @@ export function HighCourtManageTests() {
   const openEdit = (set: HighCourtTestSet) => {
     setEditingSet(set);
     setEditTitle(set.title);
+    setEditDateFor(set.dateFor);
     setEditPapers({
       typing: toPaperForm(set.tests.find((t) => t.type === "typing")),
       pitman: toPaperForm(set.tests.find((t) => t.type === "pitman")),
@@ -79,7 +81,9 @@ export function HighCourtManageTests() {
     setSaving(true);
     try {
       if (editTitle !== editingSet.title) {
-        await highCourtApi.updateTestSet(editingSet.id, { name: editTitle });
+        await highCourtApi.updateTestSet(editingSet.id, { name: editTitle, dateFor: editDateFor });
+      } else if (editDateFor !== editingSet.dateFor) {
+        await highCourtApi.updateTestSet(editingSet.id, { dateFor: editDateFor });
       }
       await Promise.all(
         HIGH_COURT_PAPERS.map((paper) => {
@@ -197,7 +201,7 @@ export function HighCourtManageTests() {
                 {filteredSets.map((set) => (
                   <TableRow key={set.id} className="hover:bg-slate-50/50">
                     <TableCell className="font-mono text-sm">
-                      {format(new Date(set.createdAt), "MMM d")}
+                      {format(new Date(`${set.dateFor}T00:00:00`), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell className="font-medium">{set.title}</TableCell>
                     <TableCell>
@@ -254,6 +258,10 @@ export function HighCourtManageTests() {
                                 <div className="space-y-2">
                                   <Label>Exam folder name</Label>
                                   <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Schedule date</Label>
+                                  <Input type="date" value={editDateFor} onChange={(e) => setEditDateFor(e.target.value)} />
                                 </div>
                                 <PaperFields
                                   label="Typing Test · 100 Marks"

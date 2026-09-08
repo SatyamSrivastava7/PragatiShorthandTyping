@@ -14,6 +14,7 @@ export interface HighCourtTest {
 export interface HighCourtTestSet {
   id: number;
   title: string;
+  dateFor: string;
   isEnabled: boolean;
   createdAt: string;
   tests: HighCourtTest[];
@@ -82,6 +83,7 @@ function normalizeSet(raw: any): HighCourtTestSet {
   return {
     ...source,
     title: source.title || source.name,
+    dateFor: source.dateFor || source.createdAt?.slice(0, 10) || "",
     tests: (raw.tests || source.tests || []).map((test: any) => ({
       ...test,
       text: test.text || test.originalText || "",
@@ -147,7 +149,7 @@ export const highCourtApi = {
     })),
   getMyResults: async () => (await request<any[]>("/api/high-court/results/me")).map(normalizeGroupedResult),
   getAllResults: async () => (await request<any[]>("/api/high-court/results")).map(normalizeGroupedResult),
-  updateTestSet: async (id: number, data: { name?: string; isEnabled?: boolean }) =>
+  updateTestSet: async (id: number, data: { name?: string; dateFor?: string; isEnabled?: boolean }) =>
     request<HighCourtTestSet>(`/api/high-court/test-sets/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -161,6 +163,7 @@ export const highCourtApi = {
     }),
   createTestSet: async (data: {
     title: string;
+    dateFor: string;
     typing: { title: string; text: string; duration: number };
     pitman: { title: string; text: string; duration: number; pdfFile?: string };
     shorthand: { title: string; text: string; duration: number };
@@ -168,6 +171,7 @@ export const highCourtApi = {
     method: "POST",
     body: JSON.stringify({
       name: data.title,
+      dateFor: data.dateFor,
       tests: [
         { type: "typing", title: data.typing.title, originalText: data.typing.text, duration: data.typing.duration },
         { type: "pitman", title: data.pitman.title, originalText: data.pitman.text, duration: data.pitman.duration, pdfFile: data.pitman.pdfFile },

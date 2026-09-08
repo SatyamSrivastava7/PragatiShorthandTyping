@@ -261,10 +261,12 @@ export const insertNoticeSchema = createInsertSchema(notices).omit({
 export const highCourtTestSets = pgTable("high_court_test_sets", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  dateFor: varchar("date_for", { length: 20 }).notNull().default(sql`CURRENT_DATE`),
   isEnabled: boolean("is_enabled").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   isEnabledIdx: index("hc_test_sets_is_enabled_idx").on(table.isEnabled),
+  dateForIdx: index("hc_test_sets_date_for_idx").on(table.dateFor),
   createdAtIdx: index("hc_test_sets_created_at_idx").on(table.createdAt),
 }));
 

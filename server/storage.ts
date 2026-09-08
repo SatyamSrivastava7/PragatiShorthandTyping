@@ -815,7 +815,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(highCourtTestSets)
-      .orderBy(desc(highCourtTestSets.createdAt));
+      .orderBy(desc(highCourtTestSets.dateFor), desc(highCourtTestSets.createdAt));
   }
 
   async getHighCourtTestSet(id: number): Promise<HighCourtTestSet | undefined> {
@@ -887,7 +887,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateHighCourtTestSet(
     id: number,
-    data: Partial<Pick<HighCourtTestSet, "name" | "isEnabled">>
+    data: Partial<Pick<HighCourtTestSet, "name" | "dateFor" | "isEnabled">>
   ): Promise<HighCourtTestSet | undefined> {
     const [updated] = await db
       .update(highCourtTestSets)

@@ -1817,6 +1817,7 @@ export async function registerRoutes(
 
   const hcCreateSetSchema = z.object({
     name: z.string().min(1, "name is required"),
+    dateFor: z.string().min(1, "dateFor is required").optional(),
     tests: z.array(hcTestPaperSchema).length(3, "Typing, Pitman, and Shorthand papers are all required"),
   });
 
@@ -1842,13 +1843,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: fromZodError(parsed.error).message });
       }
 
-      const { name, tests } = parsed.data;
+      const { name, dateFor, tests } = parsed.data;
       const requiredTypes = ["typing", "pitman", "shorthand"];
       if (new Set(tests.map((test) => test.type)).size !== 3 || !requiredTypes.every((type) => tests.some((test) => test.type === type))) {
         return res.status(400).json({ message: "Create exactly one Typing, one Pitman, and one Shorthand paper." });
       }
       const result = await storage.createHighCourtTestSetWithTests(
-        { name, isEnabled: true },
+        { name, dateFor: dateFor || new Date().toISOString().slice(0, 10), isEnabled: true },
         tests.map((t) => ({
           testSetId: 0, // overridden inside transaction
           title: t.title,
@@ -1960,6 +1961,7 @@ export async function registerRoutes(
 
       const hcUpdateSetSchema = z.object({
         name: z.string().min(1).optional(),
+        dateFor: z.string().min(1).optional(),
         isEnabled: z.boolean().optional(),
       });
       const parsed = hcUpdateSetSchema.safeParse(req.body);
