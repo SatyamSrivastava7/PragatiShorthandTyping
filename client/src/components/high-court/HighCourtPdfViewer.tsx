@@ -119,7 +119,7 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
   }, [containerWidth, pdfDocument, zoom]);
 
   return (
-    <div className="relative h-full min-h-[500px] overflow-auto bg-slate-100 p-3">
+    <div className="relative h-full min-h-0 overflow-auto bg-slate-100 p-3">
       <div ref={containerRef} className="min-h-full min-w-0">
         {loading && (
           <div className="flex min-h-[460px] flex-col items-center justify-center gap-2 text-sm text-slate-500">

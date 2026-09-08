@@ -259,9 +259,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   }
 
   return (
-    <div className={isFullScreen ? "fixed inset-0 z-[60] overflow-auto bg-slate-100 p-4 md:p-6" : "min-h-full bg-slate-100 p-4 md:p-6"}>
-      <div className="mx-auto flex max-w-7xl flex-col gap-4">
-        <div className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r ${colors[expectedType]} p-5 text-white shadow-lg`}>
+    <div className={isFullScreen ? "fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 p-4 md:p-6" : "h-full overflow-hidden bg-slate-100 p-4 md:p-6"}>
+      <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4">
+        <div className={`flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r ${colors[expectedType]} p-5 text-white shadow-lg`}>
           <div className="flex items-center gap-3">
             <Link href="/student?tab=high-court_tests"><Button variant="secondary" size="icon" aria-label="Back to High Court"><ArrowLeft className="h-4 w-4" /></Button></Link>
             <div>
@@ -321,9 +321,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             </CardContent>
           </Card>
         ) : (
-          <div className="grid min-h-[620px] gap-4 lg:grid-cols-2">
-            <Card className="flex min-h-[430px] flex-col overflow-hidden border-slate-200 shadow-md">
-                <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50 py-4">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-2">
+            <Card className="flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md">
+                <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
                   <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
                   {expectedType === "pitman" && (
                     <div className="flex items-center gap-1">
@@ -351,7 +351,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     </div>
                   )}
                 </CardHeader>
-              <CardContent className="flex-1 overflow-auto bg-white p-4 dark:bg-zinc-900" id="high-court-question-paper">
+              <CardContent className="min-h-0 flex-1 overflow-hidden bg-white p-4 dark:bg-zinc-900" id="high-court-question-paper">
                 {expectedType === "pitman" && pdfUrl ? (
                   <HighCourtPdfViewer source={pdfUrl} zoom={pdfZoom} />
                 ) : expectedType === "pitman" ? (
@@ -368,11 +368,11 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
               </CardContent>
             </Card>
 
-            <Card className="flex min-h-[430px] flex-col overflow-hidden border-slate-200 shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50 py-4">
+            <Card className="flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md">
+              <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
                 <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Your response</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-1 flex-col p-0">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-0">
                 {expectedType === "typing" ? (
                   <RichTextEditor
                     value={typedText}
@@ -393,7 +393,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     onPaste={(event) => event.preventDefault()}
                     disabled={!active}
                     placeholder={active ? "Start typing your response here…" : "Click Start Test to begin"}
-                    className="min-h-[390px] flex-1 resize-none rounded-none border-0 p-6 text-lg leading-8 focus-visible:ring-0"
+                    className="min-h-0 flex-1 resize-none rounded-none border-0 p-6 text-lg leading-8 focus-visible:ring-0"
                   />
                 )}
                 <div className="flex justify-end gap-3 border-t bg-slate-50 p-4">
