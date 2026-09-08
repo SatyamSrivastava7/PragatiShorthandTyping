@@ -43,19 +43,36 @@ function normalizeComparisonToken(value: string): string {
     .toLowerCase();
 }
 
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(#x?[0-9a-f]+|nbsp|amp|lt|gt|quot|apos);/gi, (entity, body: string) => {
+    const normalized = body.toLowerCase();
+    if (normalized === "nbsp") return " ";
+    if (normalized === "amp") return "&";
+    if (normalized === "lt") return "<";
+    if (normalized === "gt") return ">";
+    if (normalized === "quot") return '"';
+    if (normalized === "apos") return "'";
+
+    const codePoint = normalized.startsWith("#x")
+      ? Number.parseInt(normalized.slice(2), 16)
+      : Number.parseInt(normalized.slice(1), 10);
+    return Number.isFinite(codePoint) && codePoint > 0
+      ? String.fromCodePoint(codePoint)
+      : entity;
+  });
+}
+
 function decodeText(value: string): string {
-  return value
+  let decoded = value.replace(/\[\[(?:PARA|HIGH_COURT_PARAGRAPH)\]\]/gi, ` ${PARAGRAPH_TOKEN} `);
+  for (let pass = 0; pass < 2; pass++) decoded = decodeHtmlEntities(decoded);
+
+  return decoded
     .replace(/\r\n|\r/g, "\n")
     .replace(/<\s*br\s*\/?>/gi, ` ${PARAGRAPH_TOKEN} `)
     .replace(/<\s*\/?\s*(p|div)[^>]*>/gi, ` ${PARAGRAPH_TOKEN} `)
     .replace(/\n+/g, ` ${PARAGRAPH_TOKEN} `)
     .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;/gi, "'");
+    .replace(/\b\/?o:p\b/gi, " ");
 }
 
 function tokenize(value: string, keepParagraphs: boolean): string[] {
@@ -381,8 +398,8 @@ function classifyEntry(type: HighCourtPaper, entry: RawAlignment, index: number)
     return { ...entry, index, errorType: "ok" };
   }
 
-  const displayOriginal = entry.original === PARAGRAPH_TOKEN ? "¶" : entry.original;
-  const displayTyped = entry.typed === PARAGRAPH_TOKEN ? "¶" : entry.typed;
+  const displayOriginal = entry.original === PARAGRAPH_TOKEN ? "" : entry.original;
+  const displayTyped = entry.typed === PARAGRAPH_TOKEN ? "" : entry.typed;
   const paragraphDifference = entry.original === PARAGRAPH_TOKEN || entry.typed === PARAGRAPH_TOKEN;
   const punctuationDifference = entry.status === "substitution" &&
     isPunctuationOnlyDifference(entry.original, entry.typed);

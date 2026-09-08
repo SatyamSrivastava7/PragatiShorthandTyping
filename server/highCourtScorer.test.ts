@@ -86,4 +86,21 @@ function alignmentFor(type: "typing" | "pitman" | "shorthand", original: string,
   assert.equal(result.marks, 99.6);
 }
 
+{
+  const result = scoreHighCourtTest(
+    "typing",
+    "&lt;p&gt;alpha&lt;/p&gt; &amp;lt;o:p&amp;gt; beta",
+    "alpha beta",
+  );
+  assert.equal(result.fullMistakes, 0);
+  assert.equal(result.marks, 100);
+  assert.ok(JSON.stringify(JSON.parse(result.alignmentData)).indexOf("o:p") === -1);
+}
+
+{
+  const result = scoreHighCourtTest("shorthand", "One\n\nTwo", "One Two");
+  const entries = JSON.parse(result.alignmentData) as Array<{ original: string; typed: string }>;
+  assert.ok(entries.every((entry) => entry.original !== "¶" && entry.typed !== "¶"));
+}
+
 console.log("High Court scorer comparison checks passed.");

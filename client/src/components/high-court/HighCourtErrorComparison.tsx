@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { HighCourtAlignmentEntry } from "@/lib/highCourt";
+import { cleanHighCourtDisplayText, type HighCourtAlignmentEntry } from "@/lib/highCourt";
 
 export function HighCourtErrorComparison({
   alignment = [],
@@ -16,8 +16,12 @@ export function HighCourtErrorComparison({
         Error comparison
       </p>
       {alignment.map((entry, index) => {
+        const original = cleanHighCourtDisplayText(entry.original);
+        const typed = cleanHighCourtDisplayText(entry.typed);
+        if (!original && !typed) return null;
+
         if (entry.status === "match") {
-          return <span key={index} className="mr-1 [overflow-wrap:anywhere] text-slate-700">{entry.typed}</span>;
+          return <span key={index} className="mr-1 [overflow-wrap:anywhere] text-slate-700">{typed}</span>;
         }
         if (entry.status === "missing") {
           return (
@@ -30,7 +34,7 @@ export function HighCourtErrorComparison({
               >
                 —
               </span>
-              <span className="ml-1 font-semibold text-emerald-700">[{entry.original}]</span>
+              <span className="ml-1 font-semibold text-emerald-700">[{original}]</span>
             </span>
           );
         }
@@ -43,7 +47,7 @@ export function HighCourtErrorComparison({
                 entry.severity === "half" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700",
               )}
             >
-              {entry.typed}
+              {typed}
             </span>
           );
         }
@@ -55,9 +59,9 @@ export function HighCourtErrorComparison({
                 entry.severity === "half" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700",
               )}
             >
-              {entry.typed}
+              {typed}
             </span>
-            <span className="ml-1 font-semibold text-emerald-700">[{entry.original}]</span>
+            <span className="ml-1 font-semibold text-emerald-700">[{original}]</span>
           </span>
         );
       })}

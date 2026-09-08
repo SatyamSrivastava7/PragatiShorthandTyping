@@ -59,6 +59,39 @@ export interface HighCourtGroupedResult {
   complete: boolean;
 }
 
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(#x?[0-9a-f]+|nbsp|amp|lt|gt|quot|apos);/gi, (entity, body: string) => {
+    const normalized = body.toLowerCase();
+    if (normalized === "nbsp") return " ";
+    if (normalized === "amp") return "&";
+    if (normalized === "lt") return "<";
+    if (normalized === "gt") return ">";
+    if (normalized === "quot") return '"';
+    if (normalized === "apos") return "'";
+
+    const codePoint = normalized.startsWith("#x")
+      ? Number.parseInt(normalized.slice(2), 16)
+      : Number.parseInt(normalized.slice(1), 10);
+    return Number.isFinite(codePoint) && codePoint > 0
+      ? String.fromCodePoint(codePoint)
+      : entity;
+  });
+}
+
+export function cleanHighCourtDisplayText(value: unknown): string {
+  let cleaned = String(value ?? "");
+  for (let pass = 0; pass < 2; pass++) cleaned = decodeHtmlEntities(cleaned);
+
+  return cleaned
+    .replace(/\[\[(?:PARA|HIGH_COURT_PARAGRAPH)\]\]/gi, " ")
+    .replace(/<\s*\/?\s*(?:o:p|p|div|br)\b[^>]*>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\b\/?o:p\b/gi, " ")
+    .replace(/(^|\s)¶(?=\s|$)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const HIGH_COURT_PAPERS: Array<{ type: HighCourtTestType; label: string; max: number; color: string }> = [
   { type: "typing", label: "Typing", max: 100, color: "from-blue-600 to-indigo-600" },
   { type: "pitman", label: "Pitman", max: 100, color: "from-rose-600 to-red-600" },

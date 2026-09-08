@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { HighCourtAttempt, HighCourtGroupedResult } from "@/lib/highCourt";
+import { cleanHighCourtDisplayText, type HighCourtAttempt, type HighCourtGroupedResult } from "@/lib/highCourt";
 
 const safe = (value: unknown) =>
   String(value ?? "")
@@ -16,23 +16,27 @@ function paperPage(
   maximum: number,
 ) {
   const alignment = attempt.alignment || [];
-  const totalOriginalWords = alignment.filter((entry) => entry.original && entry.original !== "[[PARA]]").length;
-  const totalWordsTyped = alignment.filter((entry) => entry.typed && entry.typed !== "[[PARA]]").length;
+  const totalOriginalWords = alignment.filter((entry) => cleanHighCourtDisplayText(entry.original)).length;
+  const totalWordsTyped = alignment.filter((entry) => cleanHighCourtDisplayText(entry.typed)).length;
   const missingWords = alignment.filter((entry) => entry.status === "missing").length;
   const rows = alignment.map((entry) => {
-    const expected = entry.original
-      ? `<span class="success">[${safe(entry.original)}]</span>`
+    const original = cleanHighCourtDisplayText(entry.original);
+    const typed = cleanHighCourtDisplayText(entry.typed);
+    if (!original && !typed) return "";
+
+    const expected = original
+      ? `<span class="success">[${safe(original)}]</span>`
       : "";
 
     if (entry.status === "missing") {
-      return `<span class="success">[${safe(entry.original)}]</span> `;
+      return original ? `<span class="success">[${safe(original)}]</span> ` : "";
     }
 
     if (entry.status === "match") {
-      return `<span>${safe(entry.typed)}</span> `;
+      return `<span>${safe(typed)}</span> `;
     }
 
-    return `<span class="error">${safe(entry.typed || "—")}</span> ${expected} `;
+    return `<span class="error">${safe(typed || "—")}</span> ${expected} `;
   }).join("");
 
   return `
