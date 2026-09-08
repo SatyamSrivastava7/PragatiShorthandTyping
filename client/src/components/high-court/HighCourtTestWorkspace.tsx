@@ -388,7 +388,6 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     editorId="high-court-rich-editor"
                     fillHeight
                     showWordCount
-                    className="min-h-[390px]"
                   />
                 ) : (
                   <Textarea
@@ -401,7 +400,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     className="min-h-0 flex-1 resize-none rounded-none border-0 p-6 text-lg leading-8 focus-visible:ring-0"
                   />
                 )}
-                <div className="flex justify-end gap-3 border-t bg-slate-50 p-4">
+                <div className="flex shrink-0 justify-end gap-3 border-t bg-slate-50 p-4">
                   {!active ? <Button onClick={start} className={`bg-gradient-to-r ${colors[expectedType]}`}>Start Test</Button> : (
                     <Button onClick={() => void submit()} disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
                       {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Submit paper

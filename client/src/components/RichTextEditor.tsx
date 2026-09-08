@@ -240,7 +240,7 @@ export function RichTextEditor({
   );
 
   return (
-    <div className={cn("space-y-2", fillHeight && "flex flex-col h-full space-y-0")}>
+    <div className={cn("space-y-2", fillHeight && "flex min-h-0 flex-1 flex-col space-y-0")}>
       {label && <Label className="text-sm font-medium">{label}</Label>}
 
       {/* Toolbar */}
