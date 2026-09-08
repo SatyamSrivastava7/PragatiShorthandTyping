@@ -55,7 +55,19 @@ export function HighCourtStudentArea() {
                   </p>
                 </CardContent>
                 <CardFooter>
-                  {test ? <Link href={routeFor(paper.type, test.id)} className="w-full"><Button className={`w-full bg-gradient-to-r ${paper.color}`}><PenLine className="mr-2 h-4 w-4" /> Open {paper.label}</Button></Link> : <Button disabled className="w-full">Unavailable</Button>}
+                  {test ? (
+                    <Link href={routeFor(paper.type, test.id)} className="w-full">
+                      <Button
+                        className={`w-full bg-gradient-to-r ${paper.color}`}
+                        data-testid={`button-start-high-court-${paper.type}`}
+                        aria-label={`Start High Court ${paper.label} Test`}
+                      >
+                        <PenLine className="mr-2 h-4 w-4" /> Start {paper.label} Test
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button disabled className="w-full">Unavailable</Button>
+                  )}
                 </CardFooter>
               </Card>
             );
