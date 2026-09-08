@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { highCourtApi, type HighCourtTest, type HighCourtTestType } from "@/lib/highCourt";
+import { HighCourtPdfViewer } from "./HighCourtPdfViewer";
 import { stripHtmlEntities, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,7 +38,6 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const [pdfUrl, setPdfUrl] = useState("");
   const [pdfError, setPdfError] = useState("");
   const [pdfZoom, setPdfZoom] = useState(100);
-  const pdfIframeRef = useRef<HTMLIFrameElement>(null);
   const [fontSize, setFontSize] = useState(18);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
@@ -353,18 +353,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                 </CardHeader>
               <CardContent className="flex-1 overflow-auto bg-white p-4 dark:bg-zinc-900" id="high-court-question-paper">
                 {expectedType === "pitman" && pdfUrl ? (
-                  <div className="flex h-full min-h-[500px] w-full items-center justify-center">
-                    <iframe
-                      key={pdfUrl}
-                      ref={pdfIframeRef}
-                      title="High Court Pitman paper"
-                      className="h-full w-full border-0"
-                      style={{ minHeight: "100%", minWidth: "100%", zoom: `${pdfZoom}%` }}
-                      src={pdfUrl}
-                      onLoad={() => console.log("High Court Pitman PDF loaded successfully")}
-                      onError={() => setPdfError("The PDF could not be loaded. Please ask the administrator to upload it again.")}
-                    />
-                  </div>
+                  <HighCourtPdfViewer source={pdfUrl} zoom={pdfZoom} />
                 ) : expectedType === "pitman" ? (
                   <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center text-slate-500">
                     <AlertCircle className="mb-3 h-10 w-10" />
