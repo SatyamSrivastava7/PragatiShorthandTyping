@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, Italic, Bold, Underline, Loader2, Maximize, Minimize, Save, Type } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, Loader2, Maximize, Minimize, Save, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { RichTextEditor } from "@/components/RichTextEditor";
 import { highCourtApi, type HighCourtTest, type HighCourtTestType } from "@/lib/highCourt";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,7 +24,6 @@ const colors: Record<HighCourtTestType, string> = {
 export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCourtTestType }) {
   const [, params] = useRoute(`/high-court/${expectedType}/:id`);
   const { toast } = useToast();
-  const editorRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const submittedRef = useRef(false);
   const [test, setTest] = useState<HighCourtTest | null>(null);
@@ -101,7 +101,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
       const saved = await highCourtApi.submitAttempt({
         testSetId: test.testSetId,
         testId: test.id,
-        typedText: expectedType === "typing" ? (editorRef.current?.innerHTML || typedText) : typedText,
+        typedText,
       });
       setResult({ mistakes: saved.mistakes, halfMistakes: saved.halfMistakes, marks: saved.marks });
       toast({ title: "High Court test submitted", description: "Your marks were calculated and saved." });
@@ -132,7 +132,18 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
 
   const start = () => {
     setActive(true);
-    setTimeout(() => (expectedType === "typing" ? editorRef.current : document.getElementById("high-court-textarea"))?.focus(), 0);
+    setTimeout(() => document.getElementById(expectedType === "typing" ? "high-court-rich-editor" : "high-court-textarea")?.focus(), 0);
+  };
+
+  const updateTypingResponse = (html: string) => {
+    setTypedText(html);
+    if (!autoScrollEnabled || !test) return;
+    const question = document.getElementById("high-court-question-paper");
+    if (!question) return;
+    const typedWords = html.replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    const totalWords = test.text.replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    const ratio = Math.min(1, typedWords / Math.max(1, totalWords));
+    question.scrollTop = ratio * Math.max(0, question.scrollHeight - question.clientHeight);
   };
 
   const typedWordCount = typedText
@@ -275,33 +286,19 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             <Card className="flex min-h-[430px] flex-col overflow-hidden border-slate-200 shadow-md">
               <CardHeader className="flex flex-row items-center justify-between border-b bg-slate-50 py-4">
                 <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Your response</CardTitle>
-                {expectedType === "typing" && (
-                  <div className="flex gap-1">
-                    <Button type="button" variant="outline" size="icon" disabled={!active} onClick={() => document.execCommand("bold")}><Bold className="h-4 w-4" /></Button>
-                    <Button type="button" variant="outline" size="icon" disabled={!active} onClick={() => document.execCommand("italic")}><Italic className="h-4 w-4" /></Button>
-                    <Button type="button" variant="outline" size="icon" disabled={!active} onClick={() => document.execCommand("underline")}><Underline className="h-4 w-4" /></Button>
-                  </div>
-                )}
               </CardHeader>
               <CardContent className="flex flex-1 flex-col p-0">
                 {expectedType === "typing" ? (
-                  <div
-                    ref={editorRef}
-                    contentEditable={active}
-                    onInput={(event) => setTypedText((event.target as HTMLDivElement).innerHTML)}
-                    onKeyUp={() => {
-                      if (!autoScrollEnabled) return;
-                      const question = document.getElementById("high-court-question-paper");
-                      if (question) {
-                        const ratio = Math.min(1, typedWordCount / Math.max(1, test.text.replace(/<[^>]*>/g, " ").trim().split(/\s+/).length));
-                        question.scrollTop = ratio * Math.max(0, question.scrollHeight - question.clientHeight);
-                      }
-                    }}
+                  <RichTextEditor
+                    value={typedText}
+                    onChange={updateTypingResponse}
                     onPaste={(event) => event.preventDefault()}
-                    className="min-h-[390px] flex-1 whitespace-pre-wrap p-6 leading-8 outline-none"
-                    style={{ fontSize }}
-                    data-placeholder={active ? "Start typing your response here…" : "Click Start Test to begin"}
-                    suppressContentEditableWarning
+                    placeholder={active ? "Start typing your response here…" : "Click Start Test to begin"}
+                    disabled={!active}
+                    editorId="high-court-rich-editor"
+                    fillHeight
+                    showWordCount
+                    className="min-h-[390px]"
                   />
                 ) : (
                   <Textarea

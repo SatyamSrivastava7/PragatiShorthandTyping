@@ -34,6 +34,8 @@ interface RichTextEditorProps {
   fillHeight?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLDivElement>) => void;
+  disabled?: boolean;
+  editorId?: string;
 }
 
 export function RichTextEditor({
@@ -47,6 +49,8 @@ export function RichTextEditor({
   fillHeight = false,
   onKeyDown: customOnKeyDown,
   onPaste: customOnPaste,
+  disabled = false,
+  editorId,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isEditingRef = useRef(false);
@@ -129,7 +133,7 @@ export function RichTextEditor({
   };
 
   const execCommand = (command: string, value?: string) => {
-    if (!editorRef.current) return;
+    if (disabled || !editorRef.current) return;
     ensureCaretInEditor();
     // Run synchronously — any setTimeout/focus reshuffle here breaks the
     // "click bold then type" Word-style behavior because the browser loses
@@ -228,6 +232,7 @@ export function RichTextEditor({
         // Update active formats after command executes
         setTimeout(() => updateActiveFormats(), 0);
       }}
+      disabled={disabled}
       title={title}
     >
       {icon}
@@ -260,7 +265,7 @@ export function RichTextEditor({
         {/* Font Size */}
         <div className="flex items-center gap-2 border-r pr-2">
           <Type className="h-4 w-4 text-muted-foreground" />
-          <Select value={fontSize} onValueChange={handleFontSizeChange}>
+          <Select value={fontSize} onValueChange={handleFontSizeChange} disabled={disabled}>
             <SelectTrigger className="h-8 w-20 text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -282,7 +287,7 @@ export function RichTextEditor({
         {/* Line Spacing */}
         <div className="flex items-center gap-2 border-r pr-2">
           <Maximize2 className="h-4 w-4 text-muted-foreground" />
-          <Select value={lineSpacing} onValueChange={handleLineSpacingChange}>
+          <Select value={lineSpacing} onValueChange={handleLineSpacingChange} disabled={disabled}>
             <SelectTrigger className="h-8 w-24 text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -329,6 +334,7 @@ export function RichTextEditor({
 
       {/* Editor Area */}
       <div
+        id={editorId}
         ref={editorRef}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
@@ -339,7 +345,8 @@ export function RichTextEditor({
           }
         }}
         onMouseUp={() => updateActiveFormats()}
-        contentEditable
+        contentEditable={!disabled}
+        aria-disabled={disabled}
         suppressContentEditableWarning
         className={cn(
           "rich-editor-content",
