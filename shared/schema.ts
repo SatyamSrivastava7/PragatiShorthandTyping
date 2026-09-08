@@ -23,6 +23,8 @@ export const users = pgTable("users", {
   accessMonths: integer("access_months").default(1).notNull(),
   validUntil: timestamp("valid_until"),
   accessEnabledAt: timestamp("access_enabled_at"),
+  // Retained for compatibility with legacy development data; current auth uses express sessions.
+  currentSessionId: varchar("current_session_id", { length: 255 }),
   purchasedPdfs: text("purchased_pdfs").array().default(sql`ARRAY[]::text[]`),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
