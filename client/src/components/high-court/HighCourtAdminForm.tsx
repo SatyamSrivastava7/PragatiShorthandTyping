@@ -55,7 +55,20 @@ export function PaperFields({
           <div className="space-y-2">
             <Label>Upload PDF File</Label>
             <Input type="file" accept="application/pdf" onChange={(e) => uploadPdf(e.target.files?.[0])} />
-            {paper.pdfFile && <p className="text-xs font-medium text-emerald-700">PDF attached and ready to upload.</p>}
+            {paper.pdfFile && (
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <p className="font-medium text-emerald-700">PDF attached and ready to upload.</p>
+                <a
+                  href={paper.pdfFile}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-semibold text-purple-700 underline underline-offset-2 hover:text-purple-900"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  View attached PDF
+                </a>
+              </div>
+            )}
           </div>
         )}
         <RichTextEditor
