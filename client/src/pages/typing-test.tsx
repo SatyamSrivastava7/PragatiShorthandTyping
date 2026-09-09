@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Toggle } from "@/components/ui/toggle";
 import { Label } from "@/components/ui/label";
+import { scrollActiveMarkerIntoView } from "@/lib/typingAutoScroll";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -45,7 +46,6 @@ export default function TypingTestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [selectedVideoWpm, setSelectedVideoWpm] = useState<"60" | "80" | "100" | "120">("80"); // Default to 80 WPM
-  const [userScrolled, setUserScrolled] = useState(false); // Track if user manually scrolled
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null); // Null until testContent loads
   const [highlighterEnabled, setHighlighterEnabled] = useState<boolean>(true); // Enable/disable word highlighting
 
@@ -69,11 +69,6 @@ export default function TypingTestPage() {
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
-  const lastScrollTopRef = useRef<number>(0);
-  const isAutoScrollingRef = useRef<boolean>(false); // Flag to track if current scroll is programmatic
-  const lastParaCountRef = useRef<number>(0); // Track previous paragraph count to detect new breaks
-  const paraScrollUntilWordsRef = useRef<number>(0); // when >0, use boosted scroll factor until typedWords > this
-  const paraScrollUntilTimeRef = useRef<number>(0); // when > now, use boosted scroll factor until this timestamp
 
   useEffect(() => {
     if (testContent) {
@@ -259,86 +254,25 @@ export default function TypingTestPage() {
     };
   }, [isActive, finishTest]);
   
-  // Handle manual scroll - detect if user scrolled
-  useEffect(() => {
-    const container = originalTextRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      // Only mark as manually scrolled if this scroll wasn't triggered by auto-scroll
-      if (!isAutoScrollingRef.current) {
-        setUserScrolled(true);
-      }
-      isAutoScrollingRef.current = false;
-      lastScrollTopRef.current = container.scrollTop;
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Auto-scroll logic - when current word reaches the 3rd-last visible line,
-  // scroll up by exactly enough lines so the marker sits one line above (4th-last),
-  // revealing one new line at the bottom.
+  // Keep the active word in a readable window. Manual scrolling does not
+  // permanently disable auto-scroll; the next typed word can safely bring the
+  // question paper back to the active position.
   useEffect(() => {
     if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
     if (!isActive) return;
-    if (userScrolled) return; // respect manual scroll
 
     const container = originalTextRef.current;
     const marker = container.querySelector('.current-word-marker') as HTMLElement | null;
     if (!marker) return;
 
-    // Determine line height from the inner content
-    const inner = container.firstElementChild as HTMLElement | null;
-    const styleSource = inner || container;
-    const computed = window.getComputedStyle(styleSource);
-    const fontSizePx = parseFloat(computed.fontSize) || 16;
-    let lineHeight = parseFloat(computed.lineHeight);
-    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-      // "normal" or unparseable -> fall back to 1.5 * font-size
-      lineHeight = fontSizePx * 1.5;
-    } else if (lineHeight < fontSizePx) {
-      // Some browsers report unitless line-height (e.g. "1.625") as the
-      // resolved value. Convert to pixels by multiplying with font-size.
-      lineHeight = lineHeight * fontSizePx;
-    }
-    // Prefer the marker's actual line height if available (most accurate)
-    const markerLineHeight = marker.getBoundingClientRect().height;
-    if (markerLineHeight > 0 && Math.abs(markerLineHeight - lineHeight) > 2) {
-      lineHeight = markerLineHeight;
-    }
+    const frameId = window.requestAnimationFrame(() => {
+      scrollActiveMarkerIntoView(container, marker);
+    });
 
-    const visibleLines = Math.floor(container.clientHeight / lineHeight);
-    if (visibleLines < 4) return; // need a sensible viewport
-
-    // Marker position relative to container content
-    const containerRect = container.getBoundingClientRect();
-    const markerRect = marker.getBoundingClientRect();
-    const markerOffsetTop = markerRect.top - containerRect.top + container.scrollTop;
-
-    // Marker's current visible-line index from the top (0-indexed)
-    const markerLineFromTop = Math.round((markerOffsetTop - container.scrollTop) / lineHeight);
-
-    // 3rd-last visible line index (0-indexed). e.g. visibleLines=8 → index 5
-    const thirdLastLineIndex = visibleLines - 3;
-
-    if (markerLineFromTop >= thirdLastLineIndex) {
-      // Bring marker to (thirdLastLineIndex - 1) i.e. 4th-last → reveals one new line at bottom
-      const targetLineFromTop = thirdLastLineIndex - 1;
-      const newScroll = Math.max(0, markerOffsetTop - targetLineFromTop * lineHeight);
-      if (newScroll > container.scrollTop) {
-        isAutoScrollingRef.current = true;
-        container.scrollTop = newScroll;
-        lastScrollTopRef.current = newScroll;
-      }
-    }
-  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled, highlighterEnabled]);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [typedText, testContent, isActive, autoScrollEnabled, highlighterEnabled, fontSize]);
 
   const startTest = () => {
-    // Reset scroll tracking when test starts
-    setUserScrolled(false);
-    
     // Check cooldown before starting
     if (cooldownRemaining > 0) {
       toast({
@@ -358,6 +292,7 @@ export default function TypingTestPage() {
     }
     
     setIsActive(true);
+    originalTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
     // Focus textarea
     const textarea = document.getElementById("typing-area");
     if (textarea) textarea.focus();
