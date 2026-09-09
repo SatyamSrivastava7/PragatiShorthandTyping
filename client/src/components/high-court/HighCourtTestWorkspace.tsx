@@ -333,22 +333,36 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             </CardContent>
           </Card>
         ) : (
-          <div className="grid min-h-0 flex-1 gap-4 overflow-hidden sm:grid-cols-2">
-            <Card className="flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md">
-                <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
-                  <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
-                  {expectedType === "shorthand" && test.youtubeLink && (
+          <div className={expectedType !== "pitman"
+            ? "flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
+            : "grid min-h-0 flex-1 gap-4 overflow-hidden sm:grid-cols-2"}
+          >
+            {expectedType === "shorthand" && (
+              <Card className="shrink-0 overflow-hidden border-orange-200 shadow-md">
+                <CardHeader className="flex flex-row items-center justify-between border-b bg-orange-50 py-4">
+                  <CardTitle className="text-sm uppercase tracking-wide text-orange-800">Dictation</CardTitle>
+                  {test.youtubeLink ? (
                     <a
                       href={test.youtubeLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 hover:text-red-800"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 hover:text-red-800"
                     >
                       <Youtube className="h-4 w-4" />
-                      Dictation
+                      Open Dictation
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
+                  ) : (
+                    <span className="text-sm text-orange-700">Dictation link unavailable</span>
                   )}
+                </CardHeader>
+              </Card>
+            )}
+
+            {expectedType !== "shorthand" && (
+            <Card className={`flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md ${expectedType === "typing" ? "h-[40%] shrink-0" : ""}`}>
+                <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
+                  <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
                   {expectedType === "pitman" && (
                     <div className="flex items-center gap-1">
                       <Button
@@ -397,8 +411,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                 )}
               </CardContent>
             </Card>
+            )}
 
-            <Card className="flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md">
+            <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200 shadow-md">
               <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
                 <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Your response</CardTitle>
               </CardHeader>
