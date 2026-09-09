@@ -4,3 +4,4 @@
 - [Legacy content audio data](legacy-content-audio.md) — keep the old content media column until its remaining values are explicitly reviewed for deletion.
 - [Development user schema drift](development-user-schema-drift.md) — login depends on access_months; do not rename the unrelated legacy current_session_id column when syncing development schema.
 - [High Court display sanitization](high-court-display-sanitization.md) — decode entities before stripping tags and sanitize persisted alignment tokens in every display/export path.
+- [Typing result display](typing-result-display.md) — admin English Typing results must render the stored uploaded HTML to preserve alignment and formatting.

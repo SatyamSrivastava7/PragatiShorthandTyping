@@ -4083,7 +4083,7 @@ export default function AdminDashboard() {
                                             </h4>
                                             <div
                                               className={cn(
-                                                "text-sm text-justify leading-relaxed",
+                                                "leading-relaxed",
                                                 result.language === "hindi"
                                                   ? "font-mangal"
                                                   : "font-times",
@@ -4091,7 +4091,12 @@ export default function AdminDashboard() {
                                             >
                                               {result.contentType === "shorthand"
                                                 ? stripHtml(result.originalText || "")
-                                                : result.contentType === "allahabad-hc"
+                                                : result.contentType === "typing" && result.language !== "hindi"
+                                                  ? <div
+                                                      className="max-w-none"
+                                                      dangerouslySetInnerHTML={{ __html: result.originalText || "" }}
+                                                    />
+                                                  : result.contentType === "allahabad-hc"
                                                   ? <div dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
                                                   : stripHtmlPreserveParagraphs(result.originalText || "").split(PARA_TOKEN).map((para, i) => (
                                                       <p key={i} className="mb-2 last:mb-0">
