@@ -6,7 +6,7 @@ async function seed() {
     console.log("Starting database seed...");
     
     // Check if admin already exists
-    const existingAdmin = await storage.getUserByMobile("9876543210");
+    const existingAdmin = await storage.getUserByMobile("9918724449");
     
     if (existingAdmin) {
       console.log("Admin user already exists. Skipping seed.");
@@ -14,9 +14,9 @@ async function seed() {
     }
     
     // Create admin user
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const hashedPassword = await bcrypt.hash("admin1234", 10);
     const admin = await storage.createUser({
-      mobile: "9876543210",
+      mobile: "9918724449",
       password: hashedPassword,
       name: "Admin",
       batch: "Administration",
@@ -26,8 +26,8 @@ async function seed() {
     });
     
     console.log("Admin user created successfully:");
-    // console.log("Mobile: 9876543210");
-    // console.log("Password: admin123");
+    // console.log("Mobile: 9918724449");
+    // console.log("Password: admin1234");
     // console.log("Role:", admin.role);
     
     // Create some initial settings
