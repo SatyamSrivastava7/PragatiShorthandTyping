@@ -9,6 +9,7 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { highCourtApi, type HighCourtTest, type HighCourtTestType } from "@/lib/highCourt";
 import { HighCourtPdfViewer } from "./HighCourtPdfViewer";
 import { stripHtmlEntities, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
+import { scrollActiveMarkerIntoView } from "@/lib/typingAutoScroll";
 import { useToast } from "@/hooks/use-toast";
 
 const labels: Record<HighCourtTestType, string> = {
@@ -43,6 +44,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [highlighterEnabled, setHighlighterEnabled] = useState(true);
   const [result, setResult] = useState<{ mistakes: string | number; halfMistakes: string | number; marks: string | number } | null>(null);
+  const questionPaperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const id = Number(params?.id);
@@ -157,22 +159,30 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
 
   const start = () => {
     setActive(true);
+    questionPaperRef.current?.scrollTo({ top: 0, behavior: "auto" });
     setTimeout(() => document.getElementById(expectedType === "typing" ? "high-court-rich-editor" : "high-court-textarea")?.focus(), 0);
   };
 
   const updateTypingResponse = (html: string) => {
     setTypedText(html);
-    if (!autoScrollEnabled || !test) return;
-    const question = document.getElementById("high-court-question-paper");
-    if (!question) return;
-    const typedWords = html.replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
-    const totalWords = test.text.replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
-    const ratio = Math.min(1, typedWords / Math.max(1, totalWords));
-    question.scrollTop = ratio * Math.max(0, question.scrollHeight - question.clientHeight);
   };
 
+  useEffect(() => {
+    if (expectedType !== "typing" || !autoScrollEnabled || !active || !questionPaperRef.current) return;
+
+    const container = questionPaperRef.current;
+    const marker = container.querySelector(".current-word-marker") as HTMLElement | null;
+    if (!marker) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      scrollActiveMarkerIntoView(container, marker);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [active, autoScrollEnabled, expectedType, fontSize, highlighterEnabled, test, typedText]);
+
   const getHighlightedTypingContent = () => {
-    if (!test || !highlighterEnabled) return test?.text || "";
+    if (!test) return "";
 
     const originalWords = stripHtmlPreserveParagraphs(test.text)
       .trim()
@@ -196,7 +206,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     const targetWord = originalWords[currentIndex];
     let wordOccurrenceCount = 0;
     let foundTargetWord = false;
-    const highlightStyle = "background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;";
+    const highlightStyle = highlighterEnabled
+      ? "background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;"
+      : "";
 
     return test.text
       .split(/(<[^>]+>)/)
@@ -368,6 +380,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                   expectedType === "pitman" ? "overflow-hidden" : "overflow-auto"
                 }`}
                 id="high-court-question-paper"
+                ref={questionPaperRef}
               >
                 {expectedType === "pitman" && pdfUrl ? (
                   <HighCourtPdfViewer source={pdfUrl} zoom={pdfZoom} />

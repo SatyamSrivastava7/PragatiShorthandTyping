@@ -18,6 +18,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { scrollActiveMarkerIntoView } from "@/lib/typingAutoScroll";
 
 export default function AllahabadHCTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -39,7 +40,6 @@ export default function AllahabadHCTestPage() {
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null);
   const [highlighterEnabled, setHighlighterEnabled] = useState<boolean>(true);
-  const [userScrolled, setUserScrolled] = useState(false);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -54,11 +54,6 @@ export default function AllahabadHCTestPage() {
   // Synchronous guard that prevents handleSubmit from running twice concurrently.
   const isSubmittingRef = useRef(false);
   const originalTextRef = useRef<HTMLDivElement>(null);
-  const lastScrollTopRef = useRef<number>(0);
-  const isAutoScrollingRef = useRef<boolean>(false);
-  const lastParaCountRef = useRef<number>(0);
-  const paraScrollUntilWordsRef = useRef<number>(0);
-  const paraScrollUntilTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (testContent) {
@@ -254,80 +249,22 @@ export default function AllahabadHCTestPage() {
     };
   }, [isActive, finishTest]);
 
-  // Handle manual scroll - detect if user scrolled
-  useEffect(() => {
-    const container = originalTextRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      if (!isAutoScrollingRef.current) {
-        setUserScrolled(true);
-      }
-      isAutoScrollingRef.current = false;
-      lastScrollTopRef.current = container.scrollTop;
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Auto-scroll logic - when current word reaches the 3rd-last visible line,
-  // scroll up by exactly enough lines so the marker sits one line above (4th-last),
-  // revealing one new line at the bottom.
+  // Keep the active word in a readable window without permanently disabling
+  // auto-scroll after a student's manual review scroll.
   useEffect(() => {
     if (autoScrollEnabled === null || !autoScrollEnabled || !originalTextRef.current) return;
     if (!isActive) return;
-    if (userScrolled) return; // respect manual scroll
 
     const container = originalTextRef.current;
     const marker = container.querySelector('.current-word-marker') as HTMLElement | null;
     if (!marker) return;
 
-    // Determine line height from the inner content
-    const inner = container.firstElementChild as HTMLElement | null;
-    const styleSource = inner || container;
-    const computed = window.getComputedStyle(styleSource);
-    const fontSizePx = parseFloat(computed.fontSize) || 16;
-    let lineHeight = parseFloat(computed.lineHeight);
-    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-      // "normal" or unparseable -> fall back to 1.5 * font-size
-      lineHeight = fontSizePx * 1.5;
-    } else if (lineHeight < fontSizePx) {
-      // Some browsers report unitless line-height (e.g. "1.625") as the
-      // resolved value. Convert to pixels by multiplying with font-size.
-      lineHeight = lineHeight * fontSizePx;
-    }
-    // Prefer the marker's actual line height if available (most accurate)
-    const markerLineHeight = marker.getBoundingClientRect().height;
-    if (markerLineHeight > 0 && Math.abs(markerLineHeight - lineHeight) > 2) {
-      lineHeight = markerLineHeight;
-    }
+    const frameId = window.requestAnimationFrame(() => {
+      scrollActiveMarkerIntoView(container, marker);
+    });
 
-    const visibleLines = Math.floor(container.clientHeight / lineHeight);
-    if (visibleLines < 4) return;
-
-    // Marker position relative to container content
-    const containerRect = container.getBoundingClientRect();
-    const markerRect = marker.getBoundingClientRect();
-    const markerOffsetTop = markerRect.top - containerRect.top + container.scrollTop;
-
-    // Marker's current visible-line index from top (0-indexed)
-    const markerLineFromTop = Math.round((markerOffsetTop - container.scrollTop) / lineHeight);
-
-    // 3rd-last visible line index (0-indexed). e.g. visibleLines=8 → index 5
-    const thirdLastLineIndex = visibleLines - 3;
-
-    if (markerLineFromTop >= thirdLastLineIndex) {
-      // Bring marker to (thirdLastLineIndex - 1) i.e. 4th-last → reveals one new line at bottom
-      const targetLineFromTop = thirdLastLineIndex - 1;
-      const newScroll = Math.max(0, markerOffsetTop - targetLineFromTop * lineHeight);
-      if (newScroll > container.scrollTop) {
-        isAutoScrollingRef.current = true;
-        container.scrollTop = newScroll;
-        lastScrollTopRef.current = newScroll;
-      }
-    }
-  }, [typedText, testContent, userScrolled, isActive, autoScrollEnabled, highlighterEnabled]);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [typedText, testContent, isActive, autoScrollEnabled, highlighterEnabled, fontSize]);
 
   const getHighlightedContent = () => {
     if (!testContent) return '';
@@ -422,9 +359,9 @@ export default function AllahabadHCTestPage() {
 
   // Start test - set isActive; the useEffect timer takes over from here
   const handleStartClick = () => {
-    setUserScrolled(false);
     startTimeRef.current = null; // reset so useEffect initialises it fresh
     setIsActive(true);
+    originalTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
   };
 
   // Stop test
