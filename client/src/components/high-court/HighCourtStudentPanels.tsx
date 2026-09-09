@@ -16,14 +16,32 @@ export function HighCourtStudentArea() {
   const [sets, setSets] = useState<HighCourtTestSet[]>([]);
   const [selected, setSelected] = useState<HighCourtTestSet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    highCourtApi.getTestSets()
-      .then(setSets)
+    highCourtApi.getTestSets({ limit: 6, offset: 0 })
+      .then((page) => {
+        setSets(page.items);
+        setHasMore(page.hasMore);
+      })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "Unable to load High Court folders."))
       .finally(() => setLoading(false));
   }, []);
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const page = await highCourtApi.getTestSets({ limit: 6, offset: sets.length });
+      setSets((current) => [...current, ...page.items]);
+      setHasMore(page.hasMore);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to load more High Court folders.");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   if (loading) return <div className="flex justify-center p-16"><Loader2 className="h-7 w-7 animate-spin text-amber-600" /></div>;
   if (error) return <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</div>;
@@ -94,6 +112,14 @@ export function HighCourtStudentArea() {
           </Card>)}
         </div>
       )}
+      {!loading && hasMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loadingMore ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      )}
     </section>
   );
 }
@@ -102,10 +128,29 @@ export function HighCourtResultsPanel() {
   const [results, setResults] = useState<HighCourtGroupedResult[]>([]);
   const [selected, setSelected] = useState<HighCourtGroupedResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
-    highCourtApi.getMyResults().then(setResults).catch(() => setResults([])).finally(() => setLoading(false));
+    highCourtApi.getMyResults({ limit: 50, offset: 0 })
+      .then((page) => {
+        setResults(page.items);
+        setHasMore(page.hasMore);
+      })
+      .catch(() => setResults([]))
+      .finally(() => setLoading(false));
   }, []);
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const page = await highCourtApi.getMyResults({ limit: 50, offset: results.length });
+      setResults((current) => [...current, ...page.items]);
+      setHasMore(page.hasMore);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-amber-600" /></div>;
   if (!results.length) return <div className="rounded-xl border border-dashed p-10 text-center text-sm text-slate-500">No High Court paper has been submitted yet.</div>;
@@ -118,6 +163,14 @@ export function HighCourtResultsPanel() {
           <tbody>{results.map((result) => <tr key={result.testSetId} className="border-t hover:bg-slate-50"><td className="p-4 font-semibold">{result.testSetTitle}</td><td className="p-4">{result.studentName}</td><td className="p-4 text-center">{result.typingMarks} / 100</td><td className="p-4 text-center">{result.pitmanMarks} / 100</td><td className="p-4 text-center">{result.shorthandMarks} / 200</td><td className="p-4 text-center font-bold text-amber-800">{result.totalMarks} / 400</td><td className="p-4 text-right"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setSelected(result)}><Eye className="mr-1.5 h-4 w-4" /> View</Button><Button size="sm" variant="outline" onClick={() => downloadHighCourtPdf(result)} data-testid={`button-download-high-court-pdf-${result.testSetId}`}><Download className="mr-1.5 h-4 w-4" /> PDF</Button></div></td></tr>)}</tbody>
         </table>
       </div>
+      {hasMore && (
+        <div className="flex justify-center py-4">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {loadingMore ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      )}
       <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="w-[calc(100%-1rem)] max-h-[88vh] max-w-4xl overflow-x-hidden overflow-y-auto p-4 sm:p-6">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-600" />{selected?.testSetTitle} — High Court Report</DialogTitle></DialogHeader>

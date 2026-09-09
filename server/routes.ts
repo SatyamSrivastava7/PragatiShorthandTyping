@@ -69,6 +69,18 @@ export async function registerRoutes(
   // Helper function to validate parsed IDs
   const validateId = (id: number): boolean => !isNaN(id) && id > 0;
 
+  const parseHighCourtPage = (req: any, defaultLimit: number) => {
+    const requestedLimit = Number(req.query.limit);
+    const requestedOffset = Number(req.query.offset);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50)
+      : defaultLimit;
+    const offset = Number.isFinite(requestedOffset)
+      ? Math.max(Math.trunc(requestedOffset), 0)
+      : 0;
+    return { limit, offset };
+  };
+
   // Register
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -1879,7 +1891,9 @@ export async function registerRoutes(
     }
   });
 
-  // Student/Admin: list all test sets (enabled only for students)
+  // Student/Admin: list a page of test sets (enabled only for students).
+  // The list intentionally excludes full paper text and PDF data. Full paper
+  // data is fetched only when a student opens a paper or an admin edits it.
   app.get("/api/high-court/test-sets", async (req, res) => {
     try {
       if (!req.session.userId) {
@@ -1890,26 +1904,25 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const sets = await storage.getAllHighCourtTestSets();
-      // Students only see enabled sets
-      const filtered =
-        currentUser.role === "admin"
-          ? sets
-          : sets.filter((s) => s.isEnabled);
+      const { limit, offset } = parseHighCourtPage(req, currentUser.role === "admin" ? 50 : 6);
+      const page = await storage.getHighCourtTestSetsPage(limit + 1, offset, currentUser.role !== "admin");
+      const hasMore = page.length > limit;
+      const sets = page.slice(0, limit);
 
-      // Admins managing exam folders need each paper's title/duration inline
-      // (students only get this once they open a specific folder).
+      // Admins managing exam folders only need each paper's title/duration
+      // inline. The PDF and full text are loaded through the single-test
+      // endpoint when the admin opens the edit dialog.
       if (currentUser.role === "admin") {
         const withTests = await Promise.all(
-          filtered.map(async (set) => ({
+          sets.map(async (set) => ({
             ...set,
-            tests: await storage.getHighCourtTestsBySet(set.id),
+            tests: await storage.getHighCourtTestSummariesBySet(set.id),
           }))
         );
-        return res.json(withTests);
+        return res.json({ items: withTests, hasMore, offset, limit });
       }
 
-      res.json(filtered);
+      res.json({ items: sets, hasMore, offset, limit });
     } catch (error) {
       console.error("Error fetching high court test sets:", error);
       res.status(500).json({ message: "Failed to fetch high court test sets" });
@@ -2346,7 +2359,14 @@ export async function registerRoutes(
       const allSets = await storage.getAllHighCourtTestSets();
       const setNameMap = new Map(allSets.map((s) => [s.id, s.name]));
 
-      res.json(buildGroupedHighCourtResults(attempts, setNameMap));
+      const grouped = buildGroupedHighCourtResults(attempts, setNameMap);
+      const { limit, offset } = parseHighCourtPage(req, 50);
+      res.json({
+        items: grouped.slice(offset, offset + limit),
+        hasMore: offset + limit < grouped.length,
+        offset,
+        limit,
+      });
     } catch (error) {
       console.error("Error fetching high court results:", error);
       res.status(500).json({ message: "Failed to fetch high court results" });
@@ -2368,7 +2388,14 @@ export async function registerRoutes(
       const allSets = await storage.getAllHighCourtTestSets();
       const setNameMap = new Map(allSets.map((s) => [s.id, s.name]));
 
-      res.json(buildGroupedHighCourtResults(attempts, setNameMap));
+      const grouped = buildGroupedHighCourtResults(attempts, setNameMap);
+      const { limit, offset } = parseHighCourtPage(req, 50);
+      res.json({
+        items: grouped.slice(offset, offset + limit),
+        hasMore: offset + limit < grouped.length,
+        offset,
+        limit,
+      });
     } catch (error) {
       console.error("Error fetching all high court results:", error);
       res.status(500).json({ message: "Failed to fetch high court results" });

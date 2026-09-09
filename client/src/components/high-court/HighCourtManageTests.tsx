@@ -36,6 +36,8 @@ export function HighCourtManageTests() {
   const { toast } = useToast();
   const [sets, setSets] = useState<HighCourtTestSet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [editingSet, setEditingSet] = useState<HighCourtTestSet | null>(null);
@@ -45,10 +47,11 @@ export function HighCourtManageTests() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchSets = async () => {
+  const fetchSets = async (offset = 0, append = false) => {
     try {
-      const data = await highCourtApi.getTestSets();
-      setSets(data);
+      const page = await highCourtApi.getTestSets({ limit: 50, offset });
+      setSets((current) => append ? [...current, ...page.items] : page.items);
+      setHasMore(page.hasMore);
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to load High Court exam folders." });
     }
@@ -62,19 +65,41 @@ export function HighCourtManageTests() {
 
   const refresh = async () => {
     setRefreshing(true);
-    await fetchSets();
+    await fetchSets(0, false);
     setRefreshing(false);
   };
 
-  const openEdit = (set: HighCourtTestSet) => {
+  const loadMore = async () => {
+    setLoadingMore(true);
+    await fetchSets(sets.length, true);
+    setLoadingMore(false);
+  };
+
+  const openEdit = async (set: HighCourtTestSet) => {
     setEditingSet(set);
     setEditTitle(set.title);
     setEditDateFor(set.dateFor);
-    setEditPapers({
-      typing: toPaperForm(set.tests.find((t) => t.type === "typing")),
-      pitman: toPaperForm(set.tests.find((t) => t.type === "pitman")),
-      shorthand: toPaperForm(set.tests.find((t) => t.type === "shorthand")),
-    });
+    setEditPapers(null);
+    try {
+      const tests = await Promise.all(
+        HIGH_COURT_PAPERS.map(async (paper) => {
+          const summary = set.tests.find((test) => test.type === paper.type);
+          return summary ? highCourtApi.getTest(summary.id) : null;
+        })
+      );
+      setEditPapers({
+        typing: toPaperForm(tests[0] ?? undefined),
+        pitman: toPaperForm(tests[1] ?? undefined),
+        shorthand: toPaperForm(tests[2] ?? undefined),
+      });
+    } catch (error) {
+      setEditingSet(null);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load the selected High Court papers.",
+      });
+    }
   };
 
   const saveEdit = async () => {
@@ -103,7 +128,7 @@ export function HighCourtManageTests() {
       toast({ title: "Saved", description: "High Court exam folder updated." });
       setEditingSet(null);
       setEditPapers(null);
-      await fetchSets();
+      await fetchSets(0, false);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -255,7 +280,12 @@ export function HighCourtManageTests() {
                             <DialogHeader>
                               <DialogTitle>Edit High Court Exam Folder</DialogTitle>
                             </DialogHeader>
-                            {editPapers && (
+                             {!editPapers && editingSet && (
+                               <div className="flex items-center justify-center p-10 text-muted-foreground">
+                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading paper details…
+                               </div>
+                             )}
+                             {editPapers && (
                               <div className="space-y-4">
                                 <div className="space-y-2">
                                   <Label>Exam folder name</Label>
@@ -323,10 +353,18 @@ export function HighCourtManageTests() {
                     </TableCell>
                   </TableRow>
                 )}
-              </TableBody>
+               </TableBody>
             </Table>
           </div>
         )}
+         {!loading && hasMore && (
+           <div className="flex justify-center border-t p-4">
+             <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+               {loadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+               {loadingMore ? "Loading…" : "Load more"}
+             </Button>
+           </div>
+         )}
       </CardContent>
     </Card>
   );

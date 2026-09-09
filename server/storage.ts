@@ -132,8 +132,10 @@ export interface IStorage {
   // High Court methods
   createHighCourtTestSetWithTests(set: InsertHighCourtTestSet, tests: InsertHighCourtTest[]): Promise<{ testSet: HighCourtTestSet; tests: HighCourtTest[] }>;
   getAllHighCourtTestSets(): Promise<HighCourtTestSet[]>;
+  getHighCourtTestSetsPage(limit: number, offset: number, onlyEnabled?: boolean): Promise<HighCourtTestSet[]>;
   getHighCourtTestSet(id: number): Promise<HighCourtTestSet | undefined>;
   getHighCourtTestsBySet(testSetId: number): Promise<HighCourtTest[]>;
+  getHighCourtTestSummariesBySet(testSetId: number): Promise<Array<Pick<HighCourtTest, "id" | "testSetId" | "title" | "type" | "duration" | "createdAt">>>;
   getHighCourtTest(id: number): Promise<HighCourtTest | undefined>;
   updateHighCourtTestSet(id: number, data: Partial<Pick<HighCourtTestSet, "name" | "isEnabled">>): Promise<HighCourtTestSet | undefined>;
   deleteHighCourtTestSet(id: number): Promise<void>;
@@ -818,6 +820,24 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(highCourtTestSets.dateFor), desc(highCourtTestSets.createdAt));
   }
 
+  async getHighCourtTestSetsPage(limit: number, offset: number, onlyEnabled = false): Promise<HighCourtTestSet[]> {
+    const condition = onlyEnabled ? eq(highCourtTestSets.isEnabled, true) : undefined;
+    let query: any = db
+      .select()
+      .from(highCourtTestSets)
+      .orderBy(desc(highCourtTestSets.dateFor), desc(highCourtTestSets.createdAt))
+      .limit(limit)
+      .offset(offset);
+    if (condition) query = db
+      .select()
+      .from(highCourtTestSets)
+      .where(condition)
+      .orderBy(desc(highCourtTestSets.dateFor), desc(highCourtTestSets.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return await query;
+  }
+
   async getHighCourtTestSet(id: number): Promise<HighCourtTestSet | undefined> {
     const [row] = await db
       .select()
@@ -829,6 +849,21 @@ export class DatabaseStorage implements IStorage {
   async getHighCourtTestsBySet(testSetId: number): Promise<HighCourtTest[]> {
     return await db
       .select()
+      .from(highCourtTests)
+      .where(eq(highCourtTests.testSetId, testSetId))
+      .orderBy(asc(highCourtTests.id));
+  }
+
+  async getHighCourtTestSummariesBySet(testSetId: number): Promise<Array<Pick<HighCourtTest, "id" | "testSetId" | "title" | "type" | "duration" | "createdAt">>> {
+    return await db
+      .select({
+        id: highCourtTests.id,
+        testSetId: highCourtTests.testSetId,
+        title: highCourtTests.title,
+        type: highCourtTests.type,
+        duration: highCourtTests.duration,
+        createdAt: highCourtTests.createdAt,
+      })
       .from(highCourtTests)
       .where(eq(highCourtTests.testSetId, testSetId))
       .orderBy(asc(highCourtTests.id));

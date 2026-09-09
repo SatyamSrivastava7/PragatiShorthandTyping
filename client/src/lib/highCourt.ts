@@ -21,6 +21,13 @@ export interface HighCourtTestSet {
   tests: HighCourtTest[];
 }
 
+export interface HighCourtPage<T> {
+  items: T[];
+  hasMore: boolean;
+  offset: number;
+  limit: number;
+}
+
 export interface HighCourtAlignmentEntry {
   original: string;
   typed: string;
@@ -125,6 +132,16 @@ function normalizeSet(raw: any): HighCourtTestSet {
   };
 }
 
+function normalizeSetPage(raw: any): HighCourtPage<HighCourtTestSet> {
+  const items = Array.isArray(raw) ? raw : raw.items || [];
+  return {
+    items: items.map(normalizeSet),
+    hasMore: Boolean(raw?.hasMore),
+    offset: Number(raw?.offset || 0),
+    limit: Number(raw?.limit || items.length),
+  };
+}
+
 function normalizeAlignment(items: any[] = []): HighCourtAlignmentEntry[] {
   return items.map((entry) => ({
     original: entry.original || "",
@@ -170,7 +187,13 @@ function normalizeGroupedResult(group: any): HighCourtGroupedResult {
 }
 
 export const highCourtApi = {
-  getTestSets: async () => (await request<any[]>("/api/high-court/test-sets")).map(normalizeSet),
+  getTestSets: async (options: { limit?: number; offset?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (options.limit !== undefined) query.set("limit", String(options.limit));
+    if (options.offset !== undefined) query.set("offset", String(options.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return normalizeSetPage(await request<any>(`/api/high-court/test-sets${suffix}`));
+  },
   getTestSet: async (id: number) => normalizeSet(await request<any>(`/api/high-court/test-sets/${id}`)),
   getTest: async (id: number) => {
     const test = await request<any>(`/api/high-court/tests/${id}`);
@@ -181,8 +204,34 @@ export const highCourtApi = {
       method: "POST",
       body: JSON.stringify(data),
     })),
-  getMyResults: async () => (await request<any[]>("/api/high-court/results/me")).map(normalizeGroupedResult),
-  getAllResults: async () => (await request<any[]>("/api/high-court/results")).map(normalizeGroupedResult),
+  getMyResults: async (options: { limit?: number; offset?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (options.limit !== undefined) query.set("limit", String(options.limit));
+    if (options.offset !== undefined) query.set("offset", String(options.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    const page = await request<any>(`/api/high-court/results/me${suffix}`);
+    const items = Array.isArray(page) ? page : page.items || [];
+    return {
+      items: items.map(normalizeGroupedResult),
+      hasMore: Boolean(page?.hasMore),
+      offset: Number(page?.offset || 0),
+      limit: Number(page?.limit || items.length),
+    } satisfies HighCourtPage<HighCourtGroupedResult>;
+  },
+  getAllResults: async (options: { limit?: number; offset?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (options.limit !== undefined) query.set("limit", String(options.limit));
+    if (options.offset !== undefined) query.set("offset", String(options.offset));
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    const page = await request<any>(`/api/high-court/results${suffix}`);
+    const items = Array.isArray(page) ? page : page.items || [];
+    return {
+      items: items.map(normalizeGroupedResult),
+      hasMore: Boolean(page?.hasMore),
+      offset: Number(page?.offset || 0),
+      limit: Number(page?.limit || items.length),
+    } satisfies HighCourtPage<HighCourtGroupedResult>;
+  },
   updateTestSet: async (id: number, data: { name?: string; dateFor?: string; isEnabled?: boolean }) =>
     request<HighCourtTestSet>(`/api/high-court/test-sets/${id}`, {
       method: "PATCH",

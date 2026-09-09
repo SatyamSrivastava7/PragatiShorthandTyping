@@ -240,9 +240,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   };
 
   const renderTypingQuestion = () => (
-    <article
-      className="prose max-w-none whitespace-pre-wrap leading-8 text-slate-800"
-      style={{ fontSize }}
+    <div
+      className="max-w-none leading-relaxed text-slate-800 [&_div]:my-0 [&_p]:my-0 [&_pre]:m-0 [&_pre]:whitespace-pre-wrap"
+      style={{ fontSize, textAlign: "justify" }}
       dangerouslySetInnerHTML={{ __html: getHighlightedTypingContent() }}
     />
   );

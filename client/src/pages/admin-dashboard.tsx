@@ -681,6 +681,8 @@ export default function AdminDashboard() {
   // High Court admin results (combined 3-paper results across all students)
   const [highCourtResults, setHighCourtResults] = useState<HighCourtGroupedResult[]>([]);
   const [isHighCourtResultsLoading, setIsHighCourtResultsLoading] = useState(false);
+  const [isLoadingMoreHighCourtResults, setIsLoadingMoreHighCourtResults] = useState(false);
+  const [hasMoreHighCourtResults, setHasMoreHighCourtResults] = useState(false);
   const [selectedHighCourtKeys, setSelectedHighCourtKeys] = useState<string[]>([]);
   const [selectedHighCourtResult, setSelectedHighCourtResult] = useState<HighCourtGroupedResult | null>(null);
 
@@ -1241,11 +1243,12 @@ export default function AdminDashboard() {
   const [isRefreshingStudents, setIsRefreshingStudents] = useState(false);
   const [isRefreshingContent, setIsRefreshingContent] = useState(false);
 
-  const fetchHighCourtResults = useCallback(async () => {
+  const fetchHighCourtResults = useCallback(async (offset = 0, append = false) => {
     setIsHighCourtResultsLoading(true);
     try {
-      const data = await highCourtApi.getAllResults();
-      setHighCourtResults(data);
+      const page = await highCourtApi.getAllResults({ limit: 50, offset });
+      setHighCourtResults((current) => append ? [...current, ...page.items] : page.items);
+      setHasMoreHighCourtResults(page.hasMore);
     } catch (error) {
       console.error("Error fetching High Court results:", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to load High Court results." });
@@ -1253,6 +1256,15 @@ export default function AdminDashboard() {
       setIsHighCourtResultsLoading(false);
     }
   }, [toast]);
+
+  const loadMoreHighCourtResults = async () => {
+    setIsLoadingMoreHighCourtResults(true);
+    try {
+      await fetchHighCourtResults(highCourtResults.length, true);
+    } finally {
+      setIsLoadingMoreHighCourtResults(false);
+    }
+  };
 
   useEffect(() => {
     if (activeResultsTab !== "high-court") return;
@@ -4374,6 +4386,14 @@ export default function AdminDashboard() {
                         </TableBody>
                       </Table>
                     </div>
+                    {hasMoreHighCourtResults && (
+                      <div className="flex justify-center border-t p-4">
+                        <Button variant="outline" onClick={loadMoreHighCourtResults} disabled={isLoadingMoreHighCourtResults}>
+                          {isLoadingMoreHighCourtResults && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          {isLoadingMoreHighCourtResults ? "Loading…" : "Load more High Court results"}
+                        </Button>
+                      </div>
+                    )}
                   </TabsContent>
                 </Tabs>
               </CardContent>
