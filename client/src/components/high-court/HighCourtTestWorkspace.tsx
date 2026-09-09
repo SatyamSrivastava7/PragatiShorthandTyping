@@ -333,7 +333,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                       className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 hover:text-red-800"
                     >
                       <Youtube className="h-4 w-4" />
-                      Practice video
+                      Dictation
                       <ExternalLink className="h-3.5 w-3.5" />
                     </a>
                   )}

@@ -89,7 +89,7 @@ export function PaperFields({
                 className="pl-9"
               />
             </div>
-            <p className="text-xs text-muted-foreground">Students can open this practice video from the High Court Shorthand test.</p>
+            <p className="text-xs text-muted-foreground">Students can open this dictation from the High Court Shorthand test.</p>
           </div>
         )}
         <RichTextEditor
