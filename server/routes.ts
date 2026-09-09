@@ -1519,6 +1519,33 @@ export async function registerRoutes(
   
   // ==================== SETTINGS ROUTES ====================
   
+  const serializeSettings = (settingsArray: Awaited<ReturnType<typeof storage.getAllSettings>>, hasQrCode: boolean) => {
+    const settingsObj: Record<string, any> = { hasQrCode };
+    for (const s of settingsArray) {
+      if (s.key === 'registrationFee' || /^registrationFee(1|3|6|12)Month$/.test(s.key)) {
+        settingsObj.registrationFee = Number(s.value) || 0;
+        if (s.key !== 'registrationFee') {
+          settingsObj[s.key] = Number(s.value) || 0;
+        }
+      } else if (['autoScrollEnabled', 'showRegistrationFee', 'showQrCode', 'requirePaymentVerification'].includes(s.key)) {
+        settingsObj[s.key] = s.value === 'true';
+      } else {
+        settingsObj[s.key] = s.value;
+      }
+    }
+    return settingsObj;
+  };
+
+  // QR data is intentionally fetched separately because it is a large data URL.
+  app.get("/api/settings/qr-code", async (req, res) => {
+    try {
+      const setting = await storage.getSetting("qrCodeUrl");
+      res.json({ qrCodeUrl: setting?.value || "" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get QR code" });
+    }
+  });
+
   app.get("/api/settings", async (req, res) => {
     try {
       const key = req.query.key as string | undefined;
@@ -1530,21 +1557,11 @@ export async function registerRoutes(
         }
         res.json(setting);
       } else {
-        const settingsArray = await storage.getAllSettings();
-        const settingsObj: Record<string, any> = {};
-        for (const s of settingsArray) {
-          if (s.key === 'registrationFee' || /^registrationFee(1|3|6|12)Month$/.test(s.key)) {
-            settingsObj.registrationFee = Number(s.value) || 0;
-            if (s.key !== 'registrationFee') {
-              settingsObj[s.key] = Number(s.value) || 0;
-            }
-          } else if (['autoScrollEnabled', 'showRegistrationFee', 'showQrCode', 'requirePaymentVerification'].includes(s.key)) {
-            settingsObj[s.key] = s.value === 'true';
-          } else {
-            settingsObj[s.key] = s.value;
-          }
-        }
-        res.json(settingsObj);
+        const [settingsArray, qrCodeSetting] = await Promise.all([
+          storage.getSettingsWithoutQrCode(),
+          storage.getSetting("qrCodeUrl"),
+        ]);
+        res.json(serializeSettings(settingsArray, Boolean(qrCodeSetting?.value)));
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to get settings" });
@@ -1577,21 +1594,11 @@ export async function registerRoutes(
       }
       
       // Return all settings after update in object format
-      const settingsArray = await storage.getAllSettings();
-      const settingsObj: Record<string, any> = {};
-      for (const s of settingsArray) {
-        if (s.key === 'registrationFee' || /^registrationFee(1|3|6|12)Month$/.test(s.key)) {
-          settingsObj.registrationFee = Number(s.value) || 0;
-          if (s.key !== 'registrationFee') {
-            settingsObj[s.key] = Number(s.value) || 0;
-          }
-        } else if (['autoScrollEnabled', 'showRegistrationFee', 'showQrCode', 'requirePaymentVerification'].includes(s.key)) {
-          settingsObj[s.key] = s.value === 'true';
-        } else {
-          settingsObj[s.key] = s.value;
-        }
-      }
-      res.json(settingsObj);
+      const [settingsArray, qrCodeSetting] = await Promise.all([
+        storage.getSettingsWithoutQrCode(),
+        storage.getSetting("qrCodeUrl"),
+      ]);
+      res.json(serializeSettings(settingsArray, Boolean(qrCodeSetting?.value)));
     } catch (error) {
       res.status(500).json({ message: "Failed to update settings" });
     }

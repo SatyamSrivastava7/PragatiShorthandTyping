@@ -17,6 +17,7 @@ import {
   useUsers,
   usePdf,
   useSettings,
+  useQrCode,
   useGallery,
   useSelectedCandidates,
   useTestFolders,
@@ -729,6 +730,8 @@ export default function AdminDashboard() {
     deleteFolder: deletePdfFolder,
   } = usePdf(true, selectedFolderId?.toString());
   const { settings, updateSettings } = useSettings();
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const { qrCodeUrl, isLoading: isQrCodeLoading } = useQrCode(isQrDialogOpen);
   const {
     images: galleryImages,
     imagesWithId: galleryImagesWithId,
@@ -793,7 +796,6 @@ export default function AdminDashboard() {
     }
     return Number(settings?.registrationFee || 0) * months;
   };
-  const qrCodeUrl = settings?.qrCodeUrl || "";
   const [localRegFees, setLocalRegFees] = useState<Record<string, number>>({});
   const feeSettingsEditedRef = useRef(false);
   const setQrCodeUrl = (url: string) => updateSettings?.({ qrCodeUrl: url });
@@ -2215,8 +2217,8 @@ export default function AdminDashboard() {
                         QR Code:
                       </Label>
                       <div className="flex items-center gap-2">
-                        {qrCodeUrl && (
-                          <Dialog>
+                        {settings?.hasQrCode && (
+                          <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
                             <DialogTrigger asChild>
                               <Button
                                 variant="outline"
@@ -2226,12 +2228,18 @@ export default function AdminDashboard() {
                                 <QrCode className="h-4 w-4 mr-1" /> View
                               </Button>
                             </DialogTrigger>
-                            <DialogContent>
-                              <img
-                                src={qrCodeUrl}
-                                alt="QR Code"
-                                className="w-full h-auto max-w-sm mx-auto"
-                              />
+                              <DialogContent>
+                               {isQrCodeLoading ? (
+                                 <div className="flex justify-center p-8 text-sm text-muted-foreground">Loading QR Code...</div>
+                               ) : qrCodeUrl ? (
+                                 <img
+                                   src={qrCodeUrl}
+                                   alt="QR Code"
+                                   className="w-full h-auto max-w-sm mx-auto"
+                                 />
+                               ) : (
+                                 <div className="p-8 text-center text-sm text-muted-foreground">QR Code not available.</div>
+                               )}
                             </DialogContent>
                           </Dialog>
                         )}

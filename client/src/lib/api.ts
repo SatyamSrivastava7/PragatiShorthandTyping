@@ -1,5 +1,19 @@
 import type { User, AdminUserSummary, Content, Result, PdfFolder, PdfResource, Notice, NoticeListItem, InsertNotice, TestFolder } from '@shared/schema';
 
+export type AppSettings = {
+  registrationFee: number;
+  registrationFee1Month: number;
+  registrationFee3Month: number;
+  registrationFee6Month: number;
+  registrationFee12Month: number;
+  instituteName: string;
+  autoScrollEnabled: boolean;
+  showRegistrationFee: boolean;
+  showQrCode: boolean;
+  requirePaymentVerification: boolean;
+  hasQrCode: boolean;
+};
+
 const API_URL = '';
 
 async function fetchApi<T>(
@@ -406,20 +420,9 @@ export const selectedCandidatesApi = {
 };
 
 export const settingsApi = {
-  get: () =>
-    fetchApi<{
-      registrationFee: number;
-      registrationFee1Month: number;
-      registrationFee3Month: number;
-      registrationFee6Month: number;
-      registrationFee12Month: number;
-      qrCodeUrl: string;
-      instituteName: string;
-      autoScrollEnabled: boolean;
-      showRegistrationFee: boolean;
-      showQrCode: boolean;
-      requirePaymentVerification: boolean;
-    }>('/api/settings'),
+  get: () => fetchApi<AppSettings>('/api/settings'),
+
+  getQrCode: () => fetchApi<{ qrCodeUrl: string }>('/api/settings/qr-code'),
 
   update: (data: Partial<{
     registrationFee: number;
@@ -434,19 +437,7 @@ export const settingsApi = {
     showQrCode: boolean;
     requirePaymentVerification: boolean;
   }>) =>
-    fetchApi<{
-      registrationFee: number;
-      registrationFee1Month: number;
-      registrationFee3Month: number;
-      registrationFee6Month: number;
-      registrationFee12Month: number;
-      qrCodeUrl: string;
-      instituteName: string;
-      autoScrollEnabled: boolean;
-      showRegistrationFee: boolean;
-      showQrCode: boolean;
-      requirePaymentVerification: boolean;
-    }>('/api/settings', {
+    fetchApi<AppSettings>('/api/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),

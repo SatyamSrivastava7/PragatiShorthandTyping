@@ -3,6 +3,6 @@ export { useContent, useContentById, usePrefetchContent } from './useContent';
 export { useResults } from './useResults';
 export { useUsers } from './useUsers';
 export { usePdf } from './usePdf';
-export { useSettings, useGallery, useSelectedCandidates } from './useSettings';
+export { useSettings, useQrCode, useGallery, useSelectedCandidates } from './useSettings';
 export { useDictations } from './useDictations';
 export { useTestFolders, useLatestTestFolders, useCreateTestFolder, useUpdateTestFolder, useDeleteTestFolder } from './useTestFolders';

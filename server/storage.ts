@@ -122,6 +122,7 @@ export interface IStorage {
   // Settings methods
   getSetting(key: string): Promise<Setting | undefined>;
   getAllSettings(): Promise<Setting[]>;
+  getSettingsWithoutQrCode(): Promise<Setting[]>;
   upsertSetting(setting: InsertSetting): Promise<Setting>;
   
   // Notices methods
@@ -749,6 +750,10 @@ export class DatabaseStorage implements IStorage {
 
   async getAllSettings(): Promise<Setting[]> {
     return await db.select().from(settings);
+  }
+
+  async getSettingsWithoutQrCode(): Promise<Setting[]> {
+    return await db.select().from(settings).where(sql`${settings.key} <> 'qrCodeUrl'`);
   }
 
   async upsertSetting(insertSetting: InsertSetting): Promise<Setting> {

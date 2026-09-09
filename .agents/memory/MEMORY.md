@@ -8,3 +8,4 @@
 - [Admin student list payload](admin-student-list-payload.md) — the admin user list uses a narrow summary projection; fetch full user records only for targeted detail flows.
 - [Notice list payload](notice-list-payload.md) — notice lists expose hasPdf instead of the stored PDF data URL; fetch the attachment only on download.
 - [High Court test-set cache](high-court-test-set-cache.md) — cache paged test-set responses across tab remounts and invalidate after High Court mutations or explicit refresh.
+- [Settings QR payload](settings-qr-payload.md) — keep the QR data URL out of shared settings responses; fetch it only in payment or QR-view flows.

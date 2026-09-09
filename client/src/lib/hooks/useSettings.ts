@@ -27,21 +27,35 @@ export function useSettings() {
     onMutate: async (newSettings) => {
       await queryClient.cancelQueries({ queryKey: ['settings'] });
       const previousSettings = queryClient.getQueryData(['settings']);
+      const { qrCodeUrl, ...lightSettings } = newSettings;
+      const previousQrCode = qrCodeUrl !== undefined
+        ? queryClient.getQueryData(['settings', 'qr-code'])
+        : undefined;
       
       queryClient.setQueryData(['settings'], (old: any) => ({
         ...old,
-        ...newSettings,
+        ...lightSettings,
+        ...(qrCodeUrl !== undefined ? { hasQrCode: Boolean(qrCodeUrl) } : {}),
       }));
+      if (qrCodeUrl !== undefined) {
+        queryClient.setQueryData(['settings', 'qr-code'], { qrCodeUrl });
+      }
       
-      return { previousSettings };
+      return { previousSettings, previousQrCode };
     },
     onError: (err, newSettings, context) => {
       if (context?.previousSettings) {
         queryClient.setQueryData(['settings'], context.previousSettings);
       }
+      if (newSettings.qrCodeUrl !== undefined && context?.previousQrCode) {
+        queryClient.setQueryData(['settings', 'qr-code'], context.previousQrCode);
+      }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
+      if (variables.qrCodeUrl !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ['settings', 'qr-code'] });
+      }
     },
   });
 
@@ -49,6 +63,22 @@ export function useSettings() {
     settings,
     isLoading,
     updateSettings: updateMutation.mutateAsync,
+  };
+}
+
+export function useQrCode(enabled: boolean = true) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['settings', 'qr-code'],
+    queryFn: settingsApi.getQrCode,
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  return {
+    qrCodeUrl: data?.qrCodeUrl || "",
+    isLoading,
   };
 }
 

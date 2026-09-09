@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/hooks";
-import { useSettings } from "@/lib/hooks";
+import { useSettings, useQrCode } from "@/lib/hooks";
 import { authApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import { Eye, EyeOff, QrCode, CheckCircle, AlertCircle } from "lucide-react";
 export default function AuthPage() {
   const { login, register, resetPassword, isLoggingIn, isRegistering } = useAuth();
   const { settings } = useSettings();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const { qrCodeUrl, isLoading: isQrCodeLoading } = useQrCode(showPaymentModal);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("login");
 
@@ -41,7 +43,6 @@ export default function AuthPage() {
   const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Payment Verification State
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingRegistration, setPendingRegistration] = useState<{
     name: string;
     mobile: string;
@@ -695,10 +696,14 @@ export default function AuthPage() {
             </div>
 
             {/* QR Code */}
-            {settings?.qrCodeUrl ? (
+            {isQrCodeLoading ? (
+              <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 bg-muted/20 text-sm text-muted-foreground">
+                Loading QR Code...
+              </div>
+            ) : qrCodeUrl ? (
               <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-4 bg-white">
                 <img 
-                  src={settings.qrCodeUrl} 
+                  src={qrCodeUrl}
                   alt="Payment QR Code" 
                   className="w-48 h-48 object-contain"
                   data-testid="img-payment-qr"
