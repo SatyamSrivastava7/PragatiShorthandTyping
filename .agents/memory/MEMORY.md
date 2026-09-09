@@ -7,3 +7,4 @@
 - [Typing result display](typing-result-display.md) — admin English Typing results must render the stored uploaded HTML to preserve alignment and formatting.
 - [Admin student list payload](admin-student-list-payload.md) — the admin user list uses a narrow summary projection; fetch full user records only for targeted detail flows.
 - [Notice list payload](notice-list-payload.md) — notice lists expose hasPdf instead of the stored PDF data URL; fetch the attachment only on download.
+- [High Court test-set cache](high-court-test-set-cache.md) — cache paged test-set responses across tab remounts and invalidate after High Court mutations or explicit refresh.
