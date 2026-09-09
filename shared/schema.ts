@@ -348,6 +348,21 @@ export type InsertHighCourtAttempt = z.infer<typeof insertHighCourtAttemptSchema
 
 // Types
 export type User = typeof users.$inferSelect;
+export type AdminUserSummary = Pick<
+  User,
+  | "id"
+  | "name"
+  | "mobile"
+  | "batch"
+  | "studentId"
+  | "role"
+  | "city"
+  | "state"
+  | "isPaymentCompleted"
+  | "accessMonths"
+  | "validUntil"
+  | "createdAt"
+>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type TestFolder = typeof testFolders.$inferSelect;

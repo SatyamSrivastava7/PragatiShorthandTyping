@@ -13,6 +13,7 @@ import {
   highCourtTests,
   highCourtAttempts,
   type User, 
+  type AdminUserSummary,
   type InsertUser,
   type Content,
   type InsertContent,
@@ -51,6 +52,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined>;
   getAllUsers(role?: string): Promise<User[]>;
+  getAdminUserSummaries(role?: string): Promise<AdminUserSummary[]>;
   getNextStudentId(year: string): Promise<string>;
   deleteUser(id: number): Promise<boolean>;
   
@@ -185,6 +187,28 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(users).where(eq(users.role, role));
     }
     return await db.select().from(users);
+  }
+
+  async getAdminUserSummaries(role?: string): Promise<AdminUserSummary[]> {
+    const summaryFields = {
+      id: users.id,
+      name: users.name,
+      mobile: users.mobile,
+      batch: users.batch,
+      studentId: users.studentId,
+      role: users.role,
+      city: users.city,
+      state: users.state,
+      isPaymentCompleted: users.isPaymentCompleted,
+      accessMonths: users.accessMonths,
+      validUntil: users.validUntil,
+      createdAt: users.createdAt,
+    };
+
+    if (role) {
+      return await db.select(summaryFields).from(users).where(eq(users.role, role));
+    }
+    return await db.select(summaryFields).from(users);
   }
 
   async getNextStudentId(year: string): Promise<string> {

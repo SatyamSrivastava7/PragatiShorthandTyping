@@ -25,7 +25,7 @@ import {
 import { useNotices } from "@/lib/hooks/useNotice";
 import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
 import { contentApi } from "@/lib/api";
-import type { User, Result } from "@shared/schema";
+import type { User, AdminUserSummary, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1515,7 +1515,7 @@ export default function AdminDashboard() {
 
   // Deprecated: handleUploadDictation removed
 
-  const handleStudentPaymentToggle = async (student: User) => {
+  const handleStudentPaymentToggle = async (student: AdminUserSummary) => {
     await updateUser({
       id: student.id,
       data: { isPaymentCompleted: !student.isPaymentCompleted },
@@ -1526,7 +1526,7 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleStudentAccessPlanChange = async (student: User, months: number) => {
+  const handleStudentAccessPlanChange = async (student: AdminUserSummary, months: number) => {
     try {
       await updateUser({
         id: student.id,

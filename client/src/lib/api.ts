@@ -1,4 +1,4 @@
-import type { User, Content, Result, PdfFolder, PdfResource, Notice, InsertNotice, TestFolder } from '@shared/schema';
+import type { User, AdminUserSummary, Content, Result, PdfFolder, PdfResource, Notice, InsertNotice, TestFolder } from '@shared/schema';
 
 const API_URL = '';
 
@@ -122,7 +122,7 @@ export const authApi = {
 
 export const usersApi = {
   getAll: () =>
-    fetchApi<User[]>('/api/users'),
+    fetchApi<AdminUserSummary[]>('/api/users'),
 
   getById: (id: number) =>
     fetchApi<User>(`/api/users/${id}`),

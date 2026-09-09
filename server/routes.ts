@@ -418,11 +418,8 @@ export async function registerRoutes(
       }
       
       const role = req.query.role as string | undefined;
-      const users = await storage.getAllUsers(role);
-      
-      // Remove passwords
-      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
-      res.json(usersWithoutPasswords);
+      const users = await storage.getAdminUserSummaries(role);
+      res.json(users);
     } catch (error) {
       res.status(500).json({ message: "Failed to get users" });
     }
