@@ -1611,11 +1611,11 @@ export async function registerRoutes(
         if (!req.session.userId) return res.status(401).json({ message: 'Unauthorized' });
         const user = await storage.getUser(req.session.userId);
         if (user?.role !== 'admin') return res.status(403).json({ message: 'Admin access required' });
-        const notices = await storage.getAllNotices(limit, offset);
+        const notices = await storage.getAllNoticeSummaries(limit, offset);
         return res.json(notices);
       }
 
-      const notices = await storage.getActiveNotices(limit, offset);
+      const notices = await storage.getActiveNoticeSummaries(limit, offset);
       res.json(notices);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch notices" });
@@ -1634,10 +1634,39 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const notices = await storage.getAllNotices();
+      const notices = await storage.getAllNoticeSummaries();
       res.json(notices);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch notices" });
+    }
+  });
+
+  // Get a notice PDF only when a user explicitly requests the attachment.
+  app.get("/api/notices/:id/pdf", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid notice ID" });
+      }
+
+      const notice = await storage.getNoticePdf(id);
+      if (!notice || !notice.pdfUrl) {
+        return res.status(404).json({ message: "Notice PDF not found" });
+      }
+
+      if (!notice.isActive) {
+        if (!req.session.userId) {
+          return res.status(404).json({ message: "Notice PDF not found" });
+        }
+        const user = await storage.getUser(req.session.userId);
+        if (user?.role !== "admin") {
+          return res.status(404).json({ message: "Notice PDF not found" });
+        }
+      }
+
+      res.json({ pdfUrl: notice.pdfUrl });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notice PDF" });
     }
   });
 

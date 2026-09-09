@@ -6,3 +6,4 @@
 - [High Court display sanitization](high-court-display-sanitization.md) — decode entities before stripping tags and sanitize persisted alignment tokens in every display/export path.
 - [Typing result display](typing-result-display.md) — admin English Typing results must render the stored uploaded HTML to preserve alignment and formatting.
 - [Admin student list payload](admin-student-list-payload.md) — the admin user list uses a narrow summary projection; fetch full user records only for targeted detail flows.
+- [Notice list payload](notice-list-payload.md) — notice lists expose hasPdf instead of the stored PDF data URL; fetch the attachment only on download.

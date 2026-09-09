@@ -32,6 +32,7 @@ import {
   type Setting,
   type InsertSetting,
   type Notice,
+  type NoticeListItem,
   type InsertNotice,
   type HighCourtTestSet,
   type InsertHighCourtTestSet,
@@ -128,6 +129,9 @@ export interface IStorage {
   getNotice(id: number): Promise<Notice | undefined>;
   getActiveNotices(): Promise<Notice[]>;
   getAllNotices(): Promise<Notice[]>;
+  getActiveNoticeSummaries(limit?: number, offset?: number): Promise<NoticeListItem[]>;
+  getAllNoticeSummaries(limit?: number, offset?: number): Promise<NoticeListItem[]>;
+  getNoticePdf(id: number): Promise<{ pdfUrl: string | null; isActive: boolean } | undefined>;
   updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined>;
   deleteNotice(id: number): Promise<boolean>;
 
@@ -797,6 +801,44 @@ export class DatabaseStorage implements IStorage {
     if (typeof limit === 'number') q = q.limit(limit);
     if (typeof offset === 'number') q = q.offset(offset);
     return await q;
+  }
+
+  async getActiveNoticeSummaries(limit?: number, offset?: number): Promise<NoticeListItem[]> {
+    let q: any = db.select({
+      id: notices.id,
+      heading: notices.heading,
+      content: notices.content,
+      isActive: notices.isActive,
+      createdAt: notices.createdAt,
+      updatedAt: notices.updatedAt,
+      hasPdf: sql<boolean>`(${notices.pdfUrl} IS NOT NULL AND ${notices.pdfUrl} <> '')`,
+    }).from(notices).where(eq(notices.isActive, true)).orderBy(desc(notices.createdAt));
+    if (typeof limit === 'number') q = q.limit(limit);
+    if (typeof offset === 'number') q = q.offset(offset);
+    return await q;
+  }
+
+  async getAllNoticeSummaries(limit?: number, offset?: number): Promise<NoticeListItem[]> {
+    let q: any = db.select({
+      id: notices.id,
+      heading: notices.heading,
+      content: notices.content,
+      isActive: notices.isActive,
+      createdAt: notices.createdAt,
+      updatedAt: notices.updatedAt,
+      hasPdf: sql<boolean>`(${notices.pdfUrl} IS NOT NULL AND ${notices.pdfUrl} <> '')`,
+    }).from(notices).orderBy(desc(notices.createdAt));
+    if (typeof limit === 'number') q = q.limit(limit);
+    if (typeof offset === 'number') q = q.offset(offset);
+    return await q;
+  }
+
+  async getNoticePdf(id: number): Promise<{ pdfUrl: string | null; isActive: boolean } | undefined> {
+    const [notice] = await db.select({
+      pdfUrl: notices.pdfUrl,
+      isActive: notices.isActive,
+    }).from(notices).where(eq(notices.id, id));
+    return notice || undefined;
   }
 
   async updateNotice(id: number, updates: Partial<InsertNotice>): Promise<Notice | undefined> {

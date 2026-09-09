@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import logoImage from "@assets/WhatsApp_Image_2025-12-12_at_7.30.52_PM_(1)_1765980168956.jpeg";
 import Autoplay from "embla-carousel-autoplay";
 import { useToast } from "@/hooks/use-toast";
+import { noticesApi } from "@/lib/api";
 import { format } from "date-fns";
 import {
   Carousel,
@@ -626,13 +627,18 @@ function LatestNoticeCard() {
                     </h4>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs text-gray-500">{format(new Date(n.createdAt), "MMM d, yyyy")}</span>
-                      {n.pdfUrl && (
+                      {n.hasPdf && (
                         <button
-                          onClick={() => {
-                            const link = document.createElement("a");
-                            link.href = n.pdfUrl!;
-                            link.download = "notice.pdf";
-                            link.click();
+                          onClick={async () => {
+                            try {
+                              const { pdfUrl } = await noticesApi.getPdf(n.id);
+                              const link = document.createElement("a");
+                              link.href = pdfUrl;
+                              link.download = "notice.pdf";
+                              link.click();
+                            } catch (error) {
+                              console.error("Unable to download notice PDF:", error);
+                            }
                           }}
                           className="text-yellow-600 hover:text-yellow-700 transition-colors"
                           title="Download PDF"

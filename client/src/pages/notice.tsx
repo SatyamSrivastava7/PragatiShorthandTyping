@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bell, Download, ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import { noticesApi } from "@/lib/api";
 
 const PAGE_LIMIT = 20;
 
@@ -123,8 +124,18 @@ export default function NoticesPage() {
                       <CardTitle className="text-lg sm:text-xl text-gray-900 break-words">{notice.heading}</CardTitle>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-1">{format(new Date(notice.createdAt), "MMMM d, yyyy h:mm a")}</p>
                     </div>
-                    {notice.pdfUrl && (
-                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => { const link = document.createElement("a"); link.href = notice.pdfUrl!; link.download = "notice.pdf"; link.click(); }}>
+                    {notice.hasPdf && (
+                      <Button variant="outline" size="sm" className="shrink-0" onClick={async () => {
+                        try {
+                          const { pdfUrl } = await noticesApi.getPdf(notice.id);
+                          const link = document.createElement("a");
+                          link.href = pdfUrl;
+                          link.download = "notice.pdf";
+                          link.click();
+                        } catch (error) {
+                          console.error("Unable to download notice PDF:", error);
+                        }
+                      }}>
                         <Download className="h-4 w-4 mr-1" />
                         <span className="hidden sm:inline">PDF</span>
                       </Button>

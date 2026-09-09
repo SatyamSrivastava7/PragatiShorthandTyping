@@ -24,7 +24,7 @@ import {
 } from "@/lib/hooks";
 import { useNotices } from "@/lib/hooks/useNotice";
 import { useFeaturedGallery } from "@/lib/hooks/useFeaturedGallery";
-import { contentApi } from "@/lib/api";
+import { contentApi, noticesApi } from "@/lib/api";
 import type { User, AdminUserSummary, Result } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5041,7 +5041,7 @@ export default function AdminDashboard() {
                                   {notice.content}
                                 </p>
                                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                  {notice.pdfUrl && (
+                                  {notice.hasPdf && (
                                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
                                       📎 PDF Attached
                                     </span>
@@ -5283,7 +5283,7 @@ export default function AdminDashboard() {
                       <Label className="text-sm font-medium">
                         Attachment (Optional PDF)
                       </Label>
-                      {editingNotice.pdfUrl && !editPdfFile && (
+                      {editingNotice.hasPdf && !editPdfFile && (
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 flex items-center justify-between">
                           <span className="text-sm text-blue-700">
                             📎 Current PDF attached

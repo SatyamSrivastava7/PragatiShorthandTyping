@@ -1,4 +1,4 @@
-import type { User, AdminUserSummary, Content, Result, PdfFolder, PdfResource, Notice, InsertNotice, TestFolder } from '@shared/schema';
+import type { User, AdminUserSummary, Content, Result, PdfFolder, PdfResource, Notice, NoticeListItem, InsertNotice, TestFolder } from '@shared/schema';
 
 const API_URL = '';
 
@@ -459,12 +459,15 @@ export const noticesApi = {
     if (opts?.offset != null) params.append('offset', String(opts.offset));
     if (opts?.includeInactive) params.append('include_inactive', 'true');
     const url = params.toString() ? `/api/notices?${params.toString()}` : '/api/notices';
-    return fetchApi<Notice[]>(url);
+    return fetchApi<NoticeListItem[]>(url);
   },
 
   // kept for backward compatibility but will not be used
   getAll: () =>
-    fetchApi<Notice[]>('/api/notices/all'),
+    fetchApi<NoticeListItem[]>('/api/notices/all'),
+
+  getPdf: (id: number) =>
+    fetchApi<{ pdfUrl: string }>(`/api/notices/${id}/pdf`),
 
   create: (data: InsertNotice) =>
     fetchApi<Notice>('/api/notices', {

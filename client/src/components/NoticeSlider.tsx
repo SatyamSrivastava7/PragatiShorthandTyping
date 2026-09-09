@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { X, Bell, Download, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { noticesApi } from "@/lib/api";
 
 export function NoticeSlider() {
   const { notices } = useNotices();
@@ -58,16 +59,21 @@ export function NoticeSlider() {
                 {currentNotice.content}
               </p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
-                {currentNotice.pdfUrl && (
+                {currentNotice.hasPdf && (
                   <Button
                     variant="link"
                     size="sm"
                     className="text-xs sm:text-sm text-yellow-700 hover:text-yellow-900 p-0 h-auto"
-                    onClick={() => {
-                      const link = document.createElement("a");
-                      link.href = currentNotice.pdfUrl!;
-                      link.download = "notice.pdf";
-                      link.click();
+                    onClick={async () => {
+                      try {
+                        const { pdfUrl } = await noticesApi.getPdf(currentNotice.id);
+                        const link = document.createElement("a");
+                        link.href = pdfUrl;
+                        link.download = "notice.pdf";
+                        link.click();
+                      } catch (error) {
+                        console.error("Unable to download notice PDF:", error);
+                      }
                     }}
                   >
                     <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />

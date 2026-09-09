@@ -393,4 +393,7 @@ export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 
 export type Notice = typeof notices.$inferSelect;
+export type NoticeListItem = Omit<Notice, "pdfUrl"> & {
+  hasPdf: boolean;
+};
 export type InsertNotice = z.infer<typeof insertNoticeSchema>;
