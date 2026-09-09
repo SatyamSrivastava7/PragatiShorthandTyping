@@ -142,6 +142,12 @@ function normalizeSetPage(raw: any): HighCourtPage<HighCourtTestSet> {
   };
 }
 
+const testSetPageCache = new Map<string, HighCourtPage<HighCourtTestSet>>();
+
+export function clearHighCourtTestSetCache() {
+  testSetPageCache.clear();
+}
+
 function normalizeAlignment(items: any[] = []): HighCourtAlignmentEntry[] {
   return items.map((entry) => ({
     original: entry.original || "",
@@ -187,12 +193,21 @@ function normalizeGroupedResult(group: any): HighCourtGroupedResult {
 }
 
 export const highCourtApi = {
-  getTestSets: async (options: { limit?: number; offset?: number } = {}) => {
+  getTestSets: async (options: { limit?: number; offset?: number; forceRefresh?: boolean } = {}) => {
+    const { forceRefresh = false, ...pagination } = options;
+    const cacheKey = `${pagination.limit ?? ""}:${pagination.offset ?? ""}`;
+    if (!forceRefresh) {
+      const cached = testSetPageCache.get(cacheKey);
+      if (cached) return cached;
+    }
+
     const query = new URLSearchParams();
-    if (options.limit !== undefined) query.set("limit", String(options.limit));
-    if (options.offset !== undefined) query.set("offset", String(options.offset));
+    if (pagination.limit !== undefined) query.set("limit", String(pagination.limit));
+    if (pagination.offset !== undefined) query.set("offset", String(pagination.offset));
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    return normalizeSetPage(await request<any>(`/api/high-court/test-sets${suffix}`));
+    const page = normalizeSetPage(await request<any>(`/api/high-court/test-sets${suffix}`));
+    testSetPageCache.set(cacheKey, page);
+    return page;
   },
   getTestSet: async (id: number) => normalizeSet(await request<any>(`/api/high-court/test-sets/${id}`)),
   getTest: async (id: number) => {
@@ -232,34 +247,47 @@ export const highCourtApi = {
       limit: Number(page?.limit || items.length),
     } satisfies HighCourtPage<HighCourtGroupedResult>;
   },
-  updateTestSet: async (id: number, data: { name?: string; dateFor?: string; isEnabled?: boolean }) =>
-    request<HighCourtTestSet>(`/api/high-court/test-sets/${id}`, {
+  updateTestSet: async (id: number, data: { name?: string; dateFor?: string; isEnabled?: boolean }) => {
+    const result = await request<HighCourtTestSet>(`/api/high-court/test-sets/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    }),
-  deleteTestSet: async (id: number) =>
-    request<{ success: boolean }>(`/api/high-court/test-sets/${id}`, { method: "DELETE" }),
-  updateTest: async (id: number, data: { title?: string; originalText?: string; duration?: number; pdfFile?: string; youtubeLink?: string | null }) =>
-    request<HighCourtTest>(`/api/high-court/tests/${id}`, {
+    });
+    clearHighCourtTestSetCache();
+    return result;
+  },
+  deleteTestSet: async (id: number) => {
+    const result = await request<{ success: boolean }>(`/api/high-court/test-sets/${id}`, { method: "DELETE" });
+    clearHighCourtTestSetCache();
+    return result;
+  },
+  updateTest: async (id: number, data: { title?: string; originalText?: string; duration?: number; pdfFile?: string; youtubeLink?: string | null }) => {
+    const result = await request<HighCourtTest>(`/api/high-court/tests/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    }),
+    });
+    clearHighCourtTestSetCache();
+    return result;
+  },
   createTestSet: async (data: {
     title: string;
     dateFor: string;
     typing: { title: string; text: string; duration: number };
     pitman: { title: string; text: string; duration: number; pdfFile?: string };
     shorthand: { title: string; text: string; duration: number; youtubeLink?: string };
-  }) => normalizeSet(await request<any>("/api/high-court/test-sets", {
-    method: "POST",
-    body: JSON.stringify({
-      name: data.title,
-      dateFor: data.dateFor,
-      tests: [
-        { type: "typing", title: data.typing.title, originalText: data.typing.text, duration: data.typing.duration },
-        { type: "pitman", title: data.pitman.title, originalText: data.pitman.text, duration: data.pitman.duration, pdfFile: data.pitman.pdfFile },
-        { type: "shorthand", title: data.shorthand.title, originalText: data.shorthand.text, duration: data.shorthand.duration, youtubeLink: data.shorthand.youtubeLink },
-      ],
-    }),
-  })),
+  }) => {
+    const result = normalizeSet(await request<any>("/api/high-court/test-sets", {
+      method: "POST",
+      body: JSON.stringify({
+        name: data.title,
+        dateFor: data.dateFor,
+        tests: [
+          { type: "typing", title: data.typing.title, originalText: data.typing.text, duration: data.typing.duration },
+          { type: "pitman", title: data.pitman.title, originalText: data.pitman.text, duration: data.pitman.duration, pdfFile: data.pitman.pdfFile },
+          { type: "shorthand", title: data.shorthand.title, originalText: data.shorthand.text, duration: data.shorthand.duration, youtubeLink: data.shorthand.youtubeLink },
+        ],
+      }),
+    }));
+    clearHighCourtTestSetCache();
+    return result;
+  },
 };

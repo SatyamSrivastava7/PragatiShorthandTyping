@@ -47,9 +47,9 @@ export function HighCourtManageTests() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const fetchSets = async (offset = 0, append = false) => {
+  const fetchSets = async (offset = 0, append = false, forceRefresh = false) => {
     try {
-      const page = await highCourtApi.getTestSets({ limit: 50, offset });
+      const page = await highCourtApi.getTestSets({ limit: 50, offset, forceRefresh });
       setSets((current) => append ? [...current, ...page.items] : page.items);
       setHasMore(page.hasMore);
     } catch (error) {
@@ -65,7 +65,7 @@ export function HighCourtManageTests() {
 
   const refresh = async () => {
     setRefreshing(true);
-    await fetchSets(0, false);
+    await fetchSets(0, false, true);
     setRefreshing(false);
   };
 
