@@ -1813,6 +1813,14 @@ export async function registerRoutes(
     originalText: z.string().min(1, "originalText is required"),
     duration: z.number().int().positive("duration must be a positive integer"),
     pdfFile: z.string().optional(),
+    youtubeLink: z.string().trim().url("youtubeLink must be a valid URL").refine((value) => {
+      try {
+        const hostname = new URL(value).hostname.toLowerCase();
+        return hostname === "youtu.be" || hostname === "youtube.com" || hostname.endsWith(".youtube.com");
+      } catch {
+        return false;
+      }
+    }, "youtubeLink must be a YouTube URL").optional(),
   });
 
   const hcCreateSetSchema = z.object({
@@ -1848,6 +1856,9 @@ export async function registerRoutes(
       if (new Set(tests.map((test) => test.type)).size !== 3 || !requiredTypes.every((type) => tests.some((test) => test.type === type))) {
         return res.status(400).json({ message: "Create exactly one Typing, one Pitman, and one Shorthand paper." });
       }
+      if (tests.some((test) => test.type !== "shorthand" && test.youtubeLink)) {
+        return res.status(400).json({ message: "Only the High Court Shorthand paper can have a YouTube link." });
+      }
       const result = await storage.createHighCourtTestSetWithTests(
         { name, dateFor: dateFor || new Date().toISOString().slice(0, 10), isEnabled: true },
         tests.map((t) => ({
@@ -1857,6 +1868,7 @@ export async function registerRoutes(
           originalText: t.originalText,
           duration: t.duration,
           pdfFile: t.pdfFile,
+          youtubeLink: t.youtubeLink,
         }))
       );
 
@@ -2076,10 +2088,26 @@ export async function registerRoutes(
         originalText: z.string().min(1).optional(),
         duration: z.number().int().positive().optional(),
         pdfFile: z.string().optional(),
+        youtubeLink: z.string().trim().url("youtubeLink must be a valid URL").refine((value) => {
+          try {
+            const hostname = new URL(value).hostname.toLowerCase();
+            return hostname === "youtu.be" || hostname === "youtube.com" || hostname.endsWith(".youtube.com");
+          } catch {
+            return false;
+          }
+        }, "youtubeLink must be a YouTube URL").nullable().optional(),
       });
       const parsed = hcUpdateTestSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ message: fromZodError(parsed.error).message });
+      }
+
+      const existing = await storage.getHighCourtTest(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Test not found" });
+      }
+      if (parsed.data.youtubeLink && existing.type !== "shorthand") {
+        return res.status(400).json({ message: "Only the High Court Shorthand paper can have a YouTube link." });
       }
 
       const updated = await storage.updateHighCourtTest(id, parsed.data);

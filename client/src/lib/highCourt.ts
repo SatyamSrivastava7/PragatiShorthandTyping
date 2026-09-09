@@ -8,6 +8,7 @@ export interface HighCourtTest {
   text: string;
   duration: number;
   pdfFile?: string | null;
+  youtubeLink?: string | null;
   createdAt?: string;
 }
 
@@ -189,7 +190,7 @@ export const highCourtApi = {
     }),
   deleteTestSet: async (id: number) =>
     request<{ success: boolean }>(`/api/high-court/test-sets/${id}`, { method: "DELETE" }),
-  updateTest: async (id: number, data: { title?: string; originalText?: string; duration?: number; pdfFile?: string }) =>
+  updateTest: async (id: number, data: { title?: string; originalText?: string; duration?: number; pdfFile?: string; youtubeLink?: string | null }) =>
     request<HighCourtTest>(`/api/high-court/tests/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -199,7 +200,7 @@ export const highCourtApi = {
     dateFor: string;
     typing: { title: string; text: string; duration: number };
     pitman: { title: string; text: string; duration: number; pdfFile?: string };
-    shorthand: { title: string; text: string; duration: number };
+    shorthand: { title: string; text: string; duration: number; youtubeLink?: string };
   }) => normalizeSet(await request<any>("/api/high-court/test-sets", {
     method: "POST",
     body: JSON.stringify({
@@ -208,7 +209,7 @@ export const highCourtApi = {
       tests: [
         { type: "typing", title: data.typing.title, originalText: data.typing.text, duration: data.typing.duration },
         { type: "pitman", title: data.pitman.title, originalText: data.pitman.text, duration: data.pitman.duration, pdfFile: data.pitman.pdfFile },
-        { type: "shorthand", title: data.shorthand.title, originalText: data.shorthand.text, duration: data.shorthand.duration },
+        { type: "shorthand", title: data.shorthand.title, originalText: data.shorthand.text, duration: data.shorthand.duration, youtubeLink: data.shorthand.youtubeLink },
       ],
     }),
   })),

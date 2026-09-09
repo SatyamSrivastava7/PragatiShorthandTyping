@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
-import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, Loader2, Maximize, Minimize, Save, Type, ZoomIn, ZoomOut } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, ExternalLink, Loader2, Maximize, Minimize, Save, Type, Youtube, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -325,6 +325,18 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             <Card className="flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md">
                 <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
                   <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
+                  {expectedType === "shorthand" && test.youtubeLink && (
+                    <a
+                      href={test.youtubeLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 hover:text-red-800"
+                    >
+                      <Youtube className="h-4 w-4" />
+                      Practice video
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
                   {expectedType === "pitman" && (
                     <div className="flex items-center gap-1">
                       <Button

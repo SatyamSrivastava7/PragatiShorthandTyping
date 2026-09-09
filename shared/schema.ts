@@ -284,6 +284,7 @@ export const highCourtTests = pgTable("high_court_tests", {
   originalText: text("original_text").notNull(),
   duration: integer("duration").notNull(), // in minutes
   pdfFile: text("pdf_file"), // base64 encoded PDF (optional, Pitman only)
+  youtubeLink: text("youtube_link"), // optional YouTube practice link (Shorthand only)
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   testSetIdIdx: index("hc_tests_test_set_id_idx").on(table.testSetId),

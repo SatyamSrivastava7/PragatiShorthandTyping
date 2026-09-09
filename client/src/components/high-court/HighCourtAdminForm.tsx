@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { CheckCircle2, ClipboardPenLine, FileText, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, ClipboardPenLine, FileText, Loader2, Upload, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { highCourtApi } from "@/lib/highCourt";
 import { useToast } from "@/hooks/use-toast";
 
-export type PaperForm = { title: string; text: string; duration: string; pdfFile?: string };
+export type PaperForm = { title: string; text: string; duration: string; pdfFile?: string; youtubeLink?: string };
 
 const initialPaper = (label: string): PaperForm => ({ title: label, text: "", duration: "5" });
 const today = () => new Date().toISOString().slice(0, 10);
@@ -73,6 +73,25 @@ export function PaperFields({
             )}
           </div>
         )}
+        {shorthand && (
+          <div className="space-y-2">
+            <Label htmlFor={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-youtube-link`}>
+              YouTube Practice Link <span className="font-normal text-muted-foreground">(Optional)</span>
+            </Label>
+            <div className="relative">
+              <Youtube className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-red-600" />
+              <Input
+                id={`${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-youtube-link`}
+                type="url"
+                value={paper.youtubeLink || ""}
+                onChange={(e) => onChange({ youtubeLink: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="pl-9"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Students can open this practice video from the High Court Shorthand test.</p>
+          </div>
+        )}
         <RichTextEditor
           label="Content Text (Transcript)"
           value={paper.text}
@@ -104,7 +123,7 @@ export function HighCourtAdminForm() {
         dateFor,
         typing: { title: typing.title, text: typing.text, duration: Number(typing.duration) },
         pitman: { title: pitman.title, text: pitman.text, duration: Number(pitman.duration), pdfFile: pitman.pdfFile },
-        shorthand: { title: shorthand.title, text: shorthand.text, duration: Number(shorthand.duration) },
+        shorthand: { title: shorthand.title, text: shorthand.text, duration: Number(shorthand.duration), youtubeLink: shorthand.youtubeLink?.trim() || undefined },
       });
       setCreated(setTitle);
       setSetTitle("");

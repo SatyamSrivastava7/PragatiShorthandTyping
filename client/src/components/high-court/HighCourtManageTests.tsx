@@ -22,12 +22,13 @@ import { cn } from "@/lib/utils";
 
 type EditPapers = Record<HighCourtTestType, PaperForm>;
 
-function toPaperForm(test?: { title: string; text: string; duration: number; pdfFile?: string | null }): PaperForm {
+function toPaperForm(test?: { title: string; text: string; duration: number; pdfFile?: string | null; youtubeLink?: string | null }): PaperForm {
   return {
     title: test?.title ?? "",
     text: test?.text ?? "",
     duration: String(test?.duration ?? 5),
     pdfFile: test?.pdfFile ?? undefined,
+    youtubeLink: test?.youtubeLink ?? undefined,
   };
 }
 
@@ -95,6 +96,7 @@ export function HighCourtManageTests() {
             originalText: form.text,
             duration: Number(form.duration),
             pdfFile: form.pdfFile,
+            youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || null) : undefined,
           });
         })
       );
