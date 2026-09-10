@@ -585,7 +585,7 @@ export default function AllahabadHCTestPage() {
             )}
           </CardHeader>
           <CardContent className="flex-1 p-0 relative overflow-hidden">
-            <div className="h-full overflow-hidden">
+            <div className="flex h-full min-h-0 flex-col overflow-hidden">
               <RichTextEditor
                 value={typedText}
                 onChange={setTypedText}
