@@ -464,8 +464,8 @@ export default function AllahabadHCTestPage() {
       }}
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
+         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
           {!isFullScreen && (
             <Link href="/student?tab=allahabad-hc_tests">
               <Button variant="ghost" size="icon" className="shrink-0">
@@ -485,26 +485,26 @@ export default function AllahabadHCTestPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+         <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-4">
+           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <Button variant="ghost" size="icon" onClick={() => setIsFullScreen(!isFullScreen)} title="Toggle Full Screen">
               {isFullScreen ? <Minimize size={20}/> : <Maximize size={20}/>}
             </Button>
             
-            <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+             <div className="flex items-center gap-2 border-l pl-2 ml-1 sm:pl-4 sm:ml-2">
               <Type size={16} className="text-muted-foreground" />
               <Slider 
                 value={[fontSize]} 
                 onValueChange={(val) => setFontSize(val[0])} 
                 min={12} max={32} step={2}
-                className="w-24"
+                 className="w-16 sm:w-24"
               />
               <span className="text-xs text-muted-foreground w-6">{fontSize}px</span>
             </div>
 
             {/* Auto-scroll Toggle */}
             {autoScrollEnabled !== null && (
-              <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+               <div className="flex items-center gap-2 border-l pl-2 ml-1 sm:pl-4 sm:ml-2">
                 <Button
                   type="button"
                   variant={autoScrollEnabled ? "default" : "outline"}
@@ -527,7 +527,7 @@ export default function AllahabadHCTestPage() {
             )}
 
             {/* Word Highlighter Toggle */}
-            <div className="hidden md:flex items-center gap-2 border-l pl-4 ml-2">
+             <div className="flex items-center gap-2 border-l pl-2 ml-1 sm:pl-4 sm:ml-2">
               <Button
                 type="button"
                 variant={highlighterEnabled ? "default" : "outline"}

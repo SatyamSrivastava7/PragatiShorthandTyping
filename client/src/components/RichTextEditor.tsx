@@ -244,7 +244,10 @@ export function RichTextEditor({
       {label && <Label className="text-sm font-medium">{label}</Label>}
 
       {/* Toolbar */}
-      <div className={cn("border rounded-t-md bg-slate-50 dark:bg-slate-900 p-2 flex flex-wrap gap-1 shrink-0", fillHeight && "rounded-none border-x-0 border-t-0")}>
+      <div className={cn(
+        "relative z-20 flex shrink-0 flex-wrap gap-1 overflow-visible border rounded-t-md bg-slate-50 p-2 dark:bg-slate-900",
+        fillHeight && "sticky top-0 rounded-none border-x-0 border-t-0"
+      )}>
         {/* Text Format */}
         <div className="flex gap-1 border-r pr-2">
           {formatButton(<Bold className="h-4 w-4" />, "bold", "Bold (Ctrl+B)", activeFormats.bold)}

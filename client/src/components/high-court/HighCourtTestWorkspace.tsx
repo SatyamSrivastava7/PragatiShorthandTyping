@@ -282,15 +282,15 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
               <p className="text-sm text-white/80">{labels[expectedType]} · {test.duration} minutes</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 md:gap-3">
             <Button variant="secondary" size="icon" onClick={() => setIsFullScreen((value) => !value)} title="Toggle full screen">
               {isFullScreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             </Button>
             {expectedType === "typing" && (
               <>
-                <div className="hidden items-center gap-2 rounded-lg bg-white/15 px-3 py-2 md:flex">
+                <div className="flex items-center gap-2 rounded-lg bg-white/15 px-2 py-1.5 sm:px-3 sm:py-2">
                   <Type className="h-4 w-4" />
-                  <Slider value={[fontSize]} onValueChange={(value) => setFontSize(value[0])} min={12} max={32} step={2} className="w-24" />
+                  <Slider value={[fontSize]} onValueChange={(value) => setFontSize(value[0])} min={12} max={32} step={2} className="w-16 sm:w-24" />
                   <span className="w-8 text-xs">{fontSize}px</span>
                 </div>
                 <Button
