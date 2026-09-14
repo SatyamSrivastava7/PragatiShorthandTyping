@@ -301,9 +301,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   }
 
   return (
-    <div className={isFullScreen ? "fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 p-4 md:p-6" : "h-full overflow-hidden bg-slate-100 p-4 md:p-6"}>
-      <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-4">
-        <div className={`flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r ${colors[expectedType]} p-5 text-white shadow-lg`}>
+    <div className={isFullScreen ? "fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 p-3 md:p-4" : "h-full overflow-hidden bg-slate-100 p-3 md:p-4"}>
+      <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-3">
+        <div className={`flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r ${colors[expectedType]} p-4 text-white shadow-lg`}>
           <div className="flex items-center gap-3">
             <Link href="/student?tab=high-court_tests"><Button variant="secondary" size="icon" aria-label="Back to High Court"><ArrowLeft className="h-4 w-4" /></Button></Link>
             <div>
@@ -374,8 +374,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
           </Card>
         ) : (
           <div className={expectedType !== "pitman"
-            ? "flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
-            : "grid min-h-0 flex-1 gap-4 overflow-hidden sm:grid-cols-2"}
+             ? "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
+             : "grid min-h-0 flex-1 gap-3 overflow-hidden sm:grid-cols-2"}
           >
             {expectedType === "shorthand" && (
               <Card className="shrink-0 overflow-hidden border-orange-200 shadow-md">
@@ -400,8 +400,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             )}
 
             {expectedType !== "shorthand" && (
-            <Card className={`flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md ${expectedType === "typing" ? "h-[40%] shrink-0" : ""}`}>
-                <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
+            <Card className={`flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md ${expectedType === "typing" ? "h-[44%] shrink-0" : ""}`}>
+                <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-3">
                   <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
                   {expectedType === "pitman" && (
                     <div className="flex items-center gap-1">
@@ -454,7 +454,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             )}
 
             <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200 shadow-md">
-              <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-4">
+              <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-3">
                 <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Your response</CardTitle>
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
@@ -483,7 +483,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     style={{ fontSize: `${fontSize}px` }}
                   />
                 )}
-                <div className="flex shrink-0 justify-end gap-3 border-t bg-slate-50 p-4">
+                <div className="flex shrink-0 justify-end gap-3 border-t bg-slate-50 p-3">
                   {!active ? <Button onClick={start} className={`bg-gradient-to-r ${colors[expectedType]}`}>Start Test</Button> : (
                     <Button onClick={() => void submit()} disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
                       {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Submit paper
