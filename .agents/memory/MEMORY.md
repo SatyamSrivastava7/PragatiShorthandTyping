@@ -11,3 +11,4 @@
 - [Settings QR payload](settings-qr-payload.md) — keep the QR data URL out of shared settings responses; fetch it only in payment or QR-view flows.
 - [High Court formatting toolbar](high-court-formatting-toolbar.md) — keep typing formatting controls visible and structurally above the scrollable response area.
 - [Assessment timer stability](assessment-timer-stability.md) — calculate countdowns from an absolute end timestamp instead of resetting intervals on typed-response updates.
+- [High Court response font size](high-court-response-font-size.md) — the shared header font control must style every High Court response mode and sync with Typing's rich editor.

@@ -313,13 +313,22 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             <Button variant="secondary" size="icon" onClick={() => setIsFullScreen((value) => !value)} title="Toggle full screen">
               {isFullScreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             </Button>
-            {expectedType === "typing" && (
+            <>
+              <div className="flex items-center gap-2 rounded-lg bg-white/15 px-2 py-1.5 sm:px-3 sm:py-2">
+                <Type className="h-4 w-4" />
+                <Slider
+                  value={[fontSize]}
+                  onValueChange={(value) => setFontSize(value[0])}
+                  min={12}
+                  max={32}
+                  step={2}
+                  className="w-16 sm:w-24"
+                  aria-label="Response font size"
+                />
+                <span className="w-8 text-xs">{fontSize}px</span>
+              </div>
+              {expectedType === "typing" && (
               <>
-                <div className="flex items-center gap-2 rounded-lg bg-white/15 px-2 py-1.5 sm:px-3 sm:py-2">
-                  <Type className="h-4 w-4" />
-                  <Slider value={[fontSize]} onValueChange={(value) => setFontSize(value[0])} min={12} max={32} step={2} className="w-16 sm:w-24" />
-                  <span className="w-8 text-xs">{fontSize}px</span>
-                </div>
                 <Button
                   type="button"
                   variant={autoScrollEnabled ? "secondary" : "outline"}
@@ -337,7 +346,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                   <Type className="mr-2 h-4 w-4" />Highlight {highlighterEnabled ? "ON" : "OFF"}
                 </Button>
               </>
-            )}
+              )}
+            </>
             <div className="rounded-xl bg-white/15 px-5 py-3 text-center backdrop-blur">
               <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Time left</p>
               <p className="font-mono text-3xl font-bold"><Clock3 className="mr-2 inline h-6 w-6" />{formatTime}</p>
@@ -455,6 +465,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     editorId="high-court-rich-editor"
                     fillHeight
                     showWordCount
+                   fontSize={fontSize}
+                   onFontSizeChange={setFontSize}
                   />
                 ) : (
                   <Textarea
@@ -464,7 +476,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     onPaste={(event) => event.preventDefault()}
                     disabled={!active}
                     placeholder={active ? "Start typing your response here…" : "Click Start Test to begin"}
-                    className="min-h-0 flex-1 resize-none rounded-none border-0 p-6 text-lg leading-8 focus-visible:ring-0"
+                    className="min-h-0 flex-1 resize-none rounded-none border-0 p-6 leading-8 focus-visible:ring-0"
+                    style={{ fontSize: `${fontSize}px` }}
                   />
                 )}
                 <div className="flex shrink-0 justify-end gap-3 border-t bg-slate-50 p-4">

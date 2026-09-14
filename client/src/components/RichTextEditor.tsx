@@ -32,6 +32,8 @@ interface RichTextEditorProps {
   fontClass?: string;
   showWordCount?: boolean;
   fillHeight?: boolean;
+  fontSize?: number;
+  onFontSizeChange?: (fontSize: number) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLDivElement>) => void;
   disabled?: boolean;
@@ -47,6 +49,8 @@ export function RichTextEditor({
   fontClass = "",
   showWordCount = true,
   fillHeight = false,
+  fontSize: controlledFontSize,
+  onFontSizeChange,
   onKeyDown: customOnKeyDown,
   onPaste: customOnPaste,
   disabled = false,
@@ -71,6 +75,12 @@ export function RichTextEditor({
     alignRight: false,
     alignJustify: false,
   });
+
+  useEffect(() => {
+    if (controlledFontSize !== undefined) {
+      setFontSize(String(controlledFontSize));
+    }
+  }, [controlledFontSize]);
 
   // Initialize editor content from value prop. Use a ref-based isEditing flag
   // so we never overwrite the DOM mid-typing (state version had a race condition
@@ -181,6 +191,7 @@ export function RichTextEditor({
 
   const handleFontSizeChange = (newSize: string) => {
     setFontSize(newSize);
+    onFontSizeChange?.(Number(newSize));
     // Pasted HTML often carries inline font-size on child elements that override
     // the parent's font-size. Clear those so the new size takes effect everywhere.
     if (editorRef.current) {
