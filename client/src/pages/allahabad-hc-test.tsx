@@ -58,12 +58,12 @@ export default function AllahabadHCTestPage() {
 
   useEffect(() => {
     if (testContent) {
-      if (!isActive) {
+      if (!isActive && startTimeRef.current === null && !isFinished) {
         setTimeLeft(testContent.duration * 60);
       }
       setAutoScrollEnabled(testContent.autoScroll ?? true);
     }
-  }, [testContent, isActive]);
+  }, [testContent, isActive, isFinished]);
 
   // Cooldown check - 30 minutes after starting test
   useEffect(() => {
