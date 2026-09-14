@@ -237,7 +237,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     let wordOccurrenceCount = 0;
     let foundTargetWord = false;
     const highlightStyle = highlighterEnabled
-      ? "background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;"
+      // Keep the marker visual-only. Padding and font-weight changes alter
+      // line width on every keystroke and cause the paper to reflow slightly.
+      ? "background-color: #fbbf24; border-radius: 2px;"
       : "";
 
     return test.text
