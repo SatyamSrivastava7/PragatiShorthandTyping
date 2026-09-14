@@ -202,7 +202,10 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     if (!marker) return;
 
     const frameId = window.requestAnimationFrame(() => {
-      scrollActiveMarkerIntoView(container, marker);
+      // The active marker is rebuilt on every typed character. An animated
+      // scroll here would restart before completing and make the question
+      // paper visibly shiver, so High Court uses a stable immediate correction.
+      scrollActiveMarkerIntoView(container, marker, "auto");
     });
 
     return () => window.cancelAnimationFrame(frameId);

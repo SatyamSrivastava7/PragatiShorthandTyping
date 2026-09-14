@@ -12,3 +12,4 @@
 - [High Court formatting toolbar](high-court-formatting-toolbar.md) — keep typing formatting controls visible and structurally above the scrollable response area.
 - [Assessment timer stability](assessment-timer-stability.md) — calculate countdowns from an absolute end timestamp instead of resetting intervals on typed-response updates.
 - [High Court response font size](high-court-response-font-size.md) — the shared header font control must style every High Court response mode and sync with Typing's rich editor.
+- [High Court auto-scroll stability](high-court-auto-scroll-stability.md) — use immediate marker repositioning in High Court because per-keystroke smooth scrolling causes visible shaking.

@@ -21,6 +21,7 @@ function getLineHeight(element: HTMLElement, fallbackFontSize: number) {
 export function scrollActiveMarkerIntoView(
   container: HTMLElement,
   marker: HTMLElement,
+  behavior: ScrollBehavior = "smooth",
 ): void {
   if (container.clientHeight <= 0 || container.scrollHeight <= container.clientHeight) {
     return;
@@ -55,6 +56,6 @@ export function scrollActiveMarkerIntoView(
 
   container.scrollTo({
     top: targetScrollTop,
-    behavior: "smooth",
+    behavior,
   });
 }
