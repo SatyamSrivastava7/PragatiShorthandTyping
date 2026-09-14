@@ -43,7 +43,8 @@ export default function AllahabadHCTestPage() {
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
-  const totalDurationRef = useRef<number>(0);
+  const timerEndAtRef = useRef<number | null>(null);
+  const finishTestRef = useRef<(() => void) | null>(null);
 
   // Refs to always have the latest typedText and backspaces without stale closures
   const typedTextRef = useRef<string>("");
@@ -57,10 +58,12 @@ export default function AllahabadHCTestPage() {
 
   useEffect(() => {
     if (testContent) {
-      setTimeLeft(testContent.duration * 60);
+      if (!isActive) {
+        setTimeLeft(testContent.duration * 60);
+      }
       setAutoScrollEnabled(testContent.autoScroll ?? true);
     }
-  }, [testContent]);
+  }, [testContent, isActive]);
 
   // Cooldown check - 30 minutes after starting test
   useEffect(() => {
@@ -220,26 +223,30 @@ export default function AllahabadHCTestPage() {
   }, [handleSubmit]);
 
   useEffect(() => {
-    if (isActive) {
-      if (startTimeRef.current === null) {
-        startTimeRef.current = Date.now();
-        totalDurationRef.current = timeLeft;
-      }
+    finishTestRef.current = finishTest;
+  }, [finishTest]);
 
-      intervalRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
-        const remaining = Math.max(0, totalDurationRef.current - elapsed);
-        setTimeLeft(remaining);
+  useEffect(() => {
+    if (!isActive || !testContent) return;
 
-        if (remaining === 0) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          finishTest();
+    const endAt = timerEndAtRef.current ?? (Date.now() + testContent.duration * 60 * 1000);
+    timerEndAtRef.current = endAt;
+
+    const updateRemainingTime = () => {
+      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
-      }, 100);
-    }
+        finishTestRef.current?.();
+      }
+    };
+
+    updateRemainingTime();
+    intervalRef.current = setInterval(updateRemainingTime, 250);
 
     return () => {
       if (intervalRef.current) {
@@ -247,7 +254,7 @@ export default function AllahabadHCTestPage() {
         intervalRef.current = null;
       }
     };
-  }, [isActive, finishTest]);
+  }, [isActive, testContent]);
 
   // Keep the active word in a readable window without permanently disabling
   // auto-scroll after a student's manual review scroll.
@@ -359,7 +366,10 @@ export default function AllahabadHCTestPage() {
 
   // Start test - set isActive; the useEffect timer takes over from here
   const handleStartClick = () => {
-    startTimeRef.current = null; // reset so useEffect initialises it fresh
+    if (!testContent) return;
+    startTimeRef.current = Date.now();
+    timerEndAtRef.current = startTimeRef.current + testContent.duration * 60 * 1000;
+    setTimeLeft(testContent.duration * 60);
     setIsActive(true);
     originalTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
   };

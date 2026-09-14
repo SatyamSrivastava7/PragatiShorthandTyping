@@ -29,6 +29,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const { toast } = useToast();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const submittedRef = useRef(false);
+  const typedTextRef = useRef("");
+  const timerEndAtRef = useRef<number | null>(null);
+  const submitRef = useRef<(() => Promise<void>) | null>(null);
   const [test, setTest] = useState<HighCourtTest | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -128,7 +131,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
       const saved = await highCourtApi.submitAttempt({
         testSetId: test.testSetId,
         testId: test.id,
-        typedText,
+          typedText: typedTextRef.current,
       });
       setResult({ mistakes: saved.mistakes, halfMistakes: saved.halfMistakes, marks: saved.marks });
       toast({ title: "High Court test submitted", description: "Your marks were calculated and saved." });
@@ -138,26 +141,50 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     } finally {
       setSubmitting(false);
     }
-  }, [expectedType, test, toast, typedText]);
+  }, [test, toast]);
 
   useEffect(() => {
-    if (!active) return;
-    intervalRef.current = setInterval(() => {
-      setTimeLeft((seconds) => {
-        if (seconds <= 1) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          void submit();
-          return 0;
+    typedTextRef.current = typedText;
+  }, [typedText]);
+
+  useEffect(() => {
+    submitRef.current = submit;
+  }, [submit]);
+
+  useEffect(() => {
+    if (!active || !test) return;
+
+    const endAt = timerEndAtRef.current ?? (Date.now() + test.duration * 60 * 1000);
+    timerEndAtRef.current = endAt;
+
+    const updateRemainingTime = () => {
+      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
-        return seconds - 1;
-      });
-    }, 1000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+        void submitRef.current?.();
+      }
     };
-  }, [active, submit]);
+
+    updateRemainingTime();
+    intervalRef.current = setInterval(updateRemainingTime, 250);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [active, test]);
 
   const start = () => {
+    if (!test || submittedRef.current) return;
+    timerEndAtRef.current = Date.now() + test.duration * 60 * 1000;
+    setTimeLeft(test.duration * 60);
     setActive(true);
     questionPaperRef.current?.scrollTo({ top: 0, behavior: "auto" });
     setTimeout(() => document.getElementById(expectedType === "typing" ? "high-court-rich-editor" : "high-court-textarea")?.focus(), 0);
