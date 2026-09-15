@@ -14,3 +14,4 @@
 - [High Court response font size](high-court-response-font-size.md) — the shared header font control must style every High Court response mode and sync with Typing's rich editor.
 - [High Court auto-scroll stability](high-court-auto-scroll-stability.md) — use immediate marker repositioning in High Court because per-keystroke smooth scrolling causes visible shaking.
 - [High Court typing workspace sizing](high-court-typing-workspace-sizing.md) — reclaim surrounding chrome space before enlarging both question and response areas in the fixed viewport.
+- [High Court Pitman PDF loading](high-court-pitman-pdf-loading.md) — pass the authenticated PDF API URL directly to the PDF.js viewer; avoid an intermediate blob URL.

@@ -78,48 +78,11 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
       return;
     }
 
-    let objectUrl = "";
-    setPdfUrl("");
-    setPdfError("Loading PDF…");
-
-    const controller = new AbortController();
-    const loadPdf = async () => {
-      try {
-        // Fetch through the authenticated High Court PDF route instead of
-        // decoding the base64 field embedded in the test JSON. This keeps the
-        // browser path consistent for large uploads and lets the server
-        // normalize data URLs before returning the PDF bytes.
-        const response = await fetch(`/api/high-court/tests/${test.id}/pdf`, {
-          credentials: "include",
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          const errorBody = await response.json().catch(() => null);
-          throw new Error(errorBody?.message || `PDF request failed (${response.status})`);
-        }
-
-        const pdfBlob = await response.blob();
-        if (!pdfBlob.size) {
-          throw new Error("The PDF response was empty.");
-        }
-
-        objectUrl = URL.createObjectURL(new Blob([pdfBlob], { type: "application/pdf" }));
-        setPdfUrl(objectUrl);
-        setPdfError("");
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        console.error("Unable to load High Court Pitman PDF:", error);
-        setPdfUrl("");
-        setPdfError("The PDF could not be opened. Please ask the administrator to upload it again.");
-      }
-    };
-
-    void loadPdf();
-
-    return () => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
+    // Keep the authenticated API URL as the source. The viewer fetches it
+    // once and passes the bytes directly to PDF.js; an intermediate blob URL
+    // caused student previews to fail after the first download.
+    setPdfUrl(`/api/high-court/tests/${test.id}/pdf`);
+    setPdfError("");
   }, [expectedType, test?.id]);
 
   const submit = useCallback(async () => {

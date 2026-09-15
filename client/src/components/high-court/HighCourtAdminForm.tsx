@@ -116,6 +116,14 @@ export function HighCourtAdminForm() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!pitman.pdfFile) {
+      toast({
+        variant: "destructive",
+        title: "Pitman PDF required",
+        description: "Upload the Pitman question-paper PDF before publishing this High Court folder.",
+      });
+      return;
+    }
     setSaving(true);
     try {
       await highCourtApi.createTestSet({

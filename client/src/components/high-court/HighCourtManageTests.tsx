@@ -104,6 +104,14 @@ export function HighCourtManageTests() {
 
   const saveEdit = async () => {
     if (!editingSet || !editPapers) return;
+    if (!editPapers.pitman.pdfFile) {
+      toast({
+        variant: "destructive",
+        title: "Pitman PDF required",
+        description: "Upload the Pitman question-paper PDF before saving this High Court folder.",
+      });
+      return;
+    }
     setSaving(true);
     try {
       if (editTitle !== editingSet.title) {

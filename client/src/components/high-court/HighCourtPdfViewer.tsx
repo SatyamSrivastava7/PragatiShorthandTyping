@@ -41,6 +41,9 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
       try {
         const response = await fetch(source, { credentials: "include" });
         if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("No PDF has been uploaded for this paper.");
+          }
           throw new Error(`PDF request failed (${response.status})`);
         }
 
@@ -62,9 +65,12 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
         setLoading(false);
       } catch (reason) {
         if (cancelled) return;
-        console.error("Unable to render High Court Pitman PDF:", reason);
+        console.error(
+          "Unable to render High Court Pitman PDF:",
+          reason instanceof Error ? reason.message : reason,
+        );
         setLoading(false);
-        setError("The PDF could not be rendered. Please ask the administrator to upload it again.");
+        setError(reason instanceof Error ? reason.message : "The PDF could not be rendered. Please ask the administrator to upload it again.");
       }
     };
 

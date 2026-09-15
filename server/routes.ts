@@ -1904,6 +1904,10 @@ export async function registerRoutes(
       if (tests.some((test) => test.type !== "shorthand" && test.youtubeLink)) {
         return res.status(400).json({ message: "Only the High Court Shorthand paper can have a YouTube link." });
       }
+      const pitmanPaper = tests.find((test) => test.type === "pitman");
+      if (!pitmanPaper?.pdfFile) {
+        return res.status(400).json({ message: "A Pitman PDF is required before publishing a High Court folder." });
+      }
       const result = await storage.createHighCourtTestSetWithTests(
         { name, dateFor: dateFor || new Date().toISOString().slice(0, 10), isEnabled: true },
         tests.map((t) => ({
@@ -2154,6 +2158,9 @@ export async function registerRoutes(
       }
       if (parsed.data.youtubeLink && existing.type !== "shorthand") {
         return res.status(400).json({ message: "Only the High Court Shorthand paper can have a YouTube link." });
+      }
+      if (existing.type === "pitman" && !existing.pdfFile && !parsed.data.pdfFile) {
+        return res.status(400).json({ message: "A Pitman PDF is required before saving this High Court paper." });
       }
 
       const updated = await storage.updateHighCourtTest(id, parsed.data);
