@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, ExternalLink, Loader2, Maximize, Minimize, Save, Type, Youtube, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ const colors: Record<HighCourtTestType, string> = {
 export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCourtTestType }) {
   const [, params] = useRoute(`/high-court/${expectedType}/:id`);
   const { toast } = useToast();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submittedRef = useRef(false);
   const typedTextRef = useRef("");
   const timerEndAtRef = useRef<number | null>(null);
@@ -119,28 +119,39 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
 
     const endAt = timerEndAtRef.current ?? (Date.now() + test.duration * 60 * 1000);
     timerEndAtRef.current = endAt;
+    let cancelled = false;
 
     const updateRemainingTime = () => {
       const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
       setTimeLeft(remaining);
 
       if (remaining === 0) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
+        timerRef.current = null;
         void submitRef.current?.();
+        return;
+      }
+
+      // Recalculate from the absolute end time on every tick. This stays
+      // accurate when an older browser throttles timers or briefly sleeps.
+      if (!cancelled) {
+        timerRef.current = setTimeout(updateRemainingTime, 500);
       }
     };
 
+    const updateWhenVisible = () => {
+      if (!document.hidden) updateRemainingTime();
+    };
+
     updateRemainingTime();
-    intervalRef.current = setInterval(updateRemainingTime, 250);
+    document.addEventListener("visibilitychange", updateWhenVisible);
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+      cancelled = true;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
+      document.removeEventListener("visibilitychange", updateWhenVisible);
     };
   }, [active, test]);
 
@@ -157,21 +168,16 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     setTypedText(html);
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (expectedType !== "typing" || !autoScrollEnabled || !active || !questionPaperRef.current) return;
 
     const container = questionPaperRef.current;
     const marker = container.querySelector(".current-word-marker") as HTMLElement | null;
     if (!marker) return;
 
-    const frameId = window.requestAnimationFrame(() => {
-      // The active marker is rebuilt on every typed character. An animated
-      // scroll here would restart before completing and make the question
-      // paper visibly shiver, so High Court uses a stable immediate correction.
-      scrollActiveMarkerIntoView(container, marker, "auto");
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
+    // Run before paint. The marker is rebuilt on every typed character, so a
+    // post-paint animation makes the question paper visibly vibrate.
+    scrollActiveMarkerIntoView(container, marker, "auto");
   }, [active, autoScrollEnabled, expectedType, fontSize, highlighterEnabled, test, typedText]);
 
   const getHighlightedTypingContent = () => {
@@ -266,7 +272,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   }
 
   return (
-    <div className={isFullScreen ? "fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 p-3 md:p-4" : "h-full overflow-hidden bg-slate-100 p-3 md:p-4"}>
+    <div className={`high-court-workspace ${isFullScreen ? "fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 p-3 md:p-4" : "h-full overflow-hidden bg-slate-100 p-3 md:p-4"}`}>
       <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-3">
         <div className={`flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r ${colors[expectedType]} p-4 text-white shadow-lg`}>
           <div className="flex items-center gap-3">

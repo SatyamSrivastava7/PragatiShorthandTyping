@@ -43,12 +43,12 @@ export function HighCourtStudentArea() {
     }
   };
 
-  if (loading) return <div className="flex justify-center p-16"><Loader2 className="h-7 w-7 animate-spin text-amber-600" /></div>;
-  if (error) return <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</div>;
+  if (loading) return <div className="high-court-student-area flex justify-center p-16"><Loader2 className="h-7 w-7 animate-spin text-amber-600" /></div>;
+  if (error) return <div className="high-court-student-area rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</div>;
 
   if (selected) {
     return (
-      <section className="space-y-5">
+      <section className="high-court-student-area space-y-5">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" onClick={() => setSelected(null)} aria-label="All High Court folders"><ChevronLeft className="h-4 w-4" /></Button>
           <div>
@@ -96,7 +96,7 @@ export function HighCourtStudentArea() {
   }
 
   return (
-    <section className="space-y-5">
+    <section className="high-court-student-area space-y-5">
       <div className="flex items-center gap-3">
         <div className="rounded-xl bg-amber-100 p-3"><Award className="h-6 w-6 text-amber-700" /></div>
         <div><h2 className="text-xl font-bold text-slate-900">High Court Assessments</h2><p className="text-sm text-slate-500">Select an English exam folder, then complete Typing, Pitman, and Shorthand.</p></div>
@@ -152,11 +152,11 @@ export function HighCourtResultsPanel() {
     }
   };
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-amber-600" /></div>;
-  if (!results.length) return <div className="rounded-xl border border-dashed p-10 text-center text-sm text-slate-500">No High Court paper has been submitted yet.</div>;
+  if (loading) return <div className="high-court-student-area flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-amber-600" /></div>;
+  if (!results.length) return <div className="high-court-student-area rounded-xl border border-dashed p-10 text-center text-sm text-slate-500">No High Court paper has been submitted yet.</div>;
 
   return (
-    <>
+    <div className="high-court-student-area">
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-amber-50 text-left text-amber-900"><tr><th className="p-4">Exam folder</th><th className="p-4">Student Name</th><th className="p-4 text-center">Typing</th><th className="p-4 text-center">Pitman</th><th className="p-4 text-center">Shorthand</th><th className="p-4 text-center">Total</th><th className="p-4 text-right">Action</th></tr></thead>
@@ -183,6 +183,6 @@ export function HighCourtResultsPanel() {
           </div>}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

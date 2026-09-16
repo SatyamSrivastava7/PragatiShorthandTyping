@@ -54,8 +54,17 @@ export function scrollActiveMarkerIntoView(
     return;
   }
 
-  container.scrollTo({
-    top: targetScrollTop,
-    behavior,
-  });
+  // Older browsers used on Windows 7 do not support the options object for
+  // Element.scrollTo. Direct assignment is also more stable for the High
+  // Court marker, which is rebuilt on every keystroke.
+  if (behavior === "auto") {
+    container.scrollTop = targetScrollTop;
+    return;
+  }
+
+  try {
+    container.scrollTo({ top: targetScrollTop, behavior });
+  } catch {
+    container.scrollTop = targetScrollTop;
+  }
 }

@@ -220,3 +220,86 @@ h1, h2, h3, h4, h5, h6 {
 /* Block-level elements produced by execCommand("justify*") carry
    text-align as an inline style — no extra CSS needed, but we do NOT
    override it here so the inline value always wins. */
+
+/*
+ * High Court browser compatibility.
+ *
+ * Tailwind v4 emits its palette as oklch() variables. Older browsers commonly
+ * used with Windows 7 reject those values, causing otherwise valid backgrounds
+ * and text colors to disappear. Keep the modern utilities, but provide the
+ * same palette as plain hex values inside the High Court test workspace.
+ */
+.high-court-workspace,
+.high-court-student-area {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0f172a;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #94a3b8;
+  --color-white: #ffffff;
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-zinc-900: #18181b;
+  --color-blue-50: #eff6ff;
+  --color-blue-600: #2563eb;
+  --color-indigo-600: #4f46e5;
+  --color-rose-50: #fff1f2;
+  --color-rose-600: #e11d48;
+  --color-red-50: #fef2f2;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-orange-50: #fff7ed;
+  --color-orange-500: #f97316;
+  --color-orange-600: #ea580c;
+  --color-orange-700: #c2410c;
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+}
+
+/* Opacity utilities use color-mix(in oklab) in Tailwind v4. */
+.high-court-workspace [class~="bg-white/15"],
+.high-court-student-area [class~="bg-white/15"] {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+.high-court-workspace [class~="text-white/70"],
+.high-court-student-area [class~="text-white/70"] {
+  color: rgba(255, 255, 255, 0.7);
+}
+.high-court-workspace [class~="text-white/80"],
+.high-court-student-area [class~="text-white/80"] {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Tailwind's gradient direction can also contain an unsupported color-space
+   clause. The same gradient in the default RGB color space is broadly safe. */
+.high-court-workspace .bg-gradient-to-r,
+.high-court-student-area .bg-gradient-to-r {
+  background-image: linear-gradient(to right, var(--tw-gradient-from), var(--tw-gradient-to)) !important;
+}

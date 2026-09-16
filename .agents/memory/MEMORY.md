@@ -15,3 +15,4 @@
 - [High Court auto-scroll stability](high-court-auto-scroll-stability.md) — use immediate marker repositioning in High Court because per-keystroke smooth scrolling causes visible shaking.
 - [High Court typing workspace sizing](high-court-typing-workspace-sizing.md) — reclaim surrounding chrome space before enlarging both question and response areas in the fixed viewport.
 - [High Court Pitman PDF loading](high-court-pitman-pdf-loading.md) — pass the authenticated PDF API URL directly to the PDF.js viewer; avoid an intermediate blob URL.
+- [High Court legacy browser compatibility](high-court-legacy-browser-compatibility.md) — keep High Court colors and PDF/scroll behavior usable when older Windows browsers reject modern CSS or APIs.

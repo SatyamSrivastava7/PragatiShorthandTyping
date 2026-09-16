@@ -16,6 +16,7 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [nativeFallback, setNativeFallback] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -24,9 +25,16 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
     const updateWidth = () => setContainerWidth(container.clientWidth);
     updateWidth();
 
-    const observer = new ResizeObserver(updateWidth);
-    observer.observe(container);
-    return () => observer.disconnect();
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(updateWidth);
+      observer.observe(container);
+      return () => observer.disconnect();
+    }
+
+    // ResizeObserver is missing in older Windows 7 browsers. A window
+    // listener is sufficient for this fixed test workspace.
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
   }, []);
 
   useEffect(() => {
@@ -36,6 +44,7 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
     setPdfDocument(null);
     setLoading(true);
     setError("");
+    setNativeFallback(false);
 
     const loadDocument = async () => {
       try {
@@ -55,7 +64,17 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
         // Render pages with PDF.js instead of relying on the browser's
         // embedded PDF plugin, which rejects some valid older PDFs.
         loadingTask = pdfjsLib.getDocument({ data: bytes });
-        const document = await loadingTask.promise;
+        let document;
+        try {
+          document = await loadingTask.promise;
+        } catch (workerError) {
+          // Some older browsers cannot start the module worker shipped by
+          // newer PDF.js releases. Rendering on the main thread keeps the
+          // paper usable instead of leaving an empty question panel.
+          console.warn("High Court PDF worker unavailable; retrying without worker.", workerError);
+          loadingTask = pdfjsLib.getDocument({ data: bytes, disableWorker: true } as any);
+          document = await loadingTask.promise;
+        }
         if (cancelled) {
           await document.destroy();
           return;
@@ -71,6 +90,7 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
         );
         setLoading(false);
         setError(reason instanceof Error ? reason.message : "The PDF could not be rendered. Please ask the administrator to upload it again.");
+        setNativeFallback(true);
       }
     };
 
@@ -134,10 +154,24 @@ export function HighCourtPdfViewer({ source, zoom }: HighCourtPdfViewerProps) {
           </div>
         )}
         {!loading && error && (
-          <div className="flex min-h-[460px] flex-col items-center justify-center gap-2 text-center text-sm text-slate-500">
-            <AlertCircle className="h-10 w-10 text-red-400" />
-            <span>{error}</span>
-          </div>
+          <>
+            <div className="flex min-h-[460px] flex-col items-center justify-center gap-2 text-center text-sm text-slate-500">
+              <AlertCircle className="h-10 w-10 text-red-400" />
+              <span>{error}</span>
+              {nativeFallback && (
+                <object
+                  data={source}
+                  type="application/pdf"
+                  aria-label="High Court question paper"
+                  className="mt-3 h-[520px] w-full border border-slate-300 bg-white"
+                >
+                  <a href={source} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">
+                    Open the question paper in a new window
+                  </a>
+                </object>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>
