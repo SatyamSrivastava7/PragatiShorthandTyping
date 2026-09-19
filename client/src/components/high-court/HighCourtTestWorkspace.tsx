@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { AlertCircle, ArrowDown, ArrowLeft, CheckCircle2, Clock3, ExternalLink, Loader2, Maximize, Minimize, Save, Type, Youtube, ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -168,6 +168,17 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     setTypedText(html);
   };
 
+  const currentTypingWordIndex = useMemo(() => {
+    const typedPlainText = stripHtmlPreserveParagraphs(typedText);
+    const typedWords = typedPlainText
+      .split(/\s+/)
+      .filter((word) => word && word !== PARA_TOKEN);
+    const hasTrailingWhitespace = /(?:\s|&nbsp;|&#160;|&#xa0;)(?:<\/[^>]+>)*$/i.test(typedText);
+
+    if (typedPlainText.trim() === "") return 0;
+    return hasTrailingWhitespace ? typedWords.length : Math.max(0, typedWords.length - 1);
+  }, [typedText]);
+
   useLayoutEffect(() => {
     if (expectedType !== "typing" || !autoScrollEnabled || !active || !questionPaperRef.current) return;
 
@@ -178,25 +189,15 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     // Run before paint. The marker is rebuilt on every typed character, so a
     // post-paint animation makes the question paper visibly vibrate.
     scrollActiveMarkerIntoView(container, marker, "auto");
-  }, [active, autoScrollEnabled, expectedType, fontSize, highlighterEnabled, test, typedText]);
+  }, [active, autoScrollEnabled, currentTypingWordIndex, expectedType, fontSize, highlighterEnabled, test]);
 
-  const getHighlightedTypingContent = () => {
+  const getHighlightedTypingContent = (currentIndex: number) => {
     if (!test) return "";
 
     const originalWords = stripHtmlPreserveParagraphs(test.text)
       .trim()
       .split(/\s+/)
       .filter((word) => word && word !== PARA_TOKEN);
-    const typedPlainText = stripHtmlPreserveParagraphs(typedText);
-    const typedWords = typedPlainText
-      .split(/\s+/)
-      .filter((word) => word && word !== PARA_TOKEN);
-    const hasTrailingWhitespace = /(?:\s|&nbsp;|&#160;|&#xa0;)(?:<\/[^>]+>)*$/i.test(typedText);
-
-    let currentIndex = 0;
-    if (typedPlainText.trim() !== "") {
-      currentIndex = hasTrailingWhitespace ? typedWords.length : Math.max(0, typedWords.length - 1);
-    }
 
     if (!originalWords.length || currentIndex >= originalWords.length) {
       return test.text;
@@ -240,11 +241,20 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
       .join("");
   };
 
+  // Do not replace the question DOM on every keystroke. While a student is
+  // typing inside one word, the active marker and its layout are unchanged.
+  // Replacing innerHTML on every character was the source of the visible
+  // question-paper jumping in older browsers.
+  const typingQuestionHtml = useMemo(
+    () => getHighlightedTypingContent(currentTypingWordIndex),
+    [currentTypingWordIndex, highlighterEnabled, test?.text],
+  );
+
   const renderTypingQuestion = () => (
     <div
       className="max-w-none leading-relaxed text-slate-800 [&_div]:my-0 [&_p]:my-0 [&_pre]:m-0 [&_pre]:whitespace-pre-wrap"
       style={{ fontSize, textAlign: "justify" }}
-      dangerouslySetInnerHTML={{ __html: getHighlightedTypingContent() }}
+      dangerouslySetInnerHTML={{ __html: typingQuestionHtml }}
     />
   );
 
@@ -439,8 +449,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     editorId="high-court-rich-editor"
                     fillHeight
                     showWordCount
-                   fontSize={fontSize}
-                   onFontSizeChange={setFontSize}
+                    spellCheck={false}
+                    fontSize={fontSize}
+                    onFontSizeChange={setFontSize}
                   />
                 ) : (
                   <Textarea
@@ -448,6 +459,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     value={typedText}
                     onChange={(event) => setTypedText(event.target.value)}
                     onPaste={(event) => event.preventDefault()}
+                    spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="off"
                     disabled={!active}
                     placeholder={active ? "Start typing your response here…" : "Click Start Test to begin"}
                     className="min-h-0 flex-1 resize-none rounded-none border-0 p-6 leading-8 focus-visible:ring-0"

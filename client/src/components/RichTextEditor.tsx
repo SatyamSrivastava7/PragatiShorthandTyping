@@ -37,6 +37,7 @@ interface RichTextEditorProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLDivElement>) => void;
   disabled?: boolean;
+  spellCheck?: boolean;
   editorId?: string;
 }
 
@@ -54,6 +55,7 @@ export function RichTextEditor({
   onKeyDown: customOnKeyDown,
   onPaste: customOnPaste,
   disabled = false,
+  spellCheck,
   editorId,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -360,6 +362,7 @@ export function RichTextEditor({
         }}
         onMouseUp={() => updateActiveFormats()}
         contentEditable={!disabled}
+        spellCheck={spellCheck}
         aria-disabled={disabled}
         suppressContentEditableWarning
         className={cn(
