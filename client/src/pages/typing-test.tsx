@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth, useContentById, useResults } from "@/lib/hooks";
 import { calculateTypingMetrics, calculateShorthandMetrics, cn, stripHtmlPreserveParagraphs, replaceNewlinesWithParaToken, PARA_TOKEN, stripHtml, stripHtmlEntities } from "@/lib/utils";
@@ -254,10 +254,16 @@ export default function TypingTestPage() {
     };
   }, [isActive, finishTest]);
   
-  // Keep the active word in a readable window. Manual scrolling does not
-  // permanently disable auto-scroll; the next typed word can safely bring the
-  // question paper back to the active position.
-  useEffect(() => {
+  const currentTypingWordIndex = useMemo(() => {
+    const tokens = typedText.split(/\s+/).filter(w => w && w !== PARA_TOKEN);
+    if (typedText.trim() === "") return 0;
+    return /\s$/.test(typedText) ? tokens.length : Math.max(0, tokens.length - 1);
+  }, [typedText]);
+
+  // Keep the active word in a readable window without replacing or animating
+  // the question paper for every character. The immediate correction happens
+  // before paint and only runs when the active word changes.
+  useLayoutEffect(() => {
     if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
     if (!isActive) return;
 
@@ -265,12 +271,8 @@ export default function TypingTestPage() {
     const marker = container.querySelector('.current-word-marker') as HTMLElement | null;
     if (!marker) return;
 
-    const frameId = window.requestAnimationFrame(() => {
-      scrollActiveMarkerIntoView(container, marker);
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [typedText, testContent, isActive, autoScrollEnabled, highlighterEnabled, fontSize]);
+    scrollActiveMarkerIntoView(container, marker, "auto");
+  }, [currentTypingWordIndex, testContent, isActive, autoScrollEnabled, highlighterEnabled, fontSize]);
 
   const startTest = () => {
     // Check cooldown before starting
@@ -485,25 +487,14 @@ export default function TypingTestPage() {
   };
 
   // Highlight the next word to type
-  const getHighlightedContent = () => {
+  const getHighlightedContent = (currentIndex: number) => {
     if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
 
     // Extract plain text to find words, preserving paragraph tokens
     const plainText = stripHtmlPreserveParagraphs(testContent.text);
     const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
 
-    // Determine which word index corresponds to the word currently being typed
-    const tokens = typedText.split(/\s+/).filter(w => w && w !== PARA_TOKEN);
-    let currentIndex: number | null = null;
-    if (typedText.trim() === "") {
-      currentIndex = 0;
-    } else if (/\s$/.test(typedText)) {
-      currentIndex = tokens.length;
-    } else {
-      currentIndex = Math.max(0, tokens.length - 1);
-    }
-
-    if (currentIndex === null || currentIndex >= words.length) {
+    if (currentIndex >= words.length) {
       return testContent.text;
     }
 
@@ -518,8 +509,10 @@ export default function TypingTestPage() {
     let foundTargetWord = false;
     
     const htmlContent = testContent.text;
+    // Keep the marker visual-only. Padding and font-weight change line width
+    // when the marker moves, which makes older browsers visibly reflow.
     const highlightStyle = highlighterEnabled
-      ? 'background-color: #fbbf24; padding: 2px 4px; border-radius: 2px; font-weight: 500;'
+      ? 'background-color: #fbbf24; border-radius: 2px;'
       : '';
     
     // Split by HTML tags, process only text nodes
@@ -568,6 +561,14 @@ export default function TypingTestPage() {
 
     return processedParts;
   };
+
+  // Keep the original question DOM stable while the student types within one
+  // word. This prevents the scroll container from being re-measured on every
+  // character and preserves the existing comparison/scoring input unchanged.
+  const highlightedContent = useMemo(
+    () => getHighlightedContent(currentTypingWordIndex),
+    [currentTypingWordIndex, highlighterEnabled, testContent?.text, testContent?.type],
+  );
 
   if (isContentLoading) {
     return (
@@ -770,7 +771,7 @@ export default function TypingTestPage() {
               <div 
                 className={cn("leading-relaxed select-none transition-all", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
-                dangerouslySetInnerHTML={{ __html: getHighlightedContent() }}
+                dangerouslySetInnerHTML={{ __html: highlightedContent }}
               />
             </CardContent>
           </Card>

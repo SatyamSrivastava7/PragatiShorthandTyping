@@ -12,7 +12,7 @@
 - [High Court formatting toolbar](high-court-formatting-toolbar.md) — keep typing formatting controls visible and structurally above the scrollable response area.
 - [Assessment timer stability](assessment-timer-stability.md) — calculate countdowns from an absolute end timestamp instead of resetting intervals on typed-response updates.
 - [High Court response font size](high-court-response-font-size.md) — the shared header font control must style every High Court response mode and sync with Typing's rich editor.
-- [High Court auto-scroll stability](high-court-auto-scroll-stability.md) — use immediate marker repositioning in High Court because per-keystroke smooth scrolling causes visible shaking.
+- [Typing auto-scroll stability](high-court-auto-scroll-stability.md) — memoize question markup by word and use immediate marker scroll in regular and High Court Typing.
 - [High Court typing workspace sizing](high-court-typing-workspace-sizing.md) — reclaim surrounding chrome space before enlarging both question and response areas in the fixed viewport.
 - [High Court Pitman PDF loading](high-court-pitman-pdf-loading.md) — pass the authenticated PDF API URL directly to the PDF.js viewer; avoid an intermediate blob URL.
 - [High Court legacy browser compatibility](high-court-legacy-browser-compatibility.md) — keep High Court colors and PDF/scroll behavior usable when older Windows browsers reject modern CSS or APIs.
