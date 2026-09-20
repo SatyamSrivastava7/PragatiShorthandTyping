@@ -138,6 +138,7 @@ export interface IStorage {
 
   // High Court methods
   createHighCourtTestSetWithTests(set: InsertHighCourtTestSet, tests: InsertHighCourtTest[]): Promise<{ testSet: HighCourtTestSet; tests: HighCourtTest[] }>;
+  createHighCourtTest(test: InsertHighCourtTest): Promise<HighCourtTest>;
   getAllHighCourtTestSets(): Promise<HighCourtTestSet[]>;
   getHighCourtTestSetsPage(limit: number, offset: number, onlyEnabled?: boolean): Promise<HighCourtTestSet[]>;
   getHighCourtTestSet(id: number): Promise<HighCourtTestSet | undefined>;
@@ -882,6 +883,11 @@ export class DatabaseStorage implements IStorage {
 
       return { testSet, tests: createdTests };
     });
+  }
+
+  async createHighCourtTest(test: InsertHighCourtTest): Promise<HighCourtTest> {
+    const [created] = await db.insert(highCourtTests).values(test).returning();
+    return created;
   }
 
   async getAllHighCourtTestSets(): Promise<HighCourtTestSet[]> {

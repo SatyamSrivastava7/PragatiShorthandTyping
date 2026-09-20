@@ -104,14 +104,6 @@ export function HighCourtManageTests() {
 
   const saveEdit = async () => {
     if (!editingSet || !editPapers) return;
-    if (!editPapers.pitman.pdfFile) {
-      toast({
-        variant: "destructive",
-        title: "Pitman PDF required",
-        description: "Upload the Pitman question-paper PDF before saving this High Court folder.",
-      });
-      return;
-    }
     setSaving(true);
     try {
       if (editTitle !== editingSet.title) {
@@ -123,17 +115,28 @@ export function HighCourtManageTests() {
         HIGH_COURT_PAPERS.map((paper) => {
           const test = editingSet.tests.find((t) => t.type === paper.type);
           const form = editPapers[paper.type];
-          if (!test) return Promise.resolve(undefined);
+          const hasPaperContent = form.title.trim() || form.text.trim() || form.pdfFile || form.youtubeLink?.trim();
+          if (!test) {
+            if (!hasPaperContent) return Promise.resolve(undefined);
+            return highCourtApi.addTestToSet(editingSet.id, {
+              type: paper.type,
+              title: form.title,
+              text: form.text,
+              duration: Number(form.duration),
+              pdfFile: paper.type === "pitman" ? form.pdfFile : undefined,
+              youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || undefined) : undefined,
+            });
+          }
           return highCourtApi.updateTest(test.id, {
-            title: form.title,
-            originalText: form.text,
-            duration: Number(form.duration),
-            pdfFile: form.pdfFile,
-            youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || null) : undefined,
-          });
+              title: form.title,
+              originalText: form.text,
+              duration: Number(form.duration),
+              pdfFile: form.pdfFile,
+              youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || null) : undefined,
+            });
         })
       );
-      toast({ title: "Saved", description: "High Court exam folder updated." });
+      toast({ title: "Saved", description: "High Court exam folder updated. Missing papers can be added from this editor." });
       setEditingSet(null);
       setEditPapers(null);
       await fetchSets(0, false);
@@ -160,7 +163,7 @@ export function HighCourtManageTests() {
   };
 
   const deleteSet = async (set: HighCourtTestSet) => {
-    if (!window.confirm(`Delete "${set.title}"? This removes all three papers and any student attempts for this folder.`)) {
+    if (!window.confirm(`Delete "${set.title}"? This removes all papers and any student attempts for this folder.`)) {
       return;
     }
     setDeletingId(set.id);

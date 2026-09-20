@@ -1871,7 +1871,7 @@ export async function registerRoutes(
   const hcCreateSetSchema = z.object({
     name: z.string().min(1, "name is required"),
     dateFor: z.string().min(1, "dateFor is required").optional(),
-    tests: z.array(hcTestPaperSchema).length(3, "Typing, Pitman, and Shorthand papers are all required"),
+    tests: z.array(hcTestPaperSchema).min(1, "At least one High Court paper is required").max(3, "A High Court folder can contain at most three papers"),
   });
 
   const hcAttemptSchema = z.object({
@@ -1897,16 +1897,15 @@ export async function registerRoutes(
       }
 
       const { name, dateFor, tests } = parsed.data;
-      const requiredTypes = ["typing", "pitman", "shorthand"];
-      if (new Set(tests.map((test) => test.type)).size !== 3 || !requiredTypes.every((type) => tests.some((test) => test.type === type))) {
-        return res.status(400).json({ message: "Create exactly one Typing, one Pitman, and one Shorthand paper." });
+      if (new Set(tests.map((test) => test.type)).size !== tests.length) {
+        return res.status(400).json({ message: "Only one paper of each High Court type can be added to a folder." });
       }
       if (tests.some((test) => test.type !== "shorthand" && test.youtubeLink)) {
         return res.status(400).json({ message: "Only the High Court Shorthand paper can have a YouTube link." });
       }
       const pitmanPaper = tests.find((test) => test.type === "pitman");
-      if (!pitmanPaper?.pdfFile) {
-        return res.status(400).json({ message: "A Pitman PDF is required before publishing a High Court folder." });
+      if (pitmanPaper && !pitmanPaper.pdfFile) {
+        return res.status(400).json({ message: "A Pitman PDF is required when adding the Pitman paper." });
       }
       const result = await storage.createHighCourtTestSetWithTests(
         { name, dateFor: dateFor || new Date().toISOString().slice(0, 10), isEnabled: true },
@@ -2040,6 +2039,57 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating high court test set:", error);
       res.status(500).json({ message: "Failed to update high court test set" });
+    }
+  });
+
+  // Admin: add one missing paper to an existing High Court folder
+  app.post("/api/high-court/test-sets/:id/tests", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const testSetId = parseInt(req.params.id);
+      if (!validateId(testSetId)) {
+        return res.status(400).json({ message: "Invalid test set ID" });
+      }
+      const testSet = await storage.getHighCourtTestSet(testSetId);
+      if (!testSet) {
+        return res.status(404).json({ message: "Test set not found" });
+      }
+
+      const parsed = hcTestPaperSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: fromZodError(parsed.error).message });
+      }
+      const existingTests = await storage.getHighCourtTestsBySet(testSetId);
+      if (existingTests.some((test) => test.type === parsed.data.type)) {
+        return res.status(409).json({ message: `A ${parsed.data.type} paper already exists in this folder.` });
+      }
+      if (parsed.data.type !== "shorthand" && parsed.data.youtubeLink) {
+        return res.status(400).json({ message: "Only the High Court Shorthand paper can have a YouTube link." });
+      }
+      if (parsed.data.type === "pitman" && !parsed.data.pdfFile) {
+        return res.status(400).json({ message: "A Pitman PDF is required when adding the Pitman paper." });
+      }
+
+      const created = await storage.createHighCourtTest({
+        testSetId,
+        title: parsed.data.title,
+        type: parsed.data.type,
+        originalText: parsed.data.originalText,
+        duration: parsed.data.duration,
+        pdfFile: parsed.data.pdfFile,
+        youtubeLink: parsed.data.youtubeLink,
+      });
+      res.status(201).json(created);
+    } catch (error) {
+      console.error("Error adding high court test:", error);
+      res.status(500).json({ message: "Failed to add High Court paper" });
     }
   });
 

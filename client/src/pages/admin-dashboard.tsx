@@ -1298,10 +1298,14 @@ export default function AdminDashboard() {
 
     const selectedResults = highCourtResults.filter((result) => selectedHighCourtKeys.includes(highCourtResultKey(result)));
     const sortedResults = [...selectedResults].sort((a, b) => b.totalMarks - a.totalMarks);
+    const oneDecimal = (value: number | string | null | undefined) => {
+      const numericValue = Number(value);
+      return Number.isFinite(numericValue) ? numericValue.toFixed(1) : "0.0";
+    };
 
     const theadHtml = `<tr><th>Rank</th><th>Name</th><th>Typing</th><th>Pitman</th><th>Shorthand</th><th>Total</th></tr>`;
     const tbodyHtml = sortedResults.map((result, idx) => {
-      return `<tr><td>${idx + 1}</td><td>${result.studentName}</td><td>${result.typingMarks} / 100</td><td>${result.pitmanMarks} / 100</td><td>${result.shorthandMarks} / 200</td><td><b>${result.totalMarks} / 400</b></td></tr>`;
+      return `<tr><td>${idx + 1}</td><td>${result.studentName}</td><td>${oneDecimal(result.typingMarks)} / 100</td><td>${oneDecimal(result.pitmanMarks)} / 100</td><td>${oneDecimal(result.shorthandMarks)} / 200</td><td><b>${oneDecimal(result.totalMarks)} / 400</b></td></tr>`;
     }).join('');
 
     const printHtml = `<!DOCTYPE html><html><head><title>High Court Results Report</title><style>

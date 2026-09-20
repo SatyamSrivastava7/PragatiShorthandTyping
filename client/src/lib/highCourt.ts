@@ -271,22 +271,52 @@ export const highCourtApi = {
   createTestSet: async (data: {
     title: string;
     dateFor: string;
-    typing: { title: string; text: string; duration: number };
-    pitman: { title: string; text: string; duration: number; pdfFile?: string };
-    shorthand: { title: string; text: string; duration: number; youtubeLink?: string };
+    tests: Array<{
+      type: HighCourtTestType;
+      title: string;
+      text: string;
+      duration: number;
+      pdfFile?: string;
+      youtubeLink?: string;
+    }>;
   }) => {
     const result = normalizeSet(await request<any>("/api/high-court/test-sets", {
       method: "POST",
       body: JSON.stringify({
         name: data.title,
         dateFor: data.dateFor,
-        tests: [
-          { type: "typing", title: data.typing.title, originalText: data.typing.text, duration: data.typing.duration },
-          { type: "pitman", title: data.pitman.title, originalText: data.pitman.text, duration: data.pitman.duration, pdfFile: data.pitman.pdfFile },
-          { type: "shorthand", title: data.shorthand.title, originalText: data.shorthand.text, duration: data.shorthand.duration, youtubeLink: data.shorthand.youtubeLink },
-        ],
+        tests: data.tests.map((test) => ({
+          type: test.type,
+          title: test.title,
+          originalText: test.text,
+          duration: test.duration,
+          pdfFile: test.pdfFile,
+          youtubeLink: test.youtubeLink,
+        })),
       }),
     }));
+    clearHighCourtTestSetCache();
+    return result;
+  },
+  addTestToSet: async (testSetId: number, test: {
+    type: HighCourtTestType;
+    title: string;
+    text: string;
+    duration: number;
+    pdfFile?: string;
+    youtubeLink?: string;
+  }) => {
+    const result = await request<HighCourtTest>(`/api/high-court/test-sets/${testSetId}/tests`, {
+      method: "POST",
+      body: JSON.stringify({
+        type: test.type,
+        title: test.title,
+        originalText: test.text,
+        duration: test.duration,
+        pdfFile: test.pdfFile,
+        youtubeLink: test.youtubeLink,
+      }),
+    });
     clearHighCourtTestSetCache();
     return result;
   },

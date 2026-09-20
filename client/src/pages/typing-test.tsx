@@ -261,18 +261,32 @@ export default function TypingTestPage() {
   }, [typedText]);
 
   // Keep the active word in a readable window without replacing or animating
-  // the question paper for every character. The immediate correction happens
-  // before paint and only runs when the active word changes.
+  // the question paper for every character. Only the active marker class is
+  // changed when the student reaches another word.
   useLayoutEffect(() => {
     if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
     if (!isActive) return;
 
     const container = originalTextRef.current;
-    const marker = container.querySelector('.current-word-marker') as HTMLElement | null;
+    const markers = container.querySelectorAll<HTMLElement>("[data-typing-word-index]");
+    markers.forEach((word) => {
+      word.classList.remove("current-word-marker");
+      word.style.removeProperty("background-color");
+      word.style.removeProperty("border-radius");
+    });
+
+    const marker = container.querySelector(
+      `[data-typing-word-index="${currentTypingWordIndex}"]`,
+    ) as HTMLElement | null;
     if (!marker) return;
 
-    scrollActiveMarkerIntoView(container, marker, "auto");
-  }, [currentTypingWordIndex, testContent, isActive, autoScrollEnabled, highlighterEnabled, fontSize]);
+    marker.classList.add("current-word-marker");
+    if (highlighterEnabled) {
+      marker.style.backgroundColor = "#fbbf24";
+      marker.style.borderRadius = "2px";
+    }
+    scrollActiveMarkerIntoView(container, marker, "smooth");
+  }, [currentTypingWordIndex, testContent, isActive, autoScrollEnabled, highlighterEnabled]);
 
   const startTest = () => {
     // Check cooldown before starting
@@ -486,37 +500,13 @@ export default function TypingTestPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Highlight the next word to type
-  const getHighlightedContent = (currentIndex: number) => {
+  // Wrap words once so the question DOM stays stable while the student types.
+  const getStableQuestionContent = () => {
     if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
 
-    // Extract plain text to find words, preserving paragraph tokens
-    const plainText = stripHtmlPreserveParagraphs(testContent.text);
-    const words = plainText.trim().split(/\s+/).filter(w => w && w !== PARA_TOKEN);
-
-    if (currentIndex >= words.length) {
-      return testContent.text;
-    }
-
-    const targetWord = words[currentIndex];
-    if (!targetWord) return testContent.text;
-
-    // For Hindi and other scripts, use a more robust approach:
-    // Replace the exact target word string, counting occurrences
-    // We need to be careful to only replace in text content, not in HTML tags
-    
-    let wordOccurrenceCount = 0;
-    let foundTargetWord = false;
-    
-    const htmlContent = testContent.text;
-    // Keep the marker visual-only. Padding and font-weight change line width
-    // when the marker moves, which makes older browsers visibly reflow.
-    const highlightStyle = highlighterEnabled
-      ? 'background-color: #fbbf24; border-radius: 2px;'
-      : '';
-    
     // Split by HTML tags, process only text nodes
-    const parts = htmlContent.split(/(<[^>]+>)/);
+    let wordIndex = 0;
+    const parts = testContent.text.split(/(<[^>]+>)/);
     
     const processedParts = parts.map((part) => {
       if (part.startsWith('<')) {
@@ -524,50 +514,34 @@ export default function TypingTestPage() {
         return part;
       }
       
-      if (foundTargetWord || !part) {
-        // Already found the word, or empty part
-        return part;
-      }
-      
+      if (!part) return part;
+
       // Treat HTML whitespace entities (&nbsp;, &#160;, &#xa0;) as whitespace
-      // so they don't get counted as word characters (mirrors allahabad-hc logic).
+      // so they remain outside the inline word markers.
       const textWords = part.split(/((?:\s|&nbsp;|&#160;|&#xa0;)+)/i);
 
       return textWords.map((segment) => {
-        if (foundTargetWord || !segment) {
+        if (!segment) {
           return segment;
         }
 
-        // Decode entities for comparison only — keep original segment in output
-        // so visual layout (e.g. non-breaking spaces) is preserved.
         const decoded = stripHtmlEntities(segment);
-        if (/^\s*$/.test(decoded)) {
+        if (/^\s*$/.test(decoded) || decoded === PARA_TOKEN) {
           return segment;
         }
 
-        if (decoded === targetWord) {
-          if (wordOccurrenceCount === currentIndex) {
-            foundTargetWord = true;
-            return `<span class="current-word-marker" style="${highlightStyle}">${segment}</span>`;
-          }
-          wordOccurrenceCount++;
-        } else {
-          wordOccurrenceCount++;
-        }
-
-        return segment;
+        const wrapped = `<span class="typing-word-marker" data-typing-word-index="${wordIndex}">${segment}</span>`;
+        wordIndex += 1;
+        return wrapped;
       }).join('');
     }).join('');
 
     return processedParts;
   };
 
-  // Keep the original question DOM stable while the student types within one
-  // word. This prevents the scroll container from being re-measured on every
-  // character and preserves the existing comparison/scoring input unchanged.
-  const highlightedContent = useMemo(
-    () => getHighlightedContent(currentTypingWordIndex),
-    [currentTypingWordIndex, highlighterEnabled, testContent?.text, testContent?.type],
+  const questionContent = useMemo(
+    () => getStableQuestionContent(),
+    [testContent?.text, testContent?.type],
   );
 
   if (isContentLoading) {
@@ -769,9 +743,9 @@ export default function TypingTestPage() {
             </CardHeader>
             <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef}>
               <div 
-                className={cn("leading-relaxed select-none transition-all", fontClass)}
+                className={cn("leading-relaxed select-none", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
-                dangerouslySetInnerHTML={{ __html: highlightedContent }}
+                dangerouslySetInnerHTML={{ __html: questionContent }}
               />
             </CardContent>
           </Card>
