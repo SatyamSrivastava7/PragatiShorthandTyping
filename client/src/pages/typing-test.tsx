@@ -69,6 +69,8 @@ export default function TypingTestPage() {
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
+  const autoScrollLockRef = useRef(false);
+  const autoScrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (testContent) {
@@ -260,12 +262,32 @@ export default function TypingTestPage() {
     return /\s$/.test(typedText) ? tokens.length : Math.max(0, tokens.length - 1);
   }, [typedText]);
 
+  const scrollToCurrentTypingWord = useCallback((force = false, bypassLock = false) => {
+    if (!autoScrollEnabled || !isActive || testContent?.type !== "typing" || !originalTextRef.current) return;
+    if (autoScrollLockRef.current && !bypassLock) return;
+
+    const container = originalTextRef.current;
+    const marker = container.querySelector(
+      `[data-typing-word-index="${currentTypingWordIndex}"]`,
+    ) as HTMLElement | null;
+    if (!marker) return;
+
+    autoScrollLockRef.current = true;
+    scrollActiveMarkerIntoView(container, marker, "smooth", force);
+    if (autoScrollUnlockTimerRef.current) {
+      clearTimeout(autoScrollUnlockTimerRef.current);
+    }
+    autoScrollUnlockTimerRef.current = setTimeout(() => {
+      autoScrollLockRef.current = false;
+      autoScrollUnlockTimerRef.current = null;
+    }, 450);
+  }, [autoScrollEnabled, currentTypingWordIndex, isActive, testContent?.type]);
+
   // Keep the active word in a readable window without replacing or animating
   // the question paper for every character. Only the active marker class is
   // changed when the student reaches another word.
   useLayoutEffect(() => {
-    if (autoScrollEnabled === null || !autoScrollEnabled || testContent?.type !== 'typing' || !originalTextRef.current) return;
-    if (!isActive) return;
+    if (testContent?.type !== 'typing' || !originalTextRef.current) return;
 
     const container = originalTextRef.current;
     const markers = container.querySelectorAll<HTMLElement>("[data-typing-word-index]");
@@ -285,8 +307,15 @@ export default function TypingTestPage() {
       marker.style.backgroundColor = "#fbbf24";
       marker.style.borderRadius = "2px";
     }
-    scrollActiveMarkerIntoView(container, marker, "smooth");
-  }, [currentTypingWordIndex, testContent, isActive, autoScrollEnabled, highlighterEnabled]);
+    scrollToCurrentTypingWord(false, true);
+  }, [currentTypingWordIndex, testContent, isActive, autoScrollEnabled, highlighterEnabled, scrollToCurrentTypingWord]);
+
+  const handleQuestionPaperScroll = useCallback(() => {
+    // With Auto-scroll enabled, any manual scroll is treated as a request to
+    // restore the active word's reading position. Programmatic scroll events
+    // are ignored briefly by scrollToCurrentTypingWord to avoid a feedback loop.
+    scrollToCurrentTypingWord(true);
+  }, [scrollToCurrentTypingWord]);
 
   const startTest = () => {
     // Check cooldown before starting
@@ -741,7 +770,7 @@ export default function TypingTestPage() {
             <CardHeader className="py-2 bg-muted/50 border-b min-h-[40px] px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Original Text</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef}>
+            <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef} onScroll={handleQuestionPaperScroll}>
               <div 
                 className={cn("leading-relaxed select-none", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
