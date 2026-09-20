@@ -284,31 +284,12 @@ export default function TypingTestPage() {
   }, [autoScrollEnabled, currentTypingWordIndex, isActive, testContent?.type]);
 
   // Keep the active word in a readable window without replacing or animating
-  // the question paper for every character. Only the active marker class is
-  // changed when the student reaches another word.
+  // the question paper for every character. The active marker is included in
+  // the memoized question HTML and only changes when the active word changes.
   useLayoutEffect(() => {
-    if (testContent?.type !== 'typing' || !originalTextRef.current) return;
-
-    const container = originalTextRef.current;
-    const markers = container.querySelectorAll<HTMLElement>("[data-typing-word-index]");
-    markers.forEach((word) => {
-      word.classList.remove("current-word-marker");
-      word.style.removeProperty("background-color");
-      word.style.removeProperty("border-radius");
-    });
-
-    const marker = container.querySelector(
-      `[data-typing-word-index="${currentTypingWordIndex}"]`,
-    ) as HTMLElement | null;
-    if (!marker) return;
-
-    marker.classList.add("current-word-marker");
-    if (highlighterEnabled) {
-      marker.style.backgroundColor = "#fbbf24";
-      marker.style.borderRadius = "2px";
-    }
+    if (testContent?.type !== 'typing' || !autoScrollEnabled || !isActive || !originalTextRef.current) return;
     scrollToCurrentTypingWord(false, true);
-  }, [currentTypingWordIndex, testContent, isActive, autoScrollEnabled, highlighterEnabled, scrollToCurrentTypingWord]);
+  }, [currentTypingWordIndex, testContent?.type, isActive, autoScrollEnabled, scrollToCurrentTypingWord]);
 
   const handleQuestionPaperScroll = useCallback(() => {
     // With Auto-scroll enabled, any manual scroll is treated as a request to
@@ -530,7 +511,7 @@ export default function TypingTestPage() {
   };
 
   // Wrap words once so the question DOM stays stable while the student types.
-  const getStableQuestionContent = () => {
+  const getStableQuestionContent = (activeWordIndex: number, highlightActiveWord: boolean) => {
     if (!testContent || testContent.type !== 'typing') return testContent?.text || '';
 
     // Split by HTML tags, process only text nodes
@@ -559,7 +540,12 @@ export default function TypingTestPage() {
           return segment;
         }
 
-        const wrapped = `<span class="typing-word-marker" data-typing-word-index="${wordIndex}">${segment}</span>`;
+        const isActiveWord = wordIndex === activeWordIndex;
+        const activeClass = isActiveWord ? ' current-word-marker' : '';
+        const activeStyle = isActiveWord && highlightActiveWord
+          ? ' style="background-color: #fbbf24; border-radius: 2px;"'
+          : '';
+        const wrapped = `<span class="typing-word-marker${activeClass}" data-typing-word-index="${wordIndex}"${activeStyle}>${segment}</span>`;
         wordIndex += 1;
         return wrapped;
       }).join('');
@@ -569,8 +555,8 @@ export default function TypingTestPage() {
   };
 
   const questionContent = useMemo(
-    () => getStableQuestionContent(),
-    [testContent?.text, testContent?.type],
+    () => getStableQuestionContent(currentTypingWordIndex, highlighterEnabled),
+    [testContent?.text, testContent?.type, currentTypingWordIndex, highlighterEnabled],
   );
 
   if (isContentLoading) {
