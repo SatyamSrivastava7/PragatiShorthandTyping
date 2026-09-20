@@ -22,6 +22,7 @@ export function scrollActiveMarkerIntoView(
   container: HTMLElement,
   marker: HTMLElement,
   behavior: ScrollBehavior = "smooth",
+  force = false,
 ): void {
   if (container.clientHeight <= 0 || container.scrollHeight <= container.clientHeight) {
     return;
@@ -39,7 +40,14 @@ export function scrollActiveMarkerIntoView(
 
   let targetScrollTop = container.scrollTop;
 
-  if (markerTop < topPadding) {
+  if (force) {
+    const markerHeight = markerBottom - markerTop;
+    const preferredTop = Math.max(
+      topPadding,
+      Math.min(safeBottom - markerHeight, visibleHeight * 0.35),
+    );
+    targetScrollTop += markerTop - preferredTop;
+  } else if (markerTop < topPadding) {
     targetScrollTop += markerTop - topPadding;
   } else if (markerBottom > safeBottom) {
     targetScrollTop += markerBottom - safeBottom;
