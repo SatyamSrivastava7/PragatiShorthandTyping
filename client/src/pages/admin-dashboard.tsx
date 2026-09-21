@@ -124,6 +124,11 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
   throw new Error('Failed after retries');
 }
 
+function formatHighCourtMarks(value: number | string | null | undefined): string {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue.toFixed(1) : "0.0";
+}
+
 // PDF Download Button Component for Pitman Tests
 function PdfDownloadButton({ 
   contentId, 
@@ -1298,14 +1303,10 @@ export default function AdminDashboard() {
 
     const selectedResults = highCourtResults.filter((result) => selectedHighCourtKeys.includes(highCourtResultKey(result)));
     const sortedResults = [...selectedResults].sort((a, b) => b.totalMarks - a.totalMarks);
-    const oneDecimal = (value: number | string | null | undefined) => {
-      const numericValue = Number(value);
-      return Number.isFinite(numericValue) ? numericValue.toFixed(1) : "0.0";
-    };
 
     const theadHtml = `<tr><th>Rank</th><th>Name</th><th>Typing</th><th>Pitman</th><th>Shorthand</th><th>Total</th></tr>`;
     const tbodyHtml = sortedResults.map((result, idx) => {
-      return `<tr><td>${idx + 1}</td><td>${result.studentName}</td><td>${oneDecimal(result.typingMarks)} / 100</td><td>${oneDecimal(result.pitmanMarks)} / 100</td><td>${oneDecimal(result.shorthandMarks)} / 200</td><td><b>${oneDecimal(result.totalMarks)} / 400</b></td></tr>`;
+      return `<tr><td>${idx + 1}</td><td>${result.studentName}</td><td>${formatHighCourtMarks(result.typingMarks)} / 100</td><td>${formatHighCourtMarks(result.pitmanMarks)} / 100</td><td>${formatHighCourtMarks(result.shorthandMarks)} / 200</td><td><b>${formatHighCourtMarks(result.totalMarks)} / 400</b></td></tr>`;
     }).join('');
 
     const printHtml = `<!DOCTYPE html><html><head><title>High Court Results Report</title><style>
@@ -4324,7 +4325,7 @@ export default function AdminDashboard() {
                                 <TableCell>
                                   <div className="text-sm space-y-1">
                                     <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-semibold">
-                                      {result.totalMarks} / 400
+                                      {formatHighCourtMarks(result.totalMarks)} / 400
                                     </span>
                                     <div className="text-xs text-muted-foreground">
                                       {result.complete ? "All papers submitted" : `${[result.typing, result.pitman, result.shorthand].filter(Boolean).length} / 3 papers submitted`}
@@ -4351,7 +4352,7 @@ export default function AdminDashboard() {
                                             <div>
                                               <p className="text-sm text-amber-800">{selectedHighCourtResult.studentName} · Combined total</p>
                                               <p className="text-3xl font-bold text-amber-900">
-                                                {selectedHighCourtResult.totalMarks} <span className="text-base">/ 400</span>
+                                                {formatHighCourtMarks(selectedHighCourtResult.totalMarks)} <span className="text-base">/ 400</span>
                                               </p>
                                             </div>
                                             <Button className="bg-amber-600 hover:bg-amber-700" onClick={() => downloadHighCourtPdf(selectedHighCourtResult)}>
@@ -4365,7 +4366,7 @@ export default function AdminDashboard() {
                                                 <CardHeader className="pb-3">
                                                   <CardTitle className="flex items-center justify-between text-base">
                                                     <span>{paper.label} Test</span>
-                                                    <span className="text-amber-800">{attempt?.marks ?? 0} / {paper.max}</span>
+                                                    <span className="text-amber-800">{formatHighCourtMarks(attempt?.marks ?? 0)} / {paper.max}</span>
                                                   </CardTitle>
                                                   <CardDescription>
                                                     {attempt
