@@ -143,6 +143,42 @@
   background: #555;
 }
 
+/* Keep the typing workspace usable on short desktop viewports. The regular
+   sm/md breakpoints are width-based, but short screens need the same compact
+   chrome even when the browser is wide enough for desktop controls. */
+@media (max-height: 700px) {
+  .typing-test-shell {
+    gap: 0.5rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .typing-test-header {
+    gap: 0.5rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .typing-test-main {
+    gap: 0.5rem !important;
+  }
+
+  .typing-test-question-card {
+    height: 50% !important;
+  }
+
+  .typing-test-section-header {
+    min-height: 30px !important;
+    padding: 0.25rem 0.75rem !important;
+  }
+
+  .typing-test-question-content {
+    padding: 0.5rem !important;
+  }
+
+  .typing-test-footer {
+    padding-bottom: 0 !important;
+  }
+}
+
 /* Mangal Font support */
 @font-face {
   font-family: 'Mangal';

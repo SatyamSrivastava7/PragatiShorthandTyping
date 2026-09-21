@@ -34,9 +34,16 @@ export function scrollActiveMarkerIntoView(
   const markerTop = markerRect.top - containerRect.top;
   const markerBottom = markerRect.bottom - containerRect.top;
   const visibleHeight = container.clientHeight;
-  const topPadding = Math.max(MIN_SCROLL_PADDING, lineHeight * TOP_VISIBLE_LINES);
-  const bottomPadding = Math.max(MIN_SCROLL_PADDING, lineHeight * BOTTOM_VISIBLE_LINES);
-  const safeBottom = visibleHeight - bottomPadding;
+  // On short screens, the normal two-line/three-line window can be taller
+  // than the scroll container itself. If the bounds overlap, the marker can
+  // satisfy the top and bottom correction branches on alternating scroll
+  // events, which makes native smooth scrolling jitter.
+  const requestedTopPadding = Math.max(MIN_SCROLL_PADDING, lineHeight * TOP_VISIBLE_LINES);
+  const requestedBottomPadding = Math.max(MIN_SCROLL_PADDING, lineHeight * BOTTOM_VISIBLE_LINES);
+  const shortViewportPadding = Math.max(MIN_SCROLL_PADDING, visibleHeight * 0.2);
+  const topPadding = Math.min(requestedTopPadding, shortViewportPadding);
+  const bottomPadding = Math.min(requestedBottomPadding, shortViewportPadding);
+  const safeBottom = Math.max(topPadding + (markerBottom - markerTop), visibleHeight - bottomPadding);
 
   let targetScrollTop = container.scrollTop;
 

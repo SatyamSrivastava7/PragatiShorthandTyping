@@ -578,7 +578,10 @@ export default function TypingTestPage() {
 
   return (
     <div
-      className={cn("flex flex-col space-y-4", isFullScreen ? "fixed inset-0 z-[60] p-6" : "p-4")}
+      className={cn(
+        "typing-test-shell flex flex-col space-y-2 sm:space-y-4",
+        isFullScreen ? "fixed inset-0 z-[60] p-2 sm:p-6" : "p-2 sm:p-4",
+      )}
       style={{
         height: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
         maxHeight: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
@@ -589,7 +592,7 @@ export default function TypingTestPage() {
       }}
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm shrink-0 gap-4">
+      <div className="typing-test-header flex items-center justify-between bg-card p-2 sm:p-4 rounded-lg border shadow-sm shrink-0 gap-2 sm:gap-4 min-h-0">
         <div className="flex items-center gap-4">
           {!isFullScreen && (
             <Link href={`/student?tab=${testContent.type === 'typing' ? 'typing_tests' : testContent.type === 'shorthand' ? 'shorthand_tests' : testContent.type === 'pitman' ? 'pitman_tests' : 'allahabad-hc_tests'}`}>
@@ -598,9 +601,9 @@ export default function TypingTestPage() {
               </Button>
             </Link>
           )}
-          <div>
-            <h2 className="text-xl font-bold truncate max-w-[200px] md:max-w-md">{testContent.title}</h2>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-xl font-bold truncate max-w-[180px] sm:max-w-[200px] md:max-w-md">{testContent.title}</h2>
+            <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
                <span className="capitalize">{testContent.type} Test</span>
                <span>•</span>
                <span className="capitalize">{testContent.language}</span>
@@ -610,7 +613,7 @@ export default function TypingTestPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleFullScreen} title="Toggle Full Screen">
               {isFullScreen ? <Minimize size={20}/> : <Maximize size={20}/>}
@@ -686,7 +689,10 @@ export default function TypingTestPage() {
       </div>
 
       {/* Main Workspace - Vertical Layout */}
-      <div className="flex-1 flex flex-col gap-6 min-h-0">
+      <div className={cn(
+        "typing-test-main flex-1 flex flex-col min-h-0",
+        testContent.type === "typing" ? "gap-2 sm:gap-3" : "gap-3 sm:gap-6",
+      )}>
         
         {/* Shorthand Audio Controls - More Visible for All Devices */}
         {testContent.type === 'shorthand' && (video60Available || video80Available || video100Available || video120Available) && (
@@ -752,11 +758,11 @@ export default function TypingTestPage() {
 
         {/* Original Content - Hidden for Shorthand */}
         {testContent.type === 'typing' && (
-           <Card className="flex flex-col h-[40%] overflow-hidden border-2 shadow-sm shrink-0">
-            <CardHeader className="py-2 bg-muted/50 border-b min-h-[40px] px-4">
+           <Card className="typing-test-question-card flex flex-col h-[48%] min-h-0 overflow-hidden border-2 shadow-sm shrink-0">
+             <CardHeader className="typing-test-section-header py-1 sm:py-2 bg-muted/50 border-b min-h-[30px] sm:min-h-[40px] px-3 sm:px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Original Text</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef} onScroll={handleQuestionPaperScroll}>
+             <CardContent className="typing-test-question-content flex-1 min-h-0 p-2 sm:p-4 overflow-auto bg-white dark:bg-zinc-900 select-none custom-scrollbar relative" ref={originalTextRef} onScroll={handleQuestionPaperScroll}>
               <div 
                 className={cn("leading-relaxed select-none", fontClass)}
                 style={{ fontSize: `${fontSize}px` }}
@@ -768,7 +774,7 @@ export default function TypingTestPage() {
 
         {/* Typing Area */}
         <Card className={cn("flex flex-col overflow-hidden border-2 shadow-sm flex-1", testContent.type === 'shorthand' ? "h-full" : "")}>
-          <CardHeader className="py-2 bg-muted/50 border-b flex flex-row justify-between items-center min-h-[40px] px-4">
+          <CardHeader className="typing-test-section-header py-1 sm:py-2 bg-muted/50 border-b flex flex-row justify-between items-center min-h-[30px] sm:min-h-[40px] px-3 sm:px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Input</CardTitle>
              {!isActive && !isFinished && (
                <div className="text-xs text-blue-600 font-medium animate-bounce">Click "Start" below</div>
@@ -817,7 +823,7 @@ export default function TypingTestPage() {
       </div>
       
       {/* Footer Controls */}
-      <div className="shrink-0 flex justify-end gap-3 pb-2">
+      <div className="typing-test-footer shrink-0 flex justify-end gap-2 sm:gap-3 pb-0 sm:pb-2">
          {isActive && (
             <Button variant="destructive" onClick={finishTest} className="gap-2 shadow-lg">
               <Save size={16} /> Submit Test Early
