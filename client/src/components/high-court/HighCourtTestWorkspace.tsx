@@ -48,6 +48,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const [highlighterEnabled, setHighlighterEnabled] = useState(true);
   const [result, setResult] = useState<{ mistakes: string | number; halfMistakes: string | number; marks: string | number } | null>(null);
   const questionPaperRef = useRef<HTMLDivElement>(null);
+  const autoScrollLockRef = useRef(false);
+  const autoScrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const id = Number(params?.id);
@@ -179,17 +181,35 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     return hasTrailingWhitespace ? typedWords.length : Math.max(0, typedWords.length - 1);
   }, [typedText]);
 
-  useLayoutEffect(() => {
+  const scrollToCurrentTypingWord = useCallback((force = false, bypassLock = false) => {
     if (expectedType !== "typing" || !autoScrollEnabled || !active || !questionPaperRef.current) return;
+    if (autoScrollLockRef.current && !bypassLock) return;
 
     const container = questionPaperRef.current;
     const marker = container.querySelector(".current-word-marker") as HTMLElement | null;
     if (!marker) return;
 
-    // Run before paint. The marker is rebuilt on every typed character, so a
-    // post-paint animation makes the question paper visibly vibrate.
-    scrollActiveMarkerIntoView(container, marker, "auto");
-  }, [active, autoScrollEnabled, currentTypingWordIndex, expectedType, fontSize, highlighterEnabled, test]);
+    autoScrollLockRef.current = true;
+    scrollActiveMarkerIntoView(container, marker, "smooth", force);
+    if (autoScrollUnlockTimerRef.current) {
+      clearTimeout(autoScrollUnlockTimerRef.current);
+    }
+    autoScrollUnlockTimerRef.current = setTimeout(() => {
+      autoScrollLockRef.current = false;
+      autoScrollUnlockTimerRef.current = null;
+    }, 700);
+  }, [active, autoScrollEnabled, expectedType]);
+
+  useLayoutEffect(() => {
+    if (expectedType !== "typing" || !autoScrollEnabled || !active || !questionPaperRef.current) return;
+
+    // Run before paint so the marker does not visibly lag behind the response.
+    scrollToCurrentTypingWord(false, true);
+  }, [active, autoScrollEnabled, currentTypingWordIndex, expectedType, fontSize, highlighterEnabled, test, scrollToCurrentTypingWord]);
+
+  const handleQuestionPaperScroll = useCallback(() => {
+    scrollToCurrentTypingWord(true);
+  }, [scrollToCurrentTypingWord]);
 
   const getHighlightedTypingContent = (currentIndex: number) => {
     if (!test) return "";
@@ -282,9 +302,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   }
 
   return (
-    <div className={`high-court-workspace ${isFullScreen ? "fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 p-3 md:p-4" : "h-full overflow-hidden bg-slate-100 p-3 md:p-4"}`}>
-      <div className="mx-auto flex h-full min-h-0 max-w-7xl flex-col gap-3">
-        <div className={`flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r ${colors[expectedType]} p-4 text-white shadow-lg`}>
+    <div className={`high-court-workspace ${expectedType === "typing" ? "typing-test-shell" : ""} ${isFullScreen ? `fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}` : `h-full overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}`}`}>
+      <div className={`mx-auto flex h-full min-h-0 max-w-7xl flex-col ${expectedType === "typing" ? "typing-test-main gap-2 sm:gap-3" : "gap-3"}`}>
+        <div className={`${expectedType === "typing" ? "typing-test-header gap-2 p-2 sm:p-4" : "gap-3 p-4"} flex shrink-0 flex-wrap items-center justify-between rounded-2xl bg-gradient-to-r ${colors[expectedType]} text-white shadow-lg`}>
           <div className="flex items-center gap-3">
             <Link href="/student?tab=high-court_tests"><Button variant="secondary" size="icon" aria-label="Back to High Court"><ArrowLeft className="h-4 w-4" /></Button></Link>
             <div>
@@ -381,8 +401,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             )}
 
             {expectedType !== "shorthand" && (
-            <Card className={`flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md ${expectedType === "typing" ? "h-[44%] shrink-0" : ""}`}>
-                <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-3">
+             <Card className={`${expectedType === "typing" ? "typing-test-question-card" : ""} flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md ${expectedType === "typing" ? "h-[48%] shrink-0" : ""}`}>
+                 <CardHeader className={`${expectedType === "typing" ? "typing-test-section-header py-1 sm:py-2 px-3 sm:px-4" : "py-3"} flex shrink-0 flex-row items-center justify-between border-b bg-slate-50`}>
                   <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
                   {expectedType === "pitman" && (
                     <div className="flex items-center gap-1">
@@ -411,11 +431,12 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                   )}
                 </CardHeader>
               <CardContent
-                className={`min-h-0 flex-1 bg-white p-4 dark:bg-zinc-900 ${
+                 className={`${expectedType === "typing" ? "typing-test-question-content p-2 sm:p-4" : "p-4"} min-h-0 flex-1 bg-white dark:bg-zinc-900 ${
                   expectedType === "pitman" ? "overflow-hidden" : "overflow-auto"
                 }`}
                 id="high-court-question-paper"
                 ref={questionPaperRef}
+                 onScroll={expectedType === "typing" ? handleQuestionPaperScroll : undefined}
               >
                 {expectedType === "pitman" && pdfUrl ? (
                   <HighCourtPdfViewer source={pdfUrl} zoom={pdfZoom} />
@@ -434,8 +455,8 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             </Card>
             )}
 
-            <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200 shadow-md">
-              <CardHeader className="flex shrink-0 flex-row items-center justify-between border-b bg-slate-50 py-3">
+             <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200 shadow-md">
+               <CardHeader className={`${expectedType === "typing" ? "typing-test-section-header py-1 sm:py-2 px-3 sm:px-4" : "py-3"} flex shrink-0 flex-row items-center justify-between border-b bg-slate-50`}>
                 <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Your response</CardTitle>
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
