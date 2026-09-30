@@ -43,6 +43,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const [pdfError, setPdfError] = useState("");
   const [pdfZoom, setPdfZoom] = useState(100);
   const [fontSize, setFontSize] = useState(18);
+  const [isShortViewport, setIsShortViewport] = useState(
+    () => typeof window !== "undefined" && window.innerHeight <= 700,
+  );
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [highlighterEnabled, setHighlighterEnabled] = useState(true);

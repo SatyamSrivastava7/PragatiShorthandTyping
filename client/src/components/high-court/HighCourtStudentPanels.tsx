@@ -12,22 +12,61 @@ const papers = HIGH_COURT_PAPERS;
 
 const routeFor = (type: HighCourtTestType, id: number) => `/high-court/${type}/${id}`;
 
+const getReturnSetId = () => {
+  if (typeof window === "undefined") return null;
+  const value = Number(new URLSearchParams(window.location.search).get("highCourtSetId"));
+  return Number.isInteger(value) && value > 0 ? value : null;
+};
+
+const saveReturnSetId = (setId: number | null) => {
+  const params = new URLSearchParams(window.location.search);
+  if (setId === null) params.delete("highCourtSetId");
+  else params.set("highCourtSetId", String(setId));
+  const query = params.toString();
+  window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+};
+
 export function HighCourtStudentArea() {
   const [sets, setSets] = useState<HighCourtTestSet[]>([]);
   const [selected, setSelected] = useState<HighCourtTestSet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restoringSelected, setRestoringSelected] = useState(() => getReturnSetId() !== null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     highCourtApi.getTestSets({ limit: 6, offset: 0 })
       .then((page) => {
+        if (cancelled) return;
         setSets(page.items);
         setHasMore(page.hasMore);
       })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "Unable to load High Court folders."))
-      .finally(() => setLoading(false));
+      .catch((reason) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "Unable to load High Court folders.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    const returnSetId = getReturnSetId();
+    if (returnSetId !== null) {
+      highCourtApi.getTestSet(returnSetId)
+        .then((testSet) => {
+          if (!cancelled) setSelected(testSet);
+        })
+        .catch((reason) => {
+          if (!cancelled) setError(reason instanceof Error ? reason.message : "Unable to restore this High Court folder.");
+        })
+        .finally(() => {
+          if (!cancelled) setRestoringSelected(false);
+        });
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadMore = async () => {
@@ -43,14 +82,14 @@ export function HighCourtStudentArea() {
     }
   };
 
-  if (loading) return <div className="high-court-student-area flex justify-center p-16"><Loader2 className="h-7 w-7 animate-spin text-amber-600" /></div>;
+  if (loading || restoringSelected) return <div className="high-court-student-area flex justify-center p-16"><Loader2 className="h-7 w-7 animate-spin text-amber-600" /></div>;
   if (error) return <div className="high-court-student-area rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">{error}</div>;
 
   if (selected) {
     return (
       <section className="high-court-student-area space-y-5">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="icon" onClick={() => setSelected(null)} aria-label="All High Court folders"><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={() => { setSelected(null); saveReturnSetId(null); }} aria-label="All High Court folders"><ChevronLeft className="h-4 w-4" /></Button>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-amber-700">High Court examination folder</p>
             <h2 className="text-xl font-bold text-slate-900">{selected.title}</h2>
@@ -108,7 +147,7 @@ export function HighCourtStudentArea() {
           {sets.map((set) => <Card key={set.id} className="group border-amber-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
             <CardHeader><div className="mb-3 flex items-center justify-between"><div className="rounded-lg bg-amber-100 p-2"><Award className="h-5 w-5 text-amber-700" /></div><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">English</span></div><CardTitle className="leading-snug">{set.title}</CardTitle><CardDescription className="flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{new Date(`${set.dateFor}T00:00:00`).toLocaleDateString()}</CardDescription></CardHeader>
             <CardContent><div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold text-slate-600"><span className="rounded bg-blue-50 p-2">Typing<br /><b>100</b></span><span className="rounded bg-rose-50 p-2">Pitman<br /><b>100</b></span><span className="rounded bg-orange-50 p-2">Shorthand<br /><b>200</b></span></div></CardContent>
-            <CardFooter><Button onClick={() => highCourtApi.getTestSet(set.id).then(setSelected).catch((reason) => setError(reason instanceof Error ? reason.message : "Unable to open this folder."))} className="w-full bg-amber-600 hover:bg-amber-700">Open folder</Button></CardFooter>
+            <CardFooter><Button onClick={() => highCourtApi.getTestSet(set.id).then((testSet) => { saveReturnSetId(set.id); setSelected(testSet); }).catch((reason) => setError(reason instanceof Error ? reason.message : "Unable to open this folder."))} className="w-full bg-amber-600 hover:bg-amber-700">Open folder</Button></CardFooter>
           </Card>)}
         </div>
       )}
