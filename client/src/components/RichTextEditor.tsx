@@ -59,6 +59,7 @@ export function RichTextEditor({
   editorId,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRef = useRef<Range | null>(null);
   const isEditingRef = useRef(false);
   // Font size is stored as the literal pixel value ("12", "14", "18", ...)
   // and applied directly to the editor element via inline CSS. We deliberately
@@ -119,12 +120,20 @@ export function RichTextEditor({
     const handler = () => {
       const sel = window.getSelection();
       if (sel && editorRef.current && editorRef.current.contains(sel.anchorNode)) {
+        savedSelectionRef.current = sel.getRangeAt(0).cloneRange();
         updateActiveFormats();
       }
     };
     document.addEventListener("selectionchange", handler);
     return () => document.removeEventListener("selectionchange", handler);
   }, []);
+
+  const rememberSelection = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && editorRef.current?.contains(selection.anchorNode)) {
+      savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+    }
+  };
 
   /** Place a collapsed caret at the end of the editor if the selection is
    *  outside it. Needed when user clicks a formatting button before ever
@@ -134,14 +143,34 @@ export function RichTextEditor({
     const sel = window.getSelection();
     const hasRangeInEditor =
       sel && sel.rangeCount > 0 && editorRef.current.contains(sel.anchorNode);
-    if (hasRangeInEditor) return;
+    if (hasRangeInEditor) {
+      rememberSelection();
+      return;
+    }
     editorRef.current.focus();
+    const savedRange = savedSelectionRef.current;
+    if (savedRange && editorRef.current.contains(savedRange.commonAncestorContainer)) {
+      const restoredSelection = window.getSelection();
+      restoredSelection?.removeAllRanges();
+      restoredSelection?.addRange(savedRange);
+      return;
+    }
     const range = document.createRange();
     range.selectNodeContents(editorRef.current);
     range.collapse(false);
     const s = window.getSelection();
     s?.removeAllRanges();
     s?.addRange(range);
+    rememberSelection();
+  };
+
+  const syncEditorValue = () => {
+    if (!editorRef.current) return;
+    isEditingRef.current = true;
+    onChange(editorRef.current.innerHTML);
+    queueMicrotask(() => {
+      isEditingRef.current = false;
+    });
   };
 
   const execCommand = (command: string, value?: string) => {
@@ -151,19 +180,16 @@ export function RichTextEditor({
     // "click bold then type" Word-style behavior because the browser loses
     // the pending format mode that execCommand sets on a collapsed caret.
     document.execCommand(command, false, value);
+    rememberSelection();
+    syncEditorValue();
     updateActiveFormats();
   };
 
   const handleInput = () => {
     if (!editorRef.current) return;
-    isEditingRef.current = true;
-    onChange(editorRef.current.innerHTML);
+    syncEditorValue();
+    rememberSelection();
     updateActiveFormats();
-    // Release the guard on the next microtask, after React's re-render from
-    // onChange has been processed by the value-effect above.
-    queueMicrotask(() => {
-      isEditingRef.current = false;
-    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -174,6 +200,8 @@ export function RichTextEditor({
     if ((e.ctrlKey || e.metaKey) && e.key === "z") {
       e.preventDefault();
       document.execCommand("undo");
+      syncEditorValue();
+      rememberSelection();
       updateActiveFormats();
     } else if (
       (e.ctrlKey || e.metaKey) &&
@@ -181,6 +209,8 @@ export function RichTextEditor({
     ) {
       e.preventDefault();
       document.execCommand("redo");
+      syncEditorValue();
+      rememberSelection();
       updateActiveFormats();
     }
   };
@@ -235,12 +265,16 @@ export function RichTextEditor({
       type="button"
       variant="outline"
       size="sm"
+      aria-pressed={isActive}
       className={cn(
         "h-8 w-8 p-0",
         isActive && "bg-primary text-primary-foreground hover:bg-primary/90 border-primary"
       )}
       onMouseDown={(e) => {
+        rememberSelection();
         e.preventDefault();
+      }}
+      onClick={() => {
         execCommand(command, value);
         // Update active formats after command executes
         setTimeout(() => updateActiveFormats(), 0);
@@ -273,7 +307,7 @@ export function RichTextEditor({
           {formatButton(
             <Underline className="h-4 w-4" />,
             "underline",
-            "Underline (Ctrl+U)",
+            "Underline / remove underline (Ctrl+U)",
             activeFormats.underline
           )}
         </div>
@@ -360,7 +394,14 @@ export function RichTextEditor({
             onChange(editorRef.current.innerHTML);
           }
         }}
-        onMouseUp={() => updateActiveFormats()}
+        onMouseUp={() => {
+          rememberSelection();
+          updateActiveFormats();
+        }}
+        onKeyUp={() => {
+          rememberSelection();
+          updateActiveFormats();
+        }}
         contentEditable={!disabled}
         spellCheck={spellCheck}
         aria-disabled={disabled}

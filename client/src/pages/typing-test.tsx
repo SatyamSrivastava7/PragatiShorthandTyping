@@ -69,6 +69,7 @@ export default function TypingTestPage() {
   const startTimeRef = useRef<number | null>(null);
   const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
+  const testShellRef = useRef<HTMLDivElement>(null);
   const autoScrollLockRef = useRef(false);
   const autoScrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -470,15 +471,40 @@ export default function TypingTestPage() {
     // For shorthand tests - allow free cursor movement
   };
 
-  const toggleFullScreen = () => {
-     if (!document.fullscreenElement) {
-       document.documentElement.requestFullscreen().then(() => setIsFullScreen(true));
-     } else {
-       if (document.exitFullscreen) {
-         document.exitFullscreen().then(() => setIsFullScreen(false));
-       }
-     }
+  const toggleFullScreen = async () => {
+    const testShell = testShellRef.current;
+    if (isFullScreen) {
+      if (document.fullscreenElement === testShell && document.exitFullscreen) {
+        try {
+          await document.exitFullscreen();
+        } catch {
+          setIsFullScreen(false);
+        }
+      } else {
+        setIsFullScreen(false);
+      }
+      return;
+    }
+
+    try {
+      if (testShell?.requestFullscreen) {
+        await testShell.requestFullscreen();
+        setIsFullScreen(true);
+        return;
+      }
+    } catch {
+      // Fall back to the in-page focused layout when Fullscreen API is blocked.
+    }
+    setIsFullScreen(true);
   };
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsFullScreen(document.fullscreenElement === testShellRef.current);
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
 
   // Video functionality - Get the video URL based on selected WPM
   const getSelectedVideoUrl = () => {
@@ -578,13 +604,12 @@ export default function TypingTestPage() {
 
   return (
     <div
+      ref={testShellRef}
       className={cn(
-        "typing-test-shell flex flex-col space-y-2 sm:space-y-4",
-        isFullScreen ? "fixed inset-0 z-[60] p-2 sm:p-6" : "p-2 sm:p-4",
+        "typing-test-shell regular-typing-page-shell flex flex-col space-y-2 sm:space-y-4",
+        isFullScreen ? "test-fullscreen-shell fixed inset-0 z-[60] p-2 sm:p-6" : "p-2 sm:p-4",
       )}
       style={{
-        height: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
-        maxHeight: isFullScreen ? '100vh' : 'calc(100vh - 64px)',
         overflow: 'hidden',
         backgroundColor: '#ffffff',
         position: isFullScreen ? 'fixed' : 'relative',

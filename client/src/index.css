@@ -143,6 +143,33 @@
   background: #555;
 }
 
+.test-page-layout {
+  height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  .test-page-layout {
+    height: 100dvh;
+  }
+}
+
+.regular-typing-page-shell {
+  height: 100%;
+  max-height: 100%;
+}
+
+.regular-typing-page-shell.test-fullscreen-shell {
+  height: 100vh;
+  max-height: 100vh;
+}
+
+@supports (height: 100dvh) {
+  .regular-typing-page-shell.test-fullscreen-shell {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+}
+
 /* Keep the typing workspace usable on short desktop viewports. The regular
    sm/md breakpoints are width-based, but short screens need the same compact
    chrome even when the browser is wide enough for desktop controls. */

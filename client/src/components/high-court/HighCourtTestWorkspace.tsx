@@ -47,6 +47,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [highlighterEnabled, setHighlighterEnabled] = useState(true);
   const [result, setResult] = useState<{ mistakes: string | number; halfMistakes: string | number; marks: string | number } | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const questionPaperRef = useRef<HTMLDivElement>(null);
   const autoScrollLockRef = useRef(false);
   const autoScrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -280,6 +281,42 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
 
   const formatTime = `${Math.floor(timeLeft / 60).toString().padStart(2, "0")}:${(timeLeft % 60).toString().padStart(2, "0")}`;
 
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setIsFullScreen(document.fullscreenElement === workspaceRef.current);
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
+
+  const toggleFullScreen = async () => {
+    const workspace = workspaceRef.current;
+    if (isFullScreen) {
+      if (document.fullscreenElement === workspace && document.exitFullscreen) {
+        try {
+          await document.exitFullscreen();
+        } catch {
+          setIsFullScreen(false);
+        }
+      } else {
+        setIsFullScreen(false);
+      }
+      return;
+    }
+
+    try {
+      if (workspace?.requestFullscreen) {
+        await workspace.requestFullscreen();
+        setIsFullScreen(true);
+        return;
+      }
+    } catch {
+      // Keep the in-page fullscreen layout as a fallback for browsers that
+      // do not allow the Fullscreen API.
+    }
+    setIsFullScreen(true);
+  };
+
   if (loading) {
     return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-600" /></div>;
   }
@@ -302,7 +339,11 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   }
 
   return (
-    <div className={`high-court-workspace ${expectedType === "typing" ? "typing-test-shell" : ""} ${isFullScreen ? `fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}` : `h-full overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}`}`}>
+    <div
+      ref={workspaceRef}
+      className={`high-court-workspace ${expectedType === "typing" ? "typing-test-shell" : ""} ${isFullScreen ? `fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}` : `h-full overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}`}`}
+      style={isFullScreen ? { height: "100dvh" } : undefined}
+    >
       <div className={`mx-auto flex h-full min-h-0 max-w-7xl flex-col ${expectedType === "typing" ? "typing-test-main gap-2 sm:gap-3" : "gap-3"}`}>
         <div className={`${expectedType === "typing" ? "typing-test-header gap-2 p-2 sm:p-4" : "gap-3 p-4"} flex shrink-0 flex-wrap items-center justify-between rounded-2xl bg-gradient-to-r ${colors[expectedType]} text-white shadow-lg`}>
           <div className="flex items-center gap-3">
@@ -314,7 +355,13 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             </div>
           </div>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 md:gap-3">
-            <Button variant="secondary" size="icon" onClick={() => setIsFullScreen((value) => !value)} title="Toggle full screen">
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => void toggleFullScreen()}
+              title={isFullScreen ? "Exit full screen" : "Enter full screen"}
+              aria-label={isFullScreen ? "Exit full screen" : "Enter full screen"}
+            >
               {isFullScreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             </Button>
             <>
@@ -376,7 +423,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
         ) : (
           <div className={expectedType !== "pitman"
              ? "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
-             : "grid min-h-0 flex-1 gap-3 overflow-hidden sm:grid-cols-2"}
+             : "grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 overflow-hidden sm:grid-cols-2"}
           >
             {expectedType === "shorthand" && (
               <Card className="shrink-0 overflow-hidden border-orange-200 shadow-md">
@@ -489,9 +536,9 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     style={{ fontSize: `${fontSize}px` }}
                   />
                 )}
-                <div className="flex shrink-0 justify-end gap-3 border-t bg-slate-50 p-3">
-                  {!active ? <Button onClick={start} className={`bg-gradient-to-r ${colors[expectedType]}`}>Start Test</Button> : (
-                    <Button onClick={() => void submit()} disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
+                <div className="relative z-10 flex min-h-14 shrink-0 justify-end gap-3 border-t bg-slate-50 p-3">
+                  {!active ? <Button onClick={start} className={`min-h-10 bg-gradient-to-r ${colors[expectedType]}`} aria-label={`Start High Court ${labels[expectedType]}`}>Start Test</Button> : (
+                    <Button onClick={() => void submit()} disabled={submitting} className="min-h-10 bg-emerald-600 hover:bg-emerald-700" aria-label={`Submit High Court ${labels[expectedType]} paper`}>
                       {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Submit paper
                     </Button>
                   )}
