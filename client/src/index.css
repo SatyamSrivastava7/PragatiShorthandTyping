@@ -206,6 +206,133 @@
   }
 }
 
+@media (max-height: 700px) {
+  .high-court-workspace {
+    padding: 0.5rem !important;
+  }
+
+  .high-court-workspace .high-court-main {
+    gap: 0.4rem !important;
+  }
+
+  .high-court-workspace .high-court-assessment-header {
+    gap: 0.35rem !important;
+    padding: 0.5rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .high-court-workspace .high-court-assessment-title {
+    gap: 0.5rem !important;
+  }
+
+  .high-court-workspace .high-court-assessment-kicker {
+    font-size: 0.6rem !important;
+    line-height: 0.85rem !important;
+  }
+
+  .high-court-workspace .high-court-assessment-name {
+    font-size: 1rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .high-court-workspace .high-court-assessment-meta {
+    font-size: 0.68rem !important;
+    line-height: 1rem !important;
+  }
+
+  .high-court-workspace .high-court-header-controls {
+    gap: 0.35rem !important;
+  }
+
+  .high-court-workspace .high-court-font-control {
+    gap: 0.3rem !important;
+    padding: 0.25rem 0.4rem !important;
+  }
+
+  .high-court-workspace .high-court-header-toggle {
+    height: 1.9rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  .high-court-workspace .high-court-header-toggle-label {
+    display: none;
+  }
+
+  .high-court-workspace .high-court-header-toggle svg {
+    margin-right: 0 !important;
+  }
+
+  .high-court-workspace .high-court-timer {
+    padding: 0.35rem 0.55rem !important;
+    border-radius: 0.65rem !important;
+  }
+
+  .high-court-workspace .high-court-timer-label {
+    font-size: 0.55rem !important;
+    line-height: 0.8rem !important;
+  }
+
+  .high-court-workspace .high-court-timer-value {
+    font-size: 1.15rem !important;
+    line-height: 1.25rem !important;
+  }
+
+  .high-court-workspace .high-court-timer-value svg {
+    width: 0.9rem !important;
+    height: 0.9rem !important;
+    margin-right: 0.25rem !important;
+  }
+
+  .high-court-workspace .high-court-panel {
+    border-radius: 0.6rem !important;
+  }
+
+  .high-court-workspace .high-court-panel-header {
+    min-height: 2rem !important;
+    padding: 0.35rem 0.6rem !important;
+  }
+
+  .high-court-workspace .high-court-panel-header h3 {
+    font-size: 0.72rem !important;
+    line-height: 1rem !important;
+  }
+
+  .high-court-workspace .high-court-question-content {
+    padding: 0.35rem !important;
+  }
+
+  .high-court-workspace .high-court-question-content > div,
+  .high-court-workspace .high-court-question-content article {
+    line-height: 1.35 !important;
+  }
+
+  .high-court-workspace .high-court-response-area {
+    padding: 0.5rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .high-court-workspace .high-court-action-bar {
+    min-height: 2.75rem !important;
+    padding: 0.35rem 0.5rem !important;
+  }
+
+  .high-court-workspace .high-court-action-bar button {
+    min-height: 2.25rem !important;
+  }
+
+  .high-court-workspace .typing-test-question-card {
+    height: 46% !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .high-court-pitman-layout {
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
 /* Mangal Font support */
 @font-face {
   font-family: 'Mangal';

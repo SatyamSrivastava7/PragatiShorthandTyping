@@ -54,6 +54,15 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const questionPaperRef = useRef<HTMLDivElement>(null);
   const autoScrollLockRef = useRef(false);
   const autoScrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const effectiveFontSize = isShortViewport ? Math.min(fontSize, 16) : fontSize;
+  const effectivePdfZoom = isShortViewport ? Math.min(pdfZoom, 90) : pdfZoom;
+
+  useEffect(() => {
+    const updateViewportHeight = () => setIsShortViewport(window.innerHeight <= 700);
+    updateViewportHeight();
+    window.addEventListener("resize", updateViewportHeight);
+    return () => window.removeEventListener("resize", updateViewportHeight);
+  }, []);
 
   useEffect(() => {
     const id = Number(params?.id);
@@ -209,7 +218,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
 
     // Run before paint so the marker does not visibly lag behind the response.
     scrollToCurrentTypingWord(false, true);
-  }, [active, autoScrollEnabled, currentTypingWordIndex, expectedType, fontSize, highlighterEnabled, test, scrollToCurrentTypingWord]);
+  }, [active, autoScrollEnabled, currentTypingWordIndex, expectedType, effectiveFontSize, highlighterEnabled, test, scrollToCurrentTypingWord]);
 
   const handleQuestionPaperScroll = useCallback(() => {
     scrollToCurrentTypingWord(true);
@@ -277,12 +286,19 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
   const renderTypingQuestion = () => (
     <div
       className="max-w-none leading-relaxed text-slate-800 [&_div]:my-0 [&_p]:my-0 [&_pre]:m-0 [&_pre]:whitespace-pre-wrap"
-      style={{ fontSize, textAlign: "justify" }}
+      style={{ fontSize: effectiveFontSize, textAlign: "justify" }}
       dangerouslySetInnerHTML={{ __html: typingQuestionHtml }}
     />
   );
 
   const formatTime = `${Math.floor(timeLeft / 60).toString().padStart(2, "0")}:${(timeLeft % 60).toString().padStart(2, "0")}`;
+  const requestedSetId = typeof window === "undefined"
+    ? NaN
+    : Number(new URLSearchParams(window.location.search).get("highCourtSetId"));
+  const returnSetId = test?.testSetId || (Number.isInteger(requestedSetId) && requestedSetId > 0 ? requestedSetId : null);
+  const backToFolderHref = returnSetId
+    ? `/student?tab=high-court_tests&highCourtSetId=${returnSetId}`
+    : "/student?tab=high-court_tests";
 
   useEffect(() => {
     const syncFullscreenState = () => {
@@ -330,7 +346,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
         <AlertCircle className="mb-3 h-10 w-10 text-red-600" />
         <p className="font-semibold text-slate-900">Unable to load High Court test</p>
         <p className="mt-1 text-sm text-slate-600">{loadError || "This test is unavailable."}</p>
-        <Link href="/student?tab=high-court_tests">
+        <Link href={backToFolderHref}>
           <Button className="mt-5">Back to High Court tests</Button>
         </Link>
       </div>
@@ -347,17 +363,17 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
       className={`high-court-workspace ${expectedType === "typing" ? "typing-test-shell" : ""} ${isFullScreen ? `fixed inset-0 z-[60] h-screen overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}` : `h-full overflow-hidden bg-slate-100 ${expectedType === "typing" ? "p-2 sm:p-4" : "p-3 md:p-4"}`}`}
       style={isFullScreen ? { height: "100dvh" } : undefined}
     >
-      <div className={`mx-auto flex h-full min-h-0 max-w-7xl flex-col ${expectedType === "typing" ? "typing-test-main gap-2 sm:gap-3" : "gap-3"}`}>
-        <div className={`${expectedType === "typing" ? "typing-test-header gap-2 p-2 sm:p-4" : "gap-3 p-4"} flex shrink-0 flex-wrap items-center justify-between rounded-2xl bg-gradient-to-r ${colors[expectedType]} text-white shadow-lg`}>
-          <div className="flex items-center gap-3">
-            <Link href="/student?tab=high-court_tests"><Button variant="secondary" size="icon" aria-label="Back to High Court"><ArrowLeft className="h-4 w-4" /></Button></Link>
+      <div className={`high-court-main mx-auto flex h-full min-h-0 max-w-7xl flex-col ${expectedType === "typing" ? "typing-test-main gap-2 sm:gap-3" : "gap-3"}`}>
+        <div className={`high-court-assessment-header ${expectedType === "typing" ? "typing-test-header gap-2 p-2 sm:p-4" : "gap-3 p-4"} flex shrink-0 flex-wrap items-center justify-between rounded-2xl bg-gradient-to-r ${colors[expectedType]} text-white shadow-lg`}>
+          <div className="high-court-assessment-title flex min-w-0 items-center gap-3">
+            <Link href={backToFolderHref}><Button variant="secondary" size="icon" aria-label="Back to this High Court folder"><ArrowLeft className="h-4 w-4" /></Button></Link>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">High Court Assessment</p>
-              <h1 className="text-xl font-bold">{test.title}</h1>
-              <p className="text-sm text-white/80">{labels[expectedType]} · {test.duration} minutes</p>
+              <p className="high-court-assessment-kicker text-xs font-semibold uppercase tracking-wider text-white/70">High Court Assessment</p>
+              <h1 className="high-court-assessment-name text-xl font-bold">{test.title}</h1>
+              <p className="high-court-assessment-meta text-sm text-white/80">{labels[expectedType]} · {test.duration} minutes</p>
             </div>
           </div>
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 md:gap-3">
+          <div className="high-court-header-controls flex min-w-0 flex-wrap items-center justify-end gap-2 md:gap-3">
             <Button
               variant="secondary"
               size="icon"
@@ -368,18 +384,18 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
               {isFullScreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
             </Button>
             <>
-              <div className="flex items-center gap-2 rounded-lg bg-white/15 px-2 py-1.5 sm:px-3 sm:py-2">
+              <div className="high-court-font-control flex items-center gap-2 rounded-lg bg-white/15 px-2 py-1.5 sm:px-3 sm:py-2">
                 <Type className="h-4 w-4" />
                 <Slider
-                  value={[fontSize]}
+                   value={[effectiveFontSize]}
                   onValueChange={(value) => setFontSize(value[0])}
                   min={12}
-                  max={32}
+                   max={isShortViewport ? 16 : 32}
                   step={2}
                   className="w-16 sm:w-24"
                   aria-label="Response font size"
                 />
-                <span className="w-8 text-xs">{fontSize}px</span>
+                 <span className="w-8 text-xs">{effectiveFontSize}px</span>
               </div>
               {expectedType === "typing" && (
               <>
@@ -388,23 +404,29 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                   variant={autoScrollEnabled ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => setAutoScrollEnabled((value) => !value)}
+                  aria-label={`Auto-scroll ${autoScrollEnabled ? "on" : "off"}`}
+                  title={`Auto-scroll ${autoScrollEnabled ? "on" : "off"}`}
+                  className="high-court-header-toggle"
                 >
-                  <ArrowDown className="mr-2 h-4 w-4" />Auto-scroll {autoScrollEnabled ? "ON" : "OFF"}
+                  <ArrowDown className="mr-2 h-4 w-4" /><span className="high-court-header-toggle-label">Auto-scroll {autoScrollEnabled ? "ON" : "OFF"}</span>
                 </Button>
                 <Button
                   type="button"
                   variant={highlighterEnabled ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => setHighlighterEnabled((value) => !value)}
+                  aria-label={`Highlight ${highlighterEnabled ? "on" : "off"}`}
+                  title={`Highlight ${highlighterEnabled ? "on" : "off"}`}
+                  className="high-court-header-toggle"
                 >
-                  <Type className="mr-2 h-4 w-4" />Highlight {highlighterEnabled ? "ON" : "OFF"}
+                  <Type className="mr-2 h-4 w-4" /><span className="high-court-header-toggle-label">Highlight {highlighterEnabled ? "ON" : "OFF"}</span>
                 </Button>
               </>
               )}
             </>
-            <div className="rounded-xl bg-white/15 px-5 py-3 text-center backdrop-blur">
-              <p className="text-xs font-semibold uppercase tracking-wide text-white/80">Time left</p>
-              <p className="font-mono text-3xl font-bold"><Clock3 className="mr-2 inline h-6 w-6" />{formatTime}</p>
+            <div className="high-court-timer rounded-xl bg-white/15 px-5 py-3 text-center backdrop-blur">
+              <p className="high-court-timer-label text-xs font-semibold uppercase tracking-wide text-white/80">Time left</p>
+              <p className="high-court-timer-value font-mono text-3xl font-bold"><Clock3 className="mr-2 inline h-6 w-6" />{formatTime}</p>
             </div>
           </div>
         </div>
@@ -426,11 +448,11 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
         ) : (
           <div className={expectedType !== "pitman"
              ? "flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
-             : "grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 overflow-hidden sm:grid-cols-2"}
+             : "high-court-pitman-layout grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 overflow-hidden sm:grid-cols-2"}
           >
             {expectedType === "shorthand" && (
-              <Card className="shrink-0 overflow-hidden border-orange-200 shadow-md">
-                <CardHeader className="flex flex-row items-center justify-between border-b bg-orange-50 py-4">
+              <Card className="high-court-panel high-court-dictation-panel shrink-0 overflow-hidden border-orange-200 shadow-md">
+                <CardHeader className="high-court-panel-header flex flex-row items-center justify-between border-b bg-orange-50 py-4">
                   <CardTitle className="text-sm uppercase tracking-wide text-orange-800">Dictation</CardTitle>
                   {test.youtubeLink ? (
                     <a
@@ -451,27 +473,27 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
             )}
 
             {expectedType !== "shorthand" && (
-             <Card className={`${expectedType === "typing" ? "typing-test-question-card" : ""} flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md ${expectedType === "typing" ? "h-[48%] shrink-0" : ""}`}>
-                 <CardHeader className={`${expectedType === "typing" ? "typing-test-section-header py-1 sm:py-2 px-3 sm:px-4" : "py-3"} flex shrink-0 flex-row items-center justify-between border-b bg-slate-50`}>
+             <Card className={`high-court-panel high-court-question-panel ${expectedType === "typing" ? "typing-test-question-card" : ""} flex min-h-0 flex-col overflow-hidden border-slate-200 shadow-md ${expectedType === "typing" ? "h-[48%] shrink-0" : ""}`}>
+                 <CardHeader className={`high-court-panel-header ${expectedType === "typing" ? "typing-test-section-header py-1 sm:py-2 px-3 sm:px-4" : "py-3"} flex shrink-0 flex-row items-center justify-between border-b bg-slate-50`}>
                   <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Question paper</CardTitle>
                   {expectedType === "pitman" && (
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setPdfZoom((value) => Math.max(50, value - 10))}
-                        disabled={pdfZoom <= 50}
+                        onClick={() => setPdfZoom(Math.max(50, effectivePdfZoom - 10))}
+                        disabled={effectivePdfZoom <= 50}
                         className="h-8 w-8 p-0"
                         aria-label="Zoom out PDF"
                       >
                         <ZoomOut size={16} />
                       </Button>
-                      <span className="min-w-[40px] text-center text-xs font-medium">{pdfZoom}%</span>
+                      <span className="min-w-[40px] text-center text-xs font-medium">{effectivePdfZoom}%</span>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setPdfZoom((value) => Math.min(200, value + 10))}
-                        disabled={pdfZoom >= 200}
+                        onClick={() => setPdfZoom(Math.min(isShortViewport ? 90 : 200, effectivePdfZoom + 10))}
+                        disabled={effectivePdfZoom >= (isShortViewport ? 90 : 200)}
                         className="h-8 w-8 p-0"
                         aria-label="Zoom in PDF"
                       >
@@ -481,7 +503,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                   )}
                 </CardHeader>
               <CardContent
-                 className={`${expectedType === "typing" ? "typing-test-question-content p-2 sm:p-4" : "p-4"} min-h-0 flex-1 bg-white dark:bg-zinc-900 ${
+                 className={`high-court-question-content ${expectedType === "typing" ? "typing-test-question-content p-2 sm:p-4" : "p-4"} min-h-0 flex-1 bg-white dark:bg-zinc-900 ${
                   expectedType === "pitman" ? "overflow-hidden" : "overflow-auto"
                 }`}
                 id="high-court-question-paper"
@@ -489,7 +511,7 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                  onScroll={expectedType === "typing" ? handleQuestionPaperScroll : undefined}
               >
                 {expectedType === "pitman" && pdfUrl ? (
-                  <HighCourtPdfViewer source={pdfUrl} zoom={pdfZoom} />
+                  <HighCourtPdfViewer source={pdfUrl} zoom={effectivePdfZoom} />
                 ) : expectedType === "pitman" ? (
                   <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-center text-slate-500">
                     <AlertCircle className="mb-3 h-10 w-10" />
@@ -499,14 +521,14 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                 ) : expectedType === "typing" ? (
                   renderTypingQuestion()
                 ) : (
-                  <article className="prose max-w-none whitespace-pre-wrap leading-8 text-slate-800" style={{ fontSize }} dangerouslySetInnerHTML={{ __html: test.text }} />
+                  <article className="prose max-w-none whitespace-pre-wrap leading-8 text-slate-800" style={{ fontSize: effectiveFontSize }} dangerouslySetInnerHTML={{ __html: test.text }} />
                 )}
               </CardContent>
             </Card>
             )}
 
-             <Card className="flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200 shadow-md">
-               <CardHeader className={`${expectedType === "typing" ? "typing-test-section-header py-1 sm:py-2 px-3 sm:px-4" : "py-3"} flex shrink-0 flex-row items-center justify-between border-b bg-slate-50`}>
+             <Card className="high-court-panel high-court-response-panel flex min-h-0 flex-1 flex-col overflow-hidden border-slate-200 shadow-md">
+               <CardHeader className={`high-court-panel-header ${expectedType === "typing" ? "typing-test-section-header py-1 sm:py-2 px-3 sm:px-4" : "py-3"} flex shrink-0 flex-row items-center justify-between border-b bg-slate-50`}>
                 <CardTitle className="text-sm uppercase tracking-wide text-slate-600">Your response</CardTitle>
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
@@ -521,11 +543,11 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     fillHeight
                     showWordCount
                     spellCheck={false}
-                    fontSize={fontSize}
+                    fontSize={effectiveFontSize}
                     onFontSizeChange={setFontSize}
                   />
                 ) : (
-                  <Textarea
+                 <Textarea
                     id="high-court-textarea"
                     value={typedText}
                     onChange={(event) => setTypedText(event.target.value)}
@@ -535,11 +557,11 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
                     autoCapitalize="off"
                     disabled={!active}
                     placeholder={active ? "Start typing your response here…" : "Click Start Test to begin"}
-                    className="min-h-0 flex-1 resize-none rounded-none border-0 p-6 leading-8 focus-visible:ring-0"
-                    style={{ fontSize: `${fontSize}px` }}
+                    className="high-court-response-area min-h-0 flex-1 resize-none rounded-none border-0 p-6 leading-8 focus-visible:ring-0"
+                    style={{ fontSize: `${effectiveFontSize}px` }}
                   />
                 )}
-                <div className="relative z-10 flex min-h-14 shrink-0 justify-end gap-3 border-t bg-slate-50 p-3">
+               <div className="high-court-action-bar relative z-10 flex min-h-14 shrink-0 justify-end gap-3 border-t bg-slate-50 p-3">
                   {!active ? <Button onClick={start} className={`min-h-10 bg-gradient-to-r ${colors[expectedType]}`} aria-label={`Start High Court ${labels[expectedType]}`}>Start Test</Button> : (
                     <Button onClick={() => void submit()} disabled={submitting} className="min-h-10 bg-emerald-600 hover:bg-emerald-700" aria-label={`Submit High Court ${labels[expectedType]} paper`}>
                       {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Submit paper

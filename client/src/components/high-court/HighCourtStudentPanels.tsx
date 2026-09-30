@@ -10,7 +10,8 @@ import { downloadHighCourtPdf } from "@/lib/highCourtPdf";
 
 const papers = HIGH_COURT_PAPERS;
 
-const routeFor = (type: HighCourtTestType, id: number) => `/high-court/${type}/${id}`;
+const routeFor = (type: HighCourtTestType, id: number, setId: number) =>
+  `/high-court/${type}/${id}?highCourtSetId=${setId}`;
 
 const getReturnSetId = () => {
   if (typeof window === "undefined") return null;
@@ -113,7 +114,7 @@ export function HighCourtStudentArea() {
                 </CardContent>
                 <CardFooter>
                   {test ? (
-                    <Link href={routeFor(paper.type, test.id)} className="w-full">
+                    <Link href={routeFor(paper.type, test.id, selected.id)} className="w-full">
                       <Button
                         className={`w-full bg-gradient-to-r ${paper.color}`}
                         data-testid={`button-start-high-court-${paper.type}`}
