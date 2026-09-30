@@ -292,7 +292,7 @@ export function RichTextEditor({
 
       {/* Toolbar */}
       <div className={cn(
-        "relative z-20 flex shrink-0 flex-wrap gap-1 overflow-visible border rounded-t-md bg-slate-50 p-2 dark:bg-slate-900",
+        "high-court-rich-editor-toolbar relative z-20 flex shrink-0 flex-wrap gap-1 overflow-visible border rounded-t-md bg-slate-50 p-2 dark:bg-slate-900",
         fillHeight && "sticky top-0 rounded-none border-x-0 border-t-0"
       )}>
         {/* Text Format */}

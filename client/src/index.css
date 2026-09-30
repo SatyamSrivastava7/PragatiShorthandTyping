@@ -333,6 +333,156 @@
   }
 }
 
+/*
+ * Give High Court Typing more response space on phones, including mobile
+ * browsers requesting the desktop site (which can report a wider CSS viewport).
+ * The coarse-pointer query keeps this layout isolated from desktop displays.
+ */
+@media (hover: none) and (pointer: coarse) and (max-width: 1200px) {
+  .high-court-workspace.typing-test-shell {
+    padding: 0.25rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .typing-test-main {
+    gap: 0.3rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .typing-test-header {
+    gap: 0.3rem !important;
+    padding: 0.35rem !important;
+    border-radius: 0.7rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-assessment-title {
+    gap: 0.4rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-assessment-kicker {
+    font-size: 0.58rem !important;
+    line-height: 0.8rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-assessment-name {
+    font-size: 0.95rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-assessment-meta {
+    font-size: 0.65rem !important;
+    line-height: 0.9rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-header-controls {
+    gap: 0.25rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-font-control {
+    gap: 0.2rem !important;
+    padding: 0.2rem 0.3rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-font-control > [aria-label="Response font size"] {
+    width: 3rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-header-toggle {
+    height: 1.9rem !important;
+    padding-left: 0.45rem !important;
+    padding-right: 0.45rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-header-toggle-label {
+    display: none;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-header-toggle svg {
+    margin-right: 0 !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-timer {
+    padding: 0.25rem 0.4rem !important;
+    border-radius: 0.6rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-timer-label {
+    font-size: 0.52rem !important;
+    line-height: 0.75rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-timer-value {
+    font-size: 1.05rem !important;
+    line-height: 1.15rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-timer-value svg {
+    width: 0.85rem !important;
+    height: 0.85rem !important;
+    margin-right: 0.2rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .typing-test-question-card {
+    height: 30% !important;
+    min-height: 0 !important;
+    flex: 0 0 30% !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-response-panel {
+    min-height: 0 !important;
+    flex: 1 1 0% !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-panel-header {
+    min-height: 1.8rem !important;
+    padding: 0.25rem 0.45rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .typing-test-question-content {
+    padding: 0.3rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-rich-editor-toolbar {
+    min-height: 2.25rem;
+    flex-wrap: nowrap !important;
+    gap: 0.2rem !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 0.2rem !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-rich-editor-toolbar > div {
+    flex: 0 0 auto !important;
+    gap: 0.2rem !important;
+    padding-right: 0.35rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-rich-editor-toolbar > div:nth-child(2) > button,
+  .high-court-workspace.typing-test-shell .high-court-rich-editor-toolbar > div:nth-child(3) > button {
+    width: 3.5rem !important;
+    height: 1.9rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-response-panel .rich-editor-content {
+    min-height: 0 !important;
+    padding: 0.4rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-response-panel .rich-editor-content + p {
+    padding: 0.15rem 0.45rem !important;
+    font-size: 0.65rem !important;
+    line-height: 0.85rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-action-bar {
+    min-height: 2.45rem !important;
+    padding: 0.25rem 0.4rem !important;
+  }
+
+  .high-court-workspace.typing-test-shell .high-court-action-bar button {
+    min-height: 2rem !important;
+  }
+}
+
 /* Mangal Font support */
 @font-face {
   font-family: 'Mangal';
