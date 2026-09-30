@@ -44,6 +44,7 @@ export function HighCourtManageTests() {
   const [editTitle, setEditTitle] = useState("");
   const [editDateFor, setEditDateFor] = useState("");
   const [editPapers, setEditPapers] = useState<EditPapers | null>(null);
+  const [loadedPaperIds, setLoadedPaperIds] = useState<Partial<Record<HighCourtTestType, number>>>({});
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -80,17 +81,24 @@ export function HighCourtManageTests() {
     setEditTitle(set.title);
     setEditDateFor(set.dateFor);
     setEditPapers(null);
+    setLoadedPaperIds({});
     try {
+      const summaries = await highCourtApi.getTestSetPaperSummaries(set.id);
+      const paperIds = Object.fromEntries(summaries.map((test) => [test.type, test.id])) as Partial<Record<HighCourtTestType, number>>;
+      setLoadedPaperIds(paperIds);
+      setEditingSet({ ...set, tests: summaries as HighCourtTestSet["tests"] });
+
       const tests = await Promise.all(
         HIGH_COURT_PAPERS.map(async (paper) => {
-          const summary = set.tests.find((test) => test.type === paper.type);
+          const summary = summaries.find((test) => test.type === paper.type);
           return summary ? highCourtApi.getTest(summary.id) : null;
         })
       );
+      const testsByType = new Map(tests.filter((test): test is NonNullable<typeof test> => !!test).map((test) => [test.type, test]));
       setEditPapers({
-        typing: toPaperForm(tests[0] ?? undefined),
-        pitman: toPaperForm(tests[1] ?? undefined),
-        shorthand: toPaperForm(tests[2] ?? undefined),
+        typing: toPaperForm(testsByType.get("typing")),
+        pitman: toPaperForm(testsByType.get("pitman")),
+        shorthand: toPaperForm(testsByType.get("shorthand")),
       });
     } catch (error) {
       setEditingSet(null);
@@ -106,39 +114,67 @@ export function HighCourtManageTests() {
     if (!editingSet || !editPapers) return;
     setSaving(true);
     try {
+      const latestSummaries = await highCourtApi.getTestSetPaperSummaries(editingSet.id);
+      const latestPaperIds = new Map(latestSummaries.map((test) => [test.type, test.id]));
+
+      for (const paper of HIGH_COURT_PAPERS) {
+        const loadedId = loadedPaperIds[paper.type];
+        const latestId = latestPaperIds.get(paper.type);
+        if (loadedId !== latestId && (loadedId !== undefined || latestId !== undefined)) {
+          throw new Error(
+            `${paper.label} paper changed while this editor was open. Close and reopen the folder to load the latest papers before saving.`,
+          );
+        }
+      }
+
+      const incompletePaper = HIGH_COURT_PAPERS.find((paper) => {
+        if (!latestPaperIds.has(paper.type)) return false;
+        const form = editPapers[paper.type];
+        return !form.title.trim() || !form.text.trim() || !Number.isFinite(Number(form.duration)) || Number(form.duration) <= 0;
+      });
+      if (incompletePaper) {
+        throw new Error(`Enter a title, content, and valid duration for the ${incompletePaper.label} paper.`);
+      }
+
+      if (!latestPaperIds.has("pitman") && editPapers.pitman.title.trim() && !editPapers.pitman.pdfFile) {
+        throw new Error("Upload a PDF before adding the Pitman paper.");
+      }
+
       if (editTitle !== editingSet.title) {
         await highCourtApi.updateTestSet(editingSet.id, { name: editTitle, dateFor: editDateFor });
       } else if (editDateFor !== editingSet.dateFor) {
         await highCourtApi.updateTestSet(editingSet.id, { dateFor: editDateFor });
       }
-      await Promise.all(
-        HIGH_COURT_PAPERS.map((paper) => {
-          const test = editingSet.tests.find((t) => t.type === paper.type);
-          const form = editPapers[paper.type];
-          const hasPaperContent = form.title.trim() || form.text.trim() || form.pdfFile || form.youtubeLink?.trim();
-          if (!test) {
-            if (!hasPaperContent) return Promise.resolve(undefined);
-            return highCourtApi.addTestToSet(editingSet.id, {
-              type: paper.type,
-              title: form.title,
-              text: form.text,
-              duration: Number(form.duration),
-              pdfFile: paper.type === "pitman" ? form.pdfFile : undefined,
-              youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || undefined) : undefined,
-            });
-          }
-          return highCourtApi.updateTest(test.id, {
-              title: form.title,
-              originalText: form.text,
-              duration: Number(form.duration),
-              pdfFile: form.pdfFile,
-              youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || null) : undefined,
-            });
-        })
-      );
+      for (const paper of HIGH_COURT_PAPERS) {
+        const testId = latestPaperIds.get(paper.type);
+        const form = editPapers[paper.type];
+        const hasPaperContent = form.title.trim() || form.text.trim() || form.pdfFile || form.youtubeLink?.trim();
+        if (testId === undefined) {
+          if (!hasPaperContent) continue;
+          const created = await highCourtApi.addTestToSet(editingSet.id, {
+            type: paper.type,
+            title: form.title,
+            text: form.text,
+            duration: Number(form.duration),
+            pdfFile: paper.type === "pitman" ? form.pdfFile : undefined,
+            youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || undefined) : undefined,
+          });
+          setLoadedPaperIds((current) => ({ ...current, [paper.type]: created.id }));
+          continue;
+        }
+
+        await highCourtApi.updateTest(testId, {
+          title: form.title,
+          originalText: form.text,
+          duration: Number(form.duration),
+          pdfFile: form.pdfFile,
+          youtubeLink: paper.type === "shorthand" ? (form.youtubeLink?.trim() || null) : undefined,
+        });
+      }
       toast({ title: "Saved", description: "High Court exam folder updated. Missing papers can be added from this editor." });
       setEditingSet(null);
       setEditPapers(null);
+      setLoadedPaperIds({});
       await fetchSets(0, false);
     } catch (error) {
       toast({
@@ -273,6 +309,7 @@ export function HighCourtManageTests() {
                             if (!open) {
                               setEditingSet(null);
                               setEditPapers(null);
+                              setLoadedPaperIds({});
                             }
                           }}
                         >
@@ -333,7 +370,11 @@ export function HighCourtManageTests() {
                                   shorthand
                                 />
                                 <div className="flex justify-end gap-2 pt-2">
-                                  <Button variant="outline" onClick={() => setEditingSet(null)}>Cancel</Button>
+                                  <Button variant="outline" onClick={() => {
+                                    setEditingSet(null);
+                                    setEditPapers(null);
+                                    setLoadedPaperIds({});
+                                  }}>Cancel</Button>
                                   <Button onClick={saveEdit} disabled={saving}>
                                     {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Save Changes
                                   </Button>

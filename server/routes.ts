@@ -2004,6 +2004,36 @@ export async function registerRoutes(
     }
   });
 
+  // Admin: fetch lightweight, authoritative paper IDs/types before editing a
+  // folder. This avoids using a cached folder-list summary to decide whether
+  // the editor should update an existing paper or add a missing one.
+  app.get("/api/high-court/test-sets/:id/paper-summaries", async (req, res) => {
+    try {
+      if (!req.session.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const currentUser = await storage.getUser(req.session.userId);
+      if (!currentUser || currentUser.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (!validateId(id)) {
+        return res.status(400).json({ message: "Invalid test set ID" });
+      }
+      const testSet = await storage.getHighCourtTestSet(id);
+      if (!testSet) {
+        return res.status(404).json({ message: "Test set not found" });
+      }
+
+      res.setHeader("Cache-Control", "no-store");
+      res.json(await storage.getHighCourtTestSummariesBySet(id));
+    } catch (error) {
+      console.error("Error fetching High Court paper summaries:", error);
+      res.status(500).json({ message: "Failed to fetch High Court paper list" });
+    }
+  });
+
   // Admin: rename a test set and/or toggle its enabled state
   app.patch("/api/high-court/test-sets/:id", async (req, res) => {
     try {

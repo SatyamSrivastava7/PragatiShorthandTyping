@@ -210,6 +210,11 @@ export const highCourtApi = {
     return page;
   },
   getTestSet: async (id: number) => normalizeSet(await request<any>(`/api/high-court/test-sets/${id}`)),
+  getTestSetPaperSummaries: async (id: number) =>
+    request<Array<Pick<HighCourtTest, "id" | "testSetId" | "title" | "type" | "duration" | "createdAt">>>(
+      `/api/high-court/test-sets/${id}/paper-summaries`,
+      { cache: "no-store" },
+    ),
   getTest: async (id: number) => {
     const test = await request<any>(`/api/high-court/tests/${id}`);
     return { ...test, text: test.text || test.originalText || "" };
