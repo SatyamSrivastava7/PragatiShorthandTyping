@@ -10,6 +10,15 @@ import { downloadHighCourtPdf } from "@/lib/highCourtPdf";
 
 const papers = HIGH_COURT_PAPERS;
 
+const formatStudentHighCourtMarks = (value: number | string) => {
+  const marks = Number(value);
+  if (!Number.isFinite(marks)) return "—";
+
+  const scaledMarks = marks * 10;
+  const floatingPointTolerance = Number.EPSILON * Math.max(1, Math.abs(scaledMarks)) * 2;
+  return (Math.ceil(scaledMarks - floatingPointTolerance) / 10).toFixed(1);
+};
+
 const routeFor = (type: HighCourtTestType, id: number, setId: number) =>
   `/high-court/${type}/${id}?highCourtSetId=${setId}`;
 
@@ -200,7 +209,7 @@ export function HighCourtResultsPanel() {
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-amber-50 text-left text-amber-900"><tr><th className="p-4">Exam folder</th><th className="p-4">Student Name</th><th className="p-4 text-center">Typing</th><th className="p-4 text-center">Pitman</th><th className="p-4 text-center">Shorthand</th><th className="p-4 text-center">Total</th><th className="p-4 text-right">Action</th></tr></thead>
-          <tbody>{results.map((result) => <tr key={result.testSetId} className="border-t hover:bg-slate-50"><td className="p-4 font-semibold">{result.testSetTitle}</td><td className="p-4">{result.studentName}</td><td className="p-4 text-center">{result.typingMarks} / 100</td><td className="p-4 text-center">{result.pitmanMarks} / 100</td><td className="p-4 text-center">{result.shorthandMarks} / 200</td><td className="p-4 text-center font-bold text-amber-800">{result.totalMarks} / 400</td><td className="p-4 text-right"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setSelected(result)}><Eye className="mr-1.5 h-4 w-4" /> View</Button><Button size="sm" variant="outline" onClick={() => downloadHighCourtPdf(result)} data-testid={`button-download-high-court-pdf-${result.testSetId}`}><Download className="mr-1.5 h-4 w-4" /> PDF</Button></div></td></tr>)}</tbody>
+          <tbody>{results.map((result) => <tr key={result.testSetId} className="border-t hover:bg-slate-50"><td className="p-4 font-semibold">{result.testSetTitle}</td><td className="p-4">{result.studentName}</td><td className="p-4 text-center">{formatStudentHighCourtMarks(result.typingMarks)} / 100</td><td className="p-4 text-center">{formatStudentHighCourtMarks(result.pitmanMarks)} / 100</td><td className="p-4 text-center">{formatStudentHighCourtMarks(result.shorthandMarks)} / 200</td><td className="p-4 text-center font-bold text-amber-800">{formatStudentHighCourtMarks(result.totalMarks)} / 400</td><td className="p-4 text-right"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={() => setSelected(result)}><Eye className="mr-1.5 h-4 w-4" /> View</Button><Button size="sm" variant="outline" onClick={() => downloadHighCourtPdf(result)} data-testid={`button-download-high-court-pdf-${result.testSetId}`}><Download className="mr-1.5 h-4 w-4" /> PDF</Button></div></td></tr>)}</tbody>
         </table>
       </div>
       {hasMore && (
@@ -215,10 +224,10 @@ export function HighCourtResultsPanel() {
         <DialogContent className="w-[calc(100%-1rem)] max-h-[88vh] max-w-4xl overflow-x-hidden overflow-y-auto p-4 sm:p-6">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Trophy className="h-5 w-5 text-amber-600" />{selected?.testSetTitle} — High Court Report</DialogTitle></DialogHeader>
           {selected && <div className="min-w-0 space-y-5">
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-4"><div className="min-w-0"><p className="text-sm text-amber-800">Combined total</p><p className="text-3xl font-bold text-amber-900">{selected.totalMarks} <span className="text-base">/ 400</span></p></div><Button className="shrink-0 bg-amber-600 hover:bg-amber-700" onClick={() => downloadHighCourtPdf(selected)}><Download className="mr-2 h-4 w-4" />Download</Button></div>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-50 p-4"><div className="min-w-0"><p className="text-sm text-amber-800">Combined total</p><p className="text-3xl font-bold text-amber-900">{formatStudentHighCourtMarks(selected.totalMarks)} <span className="text-base">/ 400</span></p></div><Button className="shrink-0 bg-amber-600 hover:bg-amber-700" onClick={() => downloadHighCourtPdf(selected)}><Download className="mr-2 h-4 w-4" />Download</Button></div>
             {papers.map((paper) => {
               const attempt = selected[paper.type];
-                return <Card key={paper.type} className="min-w-0 overflow-hidden"><CardHeader className="pb-3"><CardTitle className="flex min-w-0 items-center justify-between gap-3 text-base"><span className="min-w-0">{paper.label} Test</span><span className="shrink-0 text-amber-800">{attempt?.marks ?? 0} / {paper.max}</span></CardTitle><CardDescription className="break-words">{attempt ? `Submitted ${new Date(attempt.submittedAt).toLocaleString()} · ${attempt.mistakes} full / ${attempt.halfMistakes} half mistakes` : "Not submitted yet"}</CardDescription></CardHeader>{attempt && <CardContent className="min-w-0"><HighCourtErrorComparison alignment={attempt.alignment} /></CardContent>}</Card>;
+                return <Card key={paper.type} className="min-w-0 overflow-hidden"><CardHeader className="pb-3"><CardTitle className="flex min-w-0 items-center justify-between gap-3 text-base"><span className="min-w-0">{paper.label} Test</span><span className="shrink-0 text-amber-800">{formatStudentHighCourtMarks(attempt?.marks ?? 0)} / {paper.max}</span></CardTitle><CardDescription className="break-words">{attempt ? `Submitted ${new Date(attempt.submittedAt).toLocaleString()} · ${attempt.mistakes} full / ${attempt.halfMistakes} half mistakes` : "Not submitted yet"}</CardDescription></CardHeader>{attempt && <CardContent className="min-w-0"><HighCourtErrorComparison alignment={attempt.alignment} /></CardContent>}</Card>;
             })}
           </div>}
         </DialogContent>
