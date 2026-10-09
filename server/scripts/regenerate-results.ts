@@ -1,19 +1,25 @@
 /**
  * Script to regenerate metrics for results
  *
- * By default it processes the most recent 500 results (all types).
- * To recalc only the first 50 shorthand results, pass the `--shorthand`
- * flag:
+ * It selects the latest 50 results per requested test type by default.
+ * Shorthand results are recalculated with the same helper used by the live
+ * submission, result analysis, and PDF paths.
  *
- *   npx tsx server/scripts/regenerate-results.ts --shorthand
+ * The script defaults to a dry run. To apply changes, pass `--apply` together
+ * with an explicit target (`--production` or `--development`). For production,
+ * run it inside the deployed runtime so it uses that runtime's DATABASE_URL:
  *
- * This is useful after updating alignment/metrics logic so existing
- * shorthand entries can be corrected without touching typing results.
+ *   npx tsx server/scripts/regenerate-results.ts --shorthand --limit=50 --production --apply
  */
 
 import { db } from "../db";
 import { results, content } from "../../shared/schema";
 import { and, desc, eq } from "drizzle-orm";
+import {
+  calculateShorthandResultMetrics,
+  removeParaTokens as removeClientParaTokens,
+  stripHtml as stripClientHtml,
+} from "../../client/src/lib/utils";
 
 const PARA_TOKEN = '[[PARA]]';
 const SPLIT_CHAR_PATTERN = /[-–—\/\\:;|+&_~]/;
@@ -593,68 +599,6 @@ function calculateTypingMetrics(originalText: string, typedText: string, timeInM
   };
 }
 
-function calculateShorthandMetrics(originalText: string, typedText: string, timeInMinutes: number) {
-  const plainText = stripHtml(originalText || '');
-  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(plainText, typedText);
-
-  const fullOriginalWords = (plainText || "").trim().split(/\s+/).filter((w) => w).length;
-
-  const typedWordCount = (typedText || "").trim().split(/\s+/).filter(w => w).length;
-  
-  if (typedWordCount === 0) {
-    return {
-      words: fullOriginalWords,
-      mistakes: fullOriginalWords,
-      halfMistakes: 0,
-      result: "Fail",
-      missingWords: 0,
-      trailingWords: fullOriginalWords,
-      fullOriginalWords,
-    };
-  }
-
-  const totalMistakes = mistakes + trailingWords;
-
-  const mistakePercentage = fullOriginalWords > 0 ? (totalMistakes / fullOriginalWords) * 100 : 0;
-  
-  const isPassed = mistakePercentage <= 5;
-
-  const missingWords = attemptedAlignment.filter(
-    (a) => a.status === "missing"
-  ).length;
-
-  let halfMistakes = 0;
-
-  function normalizeEllipsisSH(word: string) {
-    return word.replace(/\.\.\./g, "…");
-  }
-
-  for (const item of attemptedAlignment) {
-    if (item.original === PARA_TOKEN || item.typed === PARA_TOKEN) continue;
-
-    if (item.status === "missing") {
-      halfMistakes += (normalizeEllipsisSH(item.original).match(/,/g) || []).length;
-    } else if (item.status === "extra") {
-      halfMistakes += (normalizeEllipsisSH(item.typed).match(/,/g) || []).length;
-    } else {
-      halfMistakes += Math.abs(
-        (normalizeEllipsisSH(item.original).match(/,/g) || []).length - 
-        (normalizeEllipsisSH(item.typed).match(/,/g) || []).length
-      );
-    }
-  }
-
-  return {
-    words: typedWordCount,
-    mistakes: totalMistakes,
-    halfMistakes,
-    result: isPassed ? "Pass" : "Fail",
-    missingWords,
-    trailingWords,
-    fullOriginalWords,
-  };
-}
-
 async function regenerateResults() {
   // Parse CLI flags. Examples:
   //   --shorthand           -> only shorthand
@@ -674,12 +618,37 @@ async function regenerateResults() {
     : null;
 
   const limitArg = args.find((a) => a.startsWith("--limit="));
-  const rowLimit = limitArg ? parseInt(limitArg.split("=")[1], 10) : 50;
+  const rowLimit = limitArg ? Number(limitArg.split("=")[1]) : 50;
+  if (!Number.isInteger(rowLimit) || rowLimit < 1) {
+    throw new Error("--limit must be a positive integer.");
+  }
+
+  const applyChanges = args.includes("--apply");
+  const targetIsProduction = args.includes("--production");
+  const targetIsDevelopment = args.includes("--development");
+  if (targetIsProduction && targetIsDevelopment) {
+    throw new Error("Choose only one target: --production or --development.");
+  }
+  if (applyChanges && !targetIsProduction && !targetIsDevelopment) {
+    throw new Error("Writes require an explicit --production or --development target.");
+  }
+  if (targetIsProduction && process.env.NODE_ENV !== "production") {
+    throw new Error("--production must be run from the deployed production runtime.");
+  }
+  if (targetIsDevelopment && process.env.NODE_ENV === "production") {
+    throw new Error("--development cannot be used from a production runtime.");
+  }
+  if (args.includes("--apply") && args.includes("--dry-run")) {
+    throw new Error("Choose either --apply or --dry-run, not both.");
+  }
 
   console.log(
     `Regenerating results for: ${testTypes.join(", ")}` +
       (languageArg ? ` (language: ${languageArg})` : "") +
-      ` [limit: ${rowLimit} per type]\n`
+      ` [limit: ${rowLimit} per type]` +
+      ` [mode: ${applyChanges ? "APPLY" : "DRY RUN"}]` +
+      (targetIsProduction ? " [target: production]" : targetIsDevelopment ? " [target: development]" : "") +
+      "\n"
   );
 
   let totalUpdated = 0;
@@ -712,14 +681,18 @@ async function regenerateResults() {
       
       // For alignment in display: stripHtml removes HTML but keeps PARA_TOKEN to align at word level
       // For metrics: removeParaTokens removes both HTML and PARA_TOKEN to get pure text
-      const regeneratedOriginalClean = removeParaTokens(stripHtml(result.originalText || ''));
-      const regeneratedTypedClean = removeParaTokens(stripHtml(result.typedText || ''));
+      const regeneratedOriginalClean = testType === "shorthand"
+        ? removeClientParaTokens(stripClientHtml(result.originalText || ""))
+        : removeParaTokens(stripHtml(result.originalText || ''));
+      const regeneratedTypedClean = testType === "shorthand"
+        ? removeClientParaTokens(stripClientHtml(result.typedText || ""))
+        : removeParaTokens(stripHtml(result.typedText || ''));
 
       // Use regenerated clean text for metrics calculation
       const originalTextForMetrics = regeneratedOriginalClean;
       const typedTextForMetrics = regeneratedTypedClean;
 
-      if (!originalTextForMetrics || !typedTextForMetrics) {
+      if (!originalTextForMetrics || (!typedTextForMetrics && testType !== "shorthand")) {
         console.log(`Skipping result ${result.id} - missing text data`);
         skipped++;
         continue;
@@ -761,42 +734,46 @@ async function regenerateResults() {
           const mistakePercentage = metrics.words > 0 ? (metrics.mistakes / metrics.words) * 100 : 0;
           const resultStatus = mistakePercentage > 5 ? 'Fail' : 'Pass';
 
-          await db
-            .update(results)
-            .set({
-              originalTextClean: regeneratedOriginalClean,
-              typedTextClean: regeneratedTypedClean,
-              words: metrics.words,
-              mistakes: String(metrics.mistakes),
-              halfMistakes: String(metrics.halfMistakes),
-              grossSpeed: String(metrics.grossSpeed),
-              netSpeed: String(metrics.netSpeed),
-              result: resultStatus,
-            })
-            .where(eq(results.id, result.id));
+          if (applyChanges) {
+            await db
+              .update(results)
+              .set({
+                originalTextClean: regeneratedOriginalClean,
+                typedTextClean: regeneratedTypedClean,
+                words: metrics.words,
+                mistakes: String(metrics.mistakes),
+                halfMistakes: String(metrics.halfMistakes),
+                grossSpeed: String(metrics.grossSpeed),
+                netSpeed: String(metrics.netSpeed),
+                result: resultStatus,
+              })
+              .where(eq(results.id, result.id));
+          }
 
-          console.log(`  Result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.netSpeed} WPM, ${resultStatus}`);
+          console.log(`  ${applyChanges ? "Updated" : "Would update"} result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.netSpeed} WPM, ${resultStatus}`);
           updated++;
         } else if (testType === "shorthand") {
-          const metrics = calculateShorthandMetrics(
-            originalTextForMetrics,
-            typedTextForMetrics,
-            timeInMinutes
+          const metrics = calculateShorthandResultMetrics(
+            result.originalText || "",
+            result.typedText || "",
+            timeInMinutes,
           );
 
-          await db
-            .update(results)
-            .set({
-              originalTextClean: regeneratedOriginalClean,
-              typedTextClean: regeneratedTypedClean,
-              words: metrics.words,
-              mistakes: String(metrics.mistakes),
-              halfMistakes: String(metrics.halfMistakes),
-              result: metrics.result,
-            })
-            .where(eq(results.id, result.id));
+          if (applyChanges) {
+            await db
+              .update(results)
+              .set({
+                originalTextClean: regeneratedOriginalClean,
+                typedTextClean: regeneratedTypedClean,
+                words: metrics.words,
+                mistakes: String(metrics.mistakes),
+                halfMistakes: String(metrics.halfMistakes),
+                result: metrics.result,
+              })
+              .where(eq(results.id, result.id));
+          }
 
-          console.log(`  Result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.result}`);
+          console.log(`  ${applyChanges ? "Updated" : "Would update"} result ${result.id}: ${metrics.words} words, ${metrics.mistakes} mistakes, ${metrics.result}`);
           updated++;
         }
       } catch (error) {
@@ -805,13 +782,13 @@ async function regenerateResults() {
       }
     }
 
-    console.log(`${testType}: Updated ${updated}, Skipped ${skipped}`);
+    console.log(`${testType}: ${applyChanges ? "Updated" : "Would update"} ${updated}, Skipped ${skipped}`);
     totalUpdated += updated;
     totalSkipped += skipped;
   }
 
   console.log(`\n=== Summary ===`);
-  console.log(`Total Updated: ${totalUpdated}`);
+  console.log(`${applyChanges ? "Total Updated" : "Total To Update"}: ${totalUpdated}`);
   console.log(`Total Skipped: ${totalSkipped}`);
   console.log(`Done!`);
   process.exit(0);
