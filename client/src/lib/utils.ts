@@ -966,7 +966,7 @@ export function calculateShorthandMetrics(
   const plainText = stripHtml(originalText || '');
   
   // Use aligned word comparison to handle word splits/joins
-  const { mistakes, attemptedAlignment, trailingWords } = calculateAlignedMistakes(
+  const { mistakes, alignment, attemptedAlignment, trailingWords } = calculateAlignedMistakes(
     plainText,
     typedText,
   );
@@ -993,6 +993,9 @@ export function calculateShorthandMetrics(
       missingWords: 0,
       trailingWords: fullOriginalWords,
       fullOriginalWords,
+      alignedMistakes: mistakes,
+      alignment,
+      attemptedAlignment,
     };
   }
 
@@ -1052,7 +1055,20 @@ export function calculateShorthandMetrics(
     missingWords,
     trailingWords,
     fullOriginalWords,
+    alignedMistakes: mistakes,
+    alignment,
+    attemptedAlignment,
   }; 
+}
+
+export function calculateShorthandResultMetrics(
+  originalText: string,
+  typedText: string,
+  timeInMinutes: number,
+) {
+  const cleanOriginalText = stripHtml(originalText || "").replace(/\[\[PARA\]\]/g, "");
+  const cleanTypedText = stripHtml(typedText || "").replace(/\[\[PARA\]\]/g, "");
+  return calculateShorthandMetrics(cleanOriginalText, cleanTypedText, timeInMinutes);
 }
 
 export const generateResultPDF = async (result: Result) => {
@@ -1087,6 +1103,9 @@ export const generateResultPDF = async (result: Result) => {
   let trailingWords: string[] = [];
   let shorthandRecalcMistakes = 0;
   let shorthandRecalcTrailing = 0;
+  const shorthandMetrics = result.contentType === "shorthand"
+    ? calculateShorthandResultMetrics(result.originalText || "", result.typedText || "", result.time)
+    : null;
 
   if (result.contentType === "typing") {
     const alignmentOriginalText = stripHtml(result.originalText || '');
@@ -1102,6 +1121,18 @@ export const generateResultPDF = async (result: Result) => {
       .replace(cleanPara, '').replace(/\s+/g, ' ').trim();
     displayAlignment = getTypingAlignment(alignmentOriginalText, alignmentTypedText);
     trailingWords = displayAlignment.filter(item => item.status === "trailing").map(item => item.original);
+  } else if (shorthandMetrics) {
+    const { attemptedAlignment, alignment } = shorthandMetrics;
+    displayAlignment = attemptedAlignment;
+    shorthandRecalcMistakes = shorthandMetrics.alignedMistakes;
+    shorthandRecalcTrailing = shorthandMetrics.trailingWords;
+    const trailingItems = alignment.filter((item) => {
+      const isInAttempted = attemptedAlignment.some(
+        (a) => a.original === item.original && a.typed === item.typed && a.status === item.status
+      );
+      return !isInAttempted && item.original !== "";
+    });
+    trailingWords = trailingItems.map((item) => item.original).filter((w) => w);
   } else {
     const alignmentOriginalText = stripHtml(result.originalText || '');
     const alignmentTypedText = stripHtml(result.typedText || '');
@@ -1318,7 +1349,8 @@ export const generateResultPDF = async (result: Result) => {
   }
 
   // Total original words - plain text word count for both typing and shorthand
-  const totalOriginalWords = stripHtml(result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length;
+  const totalOriginalWords = shorthandMetrics?.fullOriginalWords
+    ?? stripHtml(result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length;
   const accuracy = result.words > 0 ? (((result.words - parseFloat(String(result.mistakes))) * 100) / result.words).toFixed(2) : "0.00";
   const accurancyDisplay = parseFloat(accuracy) > 0 ? `${accuracy}%` : '0.00';
 
@@ -1387,7 +1419,7 @@ export const generateResultPDF = async (result: Result) => {
           <td>Total Words Typed</td><td>${result.words}</td>
         </tr>
         <tr>
-          <td>Total Mistakes</td><td class="error">${result.contentType === "shorthand" ? (shorthandRecalcMistakes + shorthandRecalcTrailing) : result.mistakes}</td>
+          <td>Total Mistakes</td><td class="error">${result.contentType === "shorthand" ? (shorthandMetrics?.mistakes ?? shorthandRecalcMistakes + shorthandRecalcTrailing) : result.mistakes}</td>
           <td>Missing Words</td><td class="error">${missingWordsCount}</td>
         </tr>
         ${
@@ -1408,7 +1440,7 @@ export const generateResultPDF = async (result: Result) => {
         `
             : `
         <tr>
-          <td>Punctuation Mistake</td><td class="error">${result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
+          <td>Punctuation Mistake</td><td class="error">${shorthandMetrics ? shorthandMetrics.halfMistakes : result.halfMistakes !== null && result.halfMistakes !== undefined ? result.halfMistakes : "Not Available"}</td>
           <td>Left Words</td><td>${shorthandRecalcTrailing}</td>
         </tr>
         <tr>

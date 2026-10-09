@@ -64,6 +64,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
+import { ShorthandResultMetrics } from "@/components/ShorthandResultMetrics";
 import { queryClient } from "@/lib/queryClient";
 import { HighCourtResultsPanel, HighCourtStudentArea } from "@/components/high-court/HighCourtStudentPanels";
 
@@ -2056,7 +2057,9 @@ export default function StudentDashboard() {
                               </div>
                             </div>
                             <div className="flex items-center gap-4">
-                              {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
+                              {result.contentType === "shorthand" ? (
+                                <ShorthandResultMetrics result={result} variant="summary" />
+                              ) : (result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                 <div className="flex items-center gap-3">
                                   <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
                                     {result.grossSpeed} WPM
@@ -2118,58 +2121,60 @@ export default function StudentDashboard() {
                                           </span>{" "}
                                           {result.time} minutes
                                         </div>
-                                        <div>
-                                          <span className="font-semibold">
-                                            Mistakes:
-                                          </span>{" "}
-                                          <span className="text-red-600 font-bold">
-                                            {result.mistakes}
-                                          </span>
-                                        </div>
-                                        <div>
-                                          <span className="font-semibold">
-                                            Total Original Words:
-                                          </span>{" "}
-                                          <span>
-                                            {
-                                              result.contentType === "shorthand"
-                                                ? (result.originalText || "").trim().split(/\s+/).filter((w: string) => w).length
-                                                : stripHtmlPreserveParagraphs(
-                                                    result.originalText || "",
-                                                  )
-                                                    .trim()
-                                                    .split(/\s+/)
-                                                    .filter((w: string) => w && w !== PARA_TOKEN)
-                                                    .length
-                                            }
-                                          </span>
-                                        </div>
-                                        <div>
-                                          {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
-                                            <span>
+                                        {result.contentType === "shorthand" ? (
+                                          <ShorthandResultMetrics result={result} variant="analysis" />
+                                        ) : (
+                                          <>
+                                            <div>
                                               <span className="font-semibold">
-                                                Gross Speed:
+                                                Mistakes:
                                               </span>{" "}
-                                              {result.grossSpeed} WPM
-                                            </span>
-                                          ) : (
-                                            <span>
+                                              <span className="text-red-600 font-bold">
+                                                {result.mistakes}
+                                              </span>
+                                            </div>
+                                            <div>
                                               <span className="font-semibold">
-                                                Result:
+                                                Total Original Words:
                                               </span>{" "}
-                                              <span
-                                                className={
-                                                  result.result === "Pass"
-                                                    ? "text-green-600 font-bold"
-                                                    : "text-red-600 font-bold"
-                                                }
-                                              >
-                                                {" "}
-                                                {result.result}
-                                              </span>{" "}
-                                            </span>
-                                          )}
-                                        </div>
+                                              <span>
+                                                {stripHtmlPreserveParagraphs(
+                                                  result.originalText || "",
+                                                )
+                                                  .trim()
+                                                  .split(/\s+/)
+                                                  .filter((w) => w && w !== PARA_TOKEN)
+                                                  .length}
+                                              </span>
+                                            </div>
+                                            <div>
+                                              {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
+                                                <span>
+                                                  <span className="font-semibold">
+                                                    Gross Speed:
+                                                  </span>{" "}
+                                                  {result.grossSpeed} WPM
+                                                </span>
+                                              ) : (
+                                                <span>
+                                                  <span className="font-semibold">
+                                                    Result:
+                                                  </span>{" "}
+                                                  <span
+                                                    className={
+                                                      result.result === "Pass"
+                                                        ? "text-green-600 font-bold"
+                                                        : "text-red-600 font-bold"
+                                                    }
+                                                  >
+                                                    {" "}
+                                                    {result.result}
+                                                  </span>{" "}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </>
+                                        )}
                                       </div>
 
                                       <div className="border rounded p-4 bg-muted/30">

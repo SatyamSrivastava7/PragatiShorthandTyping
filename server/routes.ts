@@ -19,6 +19,7 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { stripHtml, removeParaTokens, countWords } from "./htmlStripper";
 import { scoreHighCourtTest } from "./highCourtScorer";
+import { calculateShorthandResultMetrics } from "../client/src/lib/utils";
 
 // Session user type
 declare module "express-session" {
@@ -1045,7 +1046,8 @@ export async function registerRoutes(
       const originalTextClean = stripHtml(contentItem.text);
       
       // 3. Typed text as sent by client (with PARA_TOKENs for rendering)
-      const typedTextWithPara = req.body.typedText;
+      const typedTextWithPara =
+        typeof req.body.typedText === "string" ? req.body.typedText : "";
       
       // 4. Typed text WITHOUT HTML or PARA_TOKENs (for metrics calculation)
       const typedTextClean = stripHtml(removeParaTokens(req.body.typedText));
@@ -1054,14 +1056,29 @@ export async function registerRoutes(
       const recalculatedWords = countWords(typedTextClean, false);
       const clientWords = parseFloat(req.body.words) || 0;
       const clientMistakes = parseFloat(req.body.mistakes) || 0;
+      const shorthandMetrics = contentItem.type === "shorthand"
+        ? calculateShorthandResultMetrics(
+            originalTextWithHtml,
+            typedTextWithPara,
+            contentItem.duration,
+          )
+        : null;
       
       // Use recalculated words if there's a significant difference (catches HTML stripping issues)
-      const wordsToUse = recalculatedWords > 0 && recalculatedWords !== clientWords ? recalculatedWords : clientWords;
-      const mistakesToUse = clientMistakes;
+      const wordsToUse = shorthandMetrics
+        ? shorthandMetrics.words
+        : recalculatedWords > 0 && recalculatedWords !== clientWords
+          ? recalculatedWords
+          : clientWords;
+      const mistakesToUse = shorthandMetrics?.mistakes ?? clientMistakes;
+      const halfMistakesToUse = shorthandMetrics
+        ? String(shorthandMetrics.halfMistakes)
+        : req.body.halfMistakes;
       
       // Calculate pass/fail based on 5% mistake rule using validated metrics
       const mistakePercentage = wordsToUse > 0 ? (mistakesToUse / wordsToUse) * 100 : 0;
-      const calculatedResult = mistakePercentage > 5 ? 'Fail' : 'Pass';
+      const calculatedResult = shorthandMetrics?.result
+        ?? (mistakePercentage > 5 ? 'Fail' : 'Pass');
       
       // Build complete result data with all 4 text versions
       const resultData = {
@@ -1080,6 +1097,7 @@ export async function registerRoutes(
         // Use validated metrics
         words: wordsToUse,
         mistakes: String(mistakesToUse),
+        halfMistakes: halfMistakesToUse,
         result: calculatedResult,
       };
       

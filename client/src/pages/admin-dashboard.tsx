@@ -95,9 +95,10 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
-import { generateResultPDF, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml, calculateDaysLeftForDeactivation } from "@/lib/utils";
+import { generateResultPDF, stripHtmlPreserveParagraphs, PARA_TOKEN, stripHtml, calculateDaysLeftForDeactivation, calculateShorthandResultMetrics } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ResultTextAnalysis } from "@/components/ResultTextAnalysis";
+import { ShorthandResultMetrics } from "@/components/ShorthandResultMetrics";
 import { FolderSelector } from "@/components/FolderSelector";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { queryClient } from "@/lib/queryClient";
@@ -1968,6 +1969,23 @@ export default function AdminDashboard() {
         return;
       }
 
+      const shorthandMetricsByResult = new WeakMap<
+        object,
+        ReturnType<typeof calculateShorthandResultMetrics>
+      >();
+      const getShorthandMetrics = (result: any) => {
+        if (type !== "shorthand") return null;
+        const cached = shorthandMetricsByResult.get(result);
+        if (cached) return cached;
+        const metrics = calculateShorthandResultMetrics(
+          result.originalText || "",
+          result.typedText || "",
+          result.time,
+        );
+        shorthandMetricsByResult.set(result, metrics);
+        return metrics;
+      };
+
       // Sort according to requested type:
       // - typing/allahabad-hc: highest netSpeed first (descending)
       // - shorthand/pitman: lowest mistake% first (ascending)
@@ -1988,9 +2006,12 @@ export default function AdminDashboard() {
         });
       } else {
         const calcMistakePercent = (r: any) => {
-          const mistakes = Number(r.mistakes) || 0;
+          const shorthandMetrics = getShorthandMetrics(r);
+          const mistakes = shorthandMetrics?.mistakes ?? (Number(r.mistakes) || 0);
           let originalWords = 0;
-          if (r.originalText) {
+          if (shorthandMetrics) {
+            originalWords = shorthandMetrics.fullOriginalWords;
+          } else if (r.originalText) {
             if (type === 'shorthand') {
               originalWords = (r.originalText || '').trim().split(/\s+/).filter((w: string) => w).length;
             } else {
@@ -2046,11 +2067,17 @@ export default function AdminDashboard() {
         theadHtml = `<tr><th>Rank</th><th>Student Name</th><th>Original Words</th><th>Words Typed</th><th>Mistakes</th><th>Mistake%</th><th>Result</th></tr>`;
         tbodyHtml = sortedResults.map((result, idx) => {
           const rank = idx + 1;
-          const mistakes = Number(result.mistakes) || 0;
-          const originalWordsNum = result.originalText ? (type === 'shorthand' ? (result.originalText || '').trim().split(/\s+/).filter((w: string) => w).length : stripHtmlPreserveParagraphs(result.originalText || '').split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length) : 0;
+          const shorthandMetrics = getShorthandMetrics(result);
+          const mistakes = shorthandMetrics?.mistakes ?? (Number(result.mistakes) || 0);
+          const originalWordsNum = shorthandMetrics?.fullOriginalWords
+            ?? (result.originalText
+              ? stripHtmlPreserveParagraphs(result.originalText || '').split(/\s+/).filter((w: string) => w && w !== PARA_TOKEN).length
+              : 0);
           const originalWords = originalWordsNum > 0 ? originalWordsNum : 'N/A';
           const mistakePercentage = originalWordsNum > 0 ? ((mistakes / originalWordsNum) * 100).toFixed(2) : 'N/A';
-          return `<tr><td>${rank}</td><td>${result.studentName ?? 'Unknown'}</td><td>${originalWords}</td><td>${result.words?.toString() || 'N/A'}</td><td>${mistakes}</td><td>${mistakePercentage}%</td><td>${result.result || 'N/A'}</td></tr>`;
+          const wordsTyped = shorthandMetrics?.words ?? result.words;
+          const resultValue = shorthandMetrics?.result ?? result.result;
+          return `<tr><td>${rank}</td><td>${result.studentName ?? 'Unknown'}</td><td>${originalWords}</td><td>${wordsTyped?.toString() || 'N/A'}</td><td>${mistakes}</td><td>${mistakePercentage}%</td><td>${resultValue || 'N/A'}</td></tr>`;
         }).join('');
       }
 
@@ -3945,7 +3972,9 @@ export default function AdminDashboard() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="text-sm space-y-1">
-                                      {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
+                                      {result.contentType === "shorthand" ? (
+                                        <ShorthandResultMetrics result={result} variant="summary" />
+                                      ) : (result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
                                         <>
                                           <div className="flex items-center gap-2">
                                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
@@ -4017,57 +4046,59 @@ export default function AdminDashboard() {
                                               </span>{" "}
                                               {result.time} minutes
                                             </div>
-                                            <div>
-                                              <span className="font-semibold">
-                                                Mistakes:
-                                              </span>{" "}
-                                              <span className="text-red-600 font-bold">
-                                                {result.mistakes}
-                                              </span>
-                                            </div>
-                                            <div>
-                                              <span className="font-semibold">
-                                                Total Original Words:
-                                              </span>{" "}
-                                              <span>
-                                                {
-                                                  result.contentType === "shorthand"
-                                                    ? (result.originalText || "").trim().split(/\s+/).filter((w) => w).length
-                                                    : stripHtmlPreserveParagraphs(
-                                                        result.originalText || "",
-                                                      )
-                                                        .trim()
-                                                        .split(/\s+/)
-                                                        .filter((w) => w && w !== PARA_TOKEN)
-                                                        .length
-                                                }
-                                              </span>
-                                            </div>
-                                            <div>
-                                              {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
-                                                <span>
+                                            {result.contentType === "shorthand" ? (
+                                              <ShorthandResultMetrics result={result} variant="analysis" />
+                                            ) : (
+                                              <>
+                                                <div>
                                                   <span className="font-semibold">
-                                                    Gross Speed:
+                                                    Mistakes:
                                                   </span>{" "}
-                                                  {result.grossSpeed} WPM
-                                                </span>
-                                              ) : (
-                                                <span>
-                                                  <span className="font-semibold">
-                                                    Result:
-                                                  </span>{" "}
-                                                  <span
-                                                    className={
-                                                      result.result === "Pass"
-                                                        ? "text-green-600 font-bold"
-                                                        : "text-red-600 font-bold"
-                                                    }
-                                                  >
-                                                    {result.result}
+                                                  <span className="text-red-600 font-bold">
+                                                    {result.mistakes}
                                                   </span>
-                                                </span>
-                                              )}
-                                            </div>
+                                                </div>
+                                                <div>
+                                                  <span className="font-semibold">
+                                                    Total Original Words:
+                                                  </span>{" "}
+                                                  <span>
+                                                    {stripHtmlPreserveParagraphs(
+                                                      result.originalText || "",
+                                                    )
+                                                      .trim()
+                                                      .split(/\s+/)
+                                                      .filter((w) => w && w !== PARA_TOKEN)
+                                                      .length}
+                                                  </span>
+                                                </div>
+                                                <div>
+                                                  {(result.contentType === "typing" || result.contentType === "allahabad-hc") ? (
+                                                    <span>
+                                                      <span className="font-semibold">
+                                                        Gross Speed:
+                                                      </span>{" "}
+                                                      {result.grossSpeed} WPM
+                                                    </span>
+                                                  ) : (
+                                                    <span>
+                                                      <span className="font-semibold">
+                                                        Result:
+                                                      </span>{" "}
+                                                      <span
+                                                        className={
+                                                          result.result === "Pass"
+                                                            ? "text-green-600 font-bold"
+                                                            : "text-red-600 font-bold"
+                                                        }
+                                                      >
+                                                        {result.result}
+                                                      </span>
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </>
+                                            )}
                                           </div>
 
                                           <div className="border rounded p-4 bg-muted/30">
