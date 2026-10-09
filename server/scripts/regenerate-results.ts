@@ -698,27 +698,30 @@ async function regenerateResults() {
         continue;
       }
 
-      // The live tests pass `testContent.duration` (minutes) into
-      // calculateTypingMetrics for gross/net speed. Match that exactly so
-      // recalculation reproduces the same speed numbers.
-      if (result.contentId === null) {
-        console.log(`Skipping result ${result.id} - content ID is missing`);
-        skipped++;
-        continue;
+      // Shorthand scoring doesn't use duration or require the linked content
+      // row; its saved original/typed text is sufficient for recalculation.
+      // Other test types need the content duration to reproduce speed metrics.
+      let timeInMinutes = result.time;
+      if (testType !== "shorthand") {
+        if (result.contentId === null) {
+          console.log(`Skipping result ${result.id} - content ID is missing`);
+          skipped++;
+          continue;
+        }
+
+        const [contentRow] = await db
+          .select({ duration: content.duration })
+          .from(content)
+          .where(eq(content.id, result.contentId));
+
+        if (!contentRow) {
+          console.log(`Skipping result ${result.id} - content ${result.contentId} not found`);
+          skipped++;
+          continue;
+        }
+
+        timeInMinutes = contentRow.duration;
       }
-
-      const [contentRow] = await db
-        .select({ duration: content.duration })
-        .from(content)
-        .where(eq(content.id, result.contentId));
-
-      if (!contentRow) {
-        console.log(`Skipping result ${result.id} - content ${result.contentId} not found`);
-        skipped++;
-        continue;
-      }
-
-      const timeInMinutes = contentRow.duration;
       
       try {
         if (testType === "typing" || testType === "pitman" || testType === "allahabad-hc") {
