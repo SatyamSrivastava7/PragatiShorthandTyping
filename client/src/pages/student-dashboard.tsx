@@ -2199,7 +2199,7 @@ export default function StudentDashboard() {
                                           className={cn("text-sm whitespace-pre-wrap", (result.language as 'english' | 'hindi' | undefined) === 'hindi' ? "font-mangal" : "font-times")}
                                         >
                                           {result.contentType === "shorthand"
-                                            ? stripHtml(result.originalText || "")
+                                            ? <div className="max-w-none" dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
                                             : <div dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
                                           }
                                         </div>

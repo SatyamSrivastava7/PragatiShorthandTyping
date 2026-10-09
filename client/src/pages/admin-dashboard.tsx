@@ -4134,7 +4134,7 @@ export default function AdminDashboard() {
                                               )}
                                             >
                                               {result.contentType === "shorthand"
-                                                ? stripHtml(result.originalText || "")
+                                                ? <div className="max-w-none" dangerouslySetInnerHTML={{ __html: result.originalText || "" }} />
                                                 : result.contentType === "typing" && result.language !== "hindi"
                                                   ? <div
                                                       className="max-w-none"
