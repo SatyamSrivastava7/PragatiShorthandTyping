@@ -3,7 +3,7 @@
 - [High Court assessment isolation](high-court-assessment-isolation.md) — High Court is a separate English-only assessment domain and must not share legacy tests, scoring, results, or PDFs.
 - [Legacy content audio data](legacy-content-audio.md) — keep the old content media column until its remaining values are explicitly reviewed for deletion.
 - [Development user schema drift](development-user-schema-drift.md) — login depends on access_months; do not rename the unrelated legacy current_session_id column when syncing development schema.
-- [High Court display sanitization](high-court-display-sanitization.md) — decode entities before stripping tags and sanitize persisted alignment tokens in every display/export path.
+- [High Court display sanitization](high-court-display-sanitization.md) — remove synthetic formatting mistakes at the scorer source; re-score stored attempts instead of filtering each display.
 - [Typing result display](typing-result-display.md) — admin English Typing results must render the stored uploaded HTML to preserve alignment and formatting.
 - [Admin student list payload](admin-student-list-payload.md) — the admin user list uses a narrow summary projection; fetch full user records only for targeted detail flows.
 - [Notice list payload](notice-list-payload.md) — notice lists expose hasPdf instead of the stored PDF data URL; fetch the attachment only on download.

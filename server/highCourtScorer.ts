@@ -313,86 +313,6 @@ function alignPassage(original: string[], typed: string[]): RawAlignment[] {
   return alignLongPassage(original, typed);
 }
 
-type FormatStyle = "bold" | "italic" | "underline";
-type StyledToken = { value: string; styles: string };
-
-function stylesFromOpeningTag(tagName: string, tag: string): FormatStyle[] {
-  const styles: FormatStyle[] = [];
-  if (tagName === "b" || tagName === "strong") styles.push("bold");
-  if (tagName === "i" || tagName === "em") styles.push("italic");
-  if (tagName === "u") styles.push("underline");
-  if (tagName === "span") {
-    const style = tag.match(/\bstyle\s*=\s*(["'])([\s\S]*?)\1/i)?.[2] || "";
-    if (/\bfont-weight\s*:\s*(?:bold|[6-9]00)\b/i.test(style)) styles.push("bold");
-    if (/\bfont-style\s*:\s*(?:italic|oblique)\b/i.test(style)) styles.push("italic");
-    if (/\btext-decoration(?:-line)?\s*:\s*[^;]*underline/i.test(style)) styles.push("underline");
-  }
-  return styles;
-}
-
-function formattedTokens(value: string): StyledToken[] {
-  const frames: Array<{ tagName: string; styles: FormatStyle[] }> = [];
-  const tokens: StyledToken[] = [];
-  const tagsAndText = /<[^>]+>|[^<]+/g;
-
-  for (const part of value.match(tagsAndText) || []) {
-    const tagMatch = part.match(/^<\s*(\/?)\s*([a-z0-9]+)[^>]*>$/i);
-    if (tagMatch) {
-      const [, closing, rawTagName] = tagMatch;
-      const tagName = rawTagName.toLowerCase();
-      if (closing) {
-        for (let index = frames.length - 1; index >= 0; index--) {
-          if (frames[index].tagName === tagName) {
-            frames.splice(index, 1);
-            break;
-          }
-        }
-      } else {
-        frames.push({ tagName, styles: stylesFromOpeningTag(tagName, part) });
-      }
-      continue;
-    }
-
-    const activeStyles = Array.from(new Set(frames.flatMap((frame) => frame.styles))).sort().join(",");
-    for (const token of decodeText(part).split(/\s+/)) {
-      if (token && token !== PARAGRAPH_TOKEN) tokens.push({ value: token, styles: activeStyles });
-    }
-  }
-
-  return tokens;
-}
-
-function styleMismatchCount(originalHtml: string, typedHtml: string): number {
-  const expected = formattedTokens(originalHtml);
-  const submitted = formattedTokens(typedHtml);
-  const alignment = alignPassage(
-    expected.map((token) => token.value),
-    submitted.map((token) => token.value),
-  );
-
-  let expectedIndex = 0;
-  let submittedIndex = 0;
-  let previousDifference = "";
-  let mismatchCount = 0;
-
-  for (const entry of alignment) {
-    const expectedToken = entry.original ? expected[expectedIndex++] : undefined;
-    const submittedToken = entry.typed ? submitted[submittedIndex++] : undefined;
-    if (entry.status !== "match" || !expectedToken || !submittedToken) {
-      previousDifference = "";
-      continue;
-    }
-
-    const difference = `${expectedToken.styles}|${submittedToken.styles}`;
-    if (expectedToken.styles !== submittedToken.styles && difference !== previousDifference) {
-      mismatchCount++;
-    }
-    previousDifference = expectedToken.styles === submittedToken.styles ? "" : difference;
-  }
-
-  return mismatchCount;
-}
-
 function classifyEntry(type: HighCourtPaper, entry: RawAlignment, index: number): AlignmentEntry {
   if (entry.status === "match") {
     return { ...entry, index, errorType: "ok" };
@@ -432,20 +352,6 @@ export function scoreHighCourtTest(
   const entries = alignPassage(originalTokens, typedTokens)
     .map((entry, index) => classifyEntry(type, entry, index));
 
-  if (type === "typing") {
-    const mismatchCount = styleMismatchCount(originalText, typedText);
-    for (let mismatch = 0; mismatch < mismatchCount; mismatch++) {
-      entries.push({
-        index: entries.length,
-        original: "formatting",
-        typed: "formatting",
-        status: "substitution",
-        errorType: "full",
-        reason: "bold/italic/underline formatting difference",
-      });
-    }
-  }
-
   const fullMistakes = entries.filter((entry) => entry.errorType === "full").length;
   const halfMistakes = entries.filter((entry) => entry.errorType === "half").length;
   const maximumMarks = type === "shorthand" ? 200 : 100;
@@ -456,7 +362,7 @@ export function scoreHighCourtTest(
       : fullMistakes * 0.4 + halfMistakes * 0.2;
 
   return {
-    marks: Math.max(0, maximumMarks - deduction),
+    marks: Math.max(0, Number((maximumMarks - deduction).toFixed(1))),
     fullMistakes,
     halfMistakes,
     alignmentData: JSON.stringify(entries),

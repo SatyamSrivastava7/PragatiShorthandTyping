@@ -3,8 +3,8 @@ name: High Court display sanitization
 description: Rules for keeping High Court alignment results and exports free of editor-generated HTML artifacts.
 ---
 
-Decode HTML entities before removing tags in the High Court scoring pipeline, and apply the same display sanitizer to saved alignment data before rendering it on screen or in PDFs.
+Decode HTML entities before removing tags in the High Court scoring pipeline. Never turn style-only differences into synthetic `"formatting"` word entries or word-error deductions. Keep display sanitization for genuine Word/HTML artifacts, but do not hide this scorer-generated entry separately in each result view.
 
-**Why:** Rich-text and Word-generated content can contain escaped tags such as `&lt;o:p&gt;`. Stripping tags first lets those tags become visible comparison tokens after decoding, and previously saved attempts can still contain those artifacts.
+**Why:** The High Court typing scorer converted bold/italic/underline differences into a fake `"formatting"` alignment entry, which appeared as a red/green word pair and incorrectly changed mistake totals and marks. Previously saved attempts retain that synthetic entry until they are re-scored.
 
-**How to apply:** Keep paragraph/error semantics in the server alignment data for scoring, but hide paragraph markers and Word/HTML artifact tokens from user-facing comparison and PDF output. Reuse the client sanitizer for every High Court result presentation.
+**How to apply:** Fix the rule in the High Court scorer so all new submissions and metrics use text alignment only. For existing attempts, re-score rows containing the exact legacy formatting-error reason from their saved original and typed text, updating marks and alignment data while preserving source text. Do not add a filter to individual student/admin/PDF views.

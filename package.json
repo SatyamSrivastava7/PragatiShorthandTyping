@@ -10,6 +10,7 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "results:recalculate:shorthand": "tsx server/scripts/regenerate-results.ts --shorthand --limit=50",
+    "results:recalculate:high-court-formatting": "tsx server/scripts/recalculate-high-court-formatting.ts",
     "test:high-court": "tsx server/highCourtScorer.test.ts",
     "db:push": "drizzle-kit push"
   },

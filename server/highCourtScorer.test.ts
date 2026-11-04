@@ -82,8 +82,17 @@ function alignmentFor(type: "typing" | "pitman" | "shorthand", original: string,
   const original = "<b><i>important</i></b> <u>notice</u>";
   const typed = "<strong>important</strong> notice";
   const result = scoreHighCourtTest("typing", original, typed);
-  assert.equal(result.fullMistakes, 2);
-  assert.equal(result.marks, 99.6);
+  assert.equal(result.fullMistakes, 0);
+  assert.equal(result.marks, 100);
+  const entries = alignmentFor("typing", original, typed);
+  assert.ok(entries.every((entry) => entry.original !== "formatting" && entry.typed !== "formatting"));
+}
+
+{
+  const original = Array.from({ length: 500 }, (_, index) => `word${index}`).join(" ");
+  const result = scoreHighCourtTest("typing", original, "word499");
+  assert.equal(result.fullMistakes, 499);
+  assert.equal(result.marks, 0.2);
 }
 
 {
