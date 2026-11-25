@@ -19,6 +19,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { scrollActiveMarkerIntoView } from "@/lib/typingAutoScroll";
+import { useAssessmentTimer } from "@/hooks/useAssessmentTimer";
 
 export default function AllahabadHCTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -28,7 +29,6 @@ export default function AllahabadHCTestPage() {
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
-  const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [backspaces, setBackspaceCount] = useState(0);
@@ -41,10 +41,7 @@ export default function AllahabadHCTestPage() {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState<boolean | null>(null);
   const [highlighterEnabled, setHighlighterEnabled] = useState<boolean>(true);
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
-  const timerEndAtRef = useRef<number | null>(null);
-  const finishTestRef = useRef<(() => void) | null>(null);
 
   // Refs to always have the latest typedText and backspaces without stale closures
   const typedTextRef = useRef<string>("");
@@ -58,9 +55,6 @@ export default function AllahabadHCTestPage() {
 
   useEffect(() => {
     if (testContent) {
-      if (!isActive && startTimeRef.current === null && !isFinished) {
-        setTimeLeft(testContent.duration * 60);
-      }
       setAutoScrollEnabled(testContent.autoScroll ?? true);
     }
   }, [testContent, isActive, isFinished]);
@@ -179,6 +173,7 @@ export default function AllahabadHCTestPage() {
       // Also refetch the counts specifically
       await queryClient.invalidateQueries({ queryKey: ['results', 'counts'] });
       
+      setIsActive(false);
       setIsFinished(true);
       // Exit our CSS full-screen layer (z-[60]) before showing the success
       // dialog. Otherwise the Radix Dialog (z-50, rendered via Portal to
@@ -213,48 +208,18 @@ export default function AllahabadHCTestPage() {
   }, [testContent, currentUser, createResult, toast]);
 
   const finishTest = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
     setIsActive(false);
     setIsFinished(true);
     handleSubmit();
   }, [handleSubmit]);
 
-  useEffect(() => {
-    finishTestRef.current = finishTest;
-  }, [finishTest]);
+  const { timeLeft, startTimer, resetTimer } = useAssessmentTimer(isActive, finishTest);
 
   useEffect(() => {
-    if (!isActive || !testContent) return;
-
-    const endAt = timerEndAtRef.current ?? (Date.now() + testContent.duration * 60 * 1000);
-    timerEndAtRef.current = endAt;
-
-    const updateRemainingTime = () => {
-      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
-      setTimeLeft(remaining);
-
-      if (remaining === 0) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-        finishTestRef.current?.();
-      }
-    };
-
-    updateRemainingTime();
-    intervalRef.current = setInterval(updateRemainingTime, 250);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isActive, testContent]);
+    if (testContent && !isActive && startTimeRef.current === null && !isFinished) {
+      resetTimer(testContent.duration * 60);
+    }
+  }, [testContent, isActive, isFinished, resetTimer]);
 
   // Keep the active word in a readable window without permanently disabling
   // auto-scroll after a student's manual review scroll.
@@ -368,8 +333,7 @@ export default function AllahabadHCTestPage() {
   const handleStartClick = () => {
     if (!testContent) return;
     startTimeRef.current = Date.now();
-    timerEndAtRef.current = startTimeRef.current + testContent.duration * 60 * 1000;
-    setTimeLeft(testContent.duration * 60);
+    startTimer(testContent.duration * 60);
     setIsActive(true);
     originalTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
   };

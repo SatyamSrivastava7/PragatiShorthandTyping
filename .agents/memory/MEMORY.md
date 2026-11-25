@@ -10,7 +10,7 @@
 - [High Court test-set cache](high-court-test-set-cache.md) — cache paged test-set responses across tab remounts and invalidate after High Court mutations or explicit refresh.
 - [Settings QR payload](settings-qr-payload.md) — keep the QR data URL out of shared settings responses; fetch it only in payment or QR-view flows.
 - [High Court formatting toolbar](high-court-formatting-toolbar.md) — keep typing formatting controls visible and structurally above the scrollable response area.
-- [Assessment timer stability](assessment-timer-stability.md) — calculate countdowns from an absolute end timestamp instead of resetting intervals on typed-response updates.
+- [Assessment timer stability](assessment-timer-stability.md) — use one monotonic deadline-based countdown across assessment pages and refresh it after backgrounding.
 - [High Court response font size](high-court-response-font-size.md) — the shared header font control must style every High Court response mode and sync with Typing's rich editor.
 - [Typing auto-scroll stability](high-court-auto-scroll-stability.md) — memoize question markup by word and use immediate marker scroll in regular and High Court Typing.
 - [High Court typing workspace sizing](high-court-typing-workspace-sizing.md) — reclaim surrounding chrome space before enlarging both question and response areas in the fixed viewport.

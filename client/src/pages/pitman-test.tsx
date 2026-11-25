@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
+import { useAssessmentTimer } from "@/hooks/useAssessmentTimer";
 
 export default function PitmanTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -27,7 +28,6 @@ export default function PitmanTestPage() {
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
-  const [timeLeft, setTimeLeft] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [backspaces, setBackspaceCount] = useState(0);
@@ -55,14 +55,8 @@ export default function PitmanTestPage() {
   useEffect(() => { backspacesRef.current = backspaces; }, [backspaces]);
   useEffect(() => { if (typedText.length > 0) lastNonEmptyTypedTextRef.current = typedText; }, [typedText]);
 
-  // Timer References
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const totalDurationRef = useRef<number>(0);
-
   useEffect(() => {
     if (testContent) {
-      setTimeLeft(testContent.duration * 60);
       // Generate blob URL from pdfFile (base64 encoded PDF)
       console.log("Processing test content - ID:", testContent.id, "PDF field exists:", !!testContent.pdfFile);
       if (testContent.pdfFile && testContent.pdfFile.trim().length > 0) {
@@ -204,6 +198,8 @@ export default function PitmanTestPage() {
       // Also refetch the counts specifically
       await queryClient.invalidateQueries({ queryKey: ['results', 'counts'] });
 
+      setIsActive(false);
+      setIsFinished(true);
       setSubmissionFailed(false);
       setShowResultModal(true);
     } catch (error) {
@@ -223,10 +219,6 @@ export default function PitmanTestPage() {
   }, [testContent, currentUser, createResult, toast]);
 
   const finishTest = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
     setIsActive(false);
     setIsFinished(true);
     
@@ -234,35 +226,13 @@ export default function PitmanTestPage() {
     handleSubmit();
   }, [handleSubmit]);
 
+  const { timeLeft, startTimer, resetTimer } = useAssessmentTimer(isActive, finishTest);
+
   useEffect(() => {
-    if (isActive) {
-      if (startTimeRef.current === null) {
-        startTimeRef.current = Date.now();
-        totalDurationRef.current = timeLeft;
-      }
-      
-      intervalRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
-        const remaining = Math.max(0, totalDurationRef.current - elapsed);
-        setTimeLeft(remaining);
-        
-        if (remaining === 0) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          finishTest();
-        }
-      }, 100);
+    if (testContent && !isActive && !isFinished) {
+      resetTimer(testContent.duration * 60);
     }
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isActive, finishTest]);
+  }, [testContent, isActive, isFinished, resetTimer]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (!isActive) return;
@@ -323,6 +293,7 @@ export default function PitmanTestPage() {
       setCooldownRemaining(30 * 60 * 1000);
     }
     
+    if (testContent) startTimer(testContent.duration * 60);
     setIsActive(true);
     const textarea = document.getElementById("pitman-typing-area");
     if (textarea) textarea.focus();

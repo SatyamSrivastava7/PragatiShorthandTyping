@@ -26,6 +26,7 @@ import {
 import { Toggle } from "@/components/ui/toggle";
 import { Label } from "@/components/ui/label";
 import { scrollActiveMarkerIntoView } from "@/lib/typingAutoScroll";
+import { useAssessmentTimer } from "@/hooks/useAssessmentTimer";
 
 export default function TypingTestPage() {
   const [, params] = useRoute("/test/:id");
@@ -35,7 +36,6 @@ export default function TypingTestPage() {
   const { toast } = useToast();
   
   const [typedText, setTypedText] = useState("");
-  const [timeLeft, setTimeLeft] = useState(0); // in seconds
   const [isActive, setIsActive] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [backspaces, setBackspaceCount] = useState(0);
@@ -65,21 +65,10 @@ export default function TypingTestPage() {
   useEffect(() => { if (typedText.length > 0) lastNonEmptyTypedTextRef.current = typedText; }, [typedText]);
 
   // Timer References
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const totalDurationRef = useRef<number>(0);
   const originalTextRef = useRef<HTMLDivElement>(null);
   const testShellRef = useRef<HTMLDivElement>(null);
   const autoScrollLockRef = useRef(false);
   const autoScrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (testContent) {
-      setTimeLeft(testContent.duration * 60);
-      // Initialize autoScrollEnabled from testContent
-      setAutoScrollEnabled(testContent.autoScroll ?? true);
-    }
-  }, [testContent]);
 
   // Cooldown check - 30 minutes after starting test
   useEffect(() => {
@@ -194,6 +183,8 @@ export default function TypingTestPage() {
         description: "Your results have been recorded.",
       });
 
+      setIsActive(false);
+      setIsFinished(true);
       setSubmissionFailed(false);
       setShowResultModal(true);
     } catch (error) {
@@ -213,10 +204,6 @@ export default function TypingTestPage() {
   }, [testContent, currentUser, createResult, toast]);
 
   const finishTest = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
     setIsActive(false);
     setIsFinished(true);
     
@@ -224,38 +211,14 @@ export default function TypingTestPage() {
     handleSubmit();
   }, [handleSubmit]);
 
+  const { timeLeft, startTimer, resetTimer } = useAssessmentTimer(isActive, finishTest);
+
   useEffect(() => {
-    if (isActive) {
-      // Initialize start time when test becomes active
-      if (startTimeRef.current === null) {
-        startTimeRef.current = Date.now();
-        totalDurationRef.current = timeLeft;
-      }
-      
-      // Use a single interval that calculates remaining time from elapsed
-      intervalRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
-        const remaining = Math.max(0, totalDurationRef.current - elapsed);
-        setTimeLeft(remaining);
-        
-        if (remaining === 0) {
-          // Time's up - clear interval and finish
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          finishTest();
-        }
-      }, 100); // Check more frequently for accuracy
+    if (testContent) {
+      if (!isActive && !isFinished) resetTimer(testContent.duration * 60);
+      setAutoScrollEnabled(testContent.autoScroll ?? true);
     }
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isActive, finishTest]);
+  }, [testContent, isActive, isFinished, resetTimer]);
   
   const currentTypingWordIndex = useMemo(() => {
     const tokens = typedText.split(/\s+/).filter(w => w && w !== PARA_TOKEN);
@@ -318,6 +281,7 @@ export default function TypingTestPage() {
       setCooldownRemaining(30 * 60 * 1000);
     }
     
+    if (testContent) startTimer(testContent.duration * 60);
     setIsActive(true);
     originalTextRef.current?.scrollTo({ top: 0, behavior: "auto" });
     // Focus textarea

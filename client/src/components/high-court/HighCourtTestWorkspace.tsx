@@ -11,6 +11,7 @@ import { HighCourtPdfViewer } from "./HighCourtPdfViewer";
 import { stripHtmlEntities, stripHtmlPreserveParagraphs, PARA_TOKEN } from "@/lib/utils";
 import { scrollActiveMarkerIntoView } from "@/lib/typingAutoScroll";
 import { useToast } from "@/hooks/use-toast";
+import { useAssessmentTimer } from "@/hooks/useAssessmentTimer";
 
 const labels: Record<HighCourtTestType, string> = {
   typing: "Typing Test",
@@ -27,16 +28,12 @@ const colors: Record<HighCourtTestType, string> = {
 export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCourtTestType }) {
   const [, params] = useRoute(`/high-court/${expectedType}/:id`);
   const { toast } = useToast();
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submittedRef = useRef(false);
   const typedTextRef = useRef("");
-  const timerEndAtRef = useRef<number | null>(null);
-  const submitRef = useRef<(() => Promise<void>) | null>(null);
   const [test, setTest] = useState<HighCourtTest | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [typedText, setTypedText] = useState("");
-  const [timeLeft, setTimeLeft] = useState(0);
   const [active, setActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");
@@ -76,7 +73,6 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     highCourtApi.getTest(id)
       .then((data) => {
         setTest(data);
-        setTimeLeft(data.duration * 60);
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : "Unable to load this test.";
@@ -125,55 +121,15 @@ export function HighCourtTestWorkspace({ expectedType }: { expectedType: HighCou
     typedTextRef.current = typedText;
   }, [typedText]);
 
-  useEffect(() => {
-    submitRef.current = submit;
-  }, [submit]);
+  const { timeLeft, startTimer, resetTimer } = useAssessmentTimer(active, submit);
 
   useEffect(() => {
-    if (!active || !test) return;
-
-    const endAt = timerEndAtRef.current ?? (Date.now() + test.duration * 60 * 1000);
-    timerEndAtRef.current = endAt;
-    let cancelled = false;
-
-    const updateRemainingTime = () => {
-      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
-      setTimeLeft(remaining);
-
-      if (remaining === 0) {
-        timerRef.current = null;
-        void submitRef.current?.();
-        return;
-      }
-
-      // Recalculate from the absolute end time on every tick. This stays
-      // accurate when an older browser throttles timers or briefly sleeps.
-      if (!cancelled) {
-        timerRef.current = setTimeout(updateRemainingTime, 500);
-      }
-    };
-
-    const updateWhenVisible = () => {
-      if (!document.hidden) updateRemainingTime();
-    };
-
-    updateRemainingTime();
-    document.addEventListener("visibilitychange", updateWhenVisible);
-
-    return () => {
-      cancelled = true;
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      document.removeEventListener("visibilitychange", updateWhenVisible);
-    };
-  }, [active, test]);
+    if (test && !active && !result) resetTimer(test.duration * 60);
+  }, [test, active, result, resetTimer]);
 
   const start = () => {
     if (!test || submittedRef.current) return;
-    timerEndAtRef.current = Date.now() + test.duration * 60 * 1000;
-    setTimeLeft(test.duration * 60);
+    startTimer(test.duration * 60);
     setActive(true);
     questionPaperRef.current?.scrollTo({ top: 0, behavior: "auto" });
     setTimeout(() => document.getElementById(expectedType === "typing" ? "high-court-rich-editor" : "high-court-textarea")?.focus(), 0);
